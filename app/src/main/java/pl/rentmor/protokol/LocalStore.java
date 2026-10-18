@@ -7,14 +7,14 @@ import org.json.*;
 import java.util.*;
 
 public class LocalStore extends SQLiteOpenHelper {
-    public LocalStore(Context c) { super(c, "rentmor_local.db", null, 2); }
+    public LocalStore(Context c) { super(c, "rentmor_local.db", null, 3); }
     @Override public void onCreate(SQLiteDatabase db) {
         db.execSQL("CREATE TABLE protocols(id TEXT PRIMARY KEY, number TEXT, status TEXT, data TEXT, updated INTEGER)");
         db.execSQL("CREATE TABLE queue(op_id TEXT PRIMARY KEY, action TEXT, payload TEXT, created INTEGER)");
         db.execSQL("CREATE TABLE equipment(name TEXT PRIMARY KEY)");
-        db.execSQL("CREATE TABLE reservations(id TEXT PRIMARY KEY, month TEXT, text TEXT, done INTEGER, updated INTEGER)");
+        db.execSQL("CREATE TABLE reservations(id TEXT PRIMARY KEY, month TEXT, text TEXT, done INTEGER, data TEXT, updated INTEGER)");
     }
-    @Override public void onUpgrade(SQLiteDatabase db,int oldV,int newV) { if(oldV<2) db.execSQL("CREATE TABLE IF NOT EXISTS reservations(id TEXT PRIMARY KEY, month TEXT, text TEXT, done INTEGER, updated INTEGER)"); }
+    @Override public void onUpgrade(SQLiteDatabase db,int oldV,int newV) { if(oldV<2) db.execSQL("CREATE TABLE IF NOT EXISTS reservations(id TEXT PRIMARY KEY, month TEXT, text TEXT, done INTEGER, updated INTEGER)"); if(oldV<3) db.execSQL("ALTER TABLE reservations ADD COLUMN data TEXT"); }
     public synchronized void enqueue(String action, JSONObject payload) {
         try {
             String opId = UUID.randomUUID().toString();
@@ -97,23 +97,30 @@ public class LocalStore extends SQLiteOpenHelper {
 
     public synchronized void saveReservation(JSONObject r) {
         ContentValues v=new ContentValues(); v.put("id",r.optString("id")); v.put("month",r.optString("month"));
-        v.put("text",r.optString("text")); v.put("done",r.optBoolean("done")?1:0); v.put("updated",System.currentTimeMillis());
+        v.put("text",r.optString("text")); v.put("done",r.optBoolean("done")?1:0); v.put("data",r.toString()); v.put("updated",System.currentTimeMillis());
         getWritableDatabase().insertWithOnConflict("reservations",null,v,SQLiteDatabase.CONFLICT_REPLACE);
     }
     public synchronized JSONArray reservations(String month) {
-        JSONArray a=new JSONArray(); Cursor c=getReadableDatabase().rawQuery("SELECT id,month,text,done FROM reservations WHERE month=?",new String[]{month});
-        try { while(c.moveToNext()) { JSONObject x=new JSONObject(); x.put("id",c.getString(0)); x.put("month",c.getString(1)); x.put("text",c.getString(2)); x.put("done",c.getInt(3)==1); a.put(x); } }
+        JSONArray a=new JSONArray(); Cursor c=getReadableDatabase().rawQuery("SELECT data,id,month,text,done FROM reservations WHERE month=? ORDER BY updated",new String[]{month});
+        try { while(c.moveToNext()) { JSONObject x; try{x=c.isNull(0)?new JSONObject():new JSONObject(c.getString(0));}catch(Exception e){x=new JSONObject();}
+            if(!x.has("id"))x.put("id",c.getString(1)); if(!x.has("month"))x.put("month",c.getString(2)); if(!x.has("text"))x.put("text",c.getString(3)); if(!x.has("done"))x.put("done",c.getInt(4)==1); a.put(x); } }
         catch(Exception ignored) {} finally { c.close(); } return a;
     }
     public synchronized void deleteReservation(String id) { getWritableDatabase().delete("reservations","id=?",new String[]{id}); }
     public synchronized void replaceServerReservations(JSONArray a) {
-        SQLiteDatabase db=getWritableDatabase(); HashSet<String> keep=new HashSet<>();
+        SQLiteDatabase db=getWritableDatabase(); HashSet<String> keep=new HashSet<>(), pendingDelete=new HashSet<>();
         for(int i=0;i<a.length();i++){JSONObject x=a.optJSONObject(i);if(x!=null)keep.add(x.optString("id"));}
         JSONArray pending=queued();
-        for(int i=0;i<pending.length();i++){JSONObject op=pending.optJSONObject(i);if(op!=null && "reservation_save".equals(op.optString("action")))keep.add(op.optString("id"));}
+        for(int i=0;i<pending.length();i++){JSONObject op=pending.optJSONObject(i);if(op==null)continue;
+            String action=op.optString("action"), id=op.optString("id");
+            if("reservation_save".equals(action)||"reservation_settle".equals(action))keep.add(id);
+            if("reservation_delete".equals(action))pendingDelete.add(id);
+        }
+        keep.removeAll(pendingDelete);
         db.beginTransaction();
         try {
-            for(int i=0;i<a.length();i++){JSONObject x=a.optJSONObject(i);if(x!=null)saveReservation(x);}
+            for(int i=0;i<a.length();i++){JSONObject x=a.optJSONObject(i);if(x!=null&&!pendingDelete.contains(x.optString("id")))saveReservation(x);}
+            for(String id:pendingDelete)db.delete("reservations","id=?",new String[]{id});
             Cursor rows=db.rawQuery("SELECT id FROM reservations",null);
             try { while(rows.moveToNext()){String id=rows.getString(0);if(!keep.contains(id))db.delete("reservations","id=?",new String[]{id});} }
             finally { rows.close(); }
