@@ -43,6 +43,7 @@ public class SyncManager {
         }
         JSONObject server=request("GET",null);
         store.replaceServerProtocols(server.optJSONArray("protocols")==null?new JSONArray():server.optJSONArray("protocols"));
+        store.replaceServerReservations(server.optJSONArray("reservations")==null?new JSONArray():server.optJSONArray("reservations"));
         store.setEquipment(server.optJSONArray("equipment")==null?new JSONArray():server.optJSONArray("equipment"));
         context.getSharedPreferences("rentmor",0).edit().putString("role",server.optString("role")).apply();
         return server;
