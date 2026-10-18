@@ -45,7 +45,7 @@ public class LocalStore extends SQLiteOpenHelper {
     public synchronized void replaceServerProtocols(JSONArray a) {
         SQLiteDatabase db=getWritableDatabase(); db.beginTransaction();
         try {
-            for(int i=0;i<a.length();i++) saveProtocol(a.getJSONObject(i));
+            for(int i=0;i<a.length();i++){JSONObject server=a.getJSONObject(i);String id=server.optString("id");Cursor oldRow=db.rawQuery("SELECT data FROM protocols WHERE id=?",new String[]{id});try{if(oldRow.moveToFirst()){JSONObject local=new JSONObject(oldRow.getString(0));String[] localOnly={"photo_base64","signature_base64","return_signature_base64"};for(String key:localOnly)if(!server.has(key)&&local.has(key))server.put(key,local.get(key));}}finally{oldRow.close();}saveProtocol(server);}
             db.setTransactionSuccessful();
         } catch(Exception ignored) {} finally { db.endTransaction(); }
     }
