@@ -138,7 +138,8 @@ public class MainActivity extends Activity {
         ScrollView scroll=new ScrollView(this);
         LinearLayout list=new LinearLayout(this); list.setOrientation(1); list.setPadding(0,10,0,8);
         scroll.addView(list); root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-        Runnable render=()->{
+        final Runnable[] render=new Runnable[1];
+        render[0]=()->{
             Calendar selected=parseReservationMonth(month[0]);
             monthLabel.setText(new SimpleDateFormat("LLLL yyyy",new Locale("pl","PL")).format(selected.getTime()).toUpperCase(new Locale("pl","PL")));
             list.removeAllViews();
@@ -166,7 +167,7 @@ public class MainActivity extends Activity {
                 Button delete=new Button(this); delete.setText("×"); row.addView(delete);
                 LinearLayout.LayoutParams rowParams=new LinearLayout.LayoutParams(-1,-2); rowParams.bottomMargin=7; list.addView(row,rowParams);
                 check.setOnCheckedChangeListener((button,checked)->{
-                    try{item.put("done",checked);store.saveReservation(item);store.enqueue("reservation_save",item);if(isOnline())syncNow();render.run();}
+                    try{item.put("done",checked);store.saveReservation(item);store.enqueue("reservation_save",item);if(isOnline())syncNow();render[0].run();}
                     catch(Exception ex){toast("Nie udało się zapisać zmiany.");}
                 });
                 edit.setOnClickListener(v->{
