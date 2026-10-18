@@ -53,7 +53,7 @@ if ($method === 'GET') {
     }
     rm_json_response(200, [
         'ok'=>true, 'role'=>$role, 'server_time'=>date(DATE_ATOM),
-        'protocols'=>array_values($protocols), 'equipment'=>array_keys($equipment)
+        'protocols'=>array_values($protocols), 'reservations'=>array_values(rm_read_json_file(__DIR__ . '/reservations.json', [])), 'equipment'=>array_keys($equipment)
     ]);
 }
 if ($method !== 'POST') rm_json_response(405, ['ok'=>false, 'error'=>'Niedozwolona metoda.']);
@@ -78,6 +78,45 @@ foreach ($operations as $op) {
     $opId = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($op['op_id'] ?? ''));
     $action = (string)($op['action'] ?? '');
     if ($opId === '' || strlen($opId) > 80) { $results[]=['ok'=>false,'error'=>'Brak poprawnego identyfikatora operacji']; continue; }
+
+
+    if ($action === 'reservation_save' || $action === 'reservation_delete') {
+        $reservationFile = __DIR__ . '/reservations.json';
+        $reservationLock = fopen($reservationFile . '.lock', 'c+');
+        if (!$reservationLock || !flock($reservationLock, LOCK_EX)) {
+            if ($reservationLock) fclose($reservationLock);
+            $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Lista rezerwacji jest chwilowo zajęta.']; continue;
+        }
+        $reservations = rm_read_json_file($reservationFile, []);
+        $id = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($op['id'] ?? ''));
+        if ($id === '') {
+            flock($reservationLock, LOCK_UN); fclose($reservationLock);
+            $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Brak identyfikatora rezerwacji.']; continue;
+        }
+        if ($action === 'reservation_save') {
+            $month = rm_text($op, 'month', 7);
+            $text = rm_text($op, 'text', 500);
+            if (!preg_match('/^\\d{4}-\\d{2}$/', $month) || $text === '') {
+                flock($reservationLock, LOCK_UN); fclose($reservationLock);
+                $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nieprawidłowa rezerwacja.']; continue;
+            }
+            $item=['id'=>$id,'month'=>$month,'text'=>$text,'done'=>!empty($op['done'])];
+            $found=false;
+            foreach ($reservations as &$saved) { if (($saved['id'] ?? '') === $id) { $saved=$item; $found=true; break; } }
+            unset($saved);
+            if (!$found) $reservations[]=$item;
+        } else {
+            $reservations=array_values(array_filter($reservations, fn($saved)=>(string)($saved['id'] ?? '') !== $id));
+        }
+        $json=json_encode(array_values($reservations), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $tmp=$reservationFile.'.'.bin2hex(random_bytes(6)).'.tmp';
+        $ok=$json!==false && file_put_contents($tmp,$json,LOCK_EX)!==false && rename($tmp,$reservationFile);
+        if (!$ok && is_file($tmp)) @unlink($tmp);
+        flock($reservationLock, LOCK_UN); fclose($reservationLock);
+        if (!$ok) { $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nie udało się zapisać listy rezerwacji.']; continue; }
+        $results[]=['op_id'=>$opId,'ok'=>true,'id'=>$id];
+        continue;
+    }
 
     // Idempotency: replaying the same create/return is safe.
     $already = false;
