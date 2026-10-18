@@ -66,8 +66,7 @@ public class MainActivity extends Activity {
         addButton("WRÓĆ",()->showHome());
     }
     private void protocolList(){root.removeAllViews();TextView h=new TextView(this);h.setText("PROTOKOŁY W TELEFONIE");h.setTextSize(20);h.setTextColor(0xff123b68);root.addView(h);
-        JSONArray a=store.allProtocols();for(int i=0;i<a.length();i++){JSONObject p=a.optJSONObject(i);if(p==null)continue;TextView t=new TextView(this);t.setText(p.optString("number")+" • "+p.optString("client")+"
-"+p.optString("equipment")+" • "+p.optString("status"));t.setPadding(8,16,8,16);root.addView(t);Button pdf=new Button(this);pdf.setText("Zapisz PDF");pdf.setOnClickListener(v->makePdf(p));root.addView(pdf);}
+        JSONArray a=store.allProtocols();for(int i=0;i<a.length();i++){JSONObject p=a.optJSONObject(i);if(p==null)continue;TextView t=new TextView(this);t.setText(p.optString("number")+ " • "+p.optString("client")+" \\n"+p.optString("equipment")+" • "+p.optString("status"));t.setPadding(8,16,8,16);root.addView(t);Button pdf=new Button(this);pdf.setText("Zapisz PDF");pdf.setOnClickListener(v->makePdf(p));root.addView(pdf);}
         addButton("WRÓĆ",()->showHome());
     }
 
@@ -86,8 +85,7 @@ public class MainActivity extends Activity {
         root.removeAllViews(); TextView h=new TextView(this); h.setText("PROTOKOŁY DO ZWROTU"); h.setTextSize(20); h.setTextColor(0xff123b68); root.addView(h);
         JSONArray a=store.allProtocols(); int count=0;
         for(int i=0;i<a.length();i++){JSONObject p=a.optJSONObject(i); if(p==null||!"wydany".equals(p.optString("status")))continue; count++;
-            Button b=new Button(this); b.setAllCaps(false); b.setText(p.optString("number")+" • "+p.optString("client")+"\
-"+p.optString("equipment")); b.setOnClickListener(v->returnForm(p)); root.addView(b);
+            Button b=new Button(this); b.setAllCaps(false); b.setText(p.optString("number")+ " • "+p.optString("client")+" \\n"+p.optString("equipment")); b.setOnClickListener(v->returnForm(p)); root.addView(b);
         }
         if(count==0){TextView t=new TextView(this);t.setText("Brak wydanych protokołów.");root.addView(t);}
         addButton("WRÓĆ",()->showHome());
