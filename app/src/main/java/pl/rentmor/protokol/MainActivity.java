@@ -14,13 +14,14 @@ import org.json.*;
 import java.io.*;
 import java.text.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import android.util.Base64;
 
 public class MainActivity extends Activity {
     private static final String HOME="https://rentmor.pl/protocol.php";
     private LocalStore store; private SyncManager sync; private LinearLayout root; private TextView status;
-    private WebView activation; private boolean showingApp=false; private Bitmap issuePhoto; private SignatureView signatureView;
-    @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(Color.rgb(18,59,104));getWindow().setNavigationBarColor(Color.rgb(18,59,104));store=new LocalStore(this);sync=new SyncManager(this,store);
+    private WebView activation; private boolean showingApp=false; private Bitmap issuePhoto; private SignatureView signatureView; private final AtomicBoolean syncRunning=new AtomicBoolean(false); private ConnectivityManager.NetworkCallback networkCallback;
+    @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(Color.rgb(18,59,104));getWindow().setNavigationBarColor(Color.rgb(18,59,104));store=new LocalStore(this);sync=new SyncManager(this,store);registerNetworkSync();
         String saved=getSharedPreferences("rentmor",0).getString("cookie","");
         if(!saved.isEmpty()) showHome(); else showActivation();
     }
@@ -44,7 +45,9 @@ public class MainActivity extends Activity {
     private boolean isOnline(){android.net.ConnectivityManager cm=(android.net.ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);android.net.Network n=cm.getActiveNetwork();return n!=null&&cm.getNetworkCapabilities(n)!=null&&cm.getNetworkCapabilities(n).hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET);}
     private void addButton(String text,Runnable action){Button b=new Button(this);b.setText(text);b.setAllCaps(false);b.setOnClickListener(v->action.run());root.addView(b,new LinearLayout.LayoutParams(-1,-2));}
     private EditText field(String hint){EditText e=new EditText(this);e.setSingleLine(false);e.setHint(hint);root.addView(e,new LinearLayout.LayoutParams(-1,-2));return e;}
-    private void syncNow(){if(!isOnline()){status.setText("Brak internetu. Dane pozostają bezpiecznie w telefonie.");return;}status.setText("Synchronizacja…");new Thread(()->{try{sync.sync();runOnUiThread(()->{status.setText("Synchronizacja zakończona. Oczekujące: "+store.pendingCount());});}catch(Exception e){runOnUiThread(()->status.setText("Nie wysłano: "+e.getMessage()+" • Dane zapisane lokalnie."));}}).start();}
+    private void registerNetworkSync(){ConnectivityManager cm=(ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);networkCallback=new ConnectivityManager.NetworkCallback(){@Override public void onAvailable(android.net.Network network){runOnUiThread(()->{if(showingApp&&getSharedPreferences("rentmor",0).getString("cookie","").length()>0)syncNow();});}};try{cm.registerDefaultNetworkCallback(networkCallback);}catch(Exception ignored){}}
+    @Override protected void onDestroy(){try{if(networkCallback!=null)((ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE)).unregisterNetworkCallback(networkCallback);}catch(Exception ignored){}super.onDestroy();}
+    private void syncNow(){if(!isOnline()){if(status!=null)status.setText("Brak internetu. Dane pozostają bezpiecznie w telefonie.");return;}if(!syncRunning.compareAndSet(false,true))return;if(status!=null)status.setText("Synchronizacja…");new Thread(()->{try{sync.sync();runOnUiThread(()->{if(status!=null)status.setText("Synchronizacja zakończona. Oczekujące: "+store.pendingCount());});}catch(Exception e){runOnUiThread(()->{if(status!=null)status.setText("Nie wysłano: "+e.getMessage()+" • Dane zapisane lokalnie.");});}finally{syncRunning.set(false);}}).start();}
     private void newIssue(){
         issuePhoto=null; signatureView=null;
         root.removeAllViews(); TextView h=new TextView(this);h.setText("NOWY PROTOKÓŁ WYDANIA");h.setTextSize(20);h.setTextColor(0xff123b68);root.addView(h);
