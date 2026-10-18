@@ -39,10 +39,10 @@ public class MainActivity extends Activity {
         status=new TextView(this);status.setText("Dane lokalne: "+store.allProtocols().length()+" • Oczekujące: "+store.pendingCount());status.setPadding(0,12,0,12);root.addView(status);
         addButton("Synchronizuj teraz",()->syncNow());addButton("Nowy protokół wydania",()->newIssue());addButton("Lista protokołów",()->protocolList());
         addButton("Obsłuż zwrot sprzętu",()->returnList());
-        addButton("Aktywuj / zmień urządzenie",()->{getSharedPreferences("rentmor",0).edit().remove("cookie").apply();showActivation();});
+        addButton("Aktywuj / zmień urządzenie",()->resetActivation());
         setContentView(root); if(isOnline()) syncNow();
     }
-    private boolean isOnline(){android.net.ConnectivityManager cm=(android.net.ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);android.net.Network n=cm.getActiveNetwork();return n!=null&&cm.getNetworkCapabilities(n)!=null&&cm.getNetworkCapabilities(n).hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET);}
+    private void resetActivation(){\n        showingApp=false;\n        getSharedPreferences("rentmor",0).edit().remove("cookie").apply();\n        CookieManager cm=CookieManager.getInstance();\n        cm.setAcceptCookie(true);\n        cm.removeAllCookies(removed->{cm.flush();runOnUiThread(()->showActivation());});\n    }\n    private boolean isOnline(){android.net.ConnectivityManager cm=(android.net.ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);android.net.Network n=cm.getActiveNetwork();return n!=null&&cm.getNetworkCapabilities(n)!=null&&cm.getNetworkCapabilities(n).hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET);}
     private void addButton(String text,Runnable action){Button b=new Button(this);b.setText(text);b.setAllCaps(false);b.setOnClickListener(v->action.run());root.addView(b,new LinearLayout.LayoutParams(-1,-2));}
     private EditText field(String hint){EditText e=new EditText(this);e.setSingleLine(false);e.setHint(hint);root.addView(e,new LinearLayout.LayoutParams(-1,-2));return e;}
     private void registerNetworkSync(){ConnectivityManager cm=(ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);networkCallback=new ConnectivityManager.NetworkCallback(){@Override public void onAvailable(android.net.Network network){runOnUiThread(()->{if(showingApp&&getSharedPreferences("rentmor",0).getString("cookie","").length()>0)syncNow();});}};try{cm.registerDefaultNetworkCallback(networkCallback);}catch(Exception ignored){}}
