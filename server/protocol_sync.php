@@ -53,7 +53,7 @@ if ($method === 'GET') {
     }
     rm_json_response(200, [
         'ok'=>true, 'role'=>$role, 'server_time'=>date(DATE_ATOM),
-        'protocols'=>array_values($protocols), 'reservations'=>array_values(rm_read_json_file(__DIR__ . '/reservations.json', [])), 'equipment'=>array_keys($equipment)
+        'protocols'=>array_values($protocols), 'reservations'=>array_values(array_map(function($r) use ($role) { if ($role !== 'admin') { unset($r['income'],$r['loss'],$r['loss_note'],$r['settled_at']); } return $r; }, rm_read_json_file(__DIR__ . '/reservations.json', []))), 'equipment'=>array_keys($equipment)
     ]);
 }
 if ($method !== 'POST') rm_json_response(405, ['ok'=>false, 'error'=>'Niedozwolona metoda.']);
@@ -80,7 +80,11 @@ foreach ($operations as $op) {
     if ($opId === '' || strlen($opId) > 80) { $results[]=['ok'=>false,'error'=>'Brak poprawnego identyfikatora operacji']; continue; }
 
 
-    if ($action === 'reservation_save' || $action === 'reservation_delete') {
+    if ($action === 'reservation_save' || $action === 'reservation_delete' || $action === 'reservation_settle') {
+        if ($action === 'reservation_settle' && $role !== 'admin') {
+            $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Rozliczanie najmu jest dostępne tylko dla administratora.'];
+            continue;
+        }
         $reservationFile = __DIR__ . '/reservations.json';
         $reservationLock = fopen($reservationFile . '.lock', 'c+');
         if (!$reservationLock || !flock($reservationLock, LOCK_EX)) {
@@ -102,10 +106,34 @@ foreach ($operations as $op) {
             }
             $item=['id'=>$id,'month'=>$month,'text'=>$text,'done'=>!empty($op['done'])];
             $found=false;
-            foreach ($reservations as &$saved) { if (($saved['id'] ?? '') === $id) { $saved=$item; $found=true; break; } }
+            foreach ($reservations as &$saved) { if (($saved['id'] ?? '') === $id) {
+                foreach (['settled','income','loss','loss_note','settled_at'] as $field) if (array_key_exists($field,$saved)) $item[$field]=$saved[$field];
+                $saved=$item; $found=true; break;
+            } }
             unset($saved);
             if (!$found) $reservations[]=$item;
+        } elseif ($action === 'reservation_settle') {
+            $income = filter_var($op['income'] ?? null, FILTER_VALIDATE_FLOAT);
+            $loss = filter_var($op['loss'] ?? null, FILTER_VALIDATE_FLOAT);
+            $found = false;
+            if ($income === false || $loss === false || $income < 0 || $loss < 0) {
+                flock($reservationLock, LOCK_UN); fclose($reservationLock);
+                $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nieprawidłowe kwoty rozliczenia.']; continue;
+            }
+            foreach ($reservations as &$saved) if ((string)($saved['id'] ?? '') === $id) {
+                $saved['settled']=true; $saved['income']=round((float)$income,2); $saved['loss']=round((float)$loss,2);
+                $saved['loss_note']=rm_text($op,'loss_note',300); $saved['settled_at']=date('Y-m-d H:i:s'); $found=true; break;
+            }
+            unset($saved);
+            if (!$found) {
+                flock($reservationLock, LOCK_UN); fclose($reservationLock);
+                $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nie znaleziono rezerwacji do rozliczenia.']; continue;
+            }
         } else {
+            if ($role !== 'admin') {
+                flock($reservationLock, LOCK_UN); fclose($reservationLock);
+                $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Usuwanie rezerwacji jest dostępne tylko dla administratora.']; continue;
+            }
             $reservations=array_values(array_filter($reservations, fn($saved)=>(string)($saved['id'] ?? '') !== $id));
         }
         $json=json_encode(array_values($reservations), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
