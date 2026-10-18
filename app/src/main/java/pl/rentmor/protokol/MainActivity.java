@@ -43,10 +43,10 @@ public class MainActivity extends Activity {
         TextView title=new TextView(this);title.setText("Protokoły");title.setTextSize(30);title.setTextColor(0xff123b68);title.setTypeface(null,1);LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(-1,-2);tp.bottomMargin=14;page.addView(title,tp);
         LinearLayout statCard=new LinearLayout(this);statCard.setOrientation(1);statCard.setPadding(18,16,18,16);statCard.setBackground(roundBg(0xffffffff,18));TextView stTitle=new TextView(this);stTitle.setText("STATUS DANYCH");stTitle.setTextSize(11);stTitle.setTextColor(0xff64748b);stTitle.setTypeface(null,1);statCard.addView(stTitle);
         status=new TextView(this);status.setText("W telefonie: "+store.allProtocols().length()+"   •   Do wysłania: "+store.pendingCount());status.setTextSize(14);status.setTextColor(0xff26384d);status.setPadding(0,8,0,0);statCard.addView(status);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.bottomMargin=20;page.addView(statCard,sp);
+        menuCard(page,"☷","Rezerwacje","Lista odbiorów i rozliczenia najmu",()->reservationPage(),0xffe9f5ef);
         menuCard(page,"⟳","Synchronizuj teraz","Wyślij zapisane protokoły na serwer",()->syncNow(),0xffe8f1fb);
         menuCard(page,"＋","Nowy protokół wydania","Utwórz protokół i dodaj zdjęcia",()->newIssue(),0xffe9f5ef);
         menuCard(page,"▤","Lista protokołów","Przeglądaj dokumenty i zapisuj PDF",()->protocolList(),0xfffff3e5);
-        menuCard(page,"☷","Rezerwacje","Prosta lista odbiorów – jak w notatniku",()->reservationPage(),0xffe9f5ef);
         menuCard(page,"↩","Obsłuż zwrot sprzętu","Zarejestruj stan sprzętu przy zwrocie",()->returnList(),0xfff1edfa);
         menuCard(page,"⚙","Aktywuj / zmień urządzenie","Ustaw dostęp tego telefonu",()->resetActivation(),0xffeef1f5);
         addAdminDownloadCard();
@@ -164,7 +164,11 @@ public class MainActivity extends Activity {
                 if(item.optBoolean("done"))check.setPaintFlags(check.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
                 row.addView(check,new LinearLayout.LayoutParams(0,-2,1));
                 Button edit=new Button(this); edit.setText("Edytuj"); row.addView(edit);
-                Button delete=new Button(this); delete.setText("×"); row.addView(delete);
+                Button settle=new Button(this);
+                if(item.optBoolean("settled")) settle.setText("Rozliczono: "+String.format(Locale.US,"%.2f",item.optDouble("income")-item.optDouble("loss"))+" zł");
+                else settle.setText("Rozlicz");
+                row.addView(settle);
+                settle.setEnabled("admin".equals(getSharedPreferences("rentmor",0).getString("role","")) && !item.optBoolean("settled"));
                 LinearLayout.LayoutParams rowParams=new LinearLayout.LayoutParams(-1,-2); rowParams.bottomMargin=7; list.addView(row,rowParams);
                 check.setOnCheckedChangeListener((button,checked)->{
                     try{item.put("done",checked);store.saveReservation(item);store.enqueue("reservation_save",item);if(isOnline())syncNow();render[0].run();}
@@ -179,12 +183,27 @@ public class MainActivity extends Activity {
                             catch(Exception ex){toast("Nie udało się zapisać wpisu.");}
                         }).show();
                 });
-                delete.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("Usunąć rezerwację?")
-                    .setMessage(item.optString("text")).setNegativeButton("Anuluj",null)
-                    .setPositiveButton("Usuń",(dialog,which)->{
-                        try{JSONObject op=new JSONObject();op.put("id",item.optString("id"));store.enqueue("reservation_delete",op);store.deleteReservation(item.optString("id"));render[0].run();if(isOnline())syncNow();}
-                        catch(Exception ex){toast("Nie udało się usunąć wpisu.");}
-                    }).show());
+                settle.setOnClickListener(v->{
+                    EditText income=new EditText(this); income.setHint("Zarobek z najmu (zł)"); income.setInputType(8194);
+                    EditText loss=new EditText(this); loss.setHint("Strata / koszt (zł, np. 0)"); loss.setInputType(8194);
+                    EditText note=new EditText(this); note.setHint("Za co strata? (opcjonalnie)");
+                    LinearLayout form=new LinearLayout(this); form.setOrientation(1); form.setPadding(8,4,8,4);
+                    form.addView(income); form.addView(loss); form.addView(note);
+                    new AlertDialog.Builder(this).setTitle("Rozlicz najem").setMessage(item.optString("text"))
+                        .setView(form).setNegativeButton("Anuluj",null).setPositiveButton("Zapisz rozliczenie",(dialog,which)->{
+                            try {
+                                String iv=income.getText().toString().trim().replace(',','.');
+                                String lv=loss.getText().toString().trim().replace(',','.');
+                                double earned=iv.isEmpty()?0:Double.parseDouble(iv), cost=lv.isEmpty()?0:Double.parseDouble(lv);
+                                if(earned<0||cost<0) {toast("Kwoty nie mogą być ujemne.");return;}
+                                item.put("settled",true); item.put("income",earned); item.put("loss",cost);
+                                item.put("loss_note",note.getText().toString().trim());
+                                item.put("settled_at",new SimpleDateFormat("yyyy-MM-dd HH:mm:ss",Locale.US).format(new Date()));
+                                store.saveReservation(item); store.enqueue("reservation_settle",item);
+                                render[0].run(); if(isOnline())syncNow();
+                            } catch(Exception ex) {toast("Wpisz prawidłowe kwoty.");}
+                        }).show();
+                });
             }
         };
         previous.setOnClickListener(v->{Calendar cal=parseReservationMonth(month[0]);cal.add(Calendar.MONTH,-1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(cal.getTime());render[0].run();});
