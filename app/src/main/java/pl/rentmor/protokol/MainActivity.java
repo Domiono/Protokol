@@ -42,7 +42,14 @@ public class MainActivity extends Activity {
         addButton("Aktywuj / zmień urządzenie",()->resetActivation());
         setContentView(root); if(isOnline()) syncNow();
     }
-    private void resetActivation(){\n        showingApp=false;\n        getSharedPreferences("rentmor",0).edit().remove("cookie").apply();\n        CookieManager cm=CookieManager.getInstance();\n        cm.setAcceptCookie(true);\n        cm.removeAllCookies(removed->{cm.flush();runOnUiThread(()->showActivation());});\n    }\n    private boolean isOnline(){android.net.ConnectivityManager cm=(android.net.ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);android.net.Network n=cm.getActiveNetwork();return n!=null&&cm.getNetworkCapabilities(n)!=null&&cm.getNetworkCapabilities(n).hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET);}
+    private void resetActivation(){
+        showingApp=false;
+        getSharedPreferences("rentmor",0).edit().remove("cookie").apply();
+        CookieManager cm=CookieManager.getInstance();
+        cm.setAcceptCookie(true);
+        cm.removeAllCookies(removed->{cm.flush();runOnUiThread(()->showActivation());});
+    }
+    private boolean isOnline(){android.net.ConnectivityManager cm=(android.net.ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);android.net.Network n=cm.getActiveNetwork();return n!=null&&cm.getNetworkCapabilities(n)!=null&&cm.getNetworkCapabilities(n).hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET);}
     private void addButton(String text,Runnable action){Button b=new Button(this);b.setText(text);b.setAllCaps(false);b.setOnClickListener(v->action.run());root.addView(b,new LinearLayout.LayoutParams(-1,-2));}
     private EditText field(String hint){EditText e=new EditText(this);e.setSingleLine(false);e.setHint(hint);root.addView(e,new LinearLayout.LayoutParams(-1,-2));return e;}
     private void registerNetworkSync(){ConnectivityManager cm=(ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);networkCallback=new ConnectivityManager.NetworkCallback(){@Override public void onAvailable(android.net.Network network){runOnUiThread(()->{if(showingApp&&getSharedPreferences("rentmor",0).getString("cookie","").length()>0)syncNow();});}};try{cm.registerDefaultNetworkCallback(networkCallback);}catch(Exception ignored){}}
@@ -59,7 +66,8 @@ public class MainActivity extends Activity {
         addButton("WRÓĆ",()->showHome());
     }
     private void protocolList(){root.removeAllViews();TextView h=new TextView(this);h.setText("PROTOKOŁY W TELEFONIE");h.setTextSize(20);h.setTextColor(0xff123b68);root.addView(h);
-        JSONArray a=store.allProtocols();for(int i=0;i<a.length();i++){JSONObject p=a.optJSONObject(i);if(p==null)continue;TextView t=new TextView(this);t.setText(p.optString("number")+" • "+p.optString("client")+"\n"+p.optString("equipment")+" • "+p.optString("status"));t.setPadding(8,16,8,16);root.addView(t);Button pdf=new Button(this);pdf.setText("Zapisz PDF");pdf.setOnClickListener(v->makePdf(p));root.addView(pdf);}
+        JSONArray a=store.allProtocols();for(int i=0;i<a.length();i++){JSONObject p=a.optJSONObject(i);if(p==null)continue;TextView t=new TextView(this);t.setText(p.optString("number")+" • "+p.optString("client")+"
+"+p.optString("equipment")+" • "+p.optString("status"));t.setPadding(8,16,8,16);root.addView(t);Button pdf=new Button(this);pdf.setText("Zapisz PDF");pdf.setOnClickListener(v->makePdf(p));root.addView(pdf);}
         addButton("WRÓĆ",()->showHome());
     }
 
@@ -78,7 +86,8 @@ public class MainActivity extends Activity {
         root.removeAllViews(); TextView h=new TextView(this); h.setText("PROTOKOŁY DO ZWROTU"); h.setTextSize(20); h.setTextColor(0xff123b68); root.addView(h);
         JSONArray a=store.allProtocols(); int count=0;
         for(int i=0;i<a.length();i++){JSONObject p=a.optJSONObject(i); if(p==null||!"wydany".equals(p.optString("status")))continue; count++;
-            Button b=new Button(this); b.setAllCaps(false); b.setText(p.optString("number")+" • "+p.optString("client")+"\\n"+p.optString("equipment")); b.setOnClickListener(v->returnForm(p)); root.addView(b);
+            Button b=new Button(this); b.setAllCaps(false); b.setText(p.optString("number")+" • "+p.optString("client")+"\
+"+p.optString("equipment")); b.setOnClickListener(v->returnForm(p)); root.addView(b);
         }
         if(count==0){TextView t=new TextView(this);t.setText("Brak wydanych protokołów.");root.addView(t);}
         addButton("WRÓĆ",()->showHome());
@@ -105,7 +114,8 @@ public class MainActivity extends Activity {
     private Bitmap bitmapFrom(JSONObject p,String key){try{String s=p.optString(key,"");if(s.isEmpty())return null;byte[] bytes=Base64.decode(s,Base64.DEFAULT);return BitmapFactory.decodeByteArray(bytes,0,bytes.length);}catch(Exception e){return null;}}
     private void makePdf(JSONObject p){try{PdfDocument doc=new PdfDocument();PdfDocument.PageInfo info=new PdfDocument.PageInfo.Builder(595,842,1).create();PdfDocument.Page page=doc.startPage(info);Canvas c=page.getCanvas();Paint paint=new Paint(3);paint.setColor(Color.BLACK);paint.setTextSize(20);paint.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));c.drawText("RENTMOR – PROTOKÓŁ",40,55,paint);paint.setTextSize(13);paint.setTypeface(Typeface.DEFAULT);
         String[][] rows={{"Numer",p.optString("number")},{"Data wydania",p.optString("rental_date")},{"Klient",p.optString("client")},{"Telefon",p.optString("phone")},{"Sprzęt",p.optString("equipment")},{"Stan przy wydaniu",p.optString("condition")},{"Akcesoria",p.optString("accessories")},{"Uwagi",p.optString("notes")},{"Data zwrotu",p.optString("return_date")},{"Stan przy zwrocie",p.optString("return_condition")},{"Uwagi do zwrotu",p.optString("return_notes")}};
-        int y=95;for(String[] row:rows){String value=row[1].replace("\\n"," ");if(!value.isEmpty()){c.drawText(row[0]+": "+value,40,y,paint);y+=25;}}Bitmap photo=bitmapFrom(p,"photo_base64");if(photo!=null&&y<625){c.drawText("Zdjęcie sprzętu:",40,y+12,paint);Rect dst=new Rect(40,y+20,555,Math.min(635,y+210));c.drawBitmap(photo,null,dst,paint);photo.recycle();y=dst.bottom+12;}Bitmap sign=bitmapFrom(p,(!p.optString("return_date","").isEmpty())?"return_signature_base64":"signature_base64");if(sign!=null){c.drawText("Podpis:",40,690,paint);c.drawBitmap(sign,null,new Rect(40,700,555,810),paint);sign.recycle();}else c.drawText("Podpis: ______________________________",40,730,paint);doc.finishPage(page);
+        int y=95;for(String[] row:rows){String value=row[1].replace("\
+"," ");if(!value.isEmpty()){c.drawText(row[0]+": "+value,40,y,paint);y+=25;}}Bitmap photo=bitmapFrom(p,"photo_base64");if(photo!=null&&y<625){c.drawText("Zdjęcie sprzętu:",40,y+12,paint);Rect dst=new Rect(40,y+20,555,Math.min(635,y+210));c.drawBitmap(photo,null,dst,paint);photo.recycle();y=dst.bottom+12;}Bitmap sign=bitmapFrom(p,(!p.optString("return_date","").isEmpty())?"return_signature_base64":"signature_base64");if(sign!=null){c.drawText("Podpis:",40,690,paint);c.drawBitmap(sign,null,new Rect(40,700,555,810),paint);sign.recycle();}else c.drawText("Podpis: ______________________________",40,730,paint);doc.finishPage(page);
         File dir=new File(getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS),"");dir.mkdirs();File f=new File(dir,p.optString("number","protokol").replaceAll("[^A-Za-z0-9_-]","_")+".pdf");try(FileOutputStream out=new FileOutputStream(f)){doc.writeTo(out);}doc.close();
         android.content.ContentValues v=new android.content.ContentValues();v.put(android.provider.MediaStore.Downloads.DISPLAY_NAME,f.getName());v.put(android.provider.MediaStore.Downloads.MIME_TYPE,"application/pdf");v.put(android.provider.MediaStore.Downloads.RELATIVE_PATH,Environment.DIRECTORY_DOWNLOADS+"/RentMor");android.net.Uri u=getContentResolver().insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,v);if(u!=null)try(InputStream in=new FileInputStream(f);OutputStream out=getContentResolver().openOutputStream(u)){byte[] b=new byte[8192];int n;while((n=in.read(b))>0)out.write(b,0,n);}
         toast("PDF zapisany w Pobrane/RentMor.");
