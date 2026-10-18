@@ -100,7 +100,7 @@ foreach ($operations as $op) {
         if ($action === 'reservation_save') {
             $month = rm_text($op, 'month', 7);
             $text = rm_text($op, 'text', 500);
-            if (!preg_match('/^\\d{4}-\\d{2}$/', $month) || $text === '') {
+            if (!preg_match('/^\d{4}-\d{2}$/', $month) || $text === '') {
                 flock($reservationLock, LOCK_UN); fclose($reservationLock);
                 $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nieprawidłowa rezerwacja.']; continue;
             }
