@@ -57,6 +57,10 @@ public class LocalStore extends SQLiteOpenHelper {
         JSONArray a=new JSONArray(); Cursor c=getReadableDatabase().rawQuery("SELECT name FROM equipment ORDER BY name",null);
         try { while(c.moveToNext()) a.put(c.getString(0)); } finally { c.close(); } return a;
     }
+    public synchronized void deleteProtocol(String id) {
+        SQLiteDatabase db=getWritableDatabase();
+        db.delete("protocols","id=?",new String[]{id});
+    }
     public synchronized int pendingCount() {
         Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM queue",null); try { return c.moveToFirst()?c.getInt(0):0; } finally { c.close(); }
     }
