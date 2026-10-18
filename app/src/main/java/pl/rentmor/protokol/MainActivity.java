@@ -44,6 +44,7 @@ public class MainActivity extends Activity {
         LinearLayout statCard=new LinearLayout(this);statCard.setOrientation(1);statCard.setPadding(18,16,18,16);statCard.setBackground(roundBg(0xffffffff,18));TextView stTitle=new TextView(this);stTitle.setText("STATUS DANYCH");stTitle.setTextSize(11);stTitle.setTextColor(0xff64748b);stTitle.setTypeface(null,1);statCard.addView(stTitle);
         status=new TextView(this);status.setText("W telefonie: "+store.allProtocols().length()+"   •   Do wysłania: "+store.pendingCount());status.setTextSize(14);status.setTextColor(0xff26384d);status.setPadding(0,8,0,0);statCard.addView(status);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.bottomMargin=20;page.addView(statCard,sp);
         menuCard(page,"☷","Rezerwacje","Lista odbiorów i rozliczenia najmu",()->reservationPage(),0xffe9f5ef);
+        menuCard(page,"▥","Statystyki najmu","Przychody, straty i wynik według sprzętu",()->reservationStatsPage(),0xfffff3e5);
         menuCard(page,"⟳","Synchronizuj teraz","Wyślij zapisane protokoły na serwer",()->syncNow(),0xffe8f1fb);
         menuCard(page,"＋","Nowy protokół wydania","Utwórz protokół i dodaj zdjęcia",()->newIssue(),0xffe9f5ef);
         menuCard(page,"▤","Lista protokołów","Przeglądaj dokumenty i zapisuj PDF",()->protocolList(),0xfffff3e5);
@@ -156,6 +157,7 @@ public class MainActivity extends Activity {
                 empty.setTextColor(0xff718096); empty.setPadding(8,20,8,20); list.addView(empty);
             }
             for(JSONObject item:items){
+                if(item.optBoolean("settled")) continue;
                 LinearLayout row=new LinearLayout(this); row.setGravity(Gravity.CENTER_VERTICAL);
                 row.setPadding(8,5,4,5); row.setBackground(roundBg(Color.WHITE,12));
                 CheckBox check=new CheckBox(this); check.setText(item.optString("text"));
@@ -218,6 +220,49 @@ public class MainActivity extends Activity {
         addButton("WRÓĆ",()->showHome());
         render[0].run();
     }
+    private void reservationStatsPage() {
+        root.removeAllViews(); root.setOrientation(1); root.setPadding(18,16,18,18); root.setBackgroundColor(0xfff3f6fb);
+        TextView heading=new TextView(this); heading.setText("STATYSTYKI NAJMU"); heading.setTextSize(24); heading.setTypeface(null,1); heading.setTextColor(0xff123b68); root.addView(heading);
+        Calendar now=Calendar.getInstance(); final String[] month={String.format(Locale.US,"%04d-%02d",now.get(Calendar.YEAR),now.get(Calendar.MONTH)+1)};
+        TextView monthLabel=new TextView(this); monthLabel.setTextSize(16); monthLabel.setTextColor(0xff526174); monthLabel.setPadding(0,8,0,8); root.addView(monthLabel);
+        LinearLayout bar=new LinearLayout(this); bar.setGravity(Gravity.CENTER_VERTICAL);
+        Button prev=new Button(this); prev.setText("‹"); Button pick=new Button(this); pick.setText("Wybierz miesiąc"); Button next=new Button(this);
+        next.setText("›"); bar.addView(prev); bar.addView(pick,new LinearLayout.LayoutParams(0,-2,1)); bar.addView(next); root.addView(bar);
+        ScrollView scroll=new ScrollView(this); LinearLayout content=new LinearLayout(this); content.setOrientation(1); content.setPadding(0,10,0,10); scroll.addView(content); root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        Runnable render=()->{
+            Calendar selected=parseReservationMonth(month[0]); monthLabel.setText(new SimpleDateFormat("LLLL yyyy",new Locale("pl","PL")).format(selected.getTime()).toUpperCase(new Locale("pl","PL")));
+            content.removeAllViews(); JSONArray data=store.reservations(month[0]); double income=0,loss=0; int count=0;
+            LinkedHashMap<String,double[]> byEquipment=new LinkedHashMap<>(); ArrayList<JSONObject> history=new ArrayList<>();
+            for(int i=0;i<data.length();i++){JSONObject item=data.optJSONObject(i); if(item==null||!item.optBoolean("settled"))continue;
+                double inc=item.optDouble("income"), los=item.optDouble("loss"); income+=inc; loss+=los; count++; history.add(item);
+                String name=item.optString("text").replaceFirst("^\\s*\\d{1,2}\\s+","").replaceFirst("\\s+\\d{1,2}\\s*/.*$","").trim();
+                if(name.isEmpty())name="Pozostałe / nierozpoznane";
+                double[] sums=byEquipment.get(name); if(sums==null){sums=new double[4];byEquipment.put(name,sums);} sums[0]++;sums[1]+=inc;sums[2]+=los;sums[3]+=inc-los;
+            }
+            addStatCard(content,"PRZYCHÓD",String.format(Locale.US,"%.2f zł",income),0xff172b43);
+            addStatCard(content,"STRATY / KOSZTY",String.format(Locale.US,"%.2f zł",loss),0xffb42318);
+            addStatCard(content,"WYNIK NETTO",String.format(Locale.US,"%.2f zł",income-loss),income-loss<0?0xffb42318:0xff18794e);
+            TextView countText=new TextView(this); countText.setText("Rozliczone najmy: "+count); countText.setTextColor(0xff526174); countText.setPadding(4,6,4,16); content.addView(countText);
+            TextView sub=new TextView(this); sub.setText("WYNIK WEDŁUG SPRZĘTU"); sub.setTextSize(16); sub.setTypeface(null,1); sub.setTextColor(0xff123b68); sub.setPadding(2,12,2,8); content.addView(sub);
+            if(byEquipment.isEmpty()){TextView empty=new TextView(this);empty.setText("Brak rozliczeń w tym miesiącu.");empty.setTextColor(0xff718096);content.addView(empty);}
+            ArrayList<String> names=new ArrayList<>(byEquipment.keySet()); Collections.sort(names,(x,y)->Double.compare(byEquipment.get(y)[3],byEquipment.get(x)[3]));
+            for(String name:names){double[] v=byEquipment.get(name);TextView line=new TextView(this);line.setText(name+"\nNajmy: "+(int)v[0]+"  •  Przychód: "+String.format(Locale.US,"%.2f",v[1])+" zł\nStraty: "+String.format(Locale.US,"%.2f",v[2])+" zł  •  Wynik: "+String.format(Locale.US,"%.2f",v[3])+" zł");line.setTextSize(14);line.setTextColor(0xff26384d);line.setPadding(14,12,14,12);line.setBackground(roundBg(Color.WHITE,12));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=7;content.addView(line,lp);}
+            TextView hist=new TextView(this);hist.setText("HISTORIA ROZLICZEŃ ("+history.size()+")");hist.setTextSize(16);hist.setTypeface(null,1);hist.setTextColor(0xff123b68);hist.setPadding(2,18,2,8);content.addView(hist);
+            Collections.reverse(history);
+            for(JSONObject item:history){double inc=item.optDouble("income"),los=item.optDouble("loss");TextView line=new TextView(this);line.setText(item.optString("text")+"\nPrzychód: "+String.format(Locale.US,"%.2f",inc)+" zł  •  Strata: "+String.format(Locale.US,"%.2f",los)+" zł\nWynik: "+String.format(Locale.US,"%.2f",inc-los)+" zł"+(item.optString("loss_note").isEmpty()?"":"  •  "+item.optString("loss_note")));line.setTextSize(13);line.setTextColor(0xff26384d);line.setPadding(14,12,14,12);line.setBackground(roundBg(Color.WHITE,12));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=7;content.addView(line,lp);}
+        };
+        prev.setOnClickListener(v->{Calendar c=parseReservationMonth(month[0]);c.add(Calendar.MONTH,-1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(c.getTime());render.run();});
+        next.setOnClickListener(v->{Calendar c=parseReservationMonth(month[0]);c.add(Calendar.MONTH,1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(c.getTime());render.run();});
+        pick.setOnClickListener(v->{Calendar c=parseReservationMonth(month[0]);new DatePickerDialog(this,(d,y,m,day)->{month[0]=String.format(Locale.US,"%04d-%02d",y,m+1);render.run();},c.get(Calendar.YEAR),c.get(Calendar.MONTH),1).show();});
+        addButton("WRÓĆ",()->showHome()); render.run();
+    }
+    private void addStatCard(LinearLayout parent,String label,String value,int color) {
+        LinearLayout card=new LinearLayout(this);card.setOrientation(1);card.setPadding(16,12,16,12);card.setBackground(roundBg(Color.WHITE,14));
+        TextView l=new TextView(this);l.setText(label);l.setTextSize(11);l.setTypeface(null,1);l.setTextColor(0xff718096);card.addView(l);
+        TextView v=new TextView(this);v.setText(value);v.setTextSize(22);v.setTypeface(null,1);v.setTextColor(color);v.setPadding(0,4,0,0);card.addView(v);
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=8;parent.addView(card,lp);
+    }
+
     private Calendar parseReservationMonth(String value) {
         Calendar cal=Calendar.getInstance();
         try{cal.setTime(new SimpleDateFormat("yyyy-MM",Locale.US).parse(value));}catch(Exception ignored){}
