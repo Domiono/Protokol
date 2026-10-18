@@ -4,7 +4,7 @@ on:
     branches: [ main ]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
   actions: read
 jobs:
   build:
@@ -26,3 +26,13 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish APK download
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: RentMor – najnowsza aplikacja
+          target_commitish: main
+          make_latest: true
+          overwrite_files: true
+          files: app/build/outputs/apk/debug/app-debug.apk
