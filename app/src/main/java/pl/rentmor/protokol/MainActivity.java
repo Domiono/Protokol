@@ -61,7 +61,7 @@ public class MainActivity extends Activity {
             @Override public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 if (url != null && url.startsWith("https://rentmor.pl/")) {
-                    String script = "(function(){if(window.__rentMorPdfHook)return;window.__rentMorPdfHook=true;document.addEventListener('click',function(e){var a=e.target.closest('a[download]');if(!a||!a.href||a.href.indexOf('blob:')!==0)return;e.preventDefault();fetch(a.href).then(function(r){return r.blob()}).then(function(b){var f=new FileReader();f.onload=function(){var d=String(f.result).split(',')[1];window.RentMorAndroid.savePdf(d,a.download||'RentMor_protokol.pdf')};f.readAsDataURL(b)}).catch(function(){alert('Nie udało się przygotować PDF do zapisu.')})},true)})();";
+                    String script = "(function(){if(window.__rentMorHooks)return;window.__rentMorHooks=true;var code=document.querySelector('input[name=activation_code]');if(code){code.placeholder='Wklej link aktywacyjny lub kod';code.addEventListener('input',function(){var v=code.value.trim();if(v.indexOf('http')===0){try{var u=new URL(v);var a=u.searchParams.get('activate');if(a)code.value=a}catch(e){}}});code.addEventListener('paste',function(){setTimeout(function(){var v=code.value.trim();if(v.indexOf('http')===0){try{var u=new URL(v);var a=u.searchParams.get('activate');if(a)code.value=a}catch(e){}}},80)})}document.addEventListener('click',function(e){var a=e.target.closest('a[download]');if(!a||!a.href||a.href.indexOf('blob:')!==0)return;e.preventDefault();fetch(a.href).then(function(r){return r.blob()}).then(function(b){var f=new FileReader();f.onload=function(){var d=String(f.result).split(',')[1];window.RentMorAndroid.savePdf(d,a.download||'RentMor_protokol.pdf')};f.readAsDataURL(b)}).catch(function(){alert('Nie udało się przygotować PDF do zapisu.')})},true)})();";
                     view.evaluateJavascript(script, null);
                 }
             }
@@ -121,8 +121,8 @@ public class MainActivity extends Activity {
             }
         });
 
-        if (savedInstanceState == null) webView.loadUrl(APP_URL);
-        else webView.restoreState(savedInstanceState);
+        if (savedInstanceState != null) webView.restoreState(savedInstanceState);
+        else loadIncomingOrHome(getIntent());
     }
 
     private class PdfBridge {
@@ -147,6 +147,23 @@ public class MainActivity extends Activity {
                 runOnUiThread(() -> Toast.makeText(MainActivity.this, "Błąd zapisu PDF. Spróbuj ponownie.", Toast.LENGTH_LONG).show());
             }
         }
+    }
+
+    private void loadIncomingOrHome(Intent intent) {
+        Uri incoming = intent == null ? null : intent.getData();
+        if (incoming != null && "https".equals(incoming.getScheme()) &&
+            ("rentmor.pl".equalsIgnoreCase(incoming.getHost()) || "www.rentmor.pl".equalsIgnoreCase(incoming.getHost())) &&
+            "/protocol.php".equals(incoming.getPath())) {
+            webView.loadUrl(incoming.toString());
+        } else {
+            webView.loadUrl(APP_URL);
+        }
+    }
+
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        loadIncomingOrHome(intent);
     }
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
