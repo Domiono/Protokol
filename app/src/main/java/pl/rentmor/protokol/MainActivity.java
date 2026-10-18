@@ -46,6 +46,7 @@ public class MainActivity extends Activity {
         menuCard(page,"⟳","Synchronizuj teraz","Wyślij zapisane protokoły na serwer",()->syncNow(),0xffe8f1fb);
         menuCard(page,"＋","Nowy protokół wydania","Utwórz protokół i dodaj zdjęcia",()->newIssue(),0xffe9f5ef);
         menuCard(page,"▤","Lista protokołów","Przeglądaj dokumenty i zapisuj PDF",()->protocolList(),0xfffff3e5);
+        menuCard(page,"☷","Rezerwacje","Prosta lista odbiorów – jak w notatniku",()->reservationPage(),0xffe9f5ef);
         menuCard(page,"↩","Obsłuż zwrot sprzętu","Zarejestruj stan sprzętu przy zwrocie",()->returnList(),0xfff1edfa);
         menuCard(page,"⚙","Aktywuj / zmień urządzenie","Ustaw dostęp tego telefonu",()->resetActivation(),0xffeef1f5);
         addAdminDownloadCard();
@@ -111,6 +112,106 @@ public class MainActivity extends Activity {
     private void registerNetworkSync(){ConnectivityManager cm=(ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);networkCallback=new ConnectivityManager.NetworkCallback(){@Override public void onAvailable(android.net.Network network){runOnUiThread(()->{if(showingApp&&getSharedPreferences("rentmor",0).getString("cookie","").length()>0)syncNow();});}};try{cm.registerDefaultNetworkCallback(networkCallback);}catch(Exception ignored){}}
     @Override protected void onDestroy(){try{if(networkCallback!=null)((ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE)).unregisterNetworkCallback(networkCallback);}catch(Exception ignored){}super.onDestroy();}
     private void syncNow(){if(!isOnline()){if(status!=null)status.setText("Brak internetu. Dane pozostają bezpiecznie w telefonie.");return;}if(!syncRunning.compareAndSet(false,true))return;if(status!=null)status.setText("Synchronizacja…");new Thread(()->{try{sync.sync();runOnUiThread(()->{if(status!=null)status.setText("Synchronizacja zakończona. Oczekujące: "+store.pendingCount());addAdminDownloadCard();});}catch(Exception e){runOnUiThread(()->{if(status!=null)status.setText("Nie wysłano: "+e.getMessage()+" • Dane zapisane lokalnie.");});}finally{syncRunning.set(false);}}).start();}
+
+    private void reservationPage() {
+        root.removeAllViews();
+        root.setOrientation(1);
+        root.setPadding(18,16,18,18);
+        root.setBackgroundColor(0xfff3f6fb);
+        TextView heading=new TextView(this);
+        heading.setText("REZERWACJE"); heading.setTextSize(25); heading.setTypeface(null,1);
+        heading.setTextColor(0xff123b68); root.addView(heading);
+        Calendar today=Calendar.getInstance();
+        final String[] month={String.format(Locale.US,"%04d-%02d",today.get(Calendar.YEAR),today.get(Calendar.MONTH)+1)};
+        TextView monthLabel=new TextView(this); monthLabel.setTextSize(16); monthLabel.setTextColor(0xff526174);
+        monthLabel.setPadding(0,8,0,8); root.addView(monthLabel);
+        LinearLayout monthBar=new LinearLayout(this); monthBar.setGravity(Gravity.CENTER_VERTICAL);
+        Button previous=new Button(this); previous.setText("‹");
+        Button selectMonth=new Button(this); selectMonth.setText("Wybierz miesiąc");
+        Button next=new Button(this); next.setText("›");
+        monthBar.addView(previous); monthBar.addView(selectMonth,new LinearLayout.LayoutParams(0,-2,1)); monthBar.addView(next);
+        root.addView(monthBar);
+        EditText input=new EditText(this); input.setSingleLine(true);
+        input.setHint("Np. 18 agregat 18 / 533004489"); root.addView(input);
+        TextView hint=new TextView(this); hint.setText("Wpisz lub wklej całą rezerwację – bez formularza.");
+        hint.setTextSize(12); hint.setTextColor(0xff718096); root.addView(hint);
+        ScrollView scroll=new ScrollView(this);
+        LinearLayout list=new LinearLayout(this); list.setOrientation(1); list.setPadding(0,10,0,8);
+        scroll.addView(list); root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        Runnable render=()->{
+            Calendar selected=parseReservationMonth(month[0]);
+            monthLabel.setText(new SimpleDateFormat("LLLL yyyy",new Locale("pl","PL")).format(selected.getTime()).toUpperCase(new Locale("pl","PL")));
+            list.removeAllViews();
+            JSONArray data=store.reservations(month[0]);
+            ArrayList<JSONObject> items=new ArrayList<>();
+            for(int i=0;i<data.length();i++){JSONObject item=data.optJSONObject(i);if(item!=null)items.add(item);}
+            Collections.sort(items,(a,b)->{
+                int da=reservationDay(a.optString("text")), db=reservationDay(b.optString("text"));
+                if(da!=db)return Integer.compare(da,db);
+                return Integer.compare(reservationHour(a.optString("text")),reservationHour(b.optString("text")));
+            });
+            if(items.isEmpty()){
+                TextView empty=new TextView(this); empty.setText("Brak rezerwacji w tym miesiącu.");
+                empty.setTextColor(0xff718096); empty.setPadding(8,20,8,20); list.addView(empty);
+            }
+            for(JSONObject item:items){
+                LinearLayout row=new LinearLayout(this); row.setGravity(Gravity.CENTER_VERTICAL);
+                row.setPadding(8,5,4,5); row.setBackground(roundBg(Color.WHITE,12));
+                CheckBox check=new CheckBox(this); check.setText(item.optString("text"));
+                check.setTextSize(15); check.setTextColor(0xff172b43); check.setChecked(item.optBoolean("done"));
+                check.setPaintFlags(check.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
+                if(item.optBoolean("done"))check.setPaintFlags(check.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+                row.addView(check,new LinearLayout.LayoutParams(0,-2,1));
+                Button edit=new Button(this); edit.setText("Edytuj"); row.addView(edit);
+                Button delete=new Button(this); delete.setText("×"); row.addView(delete);
+                LinearLayout.LayoutParams rowParams=new LinearLayout.LayoutParams(-1,-2); rowParams.bottomMargin=7; list.addView(row,rowParams);
+                check.setOnCheckedChangeListener((button,checked)->{
+                    try{item.put("done",checked);store.saveReservation(item);store.enqueue("reservation_save",item);if(isOnline())syncNow();render.run();}
+                    catch(Exception ex){toast("Nie udało się zapisać zmiany.");}
+                });
+                edit.setOnClickListener(v->{
+                    EditText editor=new EditText(this);editor.setSingleLine(true);editor.setText(item.optString("text"));editor.setSelection(editor.getText().length());
+                    new AlertDialog.Builder(this).setTitle("Edytuj rezerwację").setView(editor)
+                        .setNegativeButton("Anuluj",null).setPositiveButton("Zapisz",(dialog,which)->{
+                            String value=editor.getText().toString().trim();if(value.isEmpty()){toast("Wpis nie może być pusty.");return;}
+                            try{item.put("text",value);store.saveReservation(item);store.enqueue("reservation_save",item);render.run();if(isOnline())syncNow();}
+                            catch(Exception ex){toast("Nie udało się zapisać wpisu.");}
+                        }).show();
+                });
+                delete.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("Usunąć rezerwację?")
+                    .setMessage(item.optString("text")).setNegativeButton("Anuluj",null)
+                    .setPositiveButton("Usuń",(dialog,which)->{
+                        try{JSONObject op=new JSONObject();op.put("id",item.optString("id"));store.enqueue("reservation_delete",op);store.deleteReservation(item.optString("id"));render.run();if(isOnline())syncNow();}
+                        catch(Exception ex){toast("Nie udało się usunąć wpisu.");}
+                    }).show());
+            }
+        };
+        previous.setOnClickListener(v->{Calendar cal=parseReservationMonth(month[0]);cal.add(Calendar.MONTH,-1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(cal.getTime());render.run();});
+        next.setOnClickListener(v->{Calendar cal=parseReservationMonth(month[0]);cal.add(Calendar.MONTH,1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(cal.getTime());render.run();});
+        selectMonth.setOnClickListener(v->{Calendar cal=parseReservationMonth(month[0]);new DatePickerDialog(this,(picker,y,m,d)->{month[0]=String.format(Locale.US,"%04d-%02d",y,m+1);render.run();},cal.get(Calendar.YEAR),cal.get(Calendar.MONTH),1).show();});
+        addButton("＋ DODAJ WPIS",()->{
+            String value=input.getText().toString().trim();
+            if(value.isEmpty()){toast("Wpisz rezerwację.");return;}
+            try{JSONObject item=new JSONObject();item.put("id",UUID.randomUUID().toString());item.put("month",month[0]);item.put("text",value);item.put("done",false);store.saveReservation(item);store.enqueue("reservation_save",item);input.setText("");render.run();if(isOnline())syncNow();}
+            catch(Exception ex){toast("Nie udało się dodać rezerwacji.");}
+        });
+        addButton("WRÓĆ",()->showHome());
+        render.run();
+    }
+    private Calendar parseReservationMonth(String value) {
+        Calendar cal=Calendar.getInstance();
+        try{cal.setTime(new SimpleDateFormat("yyyy-MM",Locale.US).parse(value));}catch(Exception ignored){}
+        return cal;
+    }
+    private int reservationDay(String value) {
+        java.util.regex.Matcher m=java.util.regex.Pattern.compile("^\\s*(\\d{1,2})").matcher(value);
+        return m.find()?Integer.parseInt(m.group(1)):99;
+    }
+    private int reservationHour(String value) {
+        java.util.regex.Matcher m=java.util.regex.Pattern.compile("^\\s*\\d{1,2}\\s+.*?\\s+(\\d{1,2})\\s*/").matcher(value);
+        return m.find()?Integer.parseInt(m.group(1)):99;
+    }
+
     private void newIssue(){
         issuePhotos.clear(); signatureView=null;
         root.removeAllViews(); TextView h=new TextView(this);h.setText("NOWY PROTOKÓŁ WYDANIA");h.setTextSize(20);h.setTextColor(0xff123b68);root.addView(h);
