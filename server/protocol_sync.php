@@ -123,6 +123,18 @@ foreach ($operations as $op) {
         if (!$found) $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nie znaleziono protokołu na serwerze. Najpierw zsynchronizuj wydanie.'];
         elseif ($conflict) $results[]=['op_id'=>$opId,'ok'=>false,'conflict'=>true,'error'=>'Ten protokół został już zwrócony na innym urządzeniu.'];
         else $results[]=['op_id'=>$opId,'ok'=>true,'id'=>$id];
+    } elseif ($action === 'delete') {
+        if ($role !== 'admin') {
+            $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Usuwanie protokołów jest dostępne tylko dla administratora.'];
+            continue;
+        }
+        $id = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($op['id'] ?? ''));
+        $before = count($protocols);
+        $protocols = array_values(array_filter($protocols, function($saved) use ($id) {
+            return (string)($saved['id'] ?? '') !== $id;
+        }));
+        if (count($protocols) === $before) $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nie znaleziono protokołu do usunięcia.'];
+        else $results[]=['op_id'=>$opId,'ok'=>true,'id'=>$id];
     } else {
         $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nieobsługiwana operacja'];
     }
