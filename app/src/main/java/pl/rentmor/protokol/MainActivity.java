@@ -77,9 +77,31 @@ public class MainActivity extends Activity {
             try{String id=UUID.randomUUID().toString();JSONObject p=new JSONObject();p.put("id",id);p.put("number","RM-"+new SimpleDateFormat("yyyyMMdd-HHmm",Locale.US).format(new Date()));p.put("client",client.getText());p.put("phone",phone.getText());p.put("equipment",equipment.getText());p.put("rental_date",date.getText());p.put("condition",condition.getText());p.put("accessories",accessories.getText());p.put("notes",notes.getText());p.put("status","wydany");JSONArray photos=new JSONArray();for(Bitmap photo:issuePhotos)photos.put(bitmapBase64(photo,1280,75));if(photos.length()>0)p.put("photos_base64",photos);if(signatureView!=null)p.put("signature_base64",bitmapBase64(signatureView.image(),900,85));store.enqueue("create",p);makePdf(p);toast("Zapisano lokalnie. PDF znajduje się w Pobrane/RentMor.");showHome();}catch(Exception ex){toast("Błąd zapisu: "+ex.getMessage());}});
         addButton("WRÓĆ",()->showHome());
     }
-    private void protocolList(){root.removeAllViews();TextView h=new TextView(this);h.setText("PROTOKOŁY W TELEFONIE");h.setTextSize(20);h.setTextColor(0xff123b68);root.addView(h);
-        JSONArray a=store.allProtocols();for(int i=0;i<a.length();i++){JSONObject p=a.optJSONObject(i);if(p==null)continue;TextView t=new TextView(this);t.setText(p.optString("number")+ " • "+p.optString("client")+" \\n"+p.optString("equipment")+" • "+p.optString("status"));t.setPadding(8,16,8,16);root.addView(t);Button pdf=new Button(this);pdf.setText("Zapisz PDF");pdf.setOnClickListener(v->makePdf(p));root.addView(pdf);}
+    private void protocolList(){root.removeAllViews();root.setOrientation(1);root.setPadding(20,20,20,20);root.setBackgroundColor(0xfff3f6fb);
+        TextView h=new TextView(this);h.setText("Twoje protokoły");h.setTextSize(25);h.setTypeface(null,1);h.setTextColor(0xff123b68);root.addView(h);
+        TextView info=new TextView(this);info.setText("Wybierz dokument, aby zobaczyć jego szczegóły i zdjęcia.");info.setTextSize(13);info.setTextColor(0xff64748b);info.setPadding(0,5,0,16);root.addView(info);
+        ScrollView sc=new ScrollView(this);LinearLayout items=new LinearLayout(this);items.setOrientation(1);sc.addView(items);root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));
+        JSONArray a=store.allProtocols();for(int i=0;i<a.length();i++){JSONObject p=a.optJSONObject(i);if(p==null)continue;
+            LinearLayout card=new LinearLayout(this);card.setOrientation(1);card.setPadding(16,14,16,14);card.setBackground(roundBg(Color.WHITE,16));card.setElevation(2);
+            TextView num=new TextView(this);num.setText(p.optString("number","Protokół"));num.setTextSize(16);num.setTypeface(null,1);num.setTextColor(0xff172b43);card.addView(num);
+            TextView desc=new TextView(this);desc.setText(p.optString("client")+"  •  "+p.optString("equipment"));desc.setTextSize(13);desc.setTextColor(0xff526174);desc.setPadding(0,6,0,5);card.addView(desc);
+            TextView st=new TextView(this);st.setText("Status: "+p.optString("status")+"     ›");st.setTextSize(12);st.setTextColor(0xff2563a6);card.addView(st);
+            LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.bottomMargin=12;items.addView(card,cp);card.setOnClickListener(v->showProtocolDetail(p));
+        }
+        if(a.length()==0){TextView empty=new TextView(this);empty.setText("Nie ma jeszcze zapisanych protokołów.");empty.setTextColor(0xff64748b);items.addView(empty);}
         addButton("WRÓĆ",()->showHome());
+    }
+    private void detailLine(LinearLayout box,String label,String value){if(value==null||value.trim().isEmpty())return;TextView t=new TextView(this);t.setText(label+"\\n"+value);t.setTextSize(14);t.setTextColor(0xff24364b);t.setPadding(0,7,0,9);box.addView(t);}
+    private void showProtocolDetail(JSONObject p){
+        root.removeAllViews();root.setOrientation(1);root.setPadding(20,18,20,20);root.setBackgroundColor(0xfff3f6fb);
+        ScrollView sc=new ScrollView(this);LinearLayout content=new LinearLayout(this);content.setOrientation(1);sc.addView(content);root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));
+        TextView title=new TextView(this);title.setText(p.optString("number","Protokół"));title.setTextSize(23);title.setTypeface(null,1);title.setTextColor(0xff123b68);content.addView(title);
+        TextView state=new TextView(this);state.setText("Status: "+p.optString("status"));state.setTextSize(13);state.setTextColor(0xff2563a6);state.setPadding(0,5,0,14);content.addView(state);
+        LinearLayout panel=new LinearLayout(this);panel.setOrientation(1);panel.setPadding(16,12,16,12);panel.setBackground(roundBg(Color.WHITE,16));content.addView(panel);
+        detailLine(panel,"Klient",p.optString("client"));detailLine(panel,"Telefon",p.optString("phone"));detailLine(panel,"Sprzęt",p.optString("equipment"));detailLine(panel,"Data wydania",p.optString("rental_date"));detailLine(panel,"Stan przy wydaniu",p.optString("condition"));detailLine(panel,"Akcesoria",p.optString("accessories"));detailLine(panel,"Uwagi",p.optString("notes"));
+        detailLine(panel,"Data zwrotu",p.optString("return_date"));detailLine(panel,"Stan przy zwrocie",p.optString("return_condition"));detailLine(panel,"Uwagi do zwrotu",p.optString("return_notes"));
+        JSONArray photos=p.optJSONArray("photos_base64");if(photos!=null&&photos.length()>0){TextView ph=new TextView(this);ph.setText("Zdjęcia ("+photos.length()+")");ph.setTextSize(17);ph.setTypeface(null,1);ph.setTextColor(0xff123b68);ph.setPadding(0,18,0,8);content.addView(ph);for(int i=0;i<photos.length();i++){try{byte[] raw=Base64.decode(photos.optString(i),Base64.DEFAULT);Bitmap bm=BitmapFactory.decodeByteArray(raw,0,raw.length);if(bm!=null){ImageView iv=new ImageView(this);iv.setImageBitmap(bm);iv.setAdjustViewBounds(true);iv.setScaleType(ImageView.ScaleType.FIT_CENTER);LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(-1,-2);ip.bottomMargin=10;content.addView(iv,ip);}}catch(Exception ignored){}}}
+        addButton("Zapisz / wygeneruj PDF",()->makePdf(p));addButton("WRÓĆ DO LISTY",()->protocolList());
     }
 
     private void pickPhoto(){
