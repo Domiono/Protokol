@@ -82,7 +82,7 @@ foreach ($operations as $op) {
     // Idempotency: replaying the same create/return is safe.
     $already = false;
     foreach ($protocols as $saved) {
-        if (($saved['sync_op_id'] ?? '') === $opId) { $already = true; break; }
+        if (($saved['sync_op_id'] ?? '') === $opId || ($saved['return_sync_op_id'] ?? '') === $opId) { $already = true; break; }
     }
     if ($already) { $results[]=['op_id'=>$opId,'ok'=>true,'duplicate'=>true]; continue; }
 
