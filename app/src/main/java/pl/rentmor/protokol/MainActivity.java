@@ -2,14 +2,17 @@ package pl.rentmor.protokol;
 
 import android.app.Activity;
 import android.app.DownloadManager;
-import android.content.ActivityNotFoundException;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.MediaStore;
+import android.util.Base64;
 import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
+import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -17,6 +20,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
+import java.io.OutputStream;
 
 public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQUEST = 701;
@@ -45,6 +49,7 @@ public class MainActivity extends Activity {
         s.setSupportMultipleWindows(false);
         s.setLoadsImagesAutomatically(true);
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        webView.addJavascriptInterface(new PdfBridge(), "RentMorAndroid");
 
         webView.setWebViewClient(new WebViewClient() {
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
@@ -52,6 +57,13 @@ public class MainActivity extends Activity {
             }
             @Override public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 return routeUrl(Uri.parse(url));
+            }
+            @Override public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                if (url != null && url.startsWith("https://rentmor.pl/")) {
+                    String script = "(function(){if(window.__rentMorPdfHook)return;window.__rentMorPdfHook=true;document.addEventListener('click',function(e){var a=e.target.closest('a[download]');if(!a||!a.href||a.href.indexOf('blob:')!==0)return;e.preventDefault();fetch(a.href).then(function(r){return r.blob()}).then(function(b){var f=new FileReader();f.onload=function(){var d=String(f.result).split(',')[1];window.RentMorAndroid.savePdf(d,a.download||'RentMor_protokol.pdf')};f.readAsDataURL(b)}).catch(function(){alert('Nie udało się przygotować PDF do zapisu.')})},true)})();";
+                    view.evaluateJavascript(script, null);
+                }
             }
             private boolean routeUrl(Uri uri) {
                 String scheme = uri.getScheme() == null ? "" : uri.getScheme();
@@ -62,10 +74,10 @@ public class MainActivity extends Activity {
                     return true;
                 }
                 if ("tel".equals(scheme) || "mailto".equals(scheme) || "geo".equals(scheme)) {
-                    try { startActivity(new Intent(Intent.ACTION_VIEW, uri)); } catch (ActivityNotFoundException ignored) { }
+                    try { startActivity(new Intent(Intent.ACTION_VIEW, uri)); } catch (Exception ignored) { }
                     return true;
                 }
-                try { startActivity(new Intent(Intent.ACTION_VIEW, uri)); } catch (ActivityNotFoundException ignored) { }
+                try { startActivity(new Intent(Intent.ACTION_VIEW, uri)); } catch (Exception ignored) { }
                 return true;
             }
         });
@@ -77,7 +89,7 @@ public class MainActivity extends Activity {
                 try {
                     startActivityForResult(params.createIntent(), FILE_CHOOSER_REQUEST);
                     return true;
-                } catch (ActivityNotFoundException ex) {
+                } catch (Exception ex) {
                     fileCallback = null;
                     Toast.makeText(MainActivity.this, "Brak aplikacji do wyboru zdjęć lub plików.", Toast.LENGTH_LONG).show();
                     return false;
@@ -102,15 +114,39 @@ public class MainActivity extends Activity {
                 DownloadManager manager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
                 if (manager != null) {
                     manager.enqueue(request);
-                    Toast.makeText(MainActivity.this, "Pobieranie PDF rozpoczęte. Plik znajdziesz w folderze Pobrane.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(MainActivity.this, "Pobieranie rozpoczęte. Plik znajdziesz w folderze Pobrane.", Toast.LENGTH_LONG).show();
                 }
             } catch (Exception ex) {
-                Toast.makeText(MainActivity.this, "Nie udało się rozpocząć pobierania PDF.", Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.this, "Nie udało się rozpocząć pobierania pliku.", Toast.LENGTH_LONG).show();
             }
         });
 
         if (savedInstanceState == null) webView.loadUrl(APP_URL);
         else webView.restoreState(savedInstanceState);
+    }
+
+    private class PdfBridge {
+        @JavascriptInterface public void savePdf(String base64, String filename) {
+            try {
+                byte[] bytes = Base64.decode(base64, Base64.DEFAULT);
+                String safeName = (filename == null ? "RentMor_protokol.pdf" : filename.replaceAll("[^A-Za-z0-9._-]", "_"));
+                if (!safeName.toLowerCase().endsWith(".pdf")) safeName += ".pdf";
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.Downloads.DISPLAY_NAME, safeName);
+                values.put(MediaStore.Downloads.MIME_TYPE, "application/pdf");
+                values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/RentMor");
+                Uri uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+                if (uri == null) throw new IllegalStateException("Nie można utworzyć pliku.");
+                try (OutputStream out = getContentResolver().openOutputStream(uri)) {
+                    if (out == null) throw new IllegalStateException("Nie można zapisać pliku.");
+                    out.write(bytes);
+                    out.flush();
+                }
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "PDF zapisany w Pobrane/RentMor.", Toast.LENGTH_LONG).show());
+            } catch (Exception ex) {
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Błąd zapisu PDF. Spróbuj ponownie.", Toast.LENGTH_LONG).show());
+            }
+        }
     }
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
