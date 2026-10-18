@@ -36,7 +36,7 @@ function rm_device_role(string $file): string {
 }
 function rm_text(array $input, string $key, int $max = 4000): string {
     $value = trim((string)($input[$key] ?? ''));
-    return mb_substr($value, 0, $max, 'UTF-8');
+    return function_exists('mb_substr') ? mb_substr($value, 0, $max, 'UTF-8') : substr($value, 0, $max);
 }
 
 $role = rm_device_role(__DIR__ . '/protocol_devices.json');
