@@ -175,29 +175,29 @@ public class MainActivity extends Activity {
                     new AlertDialog.Builder(this).setTitle("Edytuj rezerwację").setView(editor)
                         .setNegativeButton("Anuluj",null).setPositiveButton("Zapisz",(dialog,which)->{
                             String value=editor.getText().toString().trim();if(value.isEmpty()){toast("Wpis nie może być pusty.");return;}
-                            try{item.put("text",value);store.saveReservation(item);store.enqueue("reservation_save",item);render.run();if(isOnline())syncNow();}
+                            try{item.put("text",value);store.saveReservation(item);store.enqueue("reservation_save",item);render[0].run();if(isOnline())syncNow();}
                             catch(Exception ex){toast("Nie udało się zapisać wpisu.");}
                         }).show();
                 });
                 delete.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("Usunąć rezerwację?")
                     .setMessage(item.optString("text")).setNegativeButton("Anuluj",null)
                     .setPositiveButton("Usuń",(dialog,which)->{
-                        try{JSONObject op=new JSONObject();op.put("id",item.optString("id"));store.enqueue("reservation_delete",op);store.deleteReservation(item.optString("id"));render.run();if(isOnline())syncNow();}
+                        try{JSONObject op=new JSONObject();op.put("id",item.optString("id"));store.enqueue("reservation_delete",op);store.deleteReservation(item.optString("id"));render[0].run();if(isOnline())syncNow();}
                         catch(Exception ex){toast("Nie udało się usunąć wpisu.");}
                     }).show());
             }
         };
-        previous.setOnClickListener(v->{Calendar cal=parseReservationMonth(month[0]);cal.add(Calendar.MONTH,-1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(cal.getTime());render.run();});
-        next.setOnClickListener(v->{Calendar cal=parseReservationMonth(month[0]);cal.add(Calendar.MONTH,1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(cal.getTime());render.run();});
-        selectMonth.setOnClickListener(v->{Calendar cal=parseReservationMonth(month[0]);new DatePickerDialog(this,(picker,y,m,d)->{month[0]=String.format(Locale.US,"%04d-%02d",y,m+1);render.run();},cal.get(Calendar.YEAR),cal.get(Calendar.MONTH),1).show();});
+        previous.setOnClickListener(v->{Calendar cal=parseReservationMonth(month[0]);cal.add(Calendar.MONTH,-1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(cal.getTime());render[0].run();});
+        next.setOnClickListener(v->{Calendar cal=parseReservationMonth(month[0]);cal.add(Calendar.MONTH,1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(cal.getTime());render[0].run();});
+        selectMonth.setOnClickListener(v->{Calendar cal=parseReservationMonth(month[0]);new DatePickerDialog(this,(picker,y,m,d)->{month[0]=String.format(Locale.US,"%04d-%02d",y,m+1);render[0].run();},cal.get(Calendar.YEAR),cal.get(Calendar.MONTH),1).show();});
         addButton("＋ DODAJ WPIS",()->{
             String value=input.getText().toString().trim();
             if(value.isEmpty()){toast("Wpisz rezerwację.");return;}
-            try{JSONObject item=new JSONObject();item.put("id",UUID.randomUUID().toString());item.put("month",month[0]);item.put("text",value);item.put("done",false);store.saveReservation(item);store.enqueue("reservation_save",item);input.setText("");render.run();if(isOnline())syncNow();}
+            try{JSONObject item=new JSONObject();item.put("id",UUID.randomUUID().toString());item.put("month",month[0]);item.put("text",value);item.put("done",false);store.saveReservation(item);store.enqueue("reservation_save",item);input.setText("");render[0].run();if(isOnline())syncNow();}
             catch(Exception ex){toast("Nie udało się dodać rezerwacji.");}
         });
         addButton("WRÓĆ",()->showHome());
-        render.run();
+        render[0].run();
     }
     private Calendar parseReservationMonth(String value) {
         Calendar cal=Calendar.getInstance();
@@ -312,10 +312,10 @@ public class MainActivity extends Activity {
             LinearLayout controls=new LinearLayout(this);controls.setGravity(Gravity.CENTER);Button prev=new Button(this);prev.setText("‹ Poprzednia");Button next=new Button(this);next.setText("Następna ›");controls.addView(prev);controls.addView(next);box.addView(controls);
             final int[] current={0};
             Runnable render=()->{try(PdfRenderer.Page page=renderer.openPage(current[0])){int w=page.getWidth()*2,h=page.getHeight()*2;Bitmap bmp=Bitmap.createBitmap(w,h,Bitmap.Config.ARGB_8888);page.render(bmp,null,null,PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);image.setImageBitmap(bmp);pageLabel.setText("Strona "+(current[0]+1)+" z "+renderer.getPageCount());prev.setEnabled(current[0]>0);next.setEnabled(current[0]<renderer.getPageCount()-1);}catch(Exception ex){toast("Błąd podglądu PDF: "+ex.getMessage());}};
-            prev.setOnClickListener(v->{if(current[0]>0){current[0]--;render.run();}});next.setOnClickListener(v->{if(current[0]<renderer.getPageCount()-1){current[0]++;render.run();}});
+            prev.setOnClickListener(v->{if(current[0]>0){current[0]--;render[0].run();}});next.setOnClickListener(v->{if(current[0]<renderer.getPageCount()-1){current[0]++;render[0].run();}});
             AlertDialog dialog=new AlertDialog.Builder(this).setTitle(p.optString("number","Protokół PDF")).setView(box).setPositiveButton("Zamknij",null).create();
             dialog.setOnDismissListener(v->{try{renderer.close();fd.close();}catch(Exception ignored){}});
-            render.run();dialog.show();dialog.getWindow().setLayout(-1,(int)(getResources().getDisplayMetrics().heightPixels*.88));
+            render[0].run();dialog.show();dialog.getWindow().setLayout(-1,(int)(getResources().getDisplayMetrics().heightPixels*.88));
         }catch(Exception e){toast("Nie można otworzyć PDF: "+e.getMessage());}
     }
     private void makePdf(JSONObject p){try{PdfDocument doc=new PdfDocument();PdfDocument.PageInfo info=new PdfDocument.PageInfo.Builder(595,842,1).create();PdfDocument.Page page=doc.startPage(info);Canvas c=page.getCanvas();Paint paint=new Paint(3);paint.setColor(Color.BLACK);paint.setTextSize(20);paint.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));c.drawText("RENTMOR – PROTOKÓŁ",40,55,paint);paint.setTextSize(13);paint.setTypeface(Typeface.DEFAULT);
