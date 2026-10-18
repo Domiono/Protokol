@@ -133,8 +133,7 @@ foreach ($operations as $op) {
         $protocols = array_values(array_filter($protocols, function($saved) use ($id) {
             return (string)($saved['id'] ?? '') !== $id;
         }));
-        if (count($protocols) === $before) $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nie znaleziono protokołu do usunięcia.'];
-        else $results[]=['op_id'=>$opId,'ok'=>true,'id'=>$id];
+        $results[]=['op_id'=>$opId,'ok'=>true,'id'=>$id,'already_deleted'=>(count($protocols) === $before)];
     } else {
         $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nieobsługiwana operacja'];
     }
