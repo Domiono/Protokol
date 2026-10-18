@@ -16,7 +16,12 @@ public class SyncManager {
         c.setRequestProperty("Accept","application/json");
         String ck=cookie(); if(ck.isEmpty()) throw new IOException("Brak aktywacji urządzenia. Otwórz aktywację online.");
         c.setRequestProperty("Cookie",ck);
-        if(body!=null){c.setDoOutput(true);c.setRequestProperty("Content-Type","application/json; charset=utf-8");try(OutputStream o=c.getOutputStream()){o.write(body.toString().getBytes("UTF-8"));}}
+        if(body!=null){
+            c.setDoOutput(true);
+            c.setRequestProperty("Content-Type","application/json; charset=utf-8");
+            c.setRequestProperty("X-RentMor-Sync","1");
+            try(OutputStream o=c.getOutputStream()){o.write(body.toString().getBytes("UTF-8"));}
+        }
         int code=c.getResponseCode(); InputStream in=code>=200&&code<300?c.getInputStream():c.getErrorStream();
         ByteArrayOutputStream out=new ByteArrayOutputStream(); byte[] b=new byte[8192]; int n; while((n=in.read(b))>0)out.write(b,0,n);
         String raw=out.toString("UTF-8"); c.disconnect();
