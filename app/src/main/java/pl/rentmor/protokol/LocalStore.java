@@ -43,9 +43,41 @@ public class LocalStore extends SQLiteOpenHelper {
         return a;
     }
     public synchronized void replaceServerProtocols(JSONArray a) {
-        SQLiteDatabase db=getWritableDatabase(); db.beginTransaction();
+        SQLiteDatabase db=getWritableDatabase();
+        HashSet<String> keepIds=new HashSet<>();
+        HashSet<String> pendingCreateIds=new HashSet<>();
+        for(int i=0;i<a.length();i++) keepIds.add(a.optJSONObject(i)==null?"":a.optJSONObject(i).optString("id"));
+        JSONArray pending=queued();
+        for(int i=0;i<pending.length();i++) {
+            JSONObject op=pending.optJSONObject(i);
+            if(op!=null && "create".equals(op.optString("action"))) {
+                String id=op.optString("id");
+                if(!id.isEmpty()) pendingCreateIds.add(id);
+            }
+        }
+        keepIds.addAll(pendingCreateIds);
+        db.beginTransaction();
         try {
-            for(int i=0;i<a.length();i++){JSONObject server=a.getJSONObject(i);String id=server.optString("id");Cursor oldRow=db.rawQuery("SELECT data FROM protocols WHERE id=?",new String[]{id});try{if(oldRow.moveToFirst()){JSONObject local=new JSONObject(oldRow.getString(0));String[] localOnly={"photo_base64","photos_base64","signature_base64","return_signature_base64"};for(String key:localOnly)if(!server.has(key)&&local.has(key))server.put(key,local.get(key));}}finally{oldRow.close();}saveProtocol(server);}
+            for(int i=0;i<a.length();i++) {
+                JSONObject server=a.getJSONObject(i);
+                String id=server.optString("id");
+                Cursor oldRow=db.rawQuery("SELECT data FROM protocols WHERE id=?",new String[]{id});
+                try {
+                    if(oldRow.moveToFirst()) {
+                        JSONObject local=new JSONObject(oldRow.getString(0));
+                        String[] localOnly={"photo_base64","photos_base64","signature_base64","return_signature_base64"};
+                        for(String key:localOnly) if(!server.has(key)&&local.has(key)) server.put(key,local.get(key));
+                    }
+                } finally { oldRow.close(); }
+                saveProtocol(server);
+            }
+            Cursor localRows=db.rawQuery("SELECT id FROM protocols",null);
+            try {
+                while(localRows.moveToNext()) {
+                    String localId=localRows.getString(0);
+                    if(!keepIds.contains(localId)) db.delete("protocols","id=?",new String[]{localId});
+                }
+            } finally { localRows.close(); }
             db.setTransactionSuccessful();
         } catch(Exception ignored) {} finally { db.endTransaction(); }
     }
