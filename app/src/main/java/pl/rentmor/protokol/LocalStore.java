@@ -17,7 +17,7 @@ public class LocalStore extends SQLiteOpenHelper {
     public synchronized void enqueue(String action, JSONObject payload) {
         try {
             String opId = UUID.randomUUID().toString();
-            payload.put("op_id", opId);
+            payload.put("op_id", opId); payload.put("action", action);
             getWritableDatabase().execSQL("INSERT INTO queue(op_id,action,payload,created) VALUES(?,?,?,?)",
                 new Object[]{opId, action, payload.toString(), System.currentTimeMillis()});
             if ("create".equals(action)) saveProtocol(payload);
