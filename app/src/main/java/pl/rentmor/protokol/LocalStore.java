@@ -7,13 +7,14 @@ import org.json.*;
 import java.util.*;
 
 public class LocalStore extends SQLiteOpenHelper {
-    public LocalStore(Context c) { super(c, "rentmor_local.db", null, 1); }
+    public LocalStore(Context c) { super(c, "rentmor_local.db", null, 2); }
     @Override public void onCreate(SQLiteDatabase db) {
         db.execSQL("CREATE TABLE protocols(id TEXT PRIMARY KEY, number TEXT, status TEXT, data TEXT, updated INTEGER)");
         db.execSQL("CREATE TABLE queue(op_id TEXT PRIMARY KEY, action TEXT, payload TEXT, created INTEGER)");
         db.execSQL("CREATE TABLE equipment(name TEXT PRIMARY KEY)");
+        db.execSQL("CREATE TABLE reservations(id TEXT PRIMARY KEY, month TEXT, text TEXT, done INTEGER, updated INTEGER)");
     }
-    @Override public void onUpgrade(SQLiteDatabase db,int oldV,int newV) {}
+    @Override public void onUpgrade(SQLiteDatabase db,int oldV,int newV) { if(oldV<2) db.execSQL("CREATE TABLE IF NOT EXISTS reservations(id TEXT PRIMARY KEY, month TEXT, text TEXT, done INTEGER, updated INTEGER)"); }
     public synchronized void enqueue(String action, JSONObject payload) {
         try {
             String opId = UUID.randomUUID().toString();
@@ -93,6 +94,33 @@ public class LocalStore extends SQLiteOpenHelper {
         SQLiteDatabase db=getWritableDatabase();
         db.delete("protocols","id=?",new String[]{id});
     }
+
+    public synchronized void saveReservation(JSONObject r) {
+        ContentValues v=new ContentValues(); v.put("id",r.optString("id")); v.put("month",r.optString("month"));
+        v.put("text",r.optString("text")); v.put("done",r.optBoolean("done")?1:0); v.put("updated",System.currentTimeMillis());
+        getWritableDatabase().insertWithOnConflict("reservations",null,v,SQLiteDatabase.CONFLICT_REPLACE);
+    }
+    public synchronized JSONArray reservations(String month) {
+        JSONArray a=new JSONArray(); Cursor c=getReadableDatabase().rawQuery("SELECT id,month,text,done FROM reservations WHERE month=?",new String[]{month});
+        try { while(c.moveToNext()) { JSONObject x=new JSONObject(); x.put("id",c.getString(0)); x.put("month",c.getString(1)); x.put("text",c.getString(2)); x.put("done",c.getInt(3)==1); a.put(x); } }
+        catch(Exception ignored) {} finally { c.close(); } return a;
+    }
+    public synchronized void deleteReservation(String id) { getWritableDatabase().delete("reservations","id=?",new String[]{id}); }
+    public synchronized void replaceServerReservations(JSONArray a) {
+        SQLiteDatabase db=getWritableDatabase(); HashSet<String> keep=new HashSet<>();
+        for(int i=0;i<a.length();i++){JSONObject x=a.optJSONObject(i);if(x!=null)keep.add(x.optString("id"));}
+        JSONArray pending=queued();
+        for(int i=0;i<pending.length();i++){JSONObject op=pending.optJSONObject(i);if(op!=null && "reservation_save".equals(op.optString("action")))keep.add(op.optString("id"));}
+        db.beginTransaction();
+        try {
+            for(int i=0;i<a.length();i++){JSONObject x=a.optJSONObject(i);if(x!=null)saveReservation(x);}
+            Cursor rows=db.rawQuery("SELECT id FROM reservations",null);
+            try { while(rows.moveToNext()){String id=rows.getString(0);if(!keep.contains(id))db.delete("reservations","id=?",new String[]{id});} }
+            finally { rows.close(); }
+            db.setTransactionSuccessful();
+        } finally { db.endTransaction(); }
+    }
+
     public synchronized int pendingCount() {
         Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM queue",null); try { return c.moveToFirst()?c.getInt(0):0; } finally { c.close(); }
     }
