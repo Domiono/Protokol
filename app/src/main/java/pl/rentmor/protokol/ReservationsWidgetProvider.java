@@ -29,7 +29,7 @@ public class ReservationsWidgetProvider extends AppWidgetProvider {
     v.setViewVisibility(R.id.widget_row_1,View.VISIBLE);
     v.setTextViewText(R.id.widget_row_1,"Brak aktywnych rezerwacji w tym miesiącu");
     v.setTextColor(R.id.widget_row_1,0xff64748b);
-    v.setInt(R.id.widget_row_1,"setBackgroundColor",0xfff1f5f9);
+    v.setInt(R.id.widget_row_1,"setBackgroundResource",R.drawable.widget_row_pending);
    }else{
     for(int i=0;i<Math.min(rowIds.length,rows.size());i++){
      JSONObject item=rows.get(i);boolean done=item.optBoolean("done");
@@ -46,7 +46,7 @@ public class ReservationsWidgetProvider extends AppWidgetProvider {
      String display=(done?"✓ WYDANE":"● DO WYDANIA")+"\n"+dates+"\n"+equipment+(details.isEmpty()?"":"\n"+details)+(phone.isEmpty()?"":"\nTEL. "+phone);
      v.setTextViewText(rid,display);
      v.setTextColor(rid,done?0xff176b55:0xff203a57);
-     v.setInt(rid,"setBackgroundResource",done?R.drawable.widget_row_done:R.drawable.widget_row_pending);
+     v.setInt(rid,"setBackgroundResource",done?R.drawable.widget_row_issued:R.drawable.widget_row_pending);
     }
    }
    v.setTextViewText(R.id.widget_footer,"Otwórz aplikację  ›");
