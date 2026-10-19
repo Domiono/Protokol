@@ -196,7 +196,7 @@ public class MainActivity extends Activity {
                 boolean done=item.optBoolean("done");
                 LinearLayout row=new LinearLayout(this);row.setOrientation(1);row.setPadding(14,13,14,13);row.setBackground(roundBg(Color.WHITE,16));row.setElevation(2);
                 LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);
-                CheckBox check=new CheckBox(this);check.setChecked(done);check.setText("");head.addView(check,new LinearLayout.LayoutParams(34,-2));
+                CheckBox check=new CheckBox(this);check.setChecked(done);check.setText("");check.setPadding(3,0,3,0);check.setScaleX(1.22f);check.setScaleY(1.22f);if(android.os.Build.VERSION.SDK_INT>=21){check.setButtonTintList(new android.content.res.ColorStateList(new int[][]{new int[]{android.R.attr.state_checked},new int[]{}},new int[]{0xff16a34a,0xffdc2626}));}LinearLayout.LayoutParams checkParams=new LinearLayout.LayoutParams(48,52);checkParams.rightMargin=5;head.addView(check,checkParams);
                 TextView dayNumber=new TextView(this);dayNumber.setText(reservationDateRangeShort(item));dayNumber.setTextSize(25);dayNumber.setTypeface(null,1);dayNumber.setTextColor(0xff172235);dayNumber.setGravity(Gravity.CENTER);dayNumber.setBackground(roundBg(0xffe8f0fa,10));LinearLayout.LayoutParams dp=new LinearLayout.LayoutParams(52,52);dp.rightMargin=11;head.addView(dayNumber,dp);
                 LinearLayout dayCol=new LinearLayout(this);dayCol.setOrientation(1);dayCol.setGravity(Gravity.CENTER_VERTICAL);
                 TextView dayCaption=new TextView(this);dayCaption.setText(reservationMonthRangeLabel(item));dayCaption.setTextSize(12);dayCaption.setTextColor(0xff697386);dayCol.addView(dayCaption);
