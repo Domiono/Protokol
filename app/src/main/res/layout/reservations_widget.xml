@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="10dp"
+    android:padding="6dp"
     android:background="@drawable/widget_surface">
 
     <TextView
@@ -12,54 +12,164 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/widget_header"
-        android:paddingStart="13dp"
-        android:paddingTop="11dp"
-        android:paddingEnd="13dp"
-        android:paddingBottom="11dp"
-        android:text="RENTMOR  •  REZERWACJE"
+        android:paddingStart="9dp"
+        android:paddingTop="5dp"
+        android:paddingEnd="9dp"
+        android:paddingBottom="5dp"
+        android:text="RENTMOR • REZERWACJE"
         android:textColor="#FFFFFF"
-        android:textSize="13sp"
+        android:textSize="10sp"
         android:textStyle="bold"
-        android:letterSpacing="0.04" />
+        android:letterSpacing="0.03" />
 
     <TextView
         android:id="@+id/widget_row_1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:padding="10dp"
-        android:textSize="12sp"
-        android:lineSpacingExtra="2dp"
+        android:layout_marginTop="3dp"
+        android:paddingStart="7dp"
+        android:paddingEnd="7dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:textSize="9sp"
+        android:lineSpacingExtra="0dp"
+        android:maxLines="3"
+        android:ellipsize="end"
         android:textColor="#203A57" />
 
     <TextView
         android:id="@+id/widget_row_2"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:padding="10dp"
-        android:textSize="12sp"
-        android:lineSpacingExtra="2dp"
+        android:layout_marginTop="3dp"
+        android:paddingStart="7dp"
+        android:paddingEnd="7dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:textSize="9sp"
+        android:lineSpacingExtra="0dp"
+        android:maxLines="3"
+        android:ellipsize="end"
         android:textColor="#203A57" />
 
     <TextView
         android:id="@+id/widget_row_3"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:padding="10dp"
-        android:textSize="12sp"
-        android:lineSpacingExtra="2dp"
+        android:layout_marginTop="3dp"
+        android:paddingStart="7dp"
+        android:paddingEnd="7dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:textSize="9sp"
+        android:lineSpacingExtra="0dp"
+        android:maxLines="3"
+        android:ellipsize="end"
         android:textColor="#203A57" />
 
     <TextView
         android:id="@+id/widget_row_4"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:padding="10dp"
-        android:textSize="12sp"
-        android:lineSpacingExtra="2dp"
+        android:layout_marginTop="3dp"
+        android:paddingStart="7dp"
+        android:paddingEnd="7dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:textSize="9sp"
+        android:lineSpacingExtra="0dp"
+        android:maxLines="3"
+        android:ellipsize="end"
+        android:textColor="#203A57" />
+
+    <TextView
+        android:id="@+id/widget_row_5"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:paddingStart="7dp"
+        android:paddingEnd="7dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:textSize="9sp"
+        android:lineSpacingExtra="0dp"
+        android:maxLines="3"
+        android:ellipsize="end"
+        android:textColor="#203A57" />
+
+    <TextView
+        android:id="@+id/widget_row_6"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:paddingStart="7dp"
+        android:paddingEnd="7dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:textSize="9sp"
+        android:lineSpacingExtra="0dp"
+        android:maxLines="3"
+        android:ellipsize="end"
+        android:textColor="#203A57" />
+
+    <TextView
+        android:id="@+id/widget_row_7"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:paddingStart="7dp"
+        android:paddingEnd="7dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:textSize="9sp"
+        android:lineSpacingExtra="0dp"
+        android:maxLines="3"
+        android:ellipsize="end"
+        android:textColor="#203A57" />
+
+    <TextView
+        android:id="@+id/widget_row_8"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:paddingStart="7dp"
+        android:paddingEnd="7dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:textSize="9sp"
+        android:lineSpacingExtra="0dp"
+        android:maxLines="3"
+        android:ellipsize="end"
+        android:textColor="#203A57" />
+
+    <TextView
+        android:id="@+id/widget_row_9"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:paddingStart="7dp"
+        android:paddingEnd="7dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:textSize="9sp"
+        android:lineSpacingExtra="0dp"
+        android:maxLines="3"
+        android:ellipsize="end"
+        android:textColor="#203A57" />
+
+    <TextView
+        android:id="@+id/widget_row_10"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:paddingStart="7dp"
+        android:paddingEnd="7dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:textSize="9sp"
+        android:lineSpacingExtra="0dp"
+        android:maxLines="3"
+        android:ellipsize="end"
         android:textColor="#203A57" />
 
     <TextView
@@ -68,8 +178,8 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:gravity="bottom|end"
-        android:paddingTop="6dp"
-        android:textSize="11sp"
+        android:paddingTop="2dp"
+        android:textSize="9sp"
         android:textStyle="bold"
         android:textColor="#3977A8" />
 </LinearLayout>
