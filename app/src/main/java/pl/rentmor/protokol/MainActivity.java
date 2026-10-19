@@ -26,14 +26,20 @@ public class MainActivity extends Activity {
     private WebView activation; private boolean showingApp=false; private final ArrayList<Bitmap> issuePhotos=new ArrayList<>(); private TextView photoCount; private SignatureView signatureView; private final AtomicBoolean syncRunning=new AtomicBoolean(false); private ConnectivityManager.NetworkCallback networkCallback;
     @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(Color.rgb(18,59,104));getWindow().setNavigationBarColor(Color.rgb(18,59,104));store=new LocalStore(this);sync=new SyncManager(this,store);registerNetworkSync();
         String saved=getSharedPreferences("rentmor",0).getString("cookie","");
-        if(!saved.isEmpty()) showHome(); else showActivation();
+        if(!saved.isEmpty()){showHome();openWidgetDestination();} else showActivation();
+    }
+    private void openWidgetDestination(){
+        if(getIntent()!=null && getIntent().getBooleanExtra("open_reservations",false)){
+            getIntent().removeExtra("open_reservations");
+            if(root!=null) root.postDelayed(()->reservationPage(),180);
+        }
     }
     private void showActivation(){
         activation=new WebView(this); activation.getSettings().setJavaScriptEnabled(true);activation.getSettings().setDomStorageEnabled(true);
         CookieManager.getInstance().setAcceptCookie(true);
         activation.setWebViewClient(new WebViewClient(){@Override public void onPageFinished(WebView v,String url){
             String c=CookieManager.getInstance().getCookie("https://rentmor.pl");
-            if(c!=null&&c.contains("rm_protocol_device=")){getSharedPreferences("rentmor",0).edit().putString("cookie",c).apply();activation.postDelayed(()->showHome(),500);}
+            if(c!=null&&c.contains("rm_protocol_device=")){getSharedPreferences("rentmor",0).edit().putString("cookie",c).apply();activation.postDelayed(()->{showHome();openWidgetDestination();},500);}
         }});
         setContentView(activation); activation.loadUrl(HOME);
     }
