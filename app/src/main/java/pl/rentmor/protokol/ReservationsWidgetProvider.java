@@ -36,12 +36,13 @@ public class ReservationsWidgetProvider extends AppWidgetProvider {
      int rid=rowIds[i];v.setViewVisibility(rid,View.VISIBLE);
      String raw=item.optString("text","");String[] parts=raw.split("•");
      String equipment=item.optString("equipment","").trim();
-     if(equipment.isEmpty()&&parts.length>=2){equipment=parts[1].trim().replaceFirst("(?i)\\s+-\\s+wynajem.*$","").replaceFirst("\\s+\\|.*$","").trim();}
-     if(equipment.isEmpty())equipment=raw;
-     String time=item.optString("time","");if(time.isEmpty()){java.util.regex.Matcher tm=java.util.regex.Pattern.compile("^\\s*\\d{1,2}\\s+(\\d{1,2}:\\d{2})").matcher(raw);if(tm.find())time=tm.group(1);}
-     String phone=item.optString("phone","");if(phone.isEmpty()&&parts.length>=3)phone=parts[parts.length-1].trim();
-     int day=item.optInt("day",day(raw));String details=day+(time.isEmpty()?"":" • "+time);
-     String display=(done?"✓ WYDANE":"○ DO WYDANIA")+"\\n"+equipment+"\\n"+details+(phone.isEmpty()?"":" • "+phone);
+     if(equipment.isEmpty()&&parts.length>=2)equipment=parts[1].trim();
+     if(equipment.isEmpty()){java.util.regex.Matcher em=java.util.regex.Pattern.compile("^\\s*\\d{1,2}\\s+(.+?)\\s+\\d{1,2}\\s*/\\s*.+$").matcher(raw);equipment=em.find()?em.group(1):raw;}
+     equipment=equipment.replaceFirst("(?i)\\s+-\\s+wynajem.*$","").replaceFirst("\\s+\\|.*$","").trim();
+     String time=item.optString("time","").trim();if(time.isEmpty()){java.util.regex.Matcher tm=java.util.regex.Pattern.compile("^\\s*\\d{1,2}\\s+(\\d{1,2}:\\d{2})").matcher(raw);if(tm.find())time=tm.group(1);else{java.util.regex.Matcher lm=java.util.regex.Pattern.compile("^\\s*\\d{1,2}\\s+.+?\\s+(\\d{1,2})\\s*/").matcher(raw);if(lm.find())time=String.format(Locale.US,"%02d:00",Integer.parseInt(lm.group(1)));}}
+     String phone=item.optString("phone","").trim();if(phone.isEmpty()){if(parts.length>=3)phone=parts[parts.length-1].trim();else{java.util.regex.Matcher pm=java.util.regex.Pattern.compile("/\\s*(.+)$").matcher(raw);if(pm.find())phone=pm.group(1).trim();}}
+     int day=item.optInt("day",day(raw));String details="DZIEŃ "+day+(time.isEmpty()?"":"   •   "+time);
+     String display=(done?"✓ WYDANE":"○ DO WYDANIA")+"\n"+equipment+"\n"+details+(phone.isEmpty()?"":"\nTEL. "+phone);
      v.setTextViewText(rid,display);
      v.setTextColor(rid,done?0xff166534:0xff26384d);
      v.setInt(rid,"setBackgroundColor",done?0xffe8f5e9:0xfff1f5f9);
