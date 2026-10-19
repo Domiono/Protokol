@@ -182,7 +182,7 @@ public class MainActivity extends Activity {
                 }).show();
         });
         EditText time=new EditText(this);time.setSingleLine(true);time.setHint("Godzina (np. 18:00)");time.setInputType(2);root.addView(time);
-        EditText phone=new EditText(this);phone.setSingleLine(true);phone.setHint("Telefon");phone.setInputType(3);root.addView(phone);
+        EditText phone=new EditText(this);phone.setSingleLine(true);phone.setHint("Telefon lub nick z OLX");phone.setInputType( android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);root.addView(phone);
         TextView hint=new TextView(this);hint.setText("Ustaw datę OD–DO. Rezerwacja może obejmować kilka dni.");hint.setTextSize(12);hint.setTextColor(0xff718096);root.addView(hint);
 
         ScrollView scroll=new ScrollView(this);LinearLayout list=new LinearLayout(this);list.setOrientation(1);list.setPadding(0,10,0,8);scroll.addView(list);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
@@ -214,9 +214,21 @@ public class MainActivity extends Activity {
                 TextView equipmentTitle=new TextView(this);equipmentTitle.setText(reservationEquipment(item));equipmentTitle.setTextSize(18);equipmentTitle.setTypeface(null,1);equipmentTitle.setTextColor(done?0xff697386:0xff172b43);equipmentTitle.setPadding(0,10,0,10);row.addView(equipmentTitle);
                 LinearLayout details=new LinearLayout(this);details.setGravity(Gravity.CENTER_VERTICAL);details.setPadding(0,0,0,10);
                 TextView timeBadge=new TextView(this);String timeText=reservationTimeForItem(item);timeBadge.setText("◷  "+(timeText.isEmpty()?"GODZINA NIEUSTALONA":timeText));timeBadge.setTextSize(13);timeBadge.setTypeface(null,1);timeBadge.setTextColor(0xff7c4a03);timeBadge.setPadding(10,8,10,8);timeBadge.setBackground(roundBg(0xfffff3df,9));details.addView(timeBadge);row.addView(details);
-                String ph=reservationPhoneForItem(item);if(!ph.isEmpty()){LinearLayout phoneLine=new LinearLayout(this);phoneLine.setGravity(Gravity.CENTER_VERTICAL);phoneLine.setPadding(0,0,0,11);TextView phoneLabel=new TextView(this);phoneLabel.setText("TELEFON   ");phoneLabel.setTextSize(10);phoneLabel.setTypeface(null,1);phoneLabel.setTextColor(0xff697386);phoneLine.addView(phoneLabel);TextView phoneText=new TextView(this);phoneText.setText(ph);phoneText.setTextSize(17);phoneText.setTypeface(null,1);phoneText.setTextColor(0xff172235);phoneLine.addView(phoneText);row.addView(phoneLine);}
-                LinearLayout actions=new LinearLayout(this);actions.setGravity(Gravity.CENTER_VERTICAL);Button edit=new Button(this);edit.setText("EDYTUJ");brandButton(edit,false);actions.addView(edit,new LinearLayout.LayoutParams(0,-2,1));
+                String ph=reservationPhoneForItem(item);if(!ph.isEmpty()){
+                    TextView phoneText=new TextView(this);phoneText.setText((isPhoneNumber(ph)?"TELEFON   ":"KLIENT / OLX   ")+ph);phoneText.setTextSize(15);phoneText.setTypeface(null,1);phoneText.setTextColor(0xff172235);phoneText.setPadding(0,0,0,8);row.addView(phoneText);
+                }
+                LinearLayout actions=new LinearLayout(this);actions.setGravity(Gravity.CENTER_VERTICAL);
+                Button edit=new Button(this);edit.setText("EDYTUJ");brandButton(edit,false);actions.addView(edit,new LinearLayout.LayoutParams(0,-2,1));
                 Button settle=new Button(this);settle.setText("ROZLICZ");brandButton(settle,true);actions.addView(settle,new LinearLayout.LayoutParams(0,-2,1));settle.setEnabled("admin".equals(getSharedPreferences("rentmor",0).getString("role","")));row.addView(actions);
+                if(isPhoneNumber(ph)){
+                    LinearLayout contactActions=new LinearLayout(this);contactActions.setGravity(Gravity.CENTER_VERTICAL);
+                    Button sms=new Button(this);sms.setText("WYŚLIJ WIADOMOŚĆ");brandButton(sms,false);contactActions.addView(sms,new LinearLayout.LayoutParams(0,-2,1));
+                    Button call=new Button(this);call.setText("ZADZWOŃ");brandButton(call,true);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,-2,1);cp.leftMargin=7;contactActions.addView(call,cp);row.addView(contactActions);
+                    sms.setOnClickListener(v->{try{android.content.Intent intent=new android.content.Intent(android.content.Intent.ACTION_SENDTO,android.net.Uri.fromParts("smsto",ph.replaceAll("[^+0-9]",""),null));intent.putExtra("sms_body","Dzień dobry, kontaktuję się w sprawie rezerwacji sprzętu w RentMor.");startActivity(intent);}catch(Exception ex){toast("Nie można otworzyć wiadomości.");}});
+                    call.setOnClickListener(v->{try{startActivity(new android.content.Intent(android.content.Intent.ACTION_DIAL,android.net.Uri.fromParts("tel",ph.replaceAll("[^+0-9]",""),null)));}catch(Exception ex){toast("Nie można otworzyć telefonu.");}});
+                }
+                Button delete=new Button(this);delete.setText("USUŃ REZERWACJĘ");brandButton(delete,false);row.addView(delete);
+                delete.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("Usunąć rezerwację?").setMessage("Rezerwacja zostanie usunięta z aplikacji i po synchronizacji z serwera. Tej operacji nie można cofnąć.").setNegativeButton("Anuluj",null).setPositiveButton("Usuń",(dialog,which)->{try{JSONObject op=new JSONObject();op.put("id",item.optString("id"));store.enqueue("reservation_delete",op);store.deleteReservation(item.optString("id"));ReservationsWidgetProvider.refresh(this);render[0].run();toast("Usunięto rezerwację.");if(isOnline())syncNow();}catch(Exception ex){toast("Nie udało się usunąć rezerwacji.");}}).show());
                 LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.bottomMargin=11;list.addView(row,rp);
                 check.setOnCheckedChangeListener((button,checked)->{try{item.put("done",checked);store.saveReservation(item);store.enqueue("reservation_save",item);ReservationsWidgetProvider.refresh(this);if(isOnline())syncNow();render[0].run();}catch(Exception ex){toast("Nie udało się zapisać zmiany.");}});
                 edit.setOnClickListener(v->{
@@ -351,6 +363,12 @@ public class MainActivity extends Activity {
         java.util.regex.Matcher legacy=java.util.regex.Pattern.compile("^\\s*\\d{1,2}\\s+.+?\\s+(\\d{1,2})\\s*/").matcher(raw);
         return legacy.find()?String.format(Locale.US,"%02d:00",Integer.parseInt(legacy.group(1))):"";
     }
+    private boolean isPhoneNumber(String value) {
+        if(value==null)return false;
+        String digits=value.replaceAll("[^0-9]","");
+        return digits.length()>=7 && digits.length()<=15 && value.matches("[+0-9() .-]+");
+    }
+
     private String reservationPhoneForItem(JSONObject item) {
         String value=item.optString("phone","").trim();if(!value.isEmpty())return value;
         String raw=item.optString("text","");String[] parts=raw.split("•");
