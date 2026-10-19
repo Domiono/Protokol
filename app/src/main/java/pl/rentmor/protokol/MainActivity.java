@@ -158,12 +158,18 @@ public class MainActivity extends Activity {
             Collections.sort(items,(a,b)->{int da=reservationDay(a.optString("text")),db=reservationDay(b.optString("text"));if(da!=db)return Integer.compare(da,db);return Integer.compare(reservationHour(a.optString("text")),reservationHour(b.optString("text")));});
             int shown=0;
             for(JSONObject item:items){if(item.optBoolean("settled"))continue;shown++;
-                LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(8,5,4,5);row.setBackground(roundBg(Color.WHITE,12));
-                CheckBox check=new CheckBox(this);check.setText(item.optString("text"));check.setTextSize(14);check.setTextColor(0xff172b43);check.setChecked(item.optBoolean("done"));
-                check.setPaintFlags(check.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);if(item.optBoolean("done"))check.setPaintFlags(check.getPaintFlags()|Paint.STRIKE_THRU_TEXT_FLAG);
-                row.addView(check,new LinearLayout.LayoutParams(0,-2,1));Button edit=new Button(this);edit.setText("Edytuj");row.addView(edit);
-                Button settle=new Button(this);settle.setText("Rozlicz");row.addView(settle);settle.setEnabled("admin".equals(getSharedPreferences("rentmor",0).getString("role","")));
-                LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.bottomMargin=7;list.addView(row,rp);
+                boolean done=item.optBoolean("done");
+                LinearLayout row=new LinearLayout(this);row.setOrientation(1);row.setPadding(14,12,14,12);row.setBackground(roundBg(Color.WHITE,14));row.setElevation(1);
+                LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);
+                CheckBox check=new CheckBox(this);check.setChecked(done);check.setText("");top.addView(check,new LinearLayout.LayoutParams(42,-2));
+                String eq=reservationEquipment(item);TextView equipmentTitle=new TextView(this);equipmentTitle.setText(eq);equipmentTitle.setTextSize(17);equipmentTitle.setTypeface(null,1);equipmentTitle.setTextColor(done?0xff64748b:0xff172b43);equipmentTitle.setPaintFlags(done?(equipmentTitle.getPaintFlags()|Paint.STRIKE_THRU_TEXT_FLAG):(equipmentTitle.getPaintFlags()&~Paint.STRIKE_THRU_TEXT_FLAG));top.addView(equipmentTitle,new LinearLayout.LayoutParams(0,-2,1));
+                TextView state=new TextView(this);state.setText(done?"WYDANE":"DO WYDANIA");state.setTextSize(10);state.setTypeface(null,1);state.setTextColor(done?0xff166534:0xff9a5700);state.setPadding(8,6,8,6);state.setBackground(roundBg(done?0xffe8f5e9:0xfffff3df,8));top.addView(state);row.addView(top);
+                String dayText=reservationDayLabel(item),timeText=item.optString("time",reservationTime(item.optString("text")));
+                TextView when=new TextView(this);when.setText((dayText.isEmpty()?"":dayText)+(timeText.isEmpty()?"":"   •   "+timeText));when.setTextSize(14);when.setTextColor(0xff526174);when.setPadding(42,3,0,2);row.addView(when);
+                String ph=item.optString("phone",reservationPhone(item.optString("text")));if(!ph.isEmpty()){TextView phoneText=new TextView(this);phoneText.setText(ph);phoneText.setTextSize(16);phoneText.setTypeface(null,1);phoneText.setTextColor(0xff123b68);phoneText.setPadding(42,2,0,8);row.addView(phoneText);}
+                LinearLayout actions=new LinearLayout(this);actions.setGravity(Gravity.CENTER_VERTICAL);Button edit=new Button(this);edit.setText("EDYTUJ");actions.addView(edit,new LinearLayout.LayoutParams(0,-2,1));
+                Button settle=new Button(this);settle.setText("ROZLICZ");actions.addView(settle,new LinearLayout.LayoutParams(0,-2,1));settle.setEnabled("admin".equals(getSharedPreferences("rentmor",0).getString("role","")));row.addView(actions);
+                LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.bottomMargin=9;list.addView(row,rp);
                 check.setOnCheckedChangeListener((button,checked)->{try{item.put("done",checked);store.saveReservation(item);store.enqueue("reservation_save",item);ReservationsWidgetProvider.refresh(this);if(isOnline())syncNow();render[0].run();}catch(Exception ex){toast("Nie udało się zapisać zmiany.");}});
                 edit.setOnClickListener(v->{
                     LinearLayout f=new LinearLayout(this);f.setOrientation(1);EditText e=new EditText(this);e.setSingleLine(true);e.setText(item.optString("text"));f.addView(e);
@@ -277,6 +283,24 @@ public class MainActivity extends Activity {
         TextView l=new TextView(this);l.setText(label);l.setTextSize(11);l.setTypeface(null,1);l.setTextColor(0xff718096);card.addView(l);
         TextView v=new TextView(this);v.setText(value);v.setTextSize(22);v.setTypeface(null,1);v.setTextColor(color);v.setPadding(0,4,0,0);card.addView(v);
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=8;parent.addView(card,lp);
+    }
+
+    private String reservationEquipment(JSONObject item) {
+        String value=item.optString("equipment","").trim();
+        if(!value.isEmpty())return value;
+        String raw=item.optString("text","");String[] parts=raw.split("•");
+        if(parts.length>=2){value=parts[1].trim();value=value.replaceFirst("(?i)\\s+-\\s+wynajem.*$","").replaceFirst("\\s+\\|.*$","").trim();}
+        return value.isEmpty()?raw:value;
+    }
+    private String reservationTime(String raw) {
+        java.util.regex.Matcher m=java.util.regex.Pattern.compile("^\\s*\\d{1,2}\\s+(\\d{1,2}:\\d{2})").matcher(raw);
+        return m.find()?m.group(1):"";
+    }
+    private String reservationPhone(String raw) {
+        String[] parts=raw.split("•");return parts.length>=3?parts[parts.length-1].trim():"";
+    }
+    private String reservationDayLabel(JSONObject item) {
+        int d=item.optInt("day",reservationDay(item.optString("text")));return d>=1&&d<=31?d+" "+new SimpleDateFormat("LLLL",new Locale("pl","PL")).format(parseReservationMonth(item.optString("month",new SimpleDateFormat("yyyy-MM",Locale.US).format(new Date()))).getTime()):"";
     }
 
     private Calendar parseReservationMonth(String value) {
