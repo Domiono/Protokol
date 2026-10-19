@@ -75,6 +75,16 @@ public class MainActivity extends Activity {
         },0xffe8f1fb);
     }
     private android.graphics.drawable.GradientDrawable roundBg(int color,int radius){android.graphics.drawable.GradientDrawable d=new android.graphics.drawable.GradientDrawable();d.setColor(color);d.setCornerRadius(radius);return d;}
+    private void brandButton(Button b,boolean primary){
+        b.setAllCaps(false);b.setTextSize(14);b.setTypeface(null,1);
+        b.setTextColor(primary?0xffffffff:0xff174a78);
+        android.graphics.drawable.GradientDrawable bg=new android.graphics.drawable.GradientDrawable();
+        bg.setColor(primary?0xff176b83:0xffe4eff8);bg.setCornerRadius(14f);
+        bg.setStroke(1,primary?0xff176b83:0xffc8dced);
+        b.setBackground(bg);b.setElevation(2f);
+        if(android.os.Build.VERSION.SDK_INT>=21)b.setStateListAnimator(null);
+        b.setPadding(14,10,14,10);
+    }
     private void menuCard(LinearLayout parent,String symbol,String title,String subtitle,Runnable action,int tint){
         LinearLayout card=new LinearLayout(this);card.setOrientation(0);card.setGravity(Gravity.CENTER_VERTICAL);card.setPadding(15,14,15,14);card.setBackground(roundBg(0xffffffff,18));card.setElevation(3);
         ImageView ico=new ImageView(this);ico.setImageResource(menuIcon(title));ico.setColorFilter(0xff174a78);ico.setScaleType(ImageView.ScaleType.CENTER_INSIDE);ico.setPadding(14,14,14,14);ico.setBackground(roundBg(tint,16));card.addView(ico,new LinearLayout.LayoutParams(52,52));
@@ -101,7 +111,7 @@ public class MainActivity extends Activity {
         cm.removeAllCookies(removed->{cm.flush();runOnUiThread(()->showActivation());});
     }
     private boolean isOnline(){android.net.ConnectivityManager cm=(android.net.ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);android.net.Network n=cm.getActiveNetwork();return n!=null&&cm.getNetworkCapabilities(n)!=null&&cm.getNetworkCapabilities(n).hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET);}
-    private void addButton(String text,Runnable action){Button b=new Button(this);b.setText(text);b.setAllCaps(false);b.setOnClickListener(v->action.run());root.addView(b,new LinearLayout.LayoutParams(-1,-2));}
+    private void addButton(String text,Runnable action){Button b=new Button(this);b.setText(text);boolean primary=text.contains("DODAJ")||text.contains("ZAPISZ")||text.contains("POTWIERDŹ");brandButton(b,primary);b.setOnClickListener(v->action.run());LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.topMargin=4;lp.bottomMargin=5;root.addView(b,lp);}
     private EditText field(String hint){EditText e=new EditText(this);e.setSingleLine(false);e.setHint(hint);root.addView(e,new LinearLayout.LayoutParams(-1,-2));return e;}
     private EditText dateField(String hint,String initial){
         EditText e=field(hint);e.setText(initial);e.setFocusable(false);e.setClickable(true);e.setOnClickListener(v->showDatePicker(e));return e;
@@ -140,12 +150,12 @@ public class MainActivity extends Activity {
         final String[] month={String.format(Locale.US,"%04d-%02d",today.get(Calendar.YEAR),today.get(Calendar.MONTH)+1)};
         TextView monthLabel=new TextView(this); monthLabel.setTextSize(16); monthLabel.setTextColor(0xff526174); monthLabel.setPadding(0,8,0,8); root.addView(monthLabel);
         LinearLayout monthBar=new LinearLayout(this); monthBar.setGravity(Gravity.CENTER_VERTICAL);
-        Button previous=new Button(this); previous.setText("‹"); Button selectMonth=new Button(this); selectMonth.setText("Wybierz miesiąc"); Button next=new Button(this); next.setText("›");
+        Button previous=new Button(this); previous.setText("‹"); brandButton(previous,false); Button selectMonth=new Button(this); selectMonth.setText("Wybierz miesiąc"); brandButton(selectMonth,false); Button next=new Button(this); next.setText("›"); brandButton(next,false);
         monthBar.addView(previous); monthBar.addView(selectMonth,new LinearLayout.LayoutParams(0,-2,1)); monthBar.addView(next); root.addView(monthBar);
 
         final Calendar[] reservationStart={ (Calendar)today.clone() },reservationEnd={ (Calendar)today.clone() };
         LinearLayout dateRange=new LinearLayout(this);dateRange.setGravity(Gravity.CENTER_VERTICAL);
-        Button startDateButton=new Button(this);Button endDateButton=new Button(this);
+        Button startDateButton=new Button(this);Button endDateButton=new Button(this);brandButton(startDateButton,false);brandButton(endDateButton,false);
         Runnable updateDateButtons=()->{SimpleDateFormat df=new SimpleDateFormat("dd.MM.yyyy",Locale.getDefault());startDateButton.setText("OD  "+df.format(reservationStart[0].getTime()));endDateButton.setText("DO  "+df.format(reservationEnd[0].getTime()));};
         dateRange.addView(startDateButton,new LinearLayout.LayoutParams(0,-2,1));dateRange.addView(endDateButton,new LinearLayout.LayoutParams(0,-2,1));root.addView(dateRange);
         startDateButton.setOnClickListener(v->{Calendar c=(Calendar)reservationStart[0].clone();new android.app.DatePickerDialog(this,(view,y,m,d)->{reservationStart[0].set(y,m,d);if(reservationEnd[0].before(reservationStart[0]))reservationEnd[0]=(Calendar)reservationStart[0].clone();updateDateButtons.run();},c.get(Calendar.YEAR),c.get(Calendar.MONTH),c.get(Calendar.DAY_OF_MONTH)).show();});
@@ -205,8 +215,8 @@ public class MainActivity extends Activity {
                 LinearLayout details=new LinearLayout(this);details.setGravity(Gravity.CENTER_VERTICAL);details.setPadding(0,0,0,10);
                 TextView timeBadge=new TextView(this);String timeText=reservationTimeForItem(item);timeBadge.setText("◷  "+(timeText.isEmpty()?"GODZINA NIEUSTALONA":timeText));timeBadge.setTextSize(13);timeBadge.setTypeface(null,1);timeBadge.setTextColor(0xff7c4a03);timeBadge.setPadding(10,8,10,8);timeBadge.setBackground(roundBg(0xfffff3df,9));details.addView(timeBadge);row.addView(details);
                 String ph=reservationPhoneForItem(item);if(!ph.isEmpty()){LinearLayout phoneLine=new LinearLayout(this);phoneLine.setGravity(Gravity.CENTER_VERTICAL);phoneLine.setPadding(0,0,0,11);TextView phoneLabel=new TextView(this);phoneLabel.setText("TELEFON   ");phoneLabel.setTextSize(10);phoneLabel.setTypeface(null,1);phoneLabel.setTextColor(0xff64748b);phoneLine.addView(phoneLabel);TextView phoneText=new TextView(this);phoneText.setText(ph);phoneText.setTextSize(17);phoneText.setTypeface(null,1);phoneText.setTextColor(0xff123b68);phoneLine.addView(phoneText);row.addView(phoneLine);}
-                LinearLayout actions=new LinearLayout(this);actions.setGravity(Gravity.CENTER_VERTICAL);Button edit=new Button(this);edit.setText("EDYTUJ");actions.addView(edit,new LinearLayout.LayoutParams(0,-2,1));
-                Button settle=new Button(this);settle.setText("ROZLICZ");actions.addView(settle,new LinearLayout.LayoutParams(0,-2,1));settle.setEnabled("admin".equals(getSharedPreferences("rentmor",0).getString("role","")));row.addView(actions);
+                LinearLayout actions=new LinearLayout(this);actions.setGravity(Gravity.CENTER_VERTICAL);Button edit=new Button(this);edit.setText("EDYTUJ");brandButton(edit,false);actions.addView(edit,new LinearLayout.LayoutParams(0,-2,1));
+                Button settle=new Button(this);settle.setText("ROZLICZ");brandButton(settle,true);actions.addView(settle,new LinearLayout.LayoutParams(0,-2,1));settle.setEnabled("admin".equals(getSharedPreferences("rentmor",0).getString("role","")));row.addView(actions);
                 LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.bottomMargin=11;list.addView(row,rp);
                 check.setOnCheckedChangeListener((button,checked)->{try{item.put("done",checked);store.saveReservation(item);store.enqueue("reservation_save",item);ReservationsWidgetProvider.refresh(this);if(isOnline())syncNow();render[0].run();}catch(Exception ex){toast("Nie udało się zapisać zmiany.");}});
                 edit.setOnClickListener(v->{
