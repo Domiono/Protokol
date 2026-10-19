@@ -125,7 +125,14 @@ public class MainActivity extends Activity {
         Button previous=new Button(this); previous.setText("‹"); Button selectMonth=new Button(this); selectMonth.setText("Wybierz miesiąc"); Button next=new Button(this); next.setText("›");
         monthBar.addView(previous); monthBar.addView(selectMonth,new LinearLayout.LayoutParams(0,-2,1)); monthBar.addView(next); root.addView(monthBar);
 
-        EditText day=new EditText(this); day.setSingleLine(true); day.setHint("Dzień miesiąca (np. 18)"); day.setInputType(2); day.setText(String.valueOf(today.get(Calendar.DAY_OF_MONTH))); root.addView(day);
+        final Calendar[] reservationStart={ (Calendar)today.clone() },reservationEnd={ (Calendar)today.clone() };
+        LinearLayout dateRange=new LinearLayout(this);dateRange.setGravity(Gravity.CENTER_VERTICAL);
+        Button startDateButton=new Button(this);Button endDateButton=new Button(this);
+        Runnable updateDateButtons=()->{SimpleDateFormat df=new SimpleDateFormat("dd.MM.yyyy",Locale.getDefault());startDateButton.setText("OD  "+df.format(reservationStart[0].getTime()));endDateButton.setText("DO  "+df.format(reservationEnd[0].getTime()));};
+        dateRange.addView(startDateButton,new LinearLayout.LayoutParams(0,-2,1));dateRange.addView(endDateButton,new LinearLayout.LayoutParams(0,-2,1));root.addView(dateRange);
+        startDateButton.setOnClickListener(v->{Calendar c=(Calendar)reservationStart[0].clone();new android.app.DatePickerDialog(this,(view,y,m,d)->{reservationStart[0].set(y,m,d);if(reservationEnd[0].before(reservationStart[0]))reservationEnd[0]=(Calendar)reservationStart[0].clone();updateDateButtons.run();},c.get(Calendar.YEAR),c.get(Calendar.MONTH),c.get(Calendar.DAY_OF_MONTH)).show();});
+        endDateButton.setOnClickListener(v->{Calendar c=(Calendar)reservationEnd[0].clone();new android.app.DatePickerDialog(this,(view,y,m,d)->{Calendar chosen=(Calendar)reservationEnd[0].clone();chosen.set(y,m,d);if(chosen.before(reservationStart[0])){toast("Data zakończenia nie może być wcześniejsza niż początek.");return;}reservationEnd[0]=chosen;updateDateButtons.run();},c.get(Calendar.YEAR),c.get(Calendar.MONTH),c.get(Calendar.DAY_OF_MONTH)).show();});
+        updateDateButtons.run();
         Spinner equipment=new Spinner(this); root.addView(equipment);
         Runnable fillEquipment=()->{
             JSONArray a=store.equipment(); ArrayList<String> names=new ArrayList<>(); names.add("— Wybierz sprzęt —");
@@ -148,7 +155,7 @@ public class MainActivity extends Activity {
         });
         EditText time=new EditText(this);time.setSingleLine(true);time.setHint("Godzina (np. 18:00)");time.setInputType(2);root.addView(time);
         EditText phone=new EditText(this);phone.setSingleLine(true);phone.setHint("Telefon");phone.setInputType(3);root.addView(phone);
-        TextView hint=new TextView(this);hint.setText("Rezerwacja zapisze się krótko: dzień i godzina • sprzęt • telefon.");hint.setTextSize(12);hint.setTextColor(0xff718096);root.addView(hint);
+        TextView hint=new TextView(this);hint.setText("Ustaw datę OD–DO. Rezerwacja może obejmować kilka dni.");hint.setTextSize(12);hint.setTextColor(0xff718096);root.addView(hint);
 
         ScrollView scroll=new ScrollView(this);LinearLayout list=new LinearLayout(this);list.setOrientation(1);list.setPadding(0,10,0,8);scroll.addView(list);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         final Runnable[] render=new Runnable[1];
@@ -162,10 +169,10 @@ public class MainActivity extends Activity {
                 LinearLayout row=new LinearLayout(this);row.setOrientation(1);row.setPadding(14,13,14,13);row.setBackground(roundBg(Color.WHITE,16));row.setElevation(2);
                 LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);
                 CheckBox check=new CheckBox(this);check.setChecked(done);check.setText("");head.addView(check,new LinearLayout.LayoutParams(34,-2));
-                TextView dayNumber=new TextView(this);dayNumber.setText(reservationDayNumber(item));dayNumber.setTextSize(25);dayNumber.setTypeface(null,1);dayNumber.setTextColor(0xff123b68);dayNumber.setGravity(Gravity.CENTER);dayNumber.setBackground(roundBg(0xffe8f0fa,10));LinearLayout.LayoutParams dp=new LinearLayout.LayoutParams(52,52);dp.rightMargin=11;head.addView(dayNumber,dp);
+                TextView dayNumber=new TextView(this);dayNumber.setText(reservationDateRangeShort(item));dayNumber.setTextSize(25);dayNumber.setTypeface(null,1);dayNumber.setTextColor(0xff123b68);dayNumber.setGravity(Gravity.CENTER);dayNumber.setBackground(roundBg(0xffe8f0fa,10));LinearLayout.LayoutParams dp=new LinearLayout.LayoutParams(52,52);dp.rightMargin=11;head.addView(dayNumber,dp);
                 LinearLayout dayCol=new LinearLayout(this);dayCol.setOrientation(1);dayCol.setGravity(Gravity.CENTER_VERTICAL);
-                TextView dayCaption=new TextView(this);dayCaption.setText(reservationMonthLabel(item));dayCaption.setTextSize(12);dayCaption.setTextColor(0xff64748b);dayCol.addView(dayCaption);
-                TextView dayLabel=new TextView(this);dayLabel.setText("DZIEŃ WYDANIA");dayLabel.setTextSize(10);dayLabel.setTypeface(null,1);dayLabel.setTextColor(0xff123b68);dayCol.addView(dayLabel);head.addView(dayCol,new LinearLayout.LayoutParams(0,-2,1));
+                TextView dayCaption=new TextView(this);dayCaption.setText(reservationMonthRangeLabel(item));dayCaption.setTextSize(12);dayCaption.setTextColor(0xff64748b);dayCol.addView(dayCaption);
+                TextView dayLabel=new TextView(this);dayLabel.setText("OKRES REZERWACJI");dayLabel.setTextSize(10);dayLabel.setTypeface(null,1);dayLabel.setTextColor(0xff123b68);dayCol.addView(dayLabel);head.addView(dayCol,new LinearLayout.LayoutParams(0,-2,1));
                 TextView state=new TextView(this);state.setText(done?"WYDANE":"DO WYDANIA");state.setTextSize(10);state.setTypeface(null,1);state.setTextColor(done?0xff166534:0xff925400);state.setPadding(9,7,9,7);state.setBackground(roundBg(done?0xffe7f5e9:0xfffff1d6,8));head.addView(state);row.addView(head);
                 TextView equipmentTitle=new TextView(this);equipmentTitle.setText(reservationEquipment(item));equipmentTitle.setTextSize(18);equipmentTitle.setTypeface(null,1);equipmentTitle.setTextColor(done?0xff64748b:0xff172b43);equipmentTitle.setPadding(0,13,0,10);row.addView(equipmentTitle);
                 LinearLayout details=new LinearLayout(this);details.setGravity(Gravity.CENTER_VERTICAL);details.setPadding(0,0,0,10);
@@ -191,13 +198,13 @@ public class MainActivity extends Activity {
         next.setOnClickListener(v->{Calendar c=parseReservationMonth(month[0]);c.add(Calendar.MONTH,1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(c.getTime());render[0].run();});
         selectMonth.setOnClickListener(v->{Calendar c=parseReservationMonth(month[0]);new DatePickerDialog(this,(d,y,m,dd)->{month[0]=String.format(Locale.US,"%04d-%02d",y,m+1);render[0].run();},c.get(Calendar.YEAR),c.get(Calendar.MONTH),1).show();});
         addButton("＋ DODAJ REZERWACJĘ",()->{
-            String ds=day.getText().toString().trim(),tm=time.getText().toString().trim(),ph=phone.getText().toString().trim();
-            if(!ds.matches("\\d{1,2}")||Integer.parseInt(ds)<1||Integer.parseInt(ds)>31){toast("Podaj dzień od 1 do 31.");return;}
+            String tm=time.getText().toString().trim(),ph=phone.getText().toString().trim();
             if(equipment.getSelectedItemPosition()<=0){toast("Wybierz sprzęt z listy.");return;}
             if(!tm.isEmpty()&&!tm.matches("\\d{1,2}(:[0-5]\\d)?")){toast("Podaj godzinę, np. 18:00.");return;}
             String eq=String.valueOf(equipment.getSelectedItem());String shortTime=tm.isEmpty()?"":(tm.contains(":")?tm:tm+":00");
-            String value=ds+(shortTime.isEmpty()?"":" "+shortTime)+" • "+eq+(ph.isEmpty()?"":" • "+ph);
-            try{JSONObject item=new JSONObject();item.put("id",UUID.randomUUID().toString());item.put("month",month[0]);item.put("text",value);item.put("equipment",eq);item.put("day",Integer.parseInt(ds));item.put("time",shortTime);item.put("phone",ph);item.put("done",false);store.saveReservation(item);store.enqueue("reservation_save",item);phone.setText("");time.setText("");render[0].run();if(isOnline())syncNow();}
+            SimpleDateFormat iso=new SimpleDateFormat("yyyy-MM-dd",Locale.US);String from=iso.format(reservationStart[0].getTime()),to=iso.format(reservationEnd[0].getTime());
+            String value=from+" – "+to+(shortTime.isEmpty()?"":" "+shortTime)+" • "+eq+(ph.isEmpty()?"":" • "+ph);
+            try{JSONObject item=new JSONObject();item.put("id",UUID.randomUUID().toString());item.put("month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationStart[0].getTime()));item.put("text",value);item.put("equipment",eq);item.put("day",reservationStart[0].get(Calendar.DAY_OF_MONTH));item.put("start_date",from);item.put("end_date",to);item.put("end_day",reservationEnd[0].get(Calendar.DAY_OF_MONTH));item.put("end_month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationEnd[0].getTime()));item.put("time",shortTime);item.put("phone",ph);item.put("done",false);store.saveReservation(item);store.enqueue("reservation_save",item);phone.setText("");time.setText("");render[0].run();if(isOnline())syncNow();}
             catch(Exception ex){toast("Nie udało się dodać rezerwacji.");}
         });
         addButton("WRÓĆ",()->showHome());render[0].run();
@@ -313,6 +320,19 @@ public class MainActivity extends Activity {
         if(parts.length>=3)return parts[parts.length-1].trim();
         java.util.regex.Matcher legacy=java.util.regex.Pattern.compile("/\\s*(.+)$").matcher(raw);
         return legacy.find()?legacy.group(1).trim():"";
+    }
+    private String reservationDateRangeShort(JSONObject item) {
+        String from=item.optString("start_date","").trim(),to=item.optString("end_date","").trim();
+        if(from.matches("\\d{4}-\\d{2}-\\d{2}")){String a=from.substring(8,10);String b=to.matches("\\d{4}-\\d{2}-\\d{2}")?to.substring(8,10):a;return a.equals(b)?a:a+"–"+b;}
+        return String.valueOf(reservationDay(item.optString("text")));
+    }
+    private String reservationMonthRangeLabel(JSONObject item) {
+        String from=item.optString("start_date",""),to=item.optString("end_date","");
+        if(from.matches("\\d{4}-\\d{2}-\\d{2}")) {
+            try{SimpleDateFormat in=new SimpleDateFormat("yyyy-MM-dd",Locale.US),out=new SimpleDateFormat("LLL",new Locale("pl","PL"));Date a=in.parse(from);Date b=to.matches("\\d{4}-\\d{2}-\\d{2}")?in.parse(to):a;return out.format(a).toUpperCase(new Locale("pl","PL"))+(new SimpleDateFormat("yyyy-MM",Locale.US).format(a).equals(new SimpleDateFormat("yyyy-MM",Locale.US).format(b))?"":" – "+out.format(b).toUpperCase(new Locale("pl","PL")));}
+            catch(Exception ignored){}
+        }
+        return reservationMonthLabel(item);
     }
     private String reservationDayNumber(JSONObject item) {
         int day=item.optInt("day",reservationDay(item.optString("text")));return day>=1&&day<=31?String.valueOf(day):"—";
