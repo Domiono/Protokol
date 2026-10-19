@@ -23,8 +23,8 @@ public class ReservationsWidgetProvider extends AppWidgetProvider {
    if(!"admin".equals(role)){
     v.setViewVisibility(R.id.widget_row_1,View.VISIBLE);
     v.setTextViewText(R.id.widget_row_1,"Widżet dostępny dla administratora");
-    v.setTextColor(R.id.widget_row_1,0xff64748b);
-    v.setInt(R.id.widget_row_1,"setBackgroundColor",0xfff1f5f9);
+    v.setTextColor(R.id.widget_row_1,0xff53677f);
+    v.setInt(R.id.widget_row_1,"setBackgroundResource",R.drawable.widget_row_pending);
    }else if(rows.isEmpty()){
     v.setViewVisibility(R.id.widget_row_1,View.VISIBLE);
     v.setTextViewText(R.id.widget_row_1,"Brak aktywnych rezerwacji w tym miesiącu");
@@ -43,10 +43,10 @@ public class ReservationsWidgetProvider extends AppWidgetProvider {
      String phone=item.optString("phone","").trim();if(phone.isEmpty()){if(parts.length>=3)phone=parts[parts.length-1].trim();else{java.util.regex.Matcher pm=java.util.regex.Pattern.compile("/\\s*(.+)$").matcher(raw);if(pm.find())phone=pm.group(1).trim();}}
      String dates=dateRange(item,raw);
      String details=time.isEmpty()?"":"GODZ. "+time;
-     String display=(done?"✓ WYDANE":"○ DO WYDANIA")+"\n"+equipment+"\n"+dates+(details.isEmpty()?"":"\n"+details)+(phone.isEmpty()?"":"\nTEL. "+phone);
+     String display=(done?"✓ WYDANE":"● DO WYDANIA")+"\n"+dates+"\n"+equipment+(details.isEmpty()?"":"\n"+details)+(phone.isEmpty()?"":"\nTEL. "+phone);
      v.setTextViewText(rid,display);
-     v.setTextColor(rid,done?0xff166534:0xff26384d);
-     v.setInt(rid,"setBackgroundColor",done?0xffe8f5e9:0xfff1f5f9);
+     v.setTextColor(rid,done?0xff176b55:0xff203a57);
+     v.setInt(rid,"setBackgroundResource",done?R.drawable.widget_row_done:R.drawable.widget_row_pending);
     }
    }
    v.setTextViewText(R.id.widget_footer,"Otwórz aplikację  ›");
