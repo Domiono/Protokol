@@ -99,6 +99,23 @@ foreach ($operations as $op) {
         flock($costLock,LOCK_UN);fclose($costLock);$results[]=$ok?['op_id'=>$opId,'ok'=>true,'id'=>$id]:['op_id'=>$opId,'ok'=>false,'error'=>'Nie udało się zapisać kosztów.'];continue;
     }
 
+    if ($action === 'equipment_add') {
+        if ($role !== 'admin') { $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Dodawanie sprzętu jest dostępne tylko dla administratora.']; continue; }
+        $name = rm_text($op, 'name', 120);
+        if ($name === '') { $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Podaj nazwę sprzętu.']; continue; }
+        $file = __DIR__ . '/data.json';
+        $lock = fopen($file . '.lock', 'c+');
+        if (!$lock || !flock($lock, LOCK_EX)) { if ($lock) fclose($lock); $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Lista sprzętu jest chwilowo zajęta.']; continue; }
+        $inventory = rm_read_json_file($file, []);
+        $exists = false;
+        foreach ($inventory as $product) if (isset($product['name']) && mb_strtolower(trim((string)$product['name']), 'UTF-8') === mb_strtolower($name, 'UTF-8')) { $exists=true; break; }
+        if (!$exists) { $inventory[] = ['name'=>$name]; $ok = rm_write_json_atomic($file, $inventory); }
+        else $ok = true;
+        flock($lock, LOCK_UN); fclose($lock);
+        $results[]=$ok?['op_id'=>$opId,'ok'=>true,'name'=>$name,'exists'=>$exists]:['op_id'=>$opId,'ok'=>false,'error'=>'Nie udało się zapisać wspólnej listy sprzętu.'];
+        continue;
+    }
+
     if ($action === 'reservation_save' || $action === 'reservation_delete' || $action === 'reservation_settle') {
         if ($action === 'reservation_settle' && $role !== 'admin') {
             $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Rozliczanie najmu jest dostępne tylko dla administratora.'];

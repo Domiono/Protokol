@@ -116,110 +116,81 @@ public class MainActivity extends Activity {
     private void syncNow(){if(!isOnline()){if(status!=null)status.setText("Brak internetu. Dane pozostają bezpiecznie w telefonie.");return;}if(!syncRunning.compareAndSet(false,true))return;if(status!=null)status.setText("Synchronizacja…");new Thread(()->{try{sync.sync();runOnUiThread(()->{if(status!=null)status.setText("Synchronizacja zakończona. Oczekujące: "+store.pendingCount());addAdminDownloadCard();});}catch(Exception e){runOnUiThread(()->{if(status!=null)status.setText("Nie wysłano: "+e.getMessage()+" • Dane zapisane lokalnie.");});}finally{syncRunning.set(false);}}).start();}
 
     private void reservationPage() {
-        root.removeAllViews();
-        root.setOrientation(1);
-        root.setPadding(18,16,18,18);
-        root.setBackgroundColor(0xfff3f6fb);
-        TextView heading=new TextView(this);
-        heading.setText("REZERWACJE"); heading.setTextSize(25); heading.setTypeface(null,1);
-        heading.setTextColor(0xff123b68); root.addView(heading);
+        root.removeAllViews(); root.setOrientation(1); root.setPadding(18,16,18,18); root.setBackgroundColor(0xfff3f6fb);
+        TextView heading=new TextView(this); heading.setText("REZERWACJE"); heading.setTextSize(25); heading.setTypeface(null,1); heading.setTextColor(0xff123b68); root.addView(heading);
         Calendar today=Calendar.getInstance();
         final String[] month={String.format(Locale.US,"%04d-%02d",today.get(Calendar.YEAR),today.get(Calendar.MONTH)+1)};
-        TextView monthLabel=new TextView(this); monthLabel.setTextSize(16); monthLabel.setTextColor(0xff526174);
-        monthLabel.setPadding(0,8,0,8); root.addView(monthLabel);
+        TextView monthLabel=new TextView(this); monthLabel.setTextSize(16); monthLabel.setTextColor(0xff526174); monthLabel.setPadding(0,8,0,8); root.addView(monthLabel);
         LinearLayout monthBar=new LinearLayout(this); monthBar.setGravity(Gravity.CENTER_VERTICAL);
-        Button previous=new Button(this); previous.setText("‹");
-        Button selectMonth=new Button(this); selectMonth.setText("Wybierz miesiąc");
-        Button next=new Button(this); next.setText("›");
-        monthBar.addView(previous); monthBar.addView(selectMonth,new LinearLayout.LayoutParams(0,-2,1)); monthBar.addView(next);
-        root.addView(monthBar);
-        EditText input=new EditText(this); input.setSingleLine(true);
-        input.setHint("Np. 18 agregat 18 / 533004489"); root.addView(input);
-        TextView hint=new TextView(this); hint.setText("Wpisz lub wklej całą rezerwację – bez formularza.");
-        hint.setTextSize(12); hint.setTextColor(0xff718096); root.addView(hint);
-        ScrollView scroll=new ScrollView(this);
-        LinearLayout list=new LinearLayout(this); list.setOrientation(1); list.setPadding(0,10,0,8);
-        scroll.addView(list); root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        Button previous=new Button(this); previous.setText("‹"); Button selectMonth=new Button(this); selectMonth.setText("Wybierz miesiąc"); Button next=new Button(this); next.setText("›");
+        monthBar.addView(previous); monthBar.addView(selectMonth,new LinearLayout.LayoutParams(0,-2,1)); monthBar.addView(next); root.addView(monthBar);
+
+        EditText day=new EditText(this); day.setSingleLine(true); day.setHint("Dzień miesiąca (np. 18)"); day.setInputType(2); day.setText(String.valueOf(today.get(Calendar.DAY_OF_MONTH))); root.addView(day);
+        Spinner equipment=new Spinner(this); root.addView(equipment);
+        Runnable fillEquipment=()->{
+            JSONArray a=store.equipment(); ArrayList<String> names=new ArrayList<>(); names.add("— Wybierz sprzęt —");
+            for(int i=0;i<a.length();i++){String n=a.optString(i).trim();if(!n.isEmpty())names.add(n);}
+            ArrayAdapter<String> ad=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,names);ad.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);equipment.setAdapter(ad);
+        };
+        fillEquipment.run();
+        addButton("＋ Dodaj nowy sprzęt do wspólnej listy",()->{
+            if(!"admin".equals(getSharedPreferences("rentmor",0).getString("role",""))){toast("Nowy sprzęt może dodawać tylko administrator.");return;}
+            EditText name=new EditText(this);name.setSingleLine(true);name.setHint("Nazwa sprzętu");
+            new AlertDialog.Builder(this).setTitle("Dodaj sprzęt").setMessage("Po zapisaniu pojawi się na wspólnej liście RentMor.").setView(name)
+                .setNegativeButton("Anuluj",null).setPositiveButton("Dodaj",(d,w)->{
+                    String value=name.getText().toString().trim().replaceAll("\\s+"," ");
+                    if(value.isEmpty()){toast("Wpisz nazwę sprzętu.");return;}
+                    try{JSONObject op=new JSONObject();op.put("id",UUID.randomUUID().toString());op.put("name",value);store.enqueue("equipment_add",op);
+                        if(isOnline())new Thread(()->{try{sync.sync();runOnUiThread(()->{fillEquipment.run();int pos=((ArrayAdapter)equipment.getAdapter()).getPosition(value);if(pos>=0)equipment.setSelection(pos);toast("Dodano sprzęt do wspólnej listy.");});}catch(Exception ex){runOnUiThread(()->toast("Nie udało się dodać sprzętu: "+ex.getMessage()));}}).start();
+                        else toast("Zapisano do wysłania po odzyskaniu internetu.");
+                    }catch(Exception ex){toast("Nie udało się dodać sprzętu.");}
+                }).show();
+        });
+        EditText time=new EditText(this);time.setSingleLine(true);time.setHint("Godzina (np. 18:00)");time.setInputType(2);root.addView(time);
+        EditText phone=new EditText(this);phone.setSingleLine(true);phone.setHint("Telefon");phone.setInputType(3);root.addView(phone);
+        TextView hint=new TextView(this);hint.setText("Rezerwacja zapisze się krótko: dzień i godzina • sprzęt • telefon.");hint.setTextSize(12);hint.setTextColor(0xff718096);root.addView(hint);
+
+        ScrollView scroll=new ScrollView(this);LinearLayout list=new LinearLayout(this);list.setOrientation(1);list.setPadding(0,10,0,8);scroll.addView(list);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         final Runnable[] render=new Runnable[1];
         render[0]=()->{
-            Calendar selected=parseReservationMonth(month[0]);
-            monthLabel.setText(new SimpleDateFormat("LLLL yyyy",new Locale("pl","PL")).format(selected.getTime()).toUpperCase(new Locale("pl","PL")));
-            list.removeAllViews();
-            JSONArray data=store.reservations(month[0]);
-            ArrayList<JSONObject> items=new ArrayList<>();
-            for(int i=0;i<data.length();i++){JSONObject item=data.optJSONObject(i);if(item!=null)items.add(item);}
-            Collections.sort(items,(a,b)->{
-                int da=reservationDay(a.optString("text")), db=reservationDay(b.optString("text"));
-                if(da!=db)return Integer.compare(da,db);
-                return Integer.compare(reservationHour(a.optString("text")),reservationHour(b.optString("text")));
-            });
-            if(items.isEmpty()){
-                TextView empty=new TextView(this); empty.setText("Brak rezerwacji w tym miesiącu.");
-                empty.setTextColor(0xff718096); empty.setPadding(8,20,8,20); list.addView(empty);
-            }
-            for(JSONObject item:items){
-                if(item.optBoolean("settled")) continue;
-                LinearLayout row=new LinearLayout(this); row.setGravity(Gravity.CENTER_VERTICAL);
-                row.setPadding(8,5,4,5); row.setBackground(roundBg(Color.WHITE,12));
-                CheckBox check=new CheckBox(this); check.setText(item.optString("text"));
-                check.setTextSize(15); check.setTextColor(0xff172b43); check.setChecked(item.optBoolean("done"));
-                check.setPaintFlags(check.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
-                if(item.optBoolean("done"))check.setPaintFlags(check.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
-                row.addView(check,new LinearLayout.LayoutParams(0,-2,1));
-                Button edit=new Button(this); edit.setText("Edytuj"); row.addView(edit);
-                Button settle=new Button(this);
-                if(item.optBoolean("settled")) settle.setText("Rozliczono: "+String.format(Locale.US,"%.2f",item.optDouble("income")-item.optDouble("loss"))+" zł");
-                else settle.setText("Rozlicz");
-                row.addView(settle);
-                settle.setEnabled("admin".equals(getSharedPreferences("rentmor",0).getString("role","")) && !item.optBoolean("settled"));
-                LinearLayout.LayoutParams rowParams=new LinearLayout.LayoutParams(-1,-2); rowParams.bottomMargin=7; list.addView(row,rowParams);
-                check.setOnCheckedChangeListener((button,checked)->{
-                    try{item.put("done",checked);store.saveReservation(item);store.enqueue("reservation_save",item);ReservationsWidgetProvider.refresh(this);if(isOnline())syncNow();render[0].run();}
-                    catch(Exception ex){toast("Nie udało się zapisać zmiany.");}
-                });
+            Calendar selected=parseReservationMonth(month[0]);monthLabel.setText(new SimpleDateFormat("LLLL yyyy",new Locale("pl","PL")).format(selected.getTime()).toUpperCase(new Locale("pl","PL")));list.removeAllViews();
+            JSONArray data=store.reservations(month[0]);ArrayList<JSONObject> items=new ArrayList<>();for(int i=0;i<data.length();i++){JSONObject item=data.optJSONObject(i);if(item!=null)items.add(item);}
+            Collections.sort(items,(a,b)->{int da=reservationDay(a.optString("text")),db=reservationDay(b.optString("text"));if(da!=db)return Integer.compare(da,db);return Integer.compare(reservationHour(a.optString("text")),reservationHour(b.optString("text"));});
+            int shown=0;
+            for(JSONObject item:items){if(item.optBoolean("settled"))continue;shown++;
+                LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(8,5,4,5);row.setBackground(roundBg(Color.WHITE,12));
+                CheckBox check=new CheckBox(this);check.setText(item.optString("text"));check.setTextSize(14);check.setTextColor(0xff172b43);check.setChecked(item.optBoolean("done"));
+                check.setPaintFlags(check.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);if(item.optBoolean("done"))check.setPaintFlags(check.getPaintFlags()|Paint.STRIKE_THRU_TEXT_FLAG);
+                row.addView(check,new LinearLayout.LayoutParams(0,-2,1));Button edit=new Button(this);edit.setText("Edytuj");row.addView(edit);
+                Button settle=new Button(this);settle.setText("Rozlicz");row.addView(settle);settle.setEnabled("admin".equals(getSharedPreferences("rentmor",0).getString("role","")));
+                LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.bottomMargin=7;list.addView(row,rp);
+                check.setOnCheckedChangeListener((button,checked)->{try{item.put("done",checked);store.saveReservation(item);store.enqueue("reservation_save",item);ReservationsWidgetProvider.refresh(this);if(isOnline())syncNow();render[0].run();}catch(Exception ex){toast("Nie udało się zapisać zmiany.");}});
                 edit.setOnClickListener(v->{
-                    EditText editor=new EditText(this);editor.setSingleLine(true);editor.setText(item.optString("text"));editor.setSelection(editor.getText().length());
-                    new AlertDialog.Builder(this).setTitle("Edytuj rezerwację").setView(editor)
-                        .setNegativeButton("Anuluj",null).setPositiveButton("Zapisz",(dialog,which)->{
-                            String value=editor.getText().toString().trim();if(value.isEmpty()){toast("Wpis nie może być pusty.");return;}
-                            try{item.put("text",value);store.saveReservation(item);store.enqueue("reservation_save",item);render[0].run();if(isOnline())syncNow();}
-                            catch(Exception ex){toast("Nie udało się zapisać wpisu.");}
-                        }).show();
+                    LinearLayout f=new LinearLayout(this);f.setOrientation(1);EditText e=new EditText(this);e.setSingleLine(true);e.setText(item.optString("text"));f.addView(e);
+                    new AlertDialog.Builder(this).setTitle("Edytuj krótki opis rezerwacji").setView(f).setNegativeButton("Anuluj",null).setPositiveButton("Zapisz",(d,w)->{String val=e.getText().toString().trim();if(val.isEmpty()){toast("Wpis nie może być pusty.");return;}try{item.put("text",val);store.saveReservation(item);store.enqueue("reservation_save",item);render[0].run();if(isOnline())syncNow();}catch(Exception ex){toast("Nie udało się zapisać wpisu.");}}).show();
                 });
                 settle.setOnClickListener(v->{
-                    EditText income=new EditText(this); income.setHint("Zarobek z najmu (zł)"); income.setInputType(8194);
-                    EditText loss=new EditText(this); loss.setHint("Strata / koszt (zł, np. 0)"); loss.setInputType(8194);
-                    EditText note=new EditText(this); note.setHint("Za co strata? (opcjonalnie)");
-                    LinearLayout form=new LinearLayout(this); form.setOrientation(1); form.setPadding(8,4,8,4);
-                    form.addView(income); form.addView(loss); form.addView(note);
-                    new AlertDialog.Builder(this).setTitle("Rozlicz najem").setMessage(item.optString("text"))
-                        .setView(form).setNegativeButton("Anuluj",null).setPositiveButton("Zapisz rozliczenie",(dialog,which)->{
-                            try {
-                                String iv=income.getText().toString().trim().replace(',','.');
-                                String lv=loss.getText().toString().trim().replace(',','.');
-                                double earned=iv.isEmpty()?0:Double.parseDouble(iv), cost=lv.isEmpty()?0:Double.parseDouble(lv);
-                                if(earned<0||cost<0) {toast("Kwoty nie mogą być ujemne.");return;}
-                                item.put("settled",true); item.put("income",earned); item.put("loss",cost);
-                                item.put("loss_note",note.getText().toString().trim());
-                                item.put("settled_at",new SimpleDateFormat("yyyy-MM-dd HH:mm:ss",Locale.US).format(new Date()));
-                                store.saveReservation(item); store.enqueue("reservation_settle",item);
-                                render[0].run(); if(isOnline())syncNow();
-                            } catch(Exception ex) {toast("Wpisz prawidłowe kwoty.");}
-                        }).show();
+                    EditText income=new EditText(this);income.setHint("Zarobek z najmu (zł)");income.setInputType(8194);EditText loss=new EditText(this);loss.setHint("Strata / koszt (zł, np. 0)");loss.setInputType(8194);EditText note=new EditText(this);note.setHint("Za co strata? (opcjonalnie)");
+                    LinearLayout form=new LinearLayout(this);form.setOrientation(1);form.setPadding(8,4,8,4);form.addView(income);form.addView(loss);form.addView(note);
+                    new AlertDialog.Builder(this).setTitle("Rozlicz najem").setMessage(item.optString("text")).setView(form).setNegativeButton("Anuluj",null).setPositiveButton("Zapisz rozliczenie",(d,w)->{try{String iv=income.getText().toString().trim().replace(',','.');String lv=loss.getText().toString().trim().replace(',','.');double earned=iv.isEmpty()?0:Double.parseDouble(iv),cost=lv.isEmpty()?0:Double.parseDouble(lv);if(earned<0||cost<0){toast("Kwoty nie mogą być ujemne.");return;}item.put("settled",true);item.put("income",earned);item.put("loss",cost);item.put("loss_note",note.getText().toString().trim());item.put("settled_at",new SimpleDateFormat("yyyy-MM-dd HH:mm:ss",Locale.US).format(new Date()));store.saveReservation(item);store.enqueue("reservation_settle",item);render[0].run();if(isOnline())syncNow();}catch(Exception ex){toast("Wpisz prawidłowe kwoty.");}}).show();
                 });
             }
+            if(shown==0){TextView empty=new TextView(this);empty.setText("Brak rezerwacji w tym miesiącu.");empty.setTextColor(0xff718096);empty.setPadding(8,20,8,20);list.addView(empty);}
         };
-        previous.setOnClickListener(v->{Calendar cal=parseReservationMonth(month[0]);cal.add(Calendar.MONTH,-1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(cal.getTime());render[0].run();});
-        next.setOnClickListener(v->{Calendar cal=parseReservationMonth(month[0]);cal.add(Calendar.MONTH,1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(cal.getTime());render[0].run();});
-        selectMonth.setOnClickListener(v->{Calendar cal=parseReservationMonth(month[0]);new DatePickerDialog(this,(picker,y,m,d)->{month[0]=String.format(Locale.US,"%04d-%02d",y,m+1);render[0].run();},cal.get(Calendar.YEAR),cal.get(Calendar.MONTH),1).show();});
-        addButton("＋ DODAJ WPIS",()->{
-            String value=input.getText().toString().trim();
-            if(value.isEmpty()){toast("Wpisz rezerwację.");return;}
-            try{JSONObject item=new JSONObject();item.put("id",UUID.randomUUID().toString());item.put("month",month[0]);item.put("text",value);item.put("done",false);store.saveReservation(item);store.enqueue("reservation_save",item);input.setText("");render[0].run();if(isOnline())syncNow();}
+        previous.setOnClickListener(v->{Calendar c=parseReservationMonth(month[0]);c.add(Calendar.MONTH,-1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(c.getTime());render[0].run();});
+        next.setOnClickListener(v->{Calendar c=parseReservationMonth(month[0]);c.add(Calendar.MONTH,1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(c.getTime());render[0].run();});
+        selectMonth.setOnClickListener(v->{Calendar c=parseReservationMonth(month[0]);new DatePickerDialog(this,(d,y,m,dd)->{month[0]=String.format(Locale.US,"%04d-%02d",y,m+1);render[0].run();},c.get(Calendar.YEAR),c.get(Calendar.MONTH),1).show();});
+        addButton("＋ DODAJ REZERWACJĘ",()->{
+            String ds=day.getText().toString().trim(),tm=time.getText().toString().trim(),ph=phone.getText().toString().trim();
+            if(!ds.matches("\\d{1,2}")||Integer.parseInt(ds)<1||Integer.parseInt(ds)>31){toast("Podaj dzień od 1 do 31.");return;}
+            if(equipment.getSelectedItemPosition()<=0){toast("Wybierz sprzęt z listy.");return;}
+            if(!tm.isEmpty()&&!tm.matches("\\d{1,2}(:[0-5]\\d)?")){toast("Podaj godzinę, np. 18:00.");return;}
+            String eq=String.valueOf(equipment.getSelectedItem());String shortTime=tm.isEmpty()?"":(tm.contains(":")?tm:tm+":00");
+            String value=ds+(shortTime.isEmpty()?"":" "+shortTime)+" • "+eq+(ph.isEmpty()?"":" • "+ph);
+            try{JSONObject item=new JSONObject();item.put("id",UUID.randomUUID().toString());item.put("month",month[0]);item.put("text",value);item.put("equipment",eq);item.put("day",Integer.parseInt(ds));item.put("time",shortTime);item.put("phone",ph);item.put("done",false);store.saveReservation(item);store.enqueue("reservation_save",item);phone.setText("");time.setText("");render[0].run();if(isOnline())syncNow();}
             catch(Exception ex){toast("Nie udało się dodać rezerwacji.");}
         });
-        addButton("WRÓĆ",()->showHome());
-        render[0].run();
+        addButton("WRÓĆ",()->showHome());render[0].run();
     }
 
     private void expensePage() {
