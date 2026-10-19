@@ -175,6 +175,7 @@ public class MainActivity extends Activity {
                 TextView dayLabel=new TextView(this);dayLabel.setText("OKRES REZERWACJI");dayLabel.setTextSize(10);dayLabel.setTypeface(null,1);dayLabel.setTextColor(0xff123b68);dayCol.addView(dayLabel);head.addView(dayCol,new LinearLayout.LayoutParams(0,-2,1));
                 TextView state=new TextView(this);state.setText(done?"WYDANE":"DO WYDANIA");state.setTextSize(10);state.setTypeface(null,1);state.setTextColor(done?0xff166534:0xff925400);state.setPadding(9,7,9,7);state.setBackground(roundBg(done?0xffe7f5e9:0xfffff1d6,8));head.addView(state);row.addView(head);
                 TextView equipmentTitle=new TextView(this);equipmentTitle.setText(reservationEquipment(item));equipmentTitle.setTextSize(18);equipmentTitle.setTypeface(null,1);equipmentTitle.setTextColor(done?0xff64748b:0xff172b43);equipmentTitle.setPadding(0,13,0,10);row.addView(equipmentTitle);
+                TextView dateRangeLabel=new TextView(this);dateRangeLabel.setText(reservationDateRangeLabel(item));dateRangeLabel.setTextSize(13);dateRangeLabel.setTypeface(null,1);dateRangeLabel.setTextColor(0xff526174);dateRangeLabel.setPadding(0,0,0,10);row.addView(dateRangeLabel);
                 LinearLayout details=new LinearLayout(this);details.setGravity(Gravity.CENTER_VERTICAL);details.setPadding(0,0,0,10);
                 TextView timeBadge=new TextView(this);String timeText=reservationTimeForItem(item);timeBadge.setText("◷  "+(timeText.isEmpty()?"GODZINA NIEUSTALONA":timeText));timeBadge.setTextSize(13);timeBadge.setTypeface(null,1);timeBadge.setTextColor(0xff7c4a03);timeBadge.setPadding(10,8,10,8);timeBadge.setBackground(roundBg(0xfffff3df,9));details.addView(timeBadge);row.addView(details);
                 String ph=reservationPhoneForItem(item);if(!ph.isEmpty()){LinearLayout phoneLine=new LinearLayout(this);phoneLine.setGravity(Gravity.CENTER_VERTICAL);phoneLine.setPadding(0,0,0,11);TextView phoneLabel=new TextView(this);phoneLabel.setText("TELEFON   ");phoneLabel.setTextSize(10);phoneLabel.setTypeface(null,1);phoneLabel.setTextColor(0xff64748b);phoneLine.addView(phoneLabel);TextView phoneText=new TextView(this);phoneText.setText(ph);phoneText.setTextSize(17);phoneText.setTypeface(null,1);phoneText.setTextColor(0xff123b68);phoneLine.addView(phoneText);row.addView(phoneLine);}
@@ -320,6 +321,18 @@ public class MainActivity extends Activity {
         if(parts.length>=3)return parts[parts.length-1].trim();
         java.util.regex.Matcher legacy=java.util.regex.Pattern.compile("/\\s*(.+)$").matcher(raw);
         return legacy.find()?legacy.group(1).trim():"";
+    }
+    private String reservationDateRangeLabel(JSONObject item) {
+        String from=item.optString("start_date","").trim(),to=item.optString("end_date","").trim();
+        if(!from.matches("\\d{4}-\\d{2}-\\d{2}")) {
+            java.util.regex.Matcher m=java.util.regex.Pattern.compile("(\\d{4}-\\d{2}-\\d{2})\\s*[–-]\\s*(\\d{4}-\\d{2}-\\d{2})").matcher(item.optString("text",""));
+            if(m.find()){from=m.group(1);to=m.group(2);}
+        }
+        if(!from.matches("\\d{4}-\\d{2}-\\d{2}")) return "OKRES REZERWACJI: "+reservationDateRangeShort(item);
+        if(!to.matches("\\d{4}-\\d{2}-\\d{2}")) to=from;
+        String a=from.substring(8,10)+"."+from.substring(5,7)+"."+from.substring(0,4);
+        String b=to.substring(8,10)+"."+to.substring(5,7)+"."+to.substring(0,4);
+        return "OD: "+a+"    •    DO: "+b;
     }
     private String reservationDateRangeShort(JSONObject item) {
         String from=item.optString("start_date","").trim(),to=item.optString("end_date","").trim();
