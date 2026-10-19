@@ -8,7 +8,12 @@ public class ReservationsWidgetService extends RemoteViewsService {
   void load(){rows.clear();admin="admin".equals(c.getSharedPreferences("rentmor",0).getString("role",""));if(!admin)return;
    Calendar n=Calendar.getInstance();String month=String.format(Locale.US,"%04d-%02d",n.get(Calendar.YEAR),n.get(Calendar.MONTH)+1);
    JSONArray a=new LocalStore(c).reservations(month);for(int i=0;i<a.length();i++){JSONObject x=a.optJSONObject(i);if(x!=null&&!x.optBoolean("settled"))rows.add(x);}
-   Collections.sort(rows,(x,y)->{int d=Integer.compare(day(x.optString("text")),day(y.optString("text")));return d!=0?d:Integer.compare(hour(x.optString("text")),hour(y.optString("text")));});
+   Collections.sort(rows,(x,y)->{
+    int issued=Integer.compare(y.optBoolean("done")?1:0,x.optBoolean("done")?1:0);
+    if(issued!=0)return issued;
+    String dx=sortDate(x),dy=sortDate(y);int date=dx.compareTo(dy);if(date!=0)return date;
+    return sortTime(x).compareTo(sortTime(y));
+   });
   }
   public int getCount(){return admin?Math.max(1,rows.size()):1;}
   public RemoteViews getViewAt(int p){RemoteViews v=new RemoteViews(c.getPackageName(),R.layout.reservations_widget_row);
@@ -24,6 +29,14 @@ public class ReservationsWidgetService extends RemoteViewsService {
    v.setInt(R.id.widget_item,"setBackgroundResource",done?R.drawable.widget_row_issued:R.drawable.widget_row_pending);return v;
   }
   public RemoteViews getLoadingView(){return null;}public int getViewTypeCount(){return 1;}public long getItemId(int p){return p;}public boolean hasStableIds(){return true;}
+  static String sortDate(JSONObject x){
+   String d=x.optString("start_date","").trim();if(d.matches("\\d{4}-\\d{2}-\\d{2}"))return d;
+   Matcher m=Pattern.compile("(\\d{4}-\\d{2}-\\d{2})").matcher(x.optString("text",""));return m.find()?m.group(1):String.format(Locale.US,"9999-%02d-%02d",1,Math.max(1,Math.min(31,x.optInt("day",99))));
+  }
+  static String sortTime(JSONObject x){
+   String t=x.optString("time","").trim();if(t.isEmpty()){Matcher m=Pattern.compile("(\\d{1,2}):(\\d{2})").matcher(x.optString("text",""));if(m.find())t=String.format(Locale.US,"%02d:%s",Integer.parseInt(m.group(1)),m.group(2));}
+   Matcher m=Pattern.compile("(\\d{1,2}):(\\d{2})").matcher(t);return m.find()?String.format(Locale.US,"%02d:%s",Integer.parseInt(m.group(1)),m.group(2)):"99:99";
+  }
   static int day(String s){Matcher m=Pattern.compile("^\\s*(\\d{1,2})").matcher(s);return m.find()?Integer.parseInt(m.group(1)):99;}
   static int hour(String s){Matcher m=Pattern.compile("(\\d{1,2}):(\\d{2})").matcher(s);return m.find()?Integer.parseInt(m.group(1)):99;}
   static String dateRange(JSONObject x,String raw){String a=x.optString("start_date","").trim(),b=x.optString("end_date","").trim();
