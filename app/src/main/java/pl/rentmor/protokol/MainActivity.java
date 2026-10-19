@@ -336,7 +336,7 @@ public class MainActivity extends Activity {
     }
     private String reservationTimeForItem(JSONObject item) {
         String value=item.optString("time","").trim();if(!value.isEmpty())return value;
-        String raw=item.optString("text","");java.util.regex.Matcher modern=java.util.regex.Pattern.compile("(?:^|\\\\s)([01]?\\\\d|2[0-3]):([0-5]\\\\d)(?:$|\\\\s|•)").matcher(raw);
+        String raw=item.optString("text","");java.util.regex.Matcher modern=java.util.regex.Pattern.compile("(?:^|\\s)([01]?\\d|2[0-3]):([0-5]\\d)(?:$|\\s|•)").matcher(raw);
         if(modern.find())return String.format(Locale.US,"%02d:%s",Integer.parseInt(modern.group(1)),modern.group(2));
         java.util.regex.Matcher legacy=java.util.regex.Pattern.compile("^\\s*\\d{1,2}\\s+.+?\\s+(\\d{1,2})\\s*/").matcher(raw);
         return legacy.find()?String.format(Locale.US,"%02d:00",Integer.parseInt(legacy.group(1))):"";
