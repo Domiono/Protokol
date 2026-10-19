@@ -53,7 +53,7 @@ if ($method === 'GET') {
     }
     rm_json_response(200, [
         'ok'=>true, 'role'=>$role, 'server_time'=>date(DATE_ATOM),
-        'protocols'=>array_values($protocols), 'reservations'=>array_values(array_map(function($r) use ($role) { if ($role !== 'admin') { unset($r['income'],$r['loss'],$r['loss_note'],$r['settled_at']); } return $r; }, rm_read_json_file(__DIR__ . '/reservations.json', []))), 'equipment'=>array_keys($equipment)
+        'protocols'=>array_values($protocols), 'expenses'=>($role === 'admin' ? array_values(rm_read_json_file(__DIR__ . '/costs.json', [])) : []), 'reservations'=>array_values(array_map(function($r) use ($role) { if ($role !== 'admin') { unset($r['income'],$r['loss'],$r['loss_note'],$r['settled_at']); } return $r; }, rm_read_json_file(__DIR__ . '/reservations.json', []))), 'equipment'=>array_keys($equipment)
     ]);
 }
 if ($method !== 'POST') rm_json_response(405, ['ok'=>false, 'error'=>'Niedozwolona metoda.']);
@@ -79,6 +79,25 @@ foreach ($operations as $op) {
     $action = (string)($op['action'] ?? '');
     if ($opId === '' || strlen($opId) > 80) { $results[]=['ok'=>false,'error'=>'Brak poprawnego identyfikatora operacji']; continue; }
 
+
+
+    if ($action === 'expense_save' || $action === 'expense_delete') {
+        if ($role !== 'admin') { $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Koszty są dostępne tylko dla administratora.']; continue; }
+        $costFile=__DIR__.'/costs.json'; $costLock=fopen($costFile.'.lock','c+');
+        if (!$costLock || !flock($costLock,LOCK_EX)) { if($costLock)fclose($costLock); $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Lista kosztów jest chwilowo zajęta.']; continue; }
+        $costs=rm_read_json_file($costFile,[]); $id=preg_replace('/[^a-zA-Z0-9_-]/','',(string)($op['id']??''));
+        if($id===''){flock($costLock,LOCK_UN);fclose($costLock);$results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Brak identyfikatora kosztu.'];continue;}
+        if($action==='expense_save'){
+            $date=rm_text($op,'date',10);$name=rm_text($op,'name',160);$month=rm_text($op,'month',7);
+            $amount=filter_var($op['amount']??null,FILTER_VALIDATE_FLOAT);$type=(($op['type']??'')==='investment')?'investment':'expense';
+            if(!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/',$date)||!preg_match('/^\\d{4}-\\d{2}$/',$month)||substr($date,0,7)!==$month||$name===''||$amount===false||$amount<=0||$amount>100000000){flock($costLock,LOCK_UN);fclose($costLock);$results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nieprawidłowe dane kosztu.'];continue;}
+            $item=['id'=>$id,'date'=>$date,'month'=>$month,'name'=>$name,'amount'=>round((float)$amount,2),'type'=>$type,'note'=>rm_text($op,'note',1000)];
+            $found=false;foreach($costs as &$saved){if((string)($saved['id']??'')===$id){$saved=$item;$found=true;break;}}unset($saved);if(!$found)$costs[]=$item;
+        } else {$costs=array_values(array_filter($costs,fn($saved)=>(string)($saved['id']??'')!==$id));}
+        $json=json_encode(array_values($costs),JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);$tmp=$costFile.'.'.bin2hex(random_bytes(6)).'.tmp';
+        $ok=$json!==false&&file_put_contents($tmp,$json,LOCK_EX)!==false&&rename($tmp,$costFile);if(!$ok&&is_file($tmp))@unlink($tmp);
+        flock($costLock,LOCK_UN);fclose($costLock);$results[]=$ok?['op_id'=>$opId,'ok'=>true,'id'=>$id]:['op_id'=>$opId,'ok'=>false,'error'=>'Nie udało się zapisać kosztów.'];continue;
+    }
 
     if ($action === 'reservation_save' || $action === 'reservation_delete' || $action === 'reservation_settle') {
         if ($action === 'reservation_settle' && $role !== 'admin') {
