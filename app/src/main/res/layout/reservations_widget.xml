@@ -1,9 +1,75 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="14dp" android:background="#FFFFFF">
- <TextView android:id="@+id/widget_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="RENTMOR • REZERWACJE" android:textStyle="bold" android:textSize="13sp" android:textColor="#123B68"/>
- <TextView android:id="@+id/widget_row_1" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="7dp" android:padding="7dp" android:textSize="12sp" android:textColor="#26384D"/>
- <TextView android:id="@+id/widget_row_2" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:padding="7dp" android:textSize="12sp" android:textColor="#26384D"/>
- <TextView android:id="@+id/widget_row_3" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:padding="7dp" android:textSize="12sp" android:textColor="#26384D"/>
- <TextView android:id="@+id/widget_row_4" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:padding="7dp" android:textSize="12sp" android:textColor="#26384D"/>
- <TextView android:id="@+id/widget_footer" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:gravity="bottom|end" android:textSize="11sp" android:textColor="#64748B"/>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="10dp"
+    android:background="@drawable/widget_surface">
+
+    <TextView
+        android:id="@+id/widget_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/widget_header"
+        android:paddingStart="13dp"
+        android:paddingTop="11dp"
+        android:paddingEnd="13dp"
+        android:paddingBottom="11dp"
+        android:text="RENTMOR  •  REZERWACJE"
+        android:textColor="#FFFFFF"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.04" />
+
+    <TextView
+        android:id="@+id/widget_row_1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:padding="10dp"
+        android:textSize="12sp"
+        android:lineSpacingExtra="2dp"
+        android:textColor="#203A57" />
+
+    <TextView
+        android:id="@+id/widget_row_2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:padding="10dp"
+        android:textSize="12sp"
+        android:lineSpacingExtra="2dp"
+        android:textColor="#203A57" />
+
+    <TextView
+        android:id="@+id/widget_row_3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:padding="10dp"
+        android:textSize="12sp"
+        android:lineSpacingExtra="2dp"
+        android:textColor="#203A57" />
+
+    <TextView
+        android:id="@+id/widget_row_4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:padding="10dp"
+        android:textSize="12sp"
+        android:lineSpacingExtra="2dp"
+        android:textColor="#203A57" />
+
+    <TextView
+        android:id="@+id/widget_footer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="bottom|end"
+        android:paddingTop="6dp"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:textColor="#3977A8" />
 </LinearLayout>
