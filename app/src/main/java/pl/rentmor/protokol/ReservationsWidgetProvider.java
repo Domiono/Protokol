@@ -41,8 +41,9 @@ public class ReservationsWidgetProvider extends AppWidgetProvider {
      equipment=equipment.replaceFirst("(?i)\\s+-\\s+wynajem.*$","").replaceFirst("\\s+\\|.*$","").trim();
      String time=item.optString("time","").trim();if(time.isEmpty()){java.util.regex.Matcher tm=java.util.regex.Pattern.compile("^\\s*\\d{1,2}\\s+(\\d{1,2}:\\d{2})").matcher(raw);if(tm.find())time=tm.group(1);else{java.util.regex.Matcher lm=java.util.regex.Pattern.compile("^\\s*\\d{1,2}\\s+.+?\\s+(\\d{1,2})\\s*/").matcher(raw);if(lm.find())time=String.format(Locale.US,"%02d:00",Integer.parseInt(lm.group(1)));}}
      String phone=item.optString("phone","").trim();if(phone.isEmpty()){if(parts.length>=3)phone=parts[parts.length-1].trim();else{java.util.regex.Matcher pm=java.util.regex.Pattern.compile("/\\s*(.+)$").matcher(raw);if(pm.find())phone=pm.group(1).trim();}}
-     int day=item.optInt("day",day(raw));String details="DZIEŃ "+day+(time.isEmpty()?"":"   •   "+time);
-     String display=(done?"✓ WYDANE":"○ DO WYDANIA")+"\n"+equipment+"\n"+details+(phone.isEmpty()?"":"\nTEL. "+phone);
+     String dates=dateRange(item,raw);
+     String details=time.isEmpty()?"":"GODZ. "+time;
+     String display=(done?"✓ WYDANE":"○ DO WYDANIA")+"\n"+equipment+"\n"+dates+(details.isEmpty()?"":"\n"+details)+(phone.isEmpty()?"":"\nTEL. "+phone);
      v.setTextViewText(rid,display);
      v.setTextColor(rid,done?0xff166534:0xff26384d);
      v.setInt(rid,"setBackgroundColor",done?0xffe8f5e9:0xfff1f5f9);
@@ -53,6 +54,18 @@ public class ReservationsWidgetProvider extends AppWidgetProvider {
    PendingIntent pi=PendingIntent.getActivity(c,41,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
    v.setOnClickPendingIntent(R.id.widget_root,pi);m.updateAppWidget(id,v);
   }
+ }
+ private static String dateRange(JSONObject item,String raw){
+  String from=item.optString("start_date","").trim(),to=item.optString("end_date","").trim();
+  if(!from.matches("\\d{4}-\\d{2}-\\d{2}")){
+   java.util.regex.Matcher m=java.util.regex.Pattern.compile("(\\d{4}-\\d{2}-\\d{2})\\s*[–-]\\s*(\\d{4}-\\d{2}-\\d{2})").matcher(raw);
+   if(m.find()){from=m.group(1);to=m.group(2);}
+  }
+  if(!from.matches("\\d{4}-\\d{2}-\\d{2}")){int d=item.optInt("day",day(raw));return "DZIEŃ "+d;}
+  if(!to.matches("\\d{4}-\\d{2}-\\d{2}"))to=from;
+  String a=from.substring(8,10)+"."+from.substring(5,7)+"."+from.substring(0,4);
+  String b=to.substring(8,10)+"."+to.substring(5,7)+"."+to.substring(0,4);
+  return "OD: "+a+"\\nDO: "+b;
  }
  private static int day(String s){java.util.regex.Matcher m=java.util.regex.Pattern.compile("^\\s*(\\d{1,2})").matcher(s);return m.find()?Integer.parseInt(m.group(1)):99;}
  private static int hour(String s){java.util.regex.Matcher m=java.util.regex.Pattern.compile("^\\s*\\d{1,2}\\s+.*?\\s+(\\d{1,2})\\s*/").matcher(s);return m.find()?Integer.parseInt(m.group(1)):99;}
