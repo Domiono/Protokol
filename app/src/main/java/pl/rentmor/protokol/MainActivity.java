@@ -45,6 +45,7 @@ public class MainActivity extends Activity {
         status=new TextView(this);status.setText("W telefonie: "+store.allProtocols().length()+"   •   Do wysłania: "+store.pendingCount());status.setTextSize(14);status.setTextColor(0xff26384d);status.setPadding(0,8,0,0);statCard.addView(status);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.bottomMargin=20;page.addView(statCard,sp);
         menuCard(page,"☷","Rezerwacje","Lista odbiorów i rozliczenia najmu",()->reservationPage(),0xffe9f5ef);
         menuCard(page,"▥","Statystyki najmu","Przychody, straty i wynik według sprzętu",()->reservationStatsPage(),0xfffff3e5);
+        if("admin".equals(getSharedPreferences("rentmor",0).getString("role",""))) menuCard(page," zł ","Pozostałe koszty","Paliwo, naprawy, reklama i zakupy sprzętu",()->expensePage(),0xfffcefe8);
         menuCard(page,"⟳","Synchronizuj teraz","Wyślij zapisane protokoły na serwer",()->syncNow(),0xffe8f1fb);
         menuCard(page,"＋","Nowy protokół wydania","Utwórz protokół i dodaj zdjęcia",()->newIssue(),0xffe9f5ef);
         menuCard(page,"▤","Lista protokołów","Przeglądaj dokumenty i zapisuj PDF",()->protocolList(),0xfffff3e5);
@@ -220,6 +221,46 @@ public class MainActivity extends Activity {
         addButton("WRÓĆ",()->showHome());
         render[0].run();
     }
+
+    private void expensePage() {
+        if(!"admin".equals(getSharedPreferences("rentmor",0).getString("role",""))){toast("Ta funkcja jest dostępna tylko dla administratora.");showHome();return;}
+        root.removeAllViews();root.setOrientation(1);root.setPadding(18,16,18,18);root.setBackgroundColor(0xfff3f6fb);
+        TextView heading=new TextView(this);heading.setText("POZOSTAŁE KOSZTY");heading.setTextSize(24);heading.setTypeface(null,1);heading.setTextColor(0xff123b68);root.addView(heading);
+        Calendar now=Calendar.getInstance();final String[] month={String.format(Locale.US,"%04d-%02d",now.get(Calendar.YEAR),now.get(Calendar.MONTH)+1)};
+        TextView monthLabel=new TextView(this);monthLabel.setTextSize(15);monthLabel.setTextColor(0xff526174);monthLabel.setPadding(0,8,0,8);root.addView(monthLabel);
+        LinearLayout bar=new LinearLayout(this);Button prev=new Button(this);prev.setText("‹");Button pick=new Button(this);pick.setText("Wybierz miesiąc");Button next=new Button(this);next.setText("›");bar.addView(prev);bar.addView(pick,new LinearLayout.LayoutParams(0,-2,1));bar.addView(next);root.addView(bar);
+        EditText name=field("Nazwa kosztu, np. paliwo, naprawa, reklama");EditText amount=field("Kwota (zł)");amount.setInputType(8194);
+        EditText date=dateField("Data poniesienia kosztu",new SimpleDateFormat("dd.MM.yyyy",Locale.getDefault()).format(new Date()));
+        Spinner type=new Spinner(this);ArrayAdapter<String> ta=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,new String[]{"Koszt bieżący","Zakup sprzętu / inwestycja"});ta.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);type.setAdapter(ta);root.addView(type);
+        EditText note=field("Opis / uwagi (opcjonalnie)");
+        ScrollView scroll=new ScrollView(this);LinearLayout list=new LinearLayout(this);list.setOrientation(1);list.setPadding(0,10,0,10);scroll.addView(list);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        Runnable render=()->{Calendar c=parseReservationMonth(month[0]);monthLabel.setText(new SimpleDateFormat("LLLL yyyy",new Locale("pl","PL")).format(c.getTime()).toUpperCase(new Locale("pl","PL")));list.removeAllViews();
+            JSONArray arr=store.expenses(month[0]);double total=0,inv=0;
+            for(int i=0;i<arr.length();i++){JSONObject e=arr.optJSONObject(i);if(e==null)continue;double v=e.optDouble("amount");if("investment".equals(e.optString("type")))inv+=v;else total+=v;
+                LinearLayout card=new LinearLayout(this);card.setOrientation(1);card.setPadding(13,11,13,11);card.setBackground(roundBg(Color.WHITE,12));
+                TextView t=new TextView(this);t.setText(e.optString("name")+"  •  "+String.format(Locale.US,"%.2f zł",v));t.setTextSize(15);t.setTypeface(null,1);t.setTextColor(0xff172b43);card.addView(t);
+                TextView d=new TextView(this);d.setText(e.optString("date")+"  •  "+("investment".equals(e.optString("type"))?"Zakup sprzętu / inwestycja":"Koszt bieżący")+(e.optString("note").isEmpty()?"":"\n"+e.optString("note")));d.setTextSize(12);d.setTextColor(0xff718096);card.addView(d);
+                LinearLayout actions=new LinearLayout(this);Button edit=new Button(this);edit.setText("Edytuj");Button del=new Button(this);del.setText("Usuń");actions.addView(edit);actions.addView(del);card.addView(actions);
+                LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=7;list.addView(card,lp);
+                edit.setOnClickListener(v->editExpense(e,render));del.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("Usunąć koszt?").setMessage(e.optString("name")).setNegativeButton("Anuluj",null).setPositiveButton("Usuń",(di,w)->{try{JSONObject op=new JSONObject();op.put("id",e.optString("id"));store.enqueue("expense_delete",op);store.deleteExpense(e.optString("id"));render.run();if(isOnline())syncNow();}catch(Exception ex){toast("Nie udało się usunąć kosztu.");}}).show());
+            }
+            addStatCard(list,"KOSZTY BIEŻĄCE",String.format(Locale.US,"%.2f zł",total),0xffb45309);addStatCard(list,"ZAKUPY SPRZĘTU",String.format(Locale.US,"%.2f zł",inv),0xffb45309);
+        };
+        addButton("ZAPISZ KOSZT",()->{try{String nm=name.getText().toString().trim();String av=amount.getText().toString().trim().replace(',','.');if(nm.isEmpty()||av.isEmpty())throw new Exception();double val=Double.parseDouble(av);if(val<=0)throw new Exception();
+            Date dt=new SimpleDateFormat("dd.MM.yyyy",Locale.getDefault()).parse(date.getText().toString());String iso=new SimpleDateFormat("yyyy-MM-dd",Locale.US).format(dt);String mo=iso.substring(0,7);
+            JSONObject e=new JSONObject();e.put("id",UUID.randomUUID().toString());e.put("date",iso);e.put("month",mo);e.put("name",nm);e.put("amount",val);e.put("type",type.getSelectedItemPosition()==1?"investment":"expense");e.put("note",note.getText().toString().trim());
+            store.saveExpense(e);store.enqueue("expense_save",e);month[0]=mo;name.setText("");amount.setText("");note.setText("");render.run();if(isOnline())syncNow();toast("Koszt zapisany.");
+        }catch(Exception ex){toast("Sprawdź nazwę, datę i kwotę kosztu.");}});
+        prev.setOnClickListener(v->{Calendar c=parseReservationMonth(month[0]);c.add(Calendar.MONTH,-1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(c.getTime());render.run();});
+        next.setOnClickListener(v->{Calendar c=parseReservationMonth(month[0]);c.add(Calendar.MONTH,1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(c.getTime());render.run();});
+        pick.setOnClickListener(v->{Calendar c=parseReservationMonth(month[0]);new DatePickerDialog(this,(d,y,m,day)->{month[0]=String.format(Locale.US,"%04d-%02d",y,m+1);render.run();},c.get(Calendar.YEAR),c.get(Calendar.MONTH),1).show();});
+        addButton("WRÓĆ",()->showHome());render.run();
+    }
+    private void editExpense(JSONObject old,Runnable refresh) {
+        LinearLayout form=new LinearLayout(this);form.setOrientation(1);EditText n=new EditText(this);n.setHint("Nazwa kosztu");n.setText(old.optString("name"));EditText a=new EditText(this);a.setHint("Kwota zł");a.setInputType(8194);a.setText(String.valueOf(old.optDouble("amount")));EditText d=new EditText(this);d.setHint("Data RRRR-MM-DD");d.setText(old.optString("date"));EditText note=new EditText(this);note.setHint("Opis");note.setText(old.optString("note"));Spinner typ=new Spinner(this);ArrayAdapter<String> ad=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,new String[]{"Koszt bieżący","Zakup sprzętu / inwestycja"});typ.setAdapter(ad);typ.setSelection("investment".equals(old.optString("type"))?1:0);form.addView(n);form.addView(a);form.addView(d);form.addView(typ);form.addView(note);
+        new AlertDialog.Builder(this).setTitle("Edytuj koszt").setView(form).setNegativeButton("Anuluj",null).setPositiveButton("Zapisz",(di,w)->{try{String nm=n.getText().toString().trim(),ds=d.getText().toString().trim(),av=a.getText().toString().trim().replace(',','.');double val=Double.parseDouble(av);if(nm.isEmpty()||val<=0||!ds.matches("\\d{4}-\\d{2}-\\d{2}"))throw new Exception();old.put("name",nm);old.put("date",ds);old.put("month",ds.substring(0,7));old.put("amount",val);old.put("type",typ.getSelectedItemPosition()==1?"investment":"expense");old.put("note",note.getText().toString().trim());store.saveExpense(old);store.enqueue("expense_save",old);if(isOnline())syncNow();refresh.run();}catch(Exception ex){toast("Nieprawidłowe dane kosztu.");}}).show();
+    }
+
     private void reservationStatsPage() {
         root.removeAllViews(); root.setOrientation(1); root.setPadding(18,16,18,18); root.setBackgroundColor(0xfff3f6fb);
         TextView heading=new TextView(this); heading.setText("STATYSTYKI NAJMU"); heading.setTextSize(24); heading.setTypeface(null,1); heading.setTextColor(0xff123b68); root.addView(heading);
@@ -231,7 +272,8 @@ public class MainActivity extends Activity {
         ScrollView scroll=new ScrollView(this); LinearLayout content=new LinearLayout(this); content.setOrientation(1); content.setPadding(0,10,0,10); scroll.addView(content); root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         Runnable render=()->{
             Calendar selected=parseReservationMonth(month[0]); monthLabel.setText(new SimpleDateFormat("LLLL yyyy",new Locale("pl","PL")).format(selected.getTime()).toUpperCase(new Locale("pl","PL")));
-            content.removeAllViews(); JSONArray data=store.reservations(month[0]); double income=0,loss=0; int count=0;
+            content.removeAllViews(); JSONArray data=store.reservations(month[0]); JSONArray costData=store.expenses(month[0]); double income=0,loss=0,otherCosts=0,investments=0; int count=0;
+            for(int ci=0;ci<costData.length();ci++){JSONObject ce=costData.optJSONObject(ci);if(ce==null)continue;if("investment".equals(ce.optString("type")))investments+=ce.optDouble("amount");else otherCosts+=ce.optDouble("amount");}
             LinkedHashMap<String,double[]> byEquipment=new LinkedHashMap<>(); ArrayList<JSONObject> history=new ArrayList<>();
             for(int i=0;i<data.length();i++){JSONObject item=data.optJSONObject(i); if(item==null||!item.optBoolean("settled"))continue;
                 double inc=item.optDouble("income"), los=item.optDouble("loss"); income+=inc; loss+=los; count++; history.add(item);
@@ -240,8 +282,11 @@ public class MainActivity extends Activity {
                 double[] sums=byEquipment.get(name); if(sums==null){sums=new double[4];byEquipment.put(name,sums);} sums[0]++;sums[1]+=inc;sums[2]+=los;sums[3]+=inc-los;
             }
             addStatCard(content,"PRZYCHÓD",String.format(Locale.US,"%.2f zł",income),0xff172b43);
-            addStatCard(content,"STRATY / KOSZTY",String.format(Locale.US,"%.2f zł",loss),0xffb42318);
-            addStatCard(content,"WYNIK NETTO",String.format(Locale.US,"%.2f zł",income-loss),income-loss<0?0xffb42318:0xff18794e);
+            addStatCard(content,"STRATY Z NAJMU",String.format(Locale.US,"%.2f zł",loss),0xffb42318);
+            addStatCard(content,"KOSZTY BIEŻĄCE",String.format(Locale.US,"%.2f zł",otherCosts),0xffb45309);
+            addStatCard(content,"ZAKUPY SPRZĘTU / INWESTYCJE",String.format(Locale.US,"%.2f zł",investments),0xffb45309);
+            double finalResult=income-loss-otherCosts-investments;
+            addStatCard(content,"WYNIK PO WSZYSTKICH KOSZTACH",String.format(Locale.US,"%.2f zł",finalResult),finalResult<0?0xffb42318:0xff18794e);
             TextView countText=new TextView(this); countText.setText("Rozliczone najmy: "+count); countText.setTextColor(0xff526174); countText.setPadding(4,6,4,16); content.addView(countText);
             TextView sub=new TextView(this); sub.setText("WYNIK WEDŁUG SPRZĘTU"); sub.setTextSize(16); sub.setTypeface(null,1); sub.setTextColor(0xff123b68); sub.setPadding(2,12,2,8); content.addView(sub);
             if(byEquipment.isEmpty()){TextView empty=new TextView(this);empty.setText("Brak rozliczeń w tym miesiącu.");empty.setTextColor(0xff718096);content.addView(empty);}

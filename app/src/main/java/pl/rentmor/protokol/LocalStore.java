@@ -7,14 +7,15 @@ import org.json.*;
 import java.util.*;
 
 public class LocalStore extends SQLiteOpenHelper {
-    public LocalStore(Context c) { super(c, "rentmor_local.db", null, 3); }
+    public LocalStore(Context c) { super(c, "rentmor_local.db", null, 4); }
     @Override public void onCreate(SQLiteDatabase db) {
         db.execSQL("CREATE TABLE protocols(id TEXT PRIMARY KEY, number TEXT, status TEXT, data TEXT, updated INTEGER)");
         db.execSQL("CREATE TABLE queue(op_id TEXT PRIMARY KEY, action TEXT, payload TEXT, created INTEGER)");
         db.execSQL("CREATE TABLE equipment(name TEXT PRIMARY KEY)");
         db.execSQL("CREATE TABLE reservations(id TEXT PRIMARY KEY, month TEXT, text TEXT, done INTEGER, data TEXT, updated INTEGER)");
+        db.execSQL("CREATE TABLE expenses(id TEXT PRIMARY KEY, month TEXT, date TEXT, name TEXT, amount REAL, type TEXT, note TEXT, data TEXT, updated INTEGER)");
     }
-    @Override public void onUpgrade(SQLiteDatabase db,int oldV,int newV) { if(oldV<2) db.execSQL("CREATE TABLE IF NOT EXISTS reservations(id TEXT PRIMARY KEY, month TEXT, text TEXT, done INTEGER, updated INTEGER)"); if(oldV<3) db.execSQL("ALTER TABLE reservations ADD COLUMN data TEXT"); }
+    @Override public void onUpgrade(SQLiteDatabase db,int oldV,int newV) { if(oldV<2) db.execSQL("CREATE TABLE IF NOT EXISTS reservations(id TEXT PRIMARY KEY, month TEXT, text TEXT, done INTEGER, updated INTEGER)"); if(oldV<3) db.execSQL("ALTER TABLE reservations ADD COLUMN data TEXT"); if(oldV<4) db.execSQL("CREATE TABLE IF NOT EXISTS expenses(id TEXT PRIMARY KEY, month TEXT, date TEXT, name TEXT, amount REAL, type TEXT, note TEXT, data TEXT, updated INTEGER)"); }
     public synchronized void enqueue(String action, JSONObject payload) {
         try {
             String opId = UUID.randomUUID().toString();
@@ -124,6 +125,42 @@ public class LocalStore extends SQLiteOpenHelper {
             Cursor rows=db.rawQuery("SELECT id FROM reservations",null);
             try { while(rows.moveToNext()){String id=rows.getString(0);if(!keep.contains(id))db.delete("reservations","id=?",new String[]{id});} }
             finally { rows.close(); }
+            db.setTransactionSuccessful();
+        } finally { db.endTransaction(); }
+    }
+
+
+    public synchronized void saveExpense(JSONObject e) {
+        ContentValues v=new ContentValues(); v.put("id",e.optString("id")); v.put("month",e.optString("month"));
+        v.put("date",e.optString("date")); v.put("name",e.optString("name")); v.put("amount",e.optDouble("amount"));
+        v.put("type",e.optString("type","expense")); v.put("note",e.optString("note")); v.put("data",e.toString()); v.put("updated",System.currentTimeMillis());
+        getWritableDatabase().insertWithOnConflict("expenses",null,v,SQLiteDatabase.CONFLICT_REPLACE);
+    }
+    public synchronized JSONArray expenses(String month) {
+        JSONArray a=new JSONArray(); Cursor c=getReadableDatabase().rawQuery("SELECT data,id,month,date,name,amount,type,note FROM expenses WHERE month=? ORDER BY date DESC,updated DESC",new String[]{month});
+        try { while(c.moveToNext()) { JSONObject x; try{x=c.isNull(0)?new JSONObject():new JSONObject(c.getString(0));}catch(Exception ex){x=new JSONObject();}
+            if(!x.has("id"))x.put("id",c.getString(1)); if(!x.has("month"))x.put("month",c.getString(2));
+            if(!x.has("date"))x.put("date",c.getString(3)); if(!x.has("name"))x.put("name",c.getString(4));
+            if(!x.has("amount"))x.put("amount",c.getDouble(5)); if(!x.has("type"))x.put("type",c.getString(6));
+            if(!x.has("note"))x.put("note",c.getString(7)); a.put(x); } }
+        catch(Exception ignored) {} finally { c.close(); } return a;
+    }
+    public synchronized void deleteExpense(String id) { getWritableDatabase().delete("expenses","id=?",new String[]{id}); }
+    public synchronized void replaceServerExpenses(JSONArray a) {
+        SQLiteDatabase db=getWritableDatabase(); HashSet<String> keep=new HashSet<>(), pendingDelete=new HashSet<>();
+        for(int i=0;i<a.length();i++){JSONObject x=a.optJSONObject(i);if(x!=null)keep.add(x.optString("id"));}
+        JSONArray pending=queued();
+        for(int i=0;i<pending.length();i++){JSONObject op=pending.optJSONObject(i);if(op==null)continue;
+            String action=op.optString("action"), id=op.optString("id");
+            if("expense_save".equals(action))keep.add(id);
+            if("expense_delete".equals(action))pendingDelete.add(id);
+        }
+        keep.removeAll(pendingDelete); db.beginTransaction();
+        try {
+            for(int i=0;i<a.length();i++){JSONObject x=a.optJSONObject(i);if(x!=null&&!pendingDelete.contains(x.optString("id")))saveExpense(x);}
+            for(String id:pendingDelete)db.delete("expenses","id=?",new String[]{id});
+            Cursor rows=db.rawQuery("SELECT id FROM expenses",null);
+            try { while(rows.moveToNext()){String id=rows.getString(0);if(!keep.contains(id))db.delete("expenses","id=?",new String[]{id});} } finally { rows.close(); }
             db.setTransactionSuccessful();
         } finally { db.endTransaction(); }
     }
