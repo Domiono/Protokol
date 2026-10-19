@@ -65,7 +65,7 @@ public class ReservationsWidgetProvider extends AppWidgetProvider {
   if(!to.matches("\\d{4}-\\d{2}-\\d{2}"))to=from;
   String a=from.substring(8,10)+"."+from.substring(5,7)+"."+from.substring(0,4);
   String b=to.substring(8,10)+"."+to.substring(5,7)+"."+to.substring(0,4);
-  return "OD: "+a+"\\nDO: "+b;
+  return "OD: "+a+" • DO: "+b;
  }
  private static int day(String s){java.util.regex.Matcher m=java.util.regex.Pattern.compile("^\\s*(\\d{1,2})").matcher(s);return m.find()?Integer.parseInt(m.group(1)):99;}
  private static int hour(String s){java.util.regex.Matcher m=java.util.regex.Pattern.compile("^\\s*\\d{1,2}\\s+.*?\\s+(\\d{1,2})\\s*/").matcher(s);return m.find()?Integer.parseInt(m.group(1)):99;}
