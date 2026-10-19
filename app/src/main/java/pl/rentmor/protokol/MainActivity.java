@@ -161,6 +161,7 @@ public class MainActivity extends Activity {
                 boolean done=item.optBoolean("done");
                 LinearLayout row=new LinearLayout(this);row.setOrientation(1);row.setPadding(14,13,14,13);row.setBackground(roundBg(Color.WHITE,16));row.setElevation(2);
                 LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);
+                CheckBox check=new CheckBox(this);check.setChecked(done);check.setText("");head.addView(check,new LinearLayout.LayoutParams(34,-2));
                 TextView dayNumber=new TextView(this);dayNumber.setText(reservationDayNumber(item));dayNumber.setTextSize(25);dayNumber.setTypeface(null,1);dayNumber.setTextColor(0xff123b68);dayNumber.setGravity(Gravity.CENTER);dayNumber.setBackground(roundBg(0xffe8f0fa,10));LinearLayout.LayoutParams dp=new LinearLayout.LayoutParams(52,52);dp.rightMargin=11;head.addView(dayNumber,dp);
                 LinearLayout dayCol=new LinearLayout(this);dayCol.setOrientation(1);dayCol.setGravity(Gravity.CENTER_VERTICAL);
                 TextView dayCaption=new TextView(this);dayCaption.setText(reservationMonthLabel(item));dayCaption.setTextSize(12);dayCaption.setTextColor(0xff64748b);dayCol.addView(dayCaption);
