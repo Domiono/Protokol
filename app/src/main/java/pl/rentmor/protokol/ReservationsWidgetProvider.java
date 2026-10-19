@@ -15,7 +15,7 @@ public class ReservationsWidgetProvider extends AppWidgetProvider {
   JSONArray a=store.reservations(month);ArrayList<JSONObject> rows=new ArrayList<>();
   for(int i=0;i<a.length();i++){JSONObject x=a.optJSONObject(i);if(x!=null&&!x.optBoolean("settled"))rows.add(x);}
   Collections.sort(rows,(x,y)->{int dx=day(x.optString("text")),dy=day(y.optString("text"));if(dx!=dy)return Integer.compare(dx,dy);return Integer.compare(hour(x.optString("text")),hour(y.optString("text")));});
-  int[] rowIds={R.id.widget_row_1,R.id.widget_row_2,R.id.widget_row_3,R.id.widget_row_4};
+  int[] rowIds={R.id.widget_row_1,R.id.widget_row_2,R.id.widget_row_3,R.id.widget_row_4,R.id.widget_row_5,R.id.widget_row_6,R.id.widget_row_7,R.id.widget_row_8,R.id.widget_row_9,R.id.widget_row_10};
   for(int id:ids){
    RemoteViews v=new RemoteViews(c.getPackageName(),R.layout.reservations_widget);
    v.setTextViewText(R.id.widget_title,"RENTMOR • REZERWACJE");
