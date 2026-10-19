@@ -174,7 +174,7 @@ public class MainActivity extends Activity {
                 settle.setEnabled("admin".equals(getSharedPreferences("rentmor",0).getString("role","")) && !item.optBoolean("settled"));
                 LinearLayout.LayoutParams rowParams=new LinearLayout.LayoutParams(-1,-2); rowParams.bottomMargin=7; list.addView(row,rowParams);
                 check.setOnCheckedChangeListener((button,checked)->{
-                    try{item.put("done",checked);store.saveReservation(item);store.enqueue("reservation_save",item);if(isOnline())syncNow();render[0].run();}
+                    try{item.put("done",checked);store.saveReservation(item);store.enqueue("reservation_save",item);ReservationsWidgetProvider.refresh(this);if(isOnline())syncNow();render[0].run();}
                     catch(Exception ex){toast("Nie udało się zapisać zmiany.");}
                 });
                 edit.setOnClickListener(v->{
