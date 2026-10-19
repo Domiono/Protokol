@@ -34,7 +34,15 @@ public class ReservationsWidgetProvider extends AppWidgetProvider {
     for(int i=0;i<Math.min(rowIds.length,rows.size());i++){
      JSONObject item=rows.get(i);boolean done=item.optBoolean("done");
      int rid=rowIds[i];v.setViewVisibility(rid,View.VISIBLE);
-     v.setTextViewText(rid,(done?"✓ WYDANE  •  ":"○ DO WYDANIA  •  ")+item.optString("text"));
+     String raw=item.optString("text","");String[] parts=raw.split("•");
+     String equipment=item.optString("equipment","").trim();
+     if(equipment.isEmpty()&&parts.length>=2){equipment=parts[1].trim().replaceFirst("(?i)\\s+-\\s+wynajem.*$","").replaceFirst("\\s+\\|.*$","").trim();}
+     if(equipment.isEmpty())equipment=raw;
+     String time=item.optString("time","");if(time.isEmpty()){java.util.regex.Matcher tm=java.util.regex.Pattern.compile("^\\s*\\d{1,2}\\s+(\\d{1,2}:\\d{2})").matcher(raw);if(tm.find())time=tm.group(1);}
+     String phone=item.optString("phone","");if(phone.isEmpty()&&parts.length>=3)phone=parts[parts.length-1].trim();
+     int day=item.optInt("day",day(raw));String details=day+(time.isEmpty()?"":" • "+time);
+     String display=(done?"✓ WYDANE":"○ DO WYDANIA")+"\\n"+equipment+"\\n"+details+(phone.isEmpty()?"":" • "+phone);
+     v.setTextViewText(rid,display);
      v.setTextColor(rid,done?0xff166534:0xff26384d);
      v.setInt(rid,"setBackgroundColor",done?0xffe8f5e9:0xfff1f5f9);
     }
