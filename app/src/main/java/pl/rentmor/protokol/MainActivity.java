@@ -71,9 +71,21 @@ public class MainActivity extends Activity {
     private android.graphics.drawable.GradientDrawable roundBg(int color,int radius){android.graphics.drawable.GradientDrawable d=new android.graphics.drawable.GradientDrawable();d.setColor(color);d.setCornerRadius(radius);return d;}
     private void menuCard(LinearLayout parent,String symbol,String title,String subtitle,Runnable action,int tint){
         LinearLayout card=new LinearLayout(this);card.setOrientation(0);card.setGravity(Gravity.CENTER_VERTICAL);card.setPadding(15,14,15,14);card.setBackground(roundBg(0xffffffff,18));card.setElevation(3);
-        TextView ico=new TextView(this);ico.setText(symbol);ico.setTextSize(25);ico.setTextColor(0xff123b68);ico.setGravity(Gravity.CENTER);ico.setBackground(roundBg(tint,14));card.addView(ico,new LinearLayout.LayoutParams(52,52));
+        ImageView ico=new ImageView(this);ico.setImageResource(menuIcon(title));ico.setColorFilter(0xff174a78);ico.setScaleType(ImageView.ScaleType.CENTER_INSIDE);ico.setPadding(14,14,14,14);ico.setBackground(roundBg(tint,16));card.addView(ico,new LinearLayout.LayoutParams(52,52));
         LinearLayout labels=new LinearLayout(this);labels.setOrientation(1);labels.setPadding(14,0,0,0);TextView t=new TextView(this);t.setText(title);t.setTextSize(16);t.setTextColor(0xff172b43);t.setTypeface(null,1);labels.addView(t);TextView sub=new TextView(this);sub.setText(subtitle);sub.setTextSize(12);sub.setTextColor(0xff718096);sub.setPadding(0,4,0,0);labels.addView(sub);card.addView(labels,new LinearLayout.LayoutParams(0,-2,1));
         TextView arrow=new TextView(this);arrow.setText("›");arrow.setTextSize(28);arrow.setTextColor(0xff94a3b8);card.addView(arrow);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.bottomMargin=12;parent.addView(card,cp);card.setOnClickListener(v->action.run());
+    }
+    private int menuIcon(String title){
+        if(title.contains("Rezerwacje"))return android.R.drawable.ic_menu_my_calendar;
+        if(title.contains("Statystyki"))return android.R.drawable.ic_menu_sort_by_size;
+        if(title.contains("koszty"))return android.R.drawable.ic_menu_info_details;
+        if(title.contains("Synchronizuj"))return android.R.drawable.ic_popup_sync;
+        if(title.contains("Nowy protokół"))return android.R.drawable.ic_input_add;
+        if(title.contains("Lista protokołów"))return android.R.drawable.ic_menu_agenda;
+        if(title.contains("zwrot"))return android.R.drawable.ic_menu_revert;
+        if(title.contains("Aktywuj"))return android.R.drawable.ic_menu_preferences;
+        if(title.contains("Pobierz"))return android.R.drawable.stat_sys_download_done;
+        return android.R.drawable.ic_menu_view;
     }
     private void resetActivation(){
         showingApp=false;
@@ -174,8 +186,16 @@ public class MainActivity extends Activity {
                 TextView dayCaption=new TextView(this);dayCaption.setText(reservationMonthRangeLabel(item));dayCaption.setTextSize(12);dayCaption.setTextColor(0xff64748b);dayCol.addView(dayCaption);
                 TextView dayLabel=new TextView(this);dayLabel.setText("OKRES REZERWACJI");dayLabel.setTextSize(10);dayLabel.setTypeface(null,1);dayLabel.setTextColor(0xff123b68);dayCol.addView(dayLabel);head.addView(dayCol,new LinearLayout.LayoutParams(0,-2,1));
                 TextView state=new TextView(this);state.setText(done?"WYDANE":"DO WYDANIA");state.setTextSize(10);state.setTypeface(null,1);state.setTextColor(done?0xff166534:0xff925400);state.setPadding(9,7,9,7);state.setBackground(roundBg(done?0xffe7f5e9:0xfffff1d6,8));head.addView(state);row.addView(head);
-                TextView equipmentTitle=new TextView(this);equipmentTitle.setText(reservationEquipment(item));equipmentTitle.setTextSize(18);equipmentTitle.setTypeface(null,1);equipmentTitle.setTextColor(done?0xff64748b:0xff172b43);equipmentTitle.setPadding(0,13,0,10);row.addView(equipmentTitle);
-                TextView dateRangeLabel=new TextView(this);dateRangeLabel.setText(reservationDateRangeLabel(item));dateRangeLabel.setTextSize(13);dateRangeLabel.setTypeface(null,1);dateRangeLabel.setTextColor(0xff526174);dateRangeLabel.setPadding(0,0,0,10);row.addView(dateRangeLabel);
+                String dateLabel=reservationDateRangeLabel(item);
+                LinearLayout dateChips=new LinearLayout(this);dateChips.setGravity(Gravity.CENTER_VERTICAL);dateChips.setPadding(0,10,0,0);
+                String[] dateParts=dateLabel.split("\\s+•\\s+");
+                if(dateParts.length==2){
+                    TextView fromChip=new TextView(this);fromChip.setText(dateParts[0]);fromChip.setTextSize(12);fromChip.setTypeface(null,1);fromChip.setTextColor(0xff087e8b);fromChip.setPadding(10,8,10,8);fromChip.setBackground(roundBg(0xffe3f6f5,9));
+                    TextView toChip=new TextView(this);toChip.setText(dateParts[1]);toChip.setTextSize(12);toChip.setTypeface(null,1);toChip.setTextColor(0xff245b91);toChip.setPadding(10,8,10,8);toChip.setBackground(roundBg(0xffe9f1fb,9));
+                    dateChips.addView(fromChip);LinearLayout.LayoutParams toParams=new LinearLayout.LayoutParams(-2,-2);toParams.leftMargin=7;dateChips.addView(toChip,toParams);
+                }else{TextView legacyDate=new TextView(this);legacyDate.setText(dateLabel);legacyDate.setTextSize(12);legacyDate.setTypeface(null,1);legacyDate.setTextColor(0xff526174);legacyDate.setPadding(0,8,0,0);dateChips.addView(legacyDate);}
+                row.addView(dateChips);
+                TextView equipmentTitle=new TextView(this);equipmentTitle.setText(reservationEquipment(item));equipmentTitle.setTextSize(18);equipmentTitle.setTypeface(null,1);equipmentTitle.setTextColor(done?0xff64748b:0xff172b43);equipmentTitle.setPadding(0,10,0,10);row.addView(equipmentTitle);
                 LinearLayout details=new LinearLayout(this);details.setGravity(Gravity.CENTER_VERTICAL);details.setPadding(0,0,0,10);
                 TextView timeBadge=new TextView(this);String timeText=reservationTimeForItem(item);timeBadge.setText("◷  "+(timeText.isEmpty()?"GODZINA NIEUSTALONA":timeText));timeBadge.setTextSize(13);timeBadge.setTypeface(null,1);timeBadge.setTextColor(0xff7c4a03);timeBadge.setPadding(10,8,10,8);timeBadge.setBackground(roundBg(0xfffff3df,9));details.addView(timeBadge);row.addView(details);
                 String ph=reservationPhoneForItem(item);if(!ph.isEmpty()){LinearLayout phoneLine=new LinearLayout(this);phoneLine.setGravity(Gravity.CENTER_VERTICAL);phoneLine.setPadding(0,0,0,11);TextView phoneLabel=new TextView(this);phoneLabel.setText("TELEFON   ");phoneLabel.setTextSize(10);phoneLabel.setTypeface(null,1);phoneLabel.setTextColor(0xff64748b);phoneLine.addView(phoneLabel);TextView phoneText=new TextView(this);phoneText.setText(ph);phoneText.setTextSize(17);phoneText.setTypeface(null,1);phoneText.setTextColor(0xff123b68);phoneLine.addView(phoneText);row.addView(phoneLine);}
