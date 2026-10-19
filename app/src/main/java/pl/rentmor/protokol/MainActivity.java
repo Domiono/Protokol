@@ -324,7 +324,7 @@ public class MainActivity extends Activity {
     private String reservationDateRangeShort(JSONObject item) {
         String from=item.optString("start_date","").trim(),to=item.optString("end_date","").trim();
         if(from.matches("\\d{4}-\\d{2}-\\d{2}")){String a=from.substring(8,10);String b=to.matches("\\d{4}-\\d{2}-\\d{2}")?to.substring(8,10):a;return a.equals(b)?a:a+"–"+b;}
-        return String.valueOf(reservationDay(item.optString("text")));
+        int legacyDay=reservationDay(item.optString("text"));return legacyDay>=1&&legacyDay<=31?String.valueOf(legacyDay):String.valueOf(item.optInt("day",1));
     }
     private String reservationMonthRangeLabel(JSONObject item) {
         String from=item.optString("start_date",""),to=item.optString("end_date","");
