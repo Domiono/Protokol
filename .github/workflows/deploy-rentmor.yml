@@ -56,3 +56,5 @@ jobs:
             put server/protocol_sync.php -o protocol_sync.php;
             bye
           "
+
+# Deployment connection test
