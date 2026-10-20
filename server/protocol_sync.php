@@ -195,6 +195,9 @@ foreach ($operations as $op) {
                 $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nieprawidłowa rezerwacja.']; continue;
             }
             $item=['id'=>$id,'month'=>$month,'text'=>$text,'done'=>!empty($op['done'])];
+            foreach (['equipment','day','start_date','end_date','end_day','end_month','time','phone','client','customer_name'] as $field) {
+                if (array_key_exists($field,$op)) $item[$field] = rm_text($op,$field,($field==='text'?500:200));
+            }
             $found=false;
             foreach ($reservations as &$saved) { if (($saved['id'] ?? '') === $id) {
                 foreach (['settled','income','loss','loss_note','settled_at'] as $field) if (array_key_exists($field,$saved)) $item[$field]=$saved[$field];
