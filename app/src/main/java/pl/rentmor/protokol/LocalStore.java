@@ -7,15 +7,16 @@ import org.json.*;
 import java.util.*;
 
 public class LocalStore extends SQLiteOpenHelper {
-    public LocalStore(Context c) { super(c, "rentmor_local.db", null, 4); }
+    public LocalStore(Context c) { super(c, "rentmor_local.db", null, 5); }
     @Override public void onCreate(SQLiteDatabase db) {
         db.execSQL("CREATE TABLE protocols(id TEXT PRIMARY KEY, number TEXT, status TEXT, data TEXT, updated INTEGER)");
         db.execSQL("CREATE TABLE queue(op_id TEXT PRIMARY KEY, action TEXT, payload TEXT, created INTEGER)");
         db.execSQL("CREATE TABLE equipment(name TEXT PRIMARY KEY)");
         db.execSQL("CREATE TABLE reservations(id TEXT PRIMARY KEY, month TEXT, text TEXT, done INTEGER, data TEXT, updated INTEGER)");
         db.execSQL("CREATE TABLE expenses(id TEXT PRIMARY KEY, month TEXT, date TEXT, name TEXT, amount REAL, type TEXT, note TEXT, data TEXT, updated INTEGER)");
+        db.execSQL("CREATE TABLE customers(phone_key TEXT PRIMARY KEY, data TEXT, updated INTEGER)");
     }
-    @Override public void onUpgrade(SQLiteDatabase db,int oldV,int newV) { if(oldV<2) db.execSQL("CREATE TABLE IF NOT EXISTS reservations(id TEXT PRIMARY KEY, month TEXT, text TEXT, done INTEGER, updated INTEGER)"); if(oldV<3) db.execSQL("ALTER TABLE reservations ADD COLUMN data TEXT"); if(oldV<4) db.execSQL("CREATE TABLE IF NOT EXISTS expenses(id TEXT PRIMARY KEY, month TEXT, date TEXT, name TEXT, amount REAL, type TEXT, note TEXT, data TEXT, updated INTEGER)"); }
+    @Override public void onUpgrade(SQLiteDatabase db,int oldV,int newV) { if(oldV<2) db.execSQL("CREATE TABLE IF NOT EXISTS reservations(id TEXT PRIMARY KEY, month TEXT, text TEXT, done INTEGER, updated INTEGER)"); if(oldV<3) db.execSQL("ALTER TABLE reservations ADD COLUMN data TEXT"); if(oldV<4) db.execSQL("CREATE TABLE IF NOT EXISTS expenses(id TEXT PRIMARY KEY, month TEXT, date TEXT, name TEXT, amount REAL, type TEXT, note TEXT, data TEXT, updated INTEGER)"); if(oldV<5) db.execSQL("CREATE TABLE IF NOT EXISTS customers(phone_key TEXT PRIMARY KEY, data TEXT, updated INTEGER)"); }
     public synchronized void enqueue(String action, JSONObject payload) {
         try {
             String opId = UUID.randomUUID().toString();
@@ -163,6 +164,25 @@ public class LocalStore extends SQLiteOpenHelper {
             try { while(rows.moveToNext()){String id=rows.getString(0);if(!keep.contains(id))db.delete("expenses","id=?",new String[]{id});} } finally { rows.close(); }
             db.setTransactionSuccessful();
         } finally { db.endTransaction(); }
+    }
+
+    public synchronized void replaceServerCustomers(JSONArray a) {
+        SQLiteDatabase db=getWritableDatabase(); db.beginTransaction();
+        try {
+            db.delete("customers",null,null);
+            if(a!=null) for(int i=0;i<a.length();i++) {
+                JSONObject x=a.optJSONObject(i); if(x==null) continue;
+                String key=x.optString("phone_key",""); if(key.isEmpty()) continue;
+                ContentValues v=new ContentValues(); v.put("phone_key",key); v.put("data",x.toString()); v.put("updated",System.currentTimeMillis());
+                db.insertWithOnConflict("customers",null,v,SQLiteDatabase.CONFLICT_REPLACE);
+            }
+            db.setTransactionSuccessful();
+        } finally { db.endTransaction(); }
+    }
+    public synchronized JSONArray customers() {
+        JSONArray a=new JSONArray(); Cursor c=getReadableDatabase().rawQuery("SELECT data FROM customers ORDER BY json_extract(data,'$.name'),phone_key",null);
+        try { while(c.moveToNext()) a.put(new JSONObject(c.getString(0))); } catch(Exception ignored) {} finally { c.close(); }
+        return a;
     }
 
     public synchronized int pendingCount() {
