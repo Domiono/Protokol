@@ -39,12 +39,50 @@ function rm_text(array $input, string $key, int $max = 4000): string {
     return function_exists('mb_substr') ? mb_substr($value, 0, $max, 'UTF-8') : substr($value, 0, $max);
 }
 
+function rm_phone_key(string $value): string {
+    $value = trim($value);
+    if ($value === '' || !preg_match('/^[+0-9() .\\-]+$/', $value)) return '';
+    $digits = preg_replace('/\\D+/', '', $value);
+    if (strlen($digits) === 11 && str_starts_with($digits, '48')) $digits = substr($digits, 2);
+    if (strlen($digits) === 9) return $digits;
+    if (strlen($digits) >= 10 && strlen($digits) <= 15) return '+' . $digits;
+    return '';
+}
+
 $role = rm_device_role(__DIR__ . '/protocol_devices.json');
 if ($role === '') rm_json_response(401, ['ok'=>false, 'error'=>'Urządzenie nieaktywne. Połącz się z internetem i aktywuj je ponownie.']);
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 if ($method === 'GET') {
     $protocols = rm_read_json_file(__DIR__ . '/protocols.json', []);
+    $reservations = rm_read_json_file(__DIR__ . '/reservations.json', []);
+    $profiles = rm_read_json_file(__DIR__ . '/customers.json', []);
+    $customers = [];
+    foreach ($profiles as $profile) {
+        $key = rm_phone_key((string)($profile['phone'] ?? ''));
+        if ($key !== '') $customers[$key] = $profile + ['phone_key'=>$key,'reservations'=>[],'protocols'=>[]];
+    }
+    foreach ($reservations as $reservation) {
+        $phone = (string)($reservation['phone'] ?? '');
+        if ($phone === '') continue;
+        $key = rm_phone_key($phone); if ($key === '') continue;
+        if (!isset($customers[$key])) $customers[$key] = ['id'=>$key,'phone'=>$phone,'phone_key'=>$key,'name'=>'','notes'=>'','reservations'=>[],'protocols'=>[]];
+        $customers[$key]['reservations'][] = $reservation;
+    }
+    foreach ($protocols as $protocol) {
+        $phone = (string)($protocol['phone'] ?? '');
+        if ($phone === '') continue;
+        $key = rm_phone_key($phone); if ($key === '') continue;
+        if (!isset($customers[$key])) $customers[$key] = ['id'=>$key,'phone'=>$phone,'phone_key'=>$key,'name'=>'','notes'=>'','reservations'=>[],'protocols'=>[]];
+        if (($customers[$key]['name'] ?? '') === '' && trim((string)($protocol['client'] ?? '')) !== '') $customers[$key]['name'] = trim((string)$protocol['client']);
+        $customers[$key]['protocols'][] = $protocol;
+    }
+    foreach ($customers as &$customer) {
+        if (($customer['name'] ?? '') === '') foreach (($customer['protocols'] ?? []) as $protocol) {
+            if (trim((string)($protocol['client'] ?? '')) !== '') { $customer['name'] = trim((string)$protocol['client']); break; }
+        }
+    }
+    unset($customer);
     $inventory = rm_read_json_file(__DIR__ . '/data.json', []);
     $equipment = [];
     foreach ($inventory as $product) {
@@ -53,7 +91,7 @@ if ($method === 'GET') {
     }
     rm_json_response(200, [
         'ok'=>true, 'role'=>$role, 'server_time'=>date(DATE_ATOM),
-        'protocols'=>array_values($protocols), 'expenses'=>($role === 'admin' ? array_values(rm_read_json_file(__DIR__ . '/costs.json', [])) : []), 'reservations'=>array_values(array_map(function($r) use ($role) { if ($role !== 'admin') { unset($r['income'],$r['loss'],$r['loss_note'],$r['settled_at']); } return $r; }, rm_read_json_file(__DIR__ . '/reservations.json', []))), 'equipment'=>array_keys($equipment)
+        'protocols'=>array_values($protocols), 'customers'=>array_values($customers), 'expenses'=>($role === 'admin' ? array_values(rm_read_json_file(__DIR__ . '/costs.json', [])) : []), 'reservations'=>array_values(array_map(function($r) use ($role) { if ($role !== 'admin') { unset($r['income'],$r['loss'],$r['loss_note'],$r['settled_at']); } return $r; }, rm_read_json_file(__DIR__ . '/reservations.json', []))), 'equipment'=>array_keys($equipment)
     ]);
 }
 if ($method !== 'POST') rm_json_response(405, ['ok'=>false, 'error'=>'Niedozwolona metoda.']);
@@ -97,6 +135,22 @@ foreach ($operations as $op) {
         $json=json_encode(array_values($costs),JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);$tmp=$costFile.'.'.bin2hex(random_bytes(6)).'.tmp';
         $ok=$json!==false&&file_put_contents($tmp,$json,LOCK_EX)!==false&&rename($tmp,$costFile);if(!$ok&&is_file($tmp))@unlink($tmp);
         flock($costLock,LOCK_UN);fclose($costLock);$results[]=$ok?['op_id'=>$opId,'ok'=>true,'id'=>$id]:['op_id'=>$opId,'ok'=>false,'error'=>'Nie udało się zapisać kosztów.'];continue;
+    }
+
+    if ($action === 'customer_save') {
+        if ($role !== 'admin') { $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Edycja kart klientów jest dostępna tylko dla administratora.']; continue; }
+        $phone = rm_text($op, 'phone', 50); $key = rm_phone_key($phone);
+        if ($key === '') { $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Podaj prawidłowy numer telefonu.']; continue; }
+        $customerFile=__DIR__.'/customers.json'; $customerLock=fopen($customerFile.'.lock','c+');
+        if (!$customerLock || !flock($customerLock,LOCK_EX)) { if($customerLock)fclose($customerLock); $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Baza klientów jest chwilowo zajęta.']; continue; }
+        $customers=rm_read_json_file($customerFile,[]); $found=false;
+        $item=['id'=>$key,'phone'=>$phone,'phone_key'=>$key,'name'=>rm_text($op,'name',200),'notes'=>rm_text($op,'notes',4000)];
+        foreach($customers as &$saved) { if(rm_phone_key((string)($saved['phone']??''))===$key) { $item['phone']=$saved['phone']??$phone; $saved=array_merge($saved,$item); $found=true; break; } } unset($saved);
+        if(!$found)$customers[]=$item;
+        $ok=rm_write_json_atomic($customerFile,$customers);
+        flock($customerLock,LOCK_UN); fclose($customerLock);
+        $results[]=$ok?['op_id'=>$opId,'ok'=>true,'id'=>$key]:['op_id'=>$opId,'ok'=>false,'error'=>'Nie udało się zapisać karty klienta.'];
+        continue;
     }
 
     if ($action === 'equipment_add') {
