@@ -183,7 +183,11 @@ public class MainActivity extends Activity {
                 }).show();
         });
         EditText time=new EditText(this);time.setSingleLine(true);time.setHint("Godzina (np. 18:00)");time.setInputType(2);root.addView(time);
-        EditText phone=new EditText(this);phone.setSingleLine(true);phone.setHint("Telefon lub nick z OLX");phone.setInputType( android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);root.addView(phone);
+        AutoCompleteTextView phone=new AutoCompleteTextView(this);phone.setSingleLine(true);phone.setHint("Telefon lub nick z OLX");phone.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        ArrayList<String> knownPhones=new ArrayList<>();JSONArray knownCustomers=store.customers();for(int ci=0;ci<knownCustomers.length();ci++){JSONObject cc=knownCustomers.optJSONObject(ci);if(cc!=null&&!cc.optString("phone").isEmpty())knownPhones.add(cc.optString("phone"));}
+        ArrayAdapter<String> phoneAdapter=new ArrayAdapter<>(this,android.R.layout.simple_dropdown_item_1line,knownPhones);phone.setAdapter(phoneAdapter);phone.setThreshold(1);root.addView(phone);
+        EditText customerName=field("Imię i nazwisko / firma klienta (opcjonalnie)");
+        phone.setOnItemClickListener((parent,view,position,id)->{String selected=String.valueOf(parent.getItemAtPosition(position));String key=customerPhoneKey(selected);for(int ci=0;ci<knownCustomers.length();ci++){JSONObject cc=knownCustomers.optJSONObject(ci);if(cc!=null&&customerPhoneKey(cc.optString("phone")).equals(key)){customerName.setText(cc.optString("name",""));break;}}});
         TextView hint=new TextView(this);hint.setText("Ustaw datę OD–DO. Rezerwacja może obejmować kilka dni.");hint.setTextSize(12);hint.setTextColor(0xff718096);root.addView(hint);
 
         ScrollView scroll=new ScrollView(this);LinearLayout list=new LinearLayout(this);list.setOrientation(1);list.setPadding(0,10,0,8);scroll.addView(list);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
@@ -257,7 +261,7 @@ public class MainActivity extends Activity {
             String eq=String.valueOf(equipment.getSelectedItem());String shortTime=tm.isEmpty()?"":(tm.contains(":")?tm:tm+":00");
             SimpleDateFormat iso=new SimpleDateFormat("yyyy-MM-dd",Locale.US);String from=iso.format(reservationStart[0].getTime()),to=iso.format(reservationEnd[0].getTime());
             String value=from+" – "+to+(shortTime.isEmpty()?"":" "+shortTime)+" • "+eq+(ph.isEmpty()?"":" • "+ph);
-            try{JSONObject item=new JSONObject();item.put("id",UUID.randomUUID().toString());item.put("month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationStart[0].getTime()));item.put("text",value);item.put("equipment",eq);item.put("day",reservationStart[0].get(Calendar.DAY_OF_MONTH));item.put("start_date",from);item.put("end_date",to);item.put("end_day",reservationEnd[0].get(Calendar.DAY_OF_MONTH));item.put("end_month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationEnd[0].getTime()));item.put("time",shortTime);item.put("phone",ph);item.put("done",false);store.saveReservation(item);store.enqueue("reservation_save",item);ReservationsWidgetProvider.refresh(this);phone.setText("");time.setText("");render[0].run();if(isOnline())syncNow();}
+            try{JSONObject item=new JSONObject();item.put("id",UUID.randomUUID().toString());item.put("month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationStart[0].getTime()));item.put("text",value);item.put("equipment",eq);item.put("day",reservationStart[0].get(Calendar.DAY_OF_MONTH));item.put("start_date",from);item.put("end_date",to);item.put("end_day",reservationEnd[0].get(Calendar.DAY_OF_MONTH));item.put("end_month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationEnd[0].getTime()));item.put("time",shortTime);item.put("phone",ph);item.put("customer_name",customerName.getText().toString().trim());item.put("done",false);store.saveReservation(item);store.enqueue("reservation_save",item);ReservationsWidgetProvider.refresh(this);phone.setText("");time.setText("");render[0].run();if(isOnline())syncNow();}
             catch(Exception ex){toast("Nie udało się dodać rezerwacji.");}
         });
         addButton("WRÓĆ",()->showHome());render[0].run();
@@ -423,6 +427,15 @@ public class MainActivity extends Activity {
     private int reservationHour(String value) {
         java.util.regex.Matcher m=java.util.regex.Pattern.compile("^\\s*\\d{1,2}\\s+.*?\\s+(\\d{1,2})\\s*/").matcher(value);
         return m.find()?Integer.parseInt(m.group(1)):99;
+    }
+
+    private String customerPhoneKey(String value) {
+        if(value==null)return "";String v=value.trim();if(!v.matches("[+0-9() .\\-]+"))return "";
+        String digits=v.replaceAll("[^0-9]","");
+        if(digits.length()==11&&digits.startsWith("48"))digits=digits.substring(2);
+        if(digits.length()==9)return digits;
+        if(digits.length()>=10&&digits.length()<=15)return "+"+digits;
+        return "";
     }
 
     private void customerPage() {
