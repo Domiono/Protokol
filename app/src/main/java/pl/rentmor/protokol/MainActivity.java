@@ -190,7 +190,7 @@ public class MainActivity extends Activity {
         render[0]=()->{
             Calendar selected=parseReservationMonth(month[0]);monthLabel.setText(new SimpleDateFormat("LLLL yyyy",new Locale("pl","PL")).format(selected.getTime()).toUpperCase(new Locale("pl","PL")));list.removeAllViews();
             JSONArray data=store.reservations(month[0]);ArrayList<JSONObject> items=new ArrayList<>();for(int i=0;i<data.length();i++){JSONObject item=data.optJSONObject(i);if(item!=null)items.add(item);}
-            Collections.sort(items,(a,b)->{int da=reservationDay(a.optString("text")),db=reservationDay(b.optString("text"));if(da!=db)return Integer.compare(da,db);return Integer.compare(reservationHour(a.optString("text")),reservationHour(b.optString("text")));});
+            Collections.sort(items,(a,b)->{int issued=Boolean.compare(b.optBoolean("done"),a.optBoolean("done"));if(issued!=0)return issued;int da=reservationDay(a.optString("text")),db=reservationDay(b.optString("text"));if(da!=db)return Integer.compare(da,db);return Integer.compare(reservationHour(a.optString("text")),reservationHour(b.optString("text"));});
             int shown=0;
             for(JSONObject item:items){if(item.optBoolean("settled"))continue;shown++;
                 boolean done=item.optBoolean("done");
