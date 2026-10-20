@@ -102,6 +102,12 @@ public class LocalStore extends SQLiteOpenHelper {
         v.put("text",r.optString("text")); v.put("done",r.optBoolean("done")?1:0); v.put("data",r.toString()); v.put("updated",System.currentTimeMillis());
         getWritableDatabase().insertWithOnConflict("reservations",null,v,SQLiteDatabase.CONFLICT_REPLACE);
     }
+    public synchronized JSONArray allReservations() {
+        JSONArray a=new JSONArray();Cursor c=getReadableDatabase().rawQuery("SELECT data,id,month,text,done FROM reservations ORDER BY updated DESC",null);
+        try{while(c.moveToNext()){JSONObject x;try{x=c.isNull(0)?new JSONObject():new JSONObject(c.getString(0));}catch(Exception e){x=new JSONObject();}
+            if(!x.has("id"))x.put("id",c.getString(1));if(!x.has("month"))x.put("month",c.getString(2));if(!x.has("text"))x.put("text",c.getString(3));if(!x.has("done"))x.put("done",c.getInt(4)==1);a.put(x);}}
+        catch(Exception ignored){}finally{c.close();}return a;
+    }
     public synchronized JSONArray reservations(String month) {
         JSONArray a=new JSONArray(); Cursor c=getReadableDatabase().rawQuery("SELECT data,id,month,text,done FROM reservations WHERE month=? ORDER BY updated",new String[]{month});
         try { while(c.moveToNext()) { JSONObject x; try{x=c.isNull(0)?new JSONObject():new JSONObject(c.getString(0));}catch(Exception e){x=new JSONObject();}
