@@ -481,7 +481,15 @@ public class MainActivity extends Activity {
             EditText notes=field("Notatki o kliencie");notes.setText(c.optString("notes"));notes.setMinLines(3);
             TextView history=new TextView(this);history.setText("HISTORIA WYNAJMÓW");history.setTextSize(16);history.setTypeface(null,1);history.setTextColor(0xff172235);history.setPadding(0,12,0,5);root.addView(history);
             JSONArray reservations=c.optJSONArray("reservations");if(reservations!=null)for(int i=0;i<reservations.length();i++){JSONObject r=reservations.optJSONObject(i);if(r!=null)detailLine(root,"Rezerwacja",r.optString("start_date",r.optString("month"))+" • "+r.optString("equipment",r.optString("text")));}
-            JSONArray protocols=c.optJSONArray("protocols");if(protocols!=null)for(int i=0;i<protocols.length();i++){JSONObject p=protocols.optJSONObject(i);if(p!=null)detailLine(root,"Protokół",p.optString("rental_date")+" • "+p.optString("equipment")+" • "+p.optString("number"));}
+            JSONArray protocols=c.optJSONArray("protocols");
+            if(protocols!=null)for(int i=0;i<protocols.length();i++){
+                JSONObject p=protocols.optJSONObject(i);if(p==null)continue;
+                LinearLayout protocolCard=new LinearLayout(this);protocolCard.setOrientation(1);protocolCard.setPadding(12,10,12,10);protocolCard.setBackground(roundBg(Color.WHITE,10));
+                TextView protocolTitle=new TextView(this);protocolTitle.setText("▤  "+(p.optString("number").isEmpty()?"Protokół":p.optString("number")));protocolTitle.setTextSize(14);protocolTitle.setTypeface(null,1);protocolTitle.setTextColor(0xff172b43);protocolCard.addView(protocolTitle);
+                TextView protocolDesc=new TextView(this);protocolDesc.setText(p.optString("rental_date")+" • "+p.optString("equipment")+"\nDotknij, aby otworzyć protokół");protocolDesc.setTextSize(12);protocolDesc.setTextColor(0xff697386);protocolDesc.setPadding(0,4,0,0);protocolCard.addView(protocolDesc);
+                LinearLayout.LayoutParams protocolParams=new LinearLayout.LayoutParams(-1,-2);protocolParams.bottomMargin=7;root.addView(protocolCard,protocolParams);
+                protocolCard.setOnClickListener(v->showProtocolDetail(p,()->customerDetail(c)));
+            }
             addButton("ZAPISZ DANE I NOTATKI",()->{try{JSONObject op=new JSONObject();op.put("id",c.optString("phone_key"));op.put("phone",c.optString("phone"));op.put("name",name.getText().toString());op.put("notes",notes.getText().toString());store.enqueue("customer_save",op);if(isOnline())new Thread(()->{try{sync.sync();runOnUiThread(()->{toast("Zapisano kartę klienta.");customerPage();});}catch(Exception e){runOnUiThread(()->toast("Zapisano lokalnie. Synchronizacja nie powiodła się: "+e.getMessage()));}}).start();else toast("Zapisano do wysłania po odzyskaniu internetu.");}catch(Exception e){toast("Nie udało się zapisać danych.");}});
             addButton("WRÓĆ DO KLIENTÓW",()->customerPage());
         } catch(Exception ignored) { customerPage(); }
@@ -516,7 +524,8 @@ public class MainActivity extends Activity {
         addButton("WRÓĆ",()->showHome());
     }
     private void detailLine(LinearLayout box,String label,String value){if(value==null||value.trim().isEmpty())return;TextView t=new TextView(this);t.setText(label+"\\n"+value);t.setTextSize(14);t.setTextColor(0xff24364b);t.setPadding(0,7,0,9);box.addView(t);}
-    private void showProtocolDetail(JSONObject p){
+    private void showProtocolDetail(JSONObject p){showProtocolDetail(p,()->protocolList());}
+    private void showProtocolDetail(JSONObject p,Runnable backAction){
         root.removeAllViews();root.setOrientation(1);root.setPadding(20,18,20,20);root.setBackgroundColor(0xfff5f6fa);
         ScrollView sc=new ScrollView(this);LinearLayout content=new LinearLayout(this);content.setOrientation(1);sc.addView(content);root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));
         TextView title=new TextView(this);title.setText(p.optString("number","Protokół"));title.setTextSize(23);title.setTypeface(null,1);title.setTextColor(0xff172235);content.addView(title);
@@ -524,12 +533,36 @@ public class MainActivity extends Activity {
         LinearLayout panel=new LinearLayout(this);panel.setOrientation(1);panel.setPadding(16,12,16,12);panel.setBackground(roundBg(Color.WHITE,16));content.addView(panel);
         detailLine(panel,"Klient",p.optString("client"));detailLine(panel,"Telefon",p.optString("phone"));detailLine(panel,"Sprzęt",p.optString("equipment"));detailLine(panel,"Data wydania",p.optString("rental_date"));detailLine(panel,"Stan przy wydaniu",p.optString("condition"));detailLine(panel,"Akcesoria",p.optString("accessories"));detailLine(panel,"Uwagi",p.optString("notes"));
         detailLine(panel,"Data zwrotu",p.optString("return_date"));detailLine(panel,"Stan przy zwrocie",p.optString("return_condition"));detailLine(panel,"Uwagi do zwrotu",p.optString("return_notes"));
-        JSONArray photos=p.optJSONArray("photos_base64");if(photos!=null&&photos.length()>0){TextView ph=new TextView(this);ph.setText("Zdjęcia ("+photos.length()+")");ph.setTextSize(17);ph.setTypeface(null,1);ph.setTextColor(0xff172235);ph.setPadding(0,18,0,8);content.addView(ph);for(int i=0;i<photos.length();i++){try{byte[] raw=Base64.decode(photos.optString(i),Base64.DEFAULT);Bitmap bm=BitmapFactory.decodeByteArray(raw,0,raw.length);if(bm!=null){ImageView iv=new ImageView(this);iv.setImageBitmap(bm);iv.setAdjustViewBounds(true);iv.setScaleType(ImageView.ScaleType.FIT_CENTER);LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(-1,-2);ip.bottomMargin=10;content.addView(iv,ip);}}catch(Exception ignored){}}}
+        JSONArray photos=p.optJSONArray("photos_base64");if(photos!=null&&photos.length()>0){TextView ph=new TextView(this);ph.setText("Zdjęcia ("+photos.length()+")");ph.setTextSize(17);ph.setTypeface(null,1);ph.setTextColor(0xff172235);ph.setPadding(0,18,0,8);content.addView(ph);for(int i=0;i<photos.length();i++){try{byte[] raw=Base64.decode(photos.optString(i),Base64.DEFAULT);Bitmap bm=BitmapFactory.decodeByteArray(raw,0,raw.length);if(bm!=null){final Bitmap photo=bm;ImageView iv=new ImageView(this);iv.setImageBitmap(photo);iv.setAdjustViewBounds(true);iv.setScaleType(ImageView.ScaleType.FIT_CENTER);iv.setContentDescription("Dotknij, aby powiększyć zdjęcie "+(i+1));iv.setOnClickListener(v->showZoomPhoto(photo,"Zdjęcie "+(i+1)+" z "+photos.length()));LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(-1,-2);ip.bottomMargin=10;content.addView(iv,ip);}}catch(Exception ignored){}}}
         addButton("OTWÓRZ GOTOWY PROTOKÓŁ (PDF)",()->previewPdf(p));addButton("Zapisz / wygeneruj PDF",()->makePdf(p));
         if("admin".equals(getSharedPreferences("rentmor",0).getString("role",""))) addButton("🗑 USUŃ PROTOKÓŁ",()->confirmDelete(p));
-        addButton("WRÓĆ DO LISTY",()->protocolList());
+        addButton("WRÓĆ",backAction);
     }
 
+    private void showZoomPhoto(Bitmap bitmap,String label){
+        Dialog dialog=new Dialog(this,android.R.style.Theme_Black_NoTitleBar_Fullscreen);
+        LinearLayout frame=new LinearLayout(this);frame.setOrientation(1);frame.setBackgroundColor(Color.BLACK);
+        TextView caption=new TextView(this);caption.setText(label+"   •   Przesuń i użyj dwóch palców, aby powiększyć");caption.setTextColor(Color.WHITE);caption.setTextSize(13);caption.setPadding(14,14,14,14);frame.addView(caption);
+        ZoomImageView zoom=new ZoomImageView(this);zoom.setImageBitmap(bitmap);frame.addView(zoom,new LinearLayout.LayoutParams(-1,0,1));
+        Button close=new Button(this);close.setText("ZAMKNIJ");close.setOnClickListener(v->dialog.dismiss());frame.addView(close,new LinearLayout.LayoutParams(-1,52));
+        dialog.setContentView(frame);dialog.show();
+    }
+    private class ZoomImageView extends ImageView {
+        private final Matrix matrix=new Matrix();private final ScaleGestureDetector detector;private float scale=1f,lastX,lastY;private int mode=0;
+        ZoomImageView(Context context){super(context);setScaleType(ScaleType.MATRIX);setBackgroundColor(Color.BLACK);detector=new ScaleGestureDetector(context,new ScaleGestureDetector.SimpleOnScaleGestureListener(){@Override public boolean onScale(ScaleGestureDetector d){float next=scale*d.getScaleFactor();next=Math.max(1f,Math.min(6f,next));float factor=next/scale;matrix.postScale(factor,factor,d.getFocusX(),d.getFocusY());scale=next;setImageMatrix(matrix);return true;}});}
+        @Override public boolean onTouchEvent(android.view.MotionEvent e){
+            detector.onTouchEvent(e);
+            switch(e.getActionMasked()){
+                case MotionEvent.ACTION_DOWN:lastX=e.getX();lastY=e.getY();mode=1;return true;
+                case MotionEvent.ACTION_POINTER_DOWN:mode=2;return true;
+                case MotionEvent.ACTION_MOVE:
+                    if(mode==1&&!detector.isInProgress()&&scale>1f){float dx=e.getX()-lastX,dy=e.getY()-lastY;matrix.postTranslate(dx,dy);setImageMatrix(matrix);}
+                    lastX=e.getX();lastY=e.getY();return true;
+                case MotionEvent.ACTION_POINTER_UP:mode=1;lastX=e.getX();lastY=e.getY();return true;
+                case MotionEvent.ACTION_UP:mode=0;return true;
+            }return true;
+        }
+    }
     private void pickPhoto(){
         Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("image/*");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);startActivityForResult(i,4101);
     }
