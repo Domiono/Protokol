@@ -505,6 +505,19 @@ public class MainActivity extends Activity {
         for(int ri=0;ri<availableReservations.length();ri++){JSONObject rr=availableReservations.optJSONObject(ri);if(rr==null)continue;String rid=rr.optString("id");if(rid.isEmpty())continue;String label=rr.optString("start_date",rr.optString("month"))+" • "+rr.optString("equipment",rr.optString("text"))+" • "+rr.optString("phone");reservationLabels.add(label);reservationIds.add(rid);}
         Spinner reservationSpinner=new Spinner(this);reservationSpinner.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,reservationLabels));root.addView(reservationSpinner,new LinearLayout.LayoutParams(-1,-2));
         reservationSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onItemSelected(android.widget.AdapterView<?> parent,View view,int position,long id){if(position>0){JSONObject rr=findReservation(availableReservations,reservationIds.get(position));if(rr!=null){if(client.getText().toString().trim().isEmpty())client.setText(rr.optString("customer_name",rr.optString("client")));if(phone.getText().toString().trim().isEmpty())phone.setText(rr.optString("phone"));}}}public void onNothingSelected(android.widget.AdapterView<?> parent){}});
+        // Automatyczne dopasowanie rezerwacji po pełnym, znormalizowanym numerze telefonu.
+        Runnable autoMatchReservation=()->{
+            String key=customerPhoneKey(phone.getText().toString());int match=-1;
+            if(!key.isEmpty())for(int ri=0;ri<availableReservations.length();ri++){
+                JSONObject rr=availableReservations.optJSONObject(ri);if(rr==null)continue;
+                if(key.equals(customerPhoneKey(rr.optString("phone")))){int candidate=reservationIds.indexOf(rr.optString("id"));if(candidate>0){match=candidate;break;}}
+            }
+            if(match>0){reservationSpinner.setSelection(match);JSONObject rr=findReservation(availableReservations,reservationIds.get(match));
+                if(rr!=null&&client.getText().toString().trim().isEmpty())client.setText(rr.optString("customer_name",rr.optString("client")));
+            }else reservationSpinner.setSelection(0);
+        };
+        phone.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence x,int st,int count,int after){}public void onTextChanged(CharSequence x,int st,int before,int count){autoMatchReservation.run();}public void afterTextChanged(android.text.Editable e){}});
+        phone.post(autoMatchReservation);
         TextView equipmentLabel=new TextView(this);equipmentLabel.setText("Sprzęt z aktualnej listy RentMor");equipmentLabel.setTextColor(0xff526174);equipmentLabel.setPadding(0,10,0,2);root.addView(equipmentLabel);
         Spinner equipment=new Spinner(this);populateEquipment(equipment);root.addView(equipment,new LinearLayout.LayoutParams(-1,-2));
         addButton("⟳ Odśwież listę sprzętów",()->refreshEquipment(equipment));
