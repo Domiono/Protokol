@@ -86,6 +86,14 @@ public class MainActivity extends Activity {
         if(android.os.Build.VERSION.SDK_INT>=21)b.setStateListAnimator(null);
         b.setPadding(14,10,14,10);
     }
+    private void compactReservationButton(Button b,boolean primary){
+        b.setAllCaps(false);b.setTextSize(12);b.setTypeface(null,1);b.setTextColor(0xff172235);
+        android.graphics.drawable.GradientDrawable bg=new android.graphics.drawable.GradientDrawable();
+        bg.setColor(primary?0xffffcc18:0xffedf0f5);bg.setCornerRadius(9f);
+        bg.setStroke(1,primary?0xfff0b900:0xffdce1e9);b.setBackground(bg);b.setPadding(6,2,6,2);
+        b.setMinHeight(0);b.setMinimumHeight(0);b.setMinWidth(0);b.setMinimumWidth(0);
+        if(android.os.Build.VERSION.SDK_INT>=21){b.setStateListAnimator(null);b.setElevation(0f);}
+    }
     private void menuCard(LinearLayout parent,String symbol,String title,String subtitle,Runnable action,int tint){
         LinearLayout card=new LinearLayout(this);card.setOrientation(0);card.setGravity(Gravity.CENTER_VERTICAL);card.setPadding(15,14,15,14);card.setBackground(roundBg(0xffffffff,18));card.setElevation(3);
         ImageView ico=new ImageView(this);ico.setImageResource(menuIcon(title));ico.setColorFilter(0xff172235);ico.setScaleType(ImageView.ScaleType.CENTER_INSIDE);ico.setPadding(14,14,14,14);ico.setBackground(roundBg(tint,16));card.addView(ico,new LinearLayout.LayoutParams(52,52));
@@ -199,46 +207,46 @@ public class MainActivity extends Activity {
             int shown=0;
             for(JSONObject item:items){if(item.optBoolean("settled"))continue;shown++;
                 boolean done=item.optBoolean("done");
-                LinearLayout row=new LinearLayout(this);row.setOrientation(1);row.setPadding(14,13,14,13);row.setBackground(roundBg(Color.WHITE,16));row.setElevation(2);
+                LinearLayout row=new LinearLayout(this);row.setOrientation(1);row.setPadding(10,8,10,8);row.setBackground(roundBg(Color.WHITE,16));row.setElevation(2);
                 LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);
-                TextView dayNumber=new TextView(this);dayNumber.setText(reservationDateRangeShort(item));dayNumber.setTextSize(25);dayNumber.setTypeface(null,1);dayNumber.setTextColor(0xff172235);dayNumber.setGravity(Gravity.CENTER);dayNumber.setBackground(roundBg(0xffe8f0fa,10));LinearLayout.LayoutParams dp=new LinearLayout.LayoutParams(52,52);dp.rightMargin=11;head.addView(dayNumber,dp);
+                TextView dayNumber=new TextView(this);dayNumber.setText(reservationDateRangeShort(item));dayNumber.setTextSize(21);dayNumber.setTypeface(null,1);dayNumber.setTextColor(0xff172235);dayNumber.setGravity(Gravity.CENTER);dayNumber.setBackground(roundBg(0xffe8f0fa,10));LinearLayout.LayoutParams dp=new LinearLayout.LayoutParams(40,40);dp.rightMargin=8;head.addView(dayNumber,dp);
                 LinearLayout dayCol=new LinearLayout(this);dayCol.setOrientation(1);dayCol.setGravity(Gravity.CENTER_VERTICAL);
                 TextView dayCaption=new TextView(this);dayCaption.setText(reservationMonthRangeLabel(item));dayCaption.setTextSize(12);dayCaption.setTextColor(0xff697386);dayCol.addView(dayCaption);
                 TextView dayLabel=new TextView(this);dayLabel.setText("OKRES REZERWACJI");dayLabel.setTextSize(10);dayLabel.setTypeface(null,1);dayLabel.setTextColor(0xff172235);dayCol.addView(dayLabel);head.addView(dayCol,new LinearLayout.LayoutParams(0,-2,1));
                 LinearLayout statusGroup=new LinearLayout(this);statusGroup.setGravity(Gravity.CENTER_VERTICAL);statusGroup.setPadding(2,0,0,0);
                 TextView state=new TextView(this);state.setText(done?"WYDANE":"DO WYDANIA");state.setTextSize(10);state.setTypeface(null,1);state.setTextColor(done?0xff166534:0xff925400);state.setPadding(8,7,8,7);state.setBackground(roundBg(done?0xffe7f5e9:0xfffff1d6,8));statusGroup.addView(state);
                 Button statusAction=new Button(this);statusAction.setText(done?"COFNIJ":"WYDANO");statusAction.setTextSize(10);statusAction.setAllCaps(false);statusAction.setMinWidth(0);statusAction.setMinimumWidth(0);statusAction.setPadding(9,4,9,4);statusAction.setTextColor(Color.WHITE);statusAction.setBackground(roundBg(done?0xff64748b:0xff16a34a,8));
-                LinearLayout.LayoutParams statusActionParams=new LinearLayout.LayoutParams(-2,42);statusActionParams.leftMargin=5;statusGroup.addView(statusAction,statusActionParams);
+                LinearLayout.LayoutParams statusActionParams=new LinearLayout.LayoutParams(-2,32);statusActionParams.leftMargin=5;statusGroup.addView(statusAction,statusActionParams);
                 statusAction.setOnClickListener(v->{try{boolean nextDone=!item.optBoolean("done");item.put("done",nextDone);store.saveReservation(item);store.enqueue("reservation_save",item);ReservationsWidgetProvider.refresh(this);toast(nextDone?"Oznaczono jako wydane.":"Przywrócono status DO WYDANIA.");if(isOnline())syncNow();render[0].run();}catch(Exception ex){toast("Nie udało się zmienić statusu.");}});
                 head.addView(statusGroup);row.addView(head);
                 String dateLabel=reservationDateRangeLabel(item);
-                LinearLayout dateChips=new LinearLayout(this);dateChips.setGravity(Gravity.CENTER_VERTICAL);dateChips.setPadding(0,10,0,0);
+                LinearLayout dateChips=new LinearLayout(this);dateChips.setGravity(Gravity.CENTER_VERTICAL);dateChips.setPadding(0,6,0,0);
                 String[] dateParts=dateLabel.split("\\s+•\\s+");
                 if(dateParts.length==2){
-                    TextView fromChip=new TextView(this);fromChip.setText(dateParts[0]);fromChip.setTextSize(12);fromChip.setTypeface(null,1);fromChip.setTextColor(0xff087e8b);fromChip.setPadding(10,8,10,8);fromChip.setBackground(roundBg(0xffe3f6f5,9));
-                    TextView toChip=new TextView(this);toChip.setText(dateParts[1]);toChip.setTextSize(12);toChip.setTypeface(null,1);toChip.setTextColor(0xff245b91);toChip.setPadding(10,8,10,8);toChip.setBackground(roundBg(0xffe9f1fb,9));
+                    TextView fromChip=new TextView(this);fromChip.setText(dateParts[0]);fromChip.setTextSize(12);fromChip.setTypeface(null,1);fromChip.setTextColor(0xff087e8b);fromChip.setPadding(8,5,8,5);fromChip.setBackground(roundBg(0xffe3f6f5,9));
+                    TextView toChip=new TextView(this);toChip.setText(dateParts[1]);toChip.setTextSize(12);toChip.setTypeface(null,1);toChip.setTextColor(0xff245b91);toChip.setPadding(8,5,8,5);toChip.setBackground(roundBg(0xffe9f1fb,9));
                     dateChips.addView(fromChip);LinearLayout.LayoutParams toParams=new LinearLayout.LayoutParams(-2,-2);toParams.leftMargin=7;dateChips.addView(toChip,toParams);
                 }else{TextView legacyDate=new TextView(this);legacyDate.setText(dateLabel);legacyDate.setTextSize(12);legacyDate.setTypeface(null,1);legacyDate.setTextColor(0xff526174);legacyDate.setPadding(0,8,0,0);dateChips.addView(legacyDate);}
                 row.addView(dateChips);
-                TextView equipmentTitle=new TextView(this);equipmentTitle.setText(reservationEquipment(item));equipmentTitle.setTextSize(18);equipmentTitle.setTypeface(null,1);equipmentTitle.setTextColor(done?0xff697386:0xff172b43);equipmentTitle.setPadding(0,10,0,10);row.addView(equipmentTitle);
-                LinearLayout details=new LinearLayout(this);details.setGravity(Gravity.CENTER_VERTICAL);details.setPadding(0,0,0,10);
-                TextView timeBadge=new TextView(this);String timeText=reservationTimeForItem(item);timeBadge.setText("◷  "+(timeText.isEmpty()?"GODZINA NIEUSTALONA":timeText));timeBadge.setTextSize(13);timeBadge.setTypeface(null,1);timeBadge.setTextColor(0xff7c4a03);timeBadge.setPadding(10,8,10,8);timeBadge.setBackground(roundBg(0xfffff3df,9));details.addView(timeBadge);row.addView(details);
+                TextView equipmentTitle=new TextView(this);equipmentTitle.setText(reservationEquipment(item));equipmentTitle.setTextSize(16);equipmentTitle.setTypeface(null,1);equipmentTitle.setTextColor(done?0xff697386:0xff172b43);equipmentTitle.setPadding(0,6,0,5);row.addView(equipmentTitle);
+                LinearLayout details=new LinearLayout(this);details.setGravity(Gravity.CENTER_VERTICAL);details.setPadding(0,0,0,5);
+                TextView timeBadge=new TextView(this);String timeText=reservationTimeForItem(item);timeBadge.setText("◷  "+(timeText.isEmpty()?"GODZINA NIEUSTALONA":timeText));timeBadge.setTextSize(12);timeBadge.setTypeface(null,1);timeBadge.setTextColor(0xff7c4a03);timeBadge.setPadding(8,5,8,5);timeBadge.setBackground(roundBg(0xfffff3df,9));details.addView(timeBadge);row.addView(details);
                 String ph=reservationPhoneForItem(item);if(!ph.isEmpty()){
-                    TextView phoneText=new TextView(this);phoneText.setText((isPhoneNumber(ph)?"TELEFON   ":"KLIENT / OLX   ")+ph);phoneText.setTextSize(15);phoneText.setTypeface(null,1);phoneText.setTextColor(0xff172235);phoneText.setPadding(0,0,0,8);row.addView(phoneText);
+                    TextView phoneText=new TextView(this);phoneText.setText((isPhoneNumber(ph)?"TELEFON   ":"KLIENT / OLX   ")+ph);phoneText.setTextSize(13);phoneText.setTypeface(null,1);phoneText.setTextColor(0xff172235);phoneText.setPadding(0,0,0,4);row.addView(phoneText);
                 }
                 LinearLayout actions=new LinearLayout(this);actions.setGravity(Gravity.CENTER_VERTICAL);
-                Button edit=new Button(this);edit.setText("EDYTUJ");brandButton(edit,false);actions.addView(edit,new LinearLayout.LayoutParams(0,-2,1));
-                Button settle=new Button(this);settle.setText("ROZLICZ");brandButton(settle,true);actions.addView(settle,new LinearLayout.LayoutParams(0,-2,1));settle.setEnabled("admin".equals(getSharedPreferences("rentmor",0).getString("role","")));row.addView(actions);
+                Button edit=new Button(this);edit.setText("EDYTUJ");compactReservationButton(edit,false);actions.addView(edit,new LinearLayout.LayoutParams(0,38,1));
+                Button settle=new Button(this);settle.setText("ROZLICZ");compactReservationButton(settle,true);actions.addView(settle,new LinearLayout.LayoutParams(0,38,1));settle.setEnabled("admin".equals(getSharedPreferences("rentmor",0).getString("role","")));row.addView(actions);
                 if(isPhoneNumber(ph)){
                     LinearLayout contactActions=new LinearLayout(this);contactActions.setGravity(Gravity.CENTER_VERTICAL);
-                    Button sms=new Button(this);sms.setText("WYŚLIJ WIADOMOŚĆ");brandButton(sms,false);contactActions.addView(sms,new LinearLayout.LayoutParams(0,-2,1));
-                    Button call=new Button(this);call.setText("ZADZWOŃ");brandButton(call,true);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,-2,1);cp.leftMargin=7;contactActions.addView(call,cp);row.addView(contactActions);
+                    Button sms=new Button(this);sms.setText("WIADOMOŚĆ");compactReservationButton(sms,false);contactActions.addView(sms,new LinearLayout.LayoutParams(0,38,1));
+                    Button call=new Button(this);call.setText("ZADZWOŃ");compactReservationButton(call,true);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,38,1);cp.leftMargin=7;contactActions.addView(call,cp);row.addView(contactActions);
                     sms.setOnClickListener(v->{try{android.content.Intent intent=new android.content.Intent(android.content.Intent.ACTION_SENDTO,android.net.Uri.fromParts("smsto",ph.replaceAll("[^+0-9]",""),null));intent.putExtra("sms_body","Dzień dobry, kontaktuję się w sprawie rezerwacji sprzętu w RentMor.");startActivity(intent);}catch(Exception ex){toast("Nie można otworzyć wiadomości.");}});
                     call.setOnClickListener(v->{try{startActivity(new android.content.Intent(android.content.Intent.ACTION_DIAL,android.net.Uri.fromParts("tel",ph.replaceAll("[^+0-9]",""),null)));}catch(Exception ex){toast("Nie można otworzyć telefonu.");}});
                 }
-                Button delete=new Button(this);delete.setText("USUŃ REZERWACJĘ");brandButton(delete,false);row.addView(delete);
+                Button delete=new Button(this);delete.setText("USUŃ REZERWACJĘ");compactReservationButton(delete,false);row.addView(delete,new LinearLayout.LayoutParams(-1,34));
                 delete.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("Usunąć rezerwację?").setMessage("Rezerwacja zostanie usunięta z aplikacji i po synchronizacji z serwera. Tej operacji nie można cofnąć.").setNegativeButton("Anuluj",null).setPositiveButton("Usuń",(dialog,which)->{try{JSONObject op=new JSONObject();op.put("id",item.optString("id"));store.enqueue("reservation_delete",op);store.deleteReservation(item.optString("id"));ReservationsWidgetProvider.refresh(this);render[0].run();toast("Usunięto rezerwację.");if(isOnline())syncNow();}catch(Exception ex){toast("Nie udało się usunąć rezerwacji.");}}).show());
-                LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.bottomMargin=11;list.addView(row,rp);
+                LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.bottomMargin=7;list.addView(row,rp);
                 edit.setOnClickListener(v->{
                     LinearLayout f=new LinearLayout(this);f.setOrientation(1);EditText e=new EditText(this);e.setSingleLine(true);e.setText(item.optString("text"));f.addView(e);
                     new AlertDialog.Builder(this).setTitle("Edytuj krótki opis rezerwacji").setView(f).setNegativeButton("Anuluj",null).setPositiveButton("Zapisz",(d,w)->{String val=e.getText().toString().trim();if(val.isEmpty()){toast("Wpis nie może być pusty.");return;}try{item.put("text",val);store.saveReservation(item);store.enqueue("reservation_save",item);ReservationsWidgetProvider.refresh(this);render[0].run();if(isOnline())syncNow();}catch(Exception ex){toast("Nie udało się zapisać wpisu.");}}).show();
