@@ -260,7 +260,7 @@ foreach ($operations as $op) {
         if ($number === '') $number = 'RM-' . date('Ymd') . '-' . strtoupper(substr($id, 0, 4));
         $protocols[] = [
             'id'=>$id, 'number'=>$number, 'status'=>'wydany', 'created_at'=>date('Y-m-d H:i:s'),
-            'client'=>$client, 'phone'=>rm_text($op,'phone',50), 'equipment'=>$equipment,
+            'client'=>$client, 'phone'=>rm_text($op,'phone',50), 'equipment'=>$equipment, 'reservation_id'=>preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($op['reservation_id'] ?? '')),
             'rental_date'=>rm_text($op,'rental_date',40), 'condition'=>rm_text($op,'condition',2000),
             'accessories'=>rm_text($op,'accessories',2000), 'notes'=>rm_text($op,'notes',2000),
             'return_date'=>'', 'return_condition'=>'', 'return_notes'=>'', 'sync_op_id'=>$opId
