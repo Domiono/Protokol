@@ -50,6 +50,7 @@ public class MainActivity extends Activity {
         LinearLayout statCard=new LinearLayout(this);statCard.setOrientation(1);statCard.setPadding(18,16,18,16);statCard.setBackground(roundBg(0xffffffff,18));TextView stTitle=new TextView(this);stTitle.setText("STATUS DANYCH");stTitle.setTextSize(11);stTitle.setTextColor(0xff697386);stTitle.setTypeface(null,1);statCard.addView(stTitle);
         status=new TextView(this);status.setText("W telefonie: "+store.allProtocols().length()+"   •   Do wysłania: "+store.pendingCount());status.setTextSize(14);status.setTextColor(0xff26384d);status.setPadding(0,8,0,0);statCard.addView(status);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.bottomMargin=20;page.addView(statCard,sp);
         menuCard(page,"☷","Rezerwacje","Lista odbiorów i rozliczenia najmu",()->reservationPage(),0xfffff6d9);
+        menuCard(page,"♙","Klienci","Historia wynajmów, dane kontaktowe i notatki",()->customerPage(),0xffedf0f5);
         menuCard(page,"▥","Statystyki najmu","Przychody, straty i wynik według sprzętu",()->reservationStatsPage(),0xfffff1c2);
         if("admin".equals(getSharedPreferences("rentmor",0).getString("role",""))) menuCard(page," zł ","Pozostałe koszty","Paliwo, naprawy, reklama i zakupy sprzętu",()->expensePage(),0xfffff6d9);
         menuCard(page,"⟳","Synchronizuj teraz","Wyślij zapisane protokoły na serwer",()->syncNow(),0xffedf0f5);
@@ -422,6 +423,45 @@ public class MainActivity extends Activity {
     private int reservationHour(String value) {
         java.util.regex.Matcher m=java.util.regex.Pattern.compile("^\\s*\\d{1,2}\\s+.*?\\s+(\\d{1,2})\\s*/").matcher(value);
         return m.find()?Integer.parseInt(m.group(1)):99;
+    }
+
+    private void customerPage() {
+        root.removeAllViews(); root.setOrientation(1); root.setPadding(18,16,18,18); root.setBackgroundColor(0xfff5f6fa);
+        TextView heading=new TextView(this); heading.setText("KLIENCI"); heading.setTextSize(25); heading.setTypeface(null,1); heading.setTextColor(0xff172235); root.addView(heading);
+        TextView info=new TextView(this); info.setText("Klienci są łączeni po ujednoliconym numerze telefonu. Dane pobierane są ze wspólnych rezerwacji i protokołów."); info.setTextSize(13); info.setTextColor(0xff697386); info.setPadding(0,6,0,12); root.addView(info);
+        EditText search=field("Szukaj po nazwie lub telefonie");
+        ScrollView sc=new ScrollView(this); LinearLayout list=new LinearLayout(this); list.setOrientation(1); sc.addView(list); root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));
+        Runnable render=()->{
+            list.removeAllViews(); JSONArray all=store.customers(); String q=search.getText().toString().trim().toLowerCase(new Locale("pl","PL")); int count=0;
+            for(int i=0;i<all.length();i++){JSONObject c=all.optJSONObject(i);if(c==null)continue;
+                String name=c.optString("name",""),phone=c.optString("phone",""); if(!q.isEmpty()&&!name.toLowerCase(new Locale("pl","PL")).contains(q)&&!phone.contains(q))continue; count++;
+                LinearLayout card=new LinearLayout(this);card.setOrientation(1);card.setPadding(15,13,15,13);card.setBackground(roundBg(Color.WHITE,14));card.setElevation(1);
+                TextView n=new TextView(this);n.setText(name.isEmpty()?"Klient bez nazwy":name);n.setTextSize(16);n.setTypeface(null,1);n.setTextColor(0xff172235);card.addView(n);
+                TextView p=new TextView(this);p.setText(phone);p.setTextSize(13);p.setTextColor(0xff526174);card.addView(p);
+                JSONArray reservations=c.optJSONArray("reservations"),protocols=c.optJSONArray("protocols");
+                TextView h=new TextView(this);h.setText("Rezerwacje: "+(reservations==null?0:reservations.length())+"  •  Protokoły: "+(protocols==null?0:protocols.length()));h.setTextSize(12);h.setTextColor(0xff697386);card.addView(h);
+                LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=9;list.addView(card,lp);
+                card.setOnClickListener(v->customerDetail(c));
+            }
+            if(count==0){TextView empty=new TextView(this);empty.setText(all.length()==0?"Brak klientów. Zsynchronizuj rezerwacje i protokoły.":"Nie znaleziono klienta.");empty.setTextColor(0xff697386);list.addView(empty);}
+        };
+        search.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int before,int count){render.run();}public void afterTextChanged(android.text.Editable e){}});
+        render.run(); addButton("⟳ SYNCHRONIZUJ",()->{if(!isOnline()){toast("Brak internetu.");return;}new Thread(()->{try{sync.sync();runOnUiThread(()->{render.run();toast("Klienci zaktualizowani.");});}catch(Exception e){runOnUiThread(()->toast("Błąd synchronizacji: "+e.getMessage()));}}).start();});
+        addButton("WRÓĆ",()->showHome());
+    }
+    private void customerDetail(JSONObject original) {
+        try {
+            JSONObject c=new JSONObject(original.toString()); root.removeAllViews();root.setOrientation(1);root.setPadding(18,16,18,18);root.setBackgroundColor(0xfff5f6fa);
+            TextView heading=new TextView(this);heading.setText(c.optString("name").isEmpty()?"Klient":c.optString("name"));heading.setTextSize(23);heading.setTypeface(null,1);heading.setTextColor(0xff172235);root.addView(heading);
+            detailLine(root,"Telefon",c.optString("phone"));
+            EditText name=field("Imię i nazwisko / firma");name.setText(c.optString("name"));
+            EditText notes=field("Notatki o kliencie");notes.setText(c.optString("notes"));notes.setMinLines(3);
+            TextView history=new TextView(this);history.setText("HISTORIA WYNAJMÓW");history.setTextSize(16);history.setTypeface(null,1);history.setTextColor(0xff172235);history.setPadding(0,12,0,5);root.addView(history);
+            JSONArray reservations=c.optJSONArray("reservations");if(reservations!=null)for(int i=0;i<reservations.length();i++){JSONObject r=reservations.optJSONObject(i);if(r!=null)detailLine(root,"Rezerwacja",r.optString("start_date",r.optString("month"))+" • "+r.optString("equipment",r.optString("text")));}
+            JSONArray protocols=c.optJSONArray("protocols");if(protocols!=null)for(int i=0;i<protocols.length();i++){JSONObject p=protocols.optJSONObject(i);if(p!=null)detailLine(root,"Protokół",p.optString("rental_date")+" • "+p.optString("equipment")+" • "+p.optString("number"));}
+            addButton("ZAPISZ DANE I NOTATKI",()->{try{JSONObject op=new JSONObject();op.put("id",c.optString("phone_key"));op.put("phone",c.optString("phone"));op.put("name",name.getText().toString());op.put("notes",notes.getText().toString());store.enqueue("customer_save",op);if(isOnline())new Thread(()->{try{sync.sync();runOnUiThread(()->{toast("Zapisano kartę klienta.");customerPage();});}catch(Exception e){runOnUiThread(()->toast("Zapisano lokalnie. Synchronizacja nie powiodła się: "+e.getMessage()));}}).start();else toast("Zapisano do wysłania po odzyskaniu internetu.");}catch(Exception e){toast("Nie udało się zapisać danych.");}});
+            addButton("WRÓĆ DO KLIENTÓW",()->customerPage());
+        } catch(Exception ignored) { customerPage(); }
     }
 
     private void newIssue(){
