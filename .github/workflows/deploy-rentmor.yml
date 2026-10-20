@@ -1,0 +1,42 @@
+name: Deploy RentMor API
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'server/protocol_sync.php'
+      - '.github/workflows/deploy-rentmor.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy-api:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.FTP_SERVER != '' && secrets.FTP_USERNAME != '' && secrets.FTP_PASSWORD != '' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install lftp
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lftp
+
+      - name: Upload only protocol_sync.php over explicit FTPS
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_PORT: ${{ secrets.FTP_PORT }}
+        run: |
+          set -eu
+          PORT="${FTP_PORT:-21}"
+          lftp -e "
+            set cmd:fail-exit yes;
+            set net:max-retries 2;
+            set net:timeout 20;
+            set ftp:ssl-force true;
+            set ftp:ssl-protect-data true;
+            set ssl:verify-certificate yes;
+            open -p ${PORT} -u \"${FTP_USERNAME}\",\"${FTP_PASSWORD}\" ftp://${FTP_SERVER};
+            put server/protocol_sync.php -o protocol_sync.php;
+            bye
+          "
