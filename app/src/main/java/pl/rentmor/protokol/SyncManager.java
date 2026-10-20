@@ -43,6 +43,7 @@ public class SyncManager {
         }
         JSONObject server=request("GET",null);
         store.replaceServerProtocols(server.optJSONArray("protocols")==null?new JSONArray():server.optJSONArray("protocols"));
+        store.replaceServerCustomers(server.optJSONArray("customers")==null?new JSONArray():server.optJSONArray("customers"));
         store.replaceServerReservations(server.optJSONArray("reservations")==null?new JSONArray():server.optJSONArray("reservations"));
         store.replaceServerExpenses(server.optJSONArray("expenses")==null?new JSONArray():server.optJSONArray("expenses"));
         ReservationsWidgetProvider.refresh(context);
