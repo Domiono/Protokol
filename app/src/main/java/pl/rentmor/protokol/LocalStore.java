@@ -180,7 +180,7 @@ public class LocalStore extends SQLiteOpenHelper {
         } finally { db.endTransaction(); }
     }
     public synchronized JSONArray customers() {
-        JSONArray a=new JSONArray(); Cursor c=getReadableDatabase().rawQuery("SELECT data FROM customers ORDER BY json_extract(data,'$.name'),phone_key",null);
+        JSONArray a=new JSONArray(); Cursor c=getReadableDatabase().rawQuery("SELECT data FROM customers ORDER BY phone_key",null);
         try { while(c.moveToNext()) a.put(new JSONObject(c.getString(0))); } catch(Exception ignored) {} finally { c.close(); }
         return a;
     }
