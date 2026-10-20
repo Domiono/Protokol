@@ -87,11 +87,13 @@ public class MainActivity extends Activity {
         b.setPadding(14,10,14,10);
     }
     private void compactReservationButton(Button b,boolean primary){
-        b.setAllCaps(false);b.setTextSize(12);b.setTypeface(null,1);b.setTextColor(0xff172235);
+        b.setAllCaps(false);b.setSingleLine(true);b.setTextSize(11);b.setTypeface(null,1);
+        b.setTextColor(0xff172235);b.setGravity(Gravity.CENTER);b.setIncludeFontPadding(false);
         android.graphics.drawable.GradientDrawable bg=new android.graphics.drawable.GradientDrawable();
-        bg.setColor(primary?0xffffcc18:0xffedf0f5);bg.setCornerRadius(9f);
-        bg.setStroke(1,primary?0xfff0b900:0xffdce1e9);b.setBackground(bg);b.setPadding(6,2,6,2);
-        b.setMinHeight(0);b.setMinimumHeight(0);b.setMinWidth(0);b.setMinimumWidth(0);
+        bg.setColor(primary?0xffffcc18:0xffedf0f5);bg.setCornerRadius(8f);
+        bg.setStroke(1,primary?0xfff0b900:0xffdce1e9);b.setBackground(bg);
+        b.setPadding(4,0,4,0);b.setMinHeight(0);b.setMinimumHeight(0);
+        b.setMinWidth(0);b.setMinimumWidth(0);
         if(android.os.Build.VERSION.SDK_INT>=21){b.setStateListAnimator(null);b.setElevation(0f);}
     }
     private void menuCard(LinearLayout parent,String symbol,String title,String subtitle,Runnable action,int tint){
@@ -235,16 +237,16 @@ public class MainActivity extends Activity {
                     TextView phoneText=new TextView(this);phoneText.setText((isPhoneNumber(ph)?"TELEFON   ":"KLIENT / OLX   ")+ph);phoneText.setTextSize(13);phoneText.setTypeface(null,1);phoneText.setTextColor(0xff172235);phoneText.setPadding(0,0,0,4);row.addView(phoneText);
                 }
                 LinearLayout actions=new LinearLayout(this);actions.setGravity(Gravity.CENTER_VERTICAL);
-                Button edit=new Button(this);edit.setText("EDYTUJ");compactReservationButton(edit,false);actions.addView(edit,new LinearLayout.LayoutParams(0,38,1));
-                Button settle=new Button(this);settle.setText("ROZLICZ");compactReservationButton(settle,true);actions.addView(settle,new LinearLayout.LayoutParams(0,38,1));settle.setEnabled("admin".equals(getSharedPreferences("rentmor",0).getString("role","")));row.addView(actions);
+                Button edit=new Button(this);edit.setText("EDYTUJ");compactReservationButton(edit,false);actions.addView(edit,new LinearLayout.LayoutParams(0,42,1));
+                Button settle=new Button(this);settle.setText("ROZLICZ");compactReservationButton(settle,true);actions.addView(settle,new LinearLayout.LayoutParams(0,42,1));settle.setEnabled("admin".equals(getSharedPreferences("rentmor",0).getString("role","")));row.addView(actions);
                 if(isPhoneNumber(ph)){
                     LinearLayout contactActions=new LinearLayout(this);contactActions.setGravity(Gravity.CENTER_VERTICAL);
-                    Button sms=new Button(this);sms.setText("WIADOMOŚĆ");compactReservationButton(sms,false);contactActions.addView(sms,new LinearLayout.LayoutParams(0,38,1));
-                    Button call=new Button(this);call.setText("ZADZWOŃ");compactReservationButton(call,true);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,38,1);cp.leftMargin=7;contactActions.addView(call,cp);row.addView(contactActions);
+                    Button sms=new Button(this);sms.setText("WIADOMOŚĆ");compactReservationButton(sms,false);contactActions.addView(sms,new LinearLayout.LayoutParams(0,42,1));
+                    Button call=new Button(this);call.setText("ZADZWOŃ");compactReservationButton(call,true);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,42,1);cp.leftMargin=7;contactActions.addView(call,cp);row.addView(contactActions);
                     sms.setOnClickListener(v->{try{android.content.Intent intent=new android.content.Intent(android.content.Intent.ACTION_SENDTO,android.net.Uri.fromParts("smsto",ph.replaceAll("[^+0-9]",""),null));intent.putExtra("sms_body","Dzień dobry, kontaktuję się w sprawie rezerwacji sprzętu w RentMor.");startActivity(intent);}catch(Exception ex){toast("Nie można otworzyć wiadomości.");}});
                     call.setOnClickListener(v->{try{startActivity(new android.content.Intent(android.content.Intent.ACTION_DIAL,android.net.Uri.fromParts("tel",ph.replaceAll("[^+0-9]",""),null)));}catch(Exception ex){toast("Nie można otworzyć telefonu.");}});
                 }
-                Button delete=new Button(this);delete.setText("USUŃ REZERWACJĘ");compactReservationButton(delete,false);row.addView(delete,new LinearLayout.LayoutParams(-1,34));
+                Button delete=new Button(this);delete.setText("USUŃ REZERWACJĘ");compactReservationButton(delete,false);LinearLayout.LayoutParams deleteParams=new LinearLayout.LayoutParams(-1,40);deleteParams.topMargin=3;row.addView(delete,deleteParams);
                 delete.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("Usunąć rezerwację?").setMessage("Rezerwacja zostanie usunięta z aplikacji i po synchronizacji z serwera. Tej operacji nie można cofnąć.").setNegativeButton("Anuluj",null).setPositiveButton("Usuń",(dialog,which)->{try{JSONObject op=new JSONObject();op.put("id",item.optString("id"));store.enqueue("reservation_delete",op);store.deleteReservation(item.optString("id"));ReservationsWidgetProvider.refresh(this);render[0].run();toast("Usunięto rezerwację.");if(isOnline())syncNow();}catch(Exception ex){toast("Nie udało się usunąć rezerwacji.");}}).show());
                 LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.bottomMargin=7;list.addView(row,rp);
                 edit.setOnClickListener(v->{
