@@ -67,6 +67,7 @@ if ($method === 'GET') {
         if ($phone === '') continue;
         $key = rm_phone_key($phone); if ($key === '') continue;
         if (!isset($customers[$key])) $customers[$key] = ['id'=>$key,'phone'=>$phone,'phone_key'=>$key,'name'=>'','notes'=>'','reservations'=>[],'protocols'=>[]];
+        if (($customers[$key]['name'] ?? '') === '' && trim((string)($reservation['customer_name'] ?? '')) !== '') $customers[$key]['name'] = trim((string)$reservation['customer_name']);
         $customers[$key]['reservations'][] = $reservation;
     }
     foreach ($protocols as $protocol) {
