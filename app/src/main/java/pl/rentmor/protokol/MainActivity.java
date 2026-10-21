@@ -232,6 +232,8 @@ public class MainActivity extends Activity {
                 }else{TextView legacyDate=new TextView(this);legacyDate.setText(dateLabel);legacyDate.setTextSize(12);legacyDate.setTypeface(null,1);legacyDate.setTextColor(0xff526174);legacyDate.setPadding(0,8,0,0);dateChips.addView(legacyDate);}
                 row.addView(dateChips);
                 TextView equipmentTitle=new TextView(this);equipmentTitle.setText(reservationEquipment(item));equipmentTitle.setTextSize(16);equipmentTitle.setTypeface(null,1);equipmentTitle.setTextColor(done?0xff697386:0xff172b43);equipmentTitle.setPadding(0,6,0,5);row.addView(equipmentTitle);
+                String customerName=item.optString("customer_name",item.optString("client","")).trim();
+                if(!customerName.isEmpty()){TextView customerText=new TextView(this);customerText.setText("KLIENT   "+customerName);customerText.setTextSize(13);customerText.setTextColor(0xff526174);customerText.setPadding(0,0,0,4);row.addView(customerText);}
                 LinearLayout details=new LinearLayout(this);details.setGravity(Gravity.CENTER_VERTICAL);details.setPadding(0,0,0,5);
                 TextView timeBadge=new TextView(this);String timeText=reservationTimeForItem(item);timeBadge.setText("◷  "+(timeText.isEmpty()?"GODZINA NIEUSTALONA":timeText));timeBadge.setTextSize(12);timeBadge.setTypeface(null,1);timeBadge.setTextColor(0xff7c4a03);timeBadge.setPadding(8,5,8,5);timeBadge.setBackground(roundBg(0xfffff3df,9));details.addView(timeBadge);row.addView(details);
                 String ph=reservationPhoneForItem(item);if(!ph.isEmpty()){
@@ -272,7 +274,10 @@ public class MainActivity extends Activity {
                     java.util.regex.Matcher textTime=java.util.regex.Pattern.compile("\\d{4}-\\d{2}-\\d{2}\\s*[–-]\\s*\\d{4}-\\d{2}-\\d{2}\\s+([01]?\\d|2[0-3]):([0-5]\\d)(?:$|\\s|•)").matcher(raw);
                     if(textTime.find())initialTime=String.format(Locale.US,"%02d:%s",Integer.parseInt(textTime.group(1)),textTime.group(2));
                     EditText timeEdit=new EditText(this);timeEdit.setSingleLine(true);timeEdit.setHint("Godzina, np. 08:00");timeEdit.setInputType(android.text.InputType.TYPE_CLASS_DATETIME|android.text.InputType.TYPE_DATETIME_VARIATION_TIME);timeEdit.setText(initialTime);f.addView(timeEdit);
-                    TextView info=new TextView(this);info.setText("Sprzęt i dane kontaktowe klienta pozostaną bez zmian.");info.setTextSize(12);info.setTextColor(0xff718096);info.setPadding(0,6,0,0);f.addView(info);
+                    EditText equipmentEdit=new EditText(this);equipmentEdit.setSingleLine(false);equipmentEdit.setHint("Nazwa sprzętu");equipmentEdit.setText(reservationEquipment(item));f.addView(equipmentEdit);
+                    EditText customerNameEdit=new EditText(this);customerNameEdit.setSingleLine(true);customerNameEdit.setHint("Imię i nazwisko / firma klienta");customerNameEdit.setText(item.optString("customer_name",item.optString("client","")));f.addView(customerNameEdit);
+                    EditText phoneEdit=new EditText(this);phoneEdit.setSingleLine(true);phoneEdit.setHint("Telefon lub nick z OLX");phoneEdit.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);phoneEdit.setText(reservationPhoneForItem(item));f.addView(phoneEdit);
+                    TextView info=new TextView(this);info.setText("Możesz zmienić termin, sprzęt i dane kontaktowe klienta.");info.setTextSize(12);info.setTextColor(0xff718096);info.setPadding(0,6,0,0);f.addView(info);
                     new AlertDialog.Builder(this).setTitle("Edytuj rezerwację").setView(f).setNegativeButton("Anuluj",null).setPositiveButton("Zapisz",(d,w)->{
                         try{
                             String entered=timeEdit.getText().toString().trim(),normalizedTime="";
@@ -284,14 +289,18 @@ public class MainActivity extends Activity {
                             }
                             SimpleDateFormat iso=new SimpleDateFormat("yyyy-MM-dd",Locale.US);
                             String from=iso.format(editStart[0].getTime()),to=iso.format(editEnd[0].getTime());
-                            String equipmentName=reservationEquipment(item),phoneValue=reservationPhoneForItem(item);
+                            String equipmentName=equipmentEdit.getText().toString().trim().replaceAll("\\s+"," ");
+                            String customerNameValue=customerNameEdit.getText().toString().trim().replaceAll("\\s+"," ");
+                            String phoneValue=phoneEdit.getText().toString().trim();
+                            if(equipmentName.isEmpty()){toast("Wpisz nazwę sprzętu.");return;}
                             String monthValue=new SimpleDateFormat("yyyy-MM",Locale.US).format(editStart[0].getTime());
                             String value=from+" – "+to+(normalizedTime.isEmpty()?"":" "+normalizedTime)+" • "+equipmentName+(phoneValue.isEmpty()?"":" • "+phoneValue);
                             item.put("month",monthValue);item.put("text",value);item.put("equipment",equipmentName);item.put("day",editStart[0].get(Calendar.DAY_OF_MONTH));
                             item.put("start_date",from);item.put("end_date",to);item.put("end_day",editEnd[0].get(Calendar.DAY_OF_MONTH));
                             item.put("end_month",new SimpleDateFormat("yyyy-MM",Locale.US).format(editEnd[0].getTime()));item.put("time",normalizedTime);item.put("phone",phoneValue);
+                            item.put("customer_name",customerNameValue);item.put("client",customerNameValue);
                             store.saveReservation(item);store.enqueue("reservation_save",item);month[0]=monthValue;ReservationsWidgetProvider.refresh(this);render[0].run();if(isOnline())syncNow();
-                            toast("Zaktualizowano datę i godzinę rezerwacji.");
+                            toast("Zaktualizowano rezerwację i dane klienta.");
                         }catch(Exception ex){toast("Nie udało się zapisać rezerwacji: "+ex.getMessage());}
                     }).show();
                 });
