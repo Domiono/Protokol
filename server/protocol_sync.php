@@ -49,10 +49,34 @@ function rm_phone_key(string $value): string {
     return '';
 }
 
+function rm_expire_protocol_photos(string $file): void {
+    if (!is_file($file)) return;
+    $lock = fopen($file . '.lock', 'c+');
+    if (!$lock || !flock($lock, LOCK_EX)) { if ($lock) fclose($lock); return; }
+    $protocols = rm_read_json_file($file, []);
+    $changed = false;
+    $cutoff = time() - (90 * 86400);
+    foreach ($protocols as &$protocol) {
+        if (!is_array($protocol) || empty($protocol['photos_base64']) || !is_array($protocol['photos_base64'])) continue;
+        $uploadedAt = strtotime((string)($protocol['photos_uploaded_at'] ?? $protocol['created_at'] ?? ''));
+        if ($uploadedAt !== false && $uploadedAt <= $cutoff) {
+            unset($protocol['photos_base64'], $protocol['photo_base64']);
+            $protocol['photos_expired'] = true;
+            $protocol['photos_deleted_at'] = date('Y-m-d H:i:s');
+            $changed = true;
+        }
+    }
+    unset($protocol);
+    if ($changed) rm_write_json_atomic($file, $protocols);
+    flock($lock, LOCK_UN);
+    fclose($lock);
+}
+
 $role = rm_device_role(__DIR__ . '/protocol_devices.json');
 if ($role === '') rm_json_response(401, ['ok'=>false, 'error'=>'Urządzenie nieaktywne. Połącz się z internetem i aktywuj je ponownie.']);
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+rm_expire_protocol_photos(__DIR__ . '/protocols.json');
 if ($method === 'GET') {
     $protocols = rm_read_json_file(__DIR__ . '/protocols.json', []);
     $reservations = rm_read_json_file(__DIR__ . '/reservations.json', []);
@@ -265,6 +289,18 @@ foreach ($operations as $op) {
             'accessories'=>rm_text($op,'accessories',2000), 'notes'=>rm_text($op,'notes',2000),
             'return_date'=>'', 'return_condition'=>'', 'return_notes'=>'', 'sync_op_id'=>$opId
         ];
+        if (isset($op['photos_base64']) && is_array($op['photos_base64'])) {
+            $photos = array_values(array_filter($op['photos_base64'], fn($photo) => is_string($photo) && $photo !== '' && strlen($photo) <= 2500000));
+            if (count($photos) > 0) {
+                $protocols[count($protocols)-1]['photos_base64'] = $photos;
+                $protocols[count($protocols)-1]['photos_uploaded_at'] = date('Y-m-d H:i:s');
+                $protocols[count($protocols)-1]['photos_expired'] = false;
+            }
+        }
+        foreach (['signature_base64'] as $imageField) {
+            if (!empty($op[$imageField]) && is_string($op[$imageField]) && strlen($op[$imageField]) <= 1500000)
+                $protocols[count($protocols)-1][$imageField] = $op[$imageField];
+        }
         $results[]=['op_id'=>$opId,'ok'=>true,'id'=>$id,'number'=>$number];
     } elseif ($action === 'return') {
         $id = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($op['id'] ?? ''));
@@ -277,6 +313,8 @@ foreach ($operations as $op) {
             $item['return_date'] = rm_text($op,'return_date',40);
             $item['return_condition'] = rm_text($op,'return_condition',2000);
             $item['return_notes'] = rm_text($op,'return_notes',2000);
+            if (!empty($op['return_signature_base64']) && is_string($op['return_signature_base64']) && strlen($op['return_signature_base64']) <= 1500000)
+                $item['return_signature_base64'] = $op['return_signature_base64'];
             $item['return_sync_op_id'] = $opId;
             break;
         }
