@@ -251,8 +251,49 @@ public class MainActivity extends Activity {
                 delete.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("Usunąć rezerwację?").setMessage("Rezerwacja zostanie usunięta z aplikacji i po synchronizacji z serwera. Tej operacji nie można cofnąć.").setNegativeButton("Anuluj",null).setPositiveButton("Usuń",(dialog,which)->{try{JSONObject op=new JSONObject();op.put("id",item.optString("id"));store.enqueue("reservation_delete",op);store.deleteReservation(item.optString("id"));ReservationsWidgetProvider.refresh(this);render[0].run();toast("Usunięto rezerwację.");if(isOnline())syncNow();}catch(Exception ex){toast("Nie udało się usunąć rezerwacji.");}}).show());
                 LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.bottomMargin=7;list.addView(row,rp);
                 edit.setOnClickListener(v->{
-                    LinearLayout f=new LinearLayout(this);f.setOrientation(1);EditText e=new EditText(this);e.setSingleLine(true);e.setText(item.optString("text"));f.addView(e);
-                    new AlertDialog.Builder(this).setTitle("Edytuj krótki opis rezerwacji").setView(f).setNegativeButton("Anuluj",null).setPositiveButton("Zapisz",(d,w)->{String val=e.getText().toString().trim();if(val.isEmpty()){toast("Wpis nie może być pusty.");return;}try{item.put("text",val);store.saveReservation(item);store.enqueue("reservation_save",item);ReservationsWidgetProvider.refresh(this);render[0].run();if(isOnline())syncNow();}catch(Exception ex){toast("Nie udało się zapisać wpisu.");}}).show();
+                    String raw=item.optString("text","");
+                    String fromValue=item.optString("start_date","").trim(),toValue=item.optString("end_date","").trim();
+                    java.util.regex.Matcher dateMatch=java.util.regex.Pattern.compile("(\\d{4}-\\d{2}-\\d{2})\\s*[–-]\\s*(\\d{4}-\\d{2}-\\d{2})").matcher(raw);
+                    if(dateMatch.find()){fromValue=dateMatch.group(1);toValue=dateMatch.group(2);}
+                    Calendar fallback=Calendar.getInstance();
+                    final Calendar[] editStart={parseReservationDate(fromValue,fallback)};
+                    final Calendar[] editEnd={parseReservationDate(toValue,editStart[0])};
+                    if(editEnd[0].before(editStart[0]))editEnd[0]=(Calendar)editStart[0].clone();
+                    LinearLayout f=new LinearLayout(this);f.setOrientation(1);f.setPadding(8,4,8,4);
+                    TextView dateHint=new TextView(this);dateHint.setText("Termin rezerwacji");dateHint.setTextSize(13);dateHint.setTypeface(null,1);dateHint.setTextColor(0xff526174);f.addView(dateHint);
+                    LinearLayout dateButtons=new LinearLayout(this);dateButtons.setGravity(Gravity.CENTER_VERTICAL);
+                    Button fromButton=new Button(this),toButton=new Button(this);brandButton(fromButton,false);brandButton(toButton,false);
+                    Runnable refreshDates=()->{SimpleDateFormat df=new SimpleDateFormat("dd.MM.yyyy",Locale.getDefault());fromButton.setText("OD  "+df.format(editStart[0].getTime()));toButton.setText("DO  "+df.format(editEnd[0].getTime()));};
+                    dateButtons.addView(fromButton,new LinearLayout.LayoutParams(0,-2,1));dateButtons.addView(toButton,new LinearLayout.LayoutParams(0,-2,1));f.addView(dateButtons);
+                    refreshDates.run();
+                    fromButton.setOnClickListener(view->{Calendar c=(Calendar)editStart[0].clone();new DatePickerDialog(this,(picker,y,m,day)->{editStart[0].set(y,m,day);if(editEnd[0].before(editStart[0]))editEnd[0]=(Calendar)editStart[0].clone();refreshDates.run();},c.get(Calendar.YEAR),c.get(Calendar.MONTH),c.get(Calendar.DAY_OF_MONTH)).show();});
+                    toButton.setOnClickListener(view->{Calendar c=(Calendar)editEnd[0].clone();new DatePickerDialog(this,(picker,y,m,day)->{Calendar chosen=(Calendar)editEnd[0].clone();chosen.set(y,m,day);if(chosen.before(editStart[0])){toast("Data zakończenia nie może być wcześniejsza niż początek.");return;}editEnd[0]=chosen;refreshDates.run();},c.get(Calendar.YEAR),c.get(Calendar.MONTH),c.get(Calendar.DAY_OF_MONTH)).show();});
+                    String initialTime=reservationTimeForItem(item);
+                    java.util.regex.Matcher textTime=java.util.regex.Pattern.compile("(?:^|\\s)([01]?\\d|2[0-3]):([0-5]\\d)(?:$|\\s|•)").matcher(raw);
+                    if(textTime.find())initialTime=String.format(Locale.US,"%02d:%s",Integer.parseInt(textTime.group(1)),textTime.group(2));
+                    EditText timeEdit=new EditText(this);timeEdit.setSingleLine(true);timeEdit.setHint("Godzina, np. 08:00");timeEdit.setInputType(android.text.InputType.TYPE_CLASS_DATETIME|android.text.InputType.TYPE_DATETIME_VARIATION_TIME);timeEdit.setText(initialTime);f.addView(timeEdit);
+                    TextView info=new TextView(this);info.setText("Sprzęt i dane kontaktowe klienta pozostaną bez zmian.");info.setTextSize(12);info.setTextColor(0xff718096);info.setPadding(0,6,0,0);f.addView(info);
+                    new AlertDialog.Builder(this).setTitle("Edytuj rezerwację").setView(f).setNegativeButton("Anuluj",null).setPositiveButton("Zapisz",(d,w)->{
+                        try{
+                            String entered=timeEdit.getText().toString().trim(),normalizedTime="";
+                            if(!entered.isEmpty()){
+                                if(!entered.matches("\\d{1,2}(:[0-5]\\d)?")){toast("Podaj godzinę w formacie 08:00.");return;}
+                                String[] parts=entered.split(":");int hour=Integer.parseInt(parts[0]),minute=parts.length>1?Integer.parseInt(parts[1]):0;
+                                if(hour>23){toast("Godzina musi być w zakresie 00:00–23:59.");return;}
+                                normalizedTime=String.format(Locale.US,"%02d:%02d",hour,minute);
+                            }
+                            SimpleDateFormat iso=new SimpleDateFormat("yyyy-MM-dd",Locale.US);
+                            String from=iso.format(editStart[0].getTime()),to=iso.format(editEnd[0].getTime());
+                            String equipmentName=reservationEquipment(item),phoneValue=reservationPhoneForItem(item);
+                            String monthValue=new SimpleDateFormat("yyyy-MM",Locale.US).format(editStart[0].getTime());
+                            String value=from+" – "+to+(normalizedTime.isEmpty()?"":" "+normalizedTime)+" • "+equipmentName+(phoneValue.isEmpty()?"":" • "+phoneValue);
+                            item.put("month",monthValue);item.put("text",value);item.put("equipment",equipmentName);item.put("day",editStart[0].get(Calendar.DAY_OF_MONTH));
+                            item.put("start_date",from);item.put("end_date",to);item.put("end_day",editEnd[0].get(Calendar.DAY_OF_MONTH));
+                            item.put("end_month",new SimpleDateFormat("yyyy-MM",Locale.US).format(editEnd[0].getTime()));item.put("time",normalizedTime);item.put("phone",phoneValue);
+                            store.saveReservation(item);store.enqueue("reservation_save",item);month[0]=monthValue;ReservationsWidgetProvider.refresh(this);render[0].run();if(isOnline())syncNow();
+                            toast("Zaktualizowano datę i godzinę rezerwacji.");
+                        }catch(Exception ex){toast("Nie udało się zapisać rezerwacji: "+ex.getMessage());}
+                    }).show();
                 });
                 settle.setOnClickListener(v->{
                     EditText income=new EditText(this);income.setHint("Zarobek z najmu (zł)");income.setInputType(8194);EditText loss=new EditText(this);loss.setHint("Strata / koszt (zł, np. 0)");loss.setInputType(8194);EditText note=new EditText(this);note.setHint("Za co strata? (opcjonalnie)");
@@ -425,6 +466,14 @@ public class MainActivity extends Activity {
     }
     private String reservationMonthLabel(JSONObject item) {
         return new SimpleDateFormat("LLLL",new Locale("pl","PL")).format(parseReservationMonth(item.optString("month",new SimpleDateFormat("yyyy-MM",Locale.US).format(new Date()))).getTime()).toUpperCase(new Locale("pl","PL"));
+    }
+    private Calendar parseReservationDate(String value,Calendar fallback) {
+        Calendar result=(Calendar)fallback.clone();
+        if(value!=null&&value.matches("\\d{4}-\\d{2}-\\d{2}")) {
+            try{SimpleDateFormat format=new SimpleDateFormat("yyyy-MM-dd",Locale.US);format.setLenient(false);Date parsed=format.parse(value);if(parsed!=null)result.setTime(parsed);}catch(Exception ignored){}
+        }
+        result.set(Calendar.HOUR_OF_DAY,12);result.set(Calendar.MINUTE,0);result.set(Calendar.SECOND,0);result.set(Calendar.MILLISECOND,0);
+        return result;
     }
     private Calendar parseReservationMonth(String value) {
         Calendar cal=Calendar.getInstance();
