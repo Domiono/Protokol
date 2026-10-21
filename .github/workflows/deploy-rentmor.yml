@@ -41,10 +41,9 @@ jobs:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-          FTP_PORT: ${{ secrets.FTP_PORT }}
         run: |
           set -eu
-          PORT="${FTP_PORT:-21}"
+          PORT="21"
           lftp -e "
             set cmd:fail-exit yes;
             set net:max-retries 2;
