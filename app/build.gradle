@@ -10,4 +10,20 @@ android {
         versionCode 1
         versionName '1.0.0'
     }
+
+    signingConfigs {
+        release {
+            storeFile file(System.getenv('RENTMOR_KEYSTORE_PATH') ?: 'rentmor-release.jks')
+            storePassword System.getenv('RENTMOR_KEYSTORE_PASSWORD')
+            keyAlias System.getenv('RENTMOR_KEY_ALIAS')
+            keyPassword System.getenv('RENTMOR_KEYSTORE_PASSWORD')
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+        }
+    }
 }
