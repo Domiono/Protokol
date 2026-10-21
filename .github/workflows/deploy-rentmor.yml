@@ -43,12 +43,17 @@ jobs:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
           set -eu
-          PORT="21"
-          lftp -e "
-            set cmd:fail-exit yes;
-            set net:max-retries 2;
-            set net:timeout 20;
-            open -p ${PORT} -u \"${FTP_USERNAME}\",\"${FTP_PASSWORD}\" ftp://${FTP_SERVER};
-            put server/protocol_sync.php -o protocol_sync.php;
+          : "${FTP_SERVER:?Missing FTP_SERVER}"
+          : "${FTP_USERNAME:?Missing FTP_USERNAME}"
+          : "${FTP_PASSWORD:?Missing FTP_PASSWORD}"
+
+          # Pass credentials as process arguments, not by interpolating them
+          # into lftp's command language. This avoids quote/shell parsing issues.
+          lftp -u "${FTP_USERNAME},${FTP_PASSWORD}" "ftp://${FTP_SERVER}" -e '
+            set cmd:fail-exit yes
+            set net:max-retries 2
+            set net:timeout 20
+            set ftp:passive-mode yes
+            put server/protocol_sync.php -o protocol_sync.php
             bye
-          "
+          '
