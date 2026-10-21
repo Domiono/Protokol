@@ -232,8 +232,8 @@ public class MainActivity extends Activity {
                 }else{TextView legacyDate=new TextView(this);legacyDate.setText(dateLabel);legacyDate.setTextSize(12);legacyDate.setTypeface(null,1);legacyDate.setTextColor(0xff526174);legacyDate.setPadding(0,8,0,0);dateChips.addView(legacyDate);}
                 row.addView(dateChips);
                 TextView equipmentTitle=new TextView(this);equipmentTitle.setText(reservationEquipment(item));equipmentTitle.setTextSize(16);equipmentTitle.setTypeface(null,1);equipmentTitle.setTextColor(done?0xff697386:0xff172b43);equipmentTitle.setPadding(0,6,0,5);row.addView(equipmentTitle);
-                String customerName=item.optString("customer_name",item.optString("client","")).trim();
-                if(!customerName.isEmpty()){TextView customerText=new TextView(this);customerText.setText("KLIENT   "+customerName);customerText.setTextSize(13);customerText.setTextColor(0xff526174);customerText.setPadding(0,0,0,4);row.addView(customerText);}
+                String cardCustomerName=item.optString("customer_name",item.optString("client","")).trim();
+                if(!cardCustomerName.isEmpty()){TextView customerText=new TextView(this);customerText.setText("KLIENT   "+cardCustomerName);customerText.setTextSize(13);customerText.setTextColor(0xff526174);customerText.setPadding(0,0,0,4);row.addView(customerText);}
                 LinearLayout details=new LinearLayout(this);details.setGravity(Gravity.CENTER_VERTICAL);details.setPadding(0,0,0,5);
                 TextView timeBadge=new TextView(this);String timeText=reservationTimeForItem(item);timeBadge.setText("◷  "+(timeText.isEmpty()?"GODZINA NIEUSTALONA":timeText));timeBadge.setTextSize(12);timeBadge.setTypeface(null,1);timeBadge.setTextColor(0xff7c4a03);timeBadge.setPadding(8,5,8,5);timeBadge.setBackground(roundBg(0xfffff3df,9));details.addView(timeBadge);row.addView(details);
                 String ph=reservationPhoneForItem(item);if(!ph.isEmpty()){
