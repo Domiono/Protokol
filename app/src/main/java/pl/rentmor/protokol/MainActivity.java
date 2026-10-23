@@ -409,12 +409,12 @@ public class MainActivity extends Activity {
         addButton("WRÓĆ",()->showHome()); render.run();
     }
     private void equipmentProfitabilityPage() {
-        root.removeAllViews(); root.setOrientation(1); root.setPadding(18,16,18,18); root.setBackgroundColor(0xfff5f6fa);
-        TextView h=new TextView(this); h.setText("RENTOWNOŚĆ SPRZĘTU"); h.setTextSize(23); h.setTypeface(null,1); h.setTextColor(0xff172235); root.addView(h);
-        TextView hint=new TextView(this); hint.setText("Zestawienie łączy wszystkie sztuki tego samego modelu. Uwzględnia rozliczone rezerwacje."); hint.setTextColor(0xff718096); root.addView(hint);
+        root.removeAllViews(); root.setOrientation(1); root.setPadding(18,38,18,42); root.setBackgroundColor(0xfff5f6fa);
+        TextView h=new TextView(this); h.setText("RENTOWNOŚĆ SPRZĘTU"); h.setTextSize(19); h.setTypeface(null,1); h.setTextColor(0xff172235); root.addView(h);
+        TextView hint=new TextView(this); hint.setText("Zestawienie łączy wszystkie sztuki tego samego modelu. Uwzględnia rozliczone rezerwacje."); hint.setTextColor(0xff718096); hint.setTextSize(12); hint.setPadding(0,3,0,8); root.addView(hint);
         Spinner years=new Spinner(this); ArrayList<String> opts=new ArrayList<>(); opts.add("Od początku"); int y=Calendar.getInstance().get(Calendar.YEAR); for(int n=y;n>=2020;n--)opts.add(String.valueOf(n));
-        ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,opts); adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item); years.setAdapter(adapter); root.addView(years);
-        ScrollView sv=new ScrollView(this); LinearLayout list=new LinearLayout(this); list.setOrientation(1); list.setPadding(0,10,0,10); sv.addView(list); root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
+        ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,opts); adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item); years.setAdapter(adapter); years.setBackground(roundBg(Color.WHITE,10)); root.addView(years);
+        ScrollView sv=new ScrollView(this); LinearLayout list=new LinearLayout(this); list.setOrientation(1); list.setPadding(0,8,0,16); sv.addView(list); root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
         final Runnable[] draw={null}; draw[0]=()->{
             list.removeAllViews(); int yr=years.getSelectedItemPosition()==0?0:Integer.parseInt(String.valueOf(years.getSelectedItem()));
             LinkedHashMap<String,String> names=new LinkedHashMap<>(); LinkedHashMap<String,double[]> totals=new LinkedHashMap<>();
@@ -447,15 +447,15 @@ public class MainActivity extends Activity {
             ArrayList<String> keys=new ArrayList<>(names.keySet());Collections.sort(keys,(a,b)->Double.compare(totals.get(b)[2],totals.get(a)[2]));
             if(keys.isEmpty()){TextView empty=new TextView(this);empty.setText("Brak rozliczonych wynajmów w tym okresie.");list.addView(empty);}
             for(String key:keys){double[] v=totals.get(key);LinearLayout card=new LinearLayout(this);card.setOrientation(1);card.setPadding(14,12,14,12);card.setBackground(roundBg(Color.WHITE,12));
-                TextView nm=new TextView(this);nm.setText(names.get(key));nm.setTextSize(16);nm.setTypeface(null,1);nm.setTextColor(0xff172b43);card.addView(nm);
+                TextView nm=new TextView(this);nm.setText(names.get(key));nm.setTextSize(15);nm.setTypeface(null,1);nm.setTextColor(0xff172b43);card.addView(nm);
                 double[] costData=costs.containsKey(key)?costs.get(key):new double[2];double result=v[2]-v[3]-costData[0]-costData[1];
-                TextView d=new TextView(this);d.setText("Wynajmy: "+(int)v[0]+"  •  Dni: "+(int)v[1]+"\nPrzychód: "+String.format(Locale.US,"%.2f zł",v[2])+"\nStraty z najmu: "+String.format(Locale.US,"%.2f zł",v[3])+"\nZakup: "+String.format(Locale.US,"%.2f zł",costData[0])+"  •  Naprawy: "+String.format(Locale.US,"%.2f zł",costData[1])+"\nWynik po kosztach: "+String.format(Locale.US,"%.2f zł",result));d.setTextColor(0xff526174);d.setPadding(0,6,0,8);card.addView(d);
-                Button cost=new Button(this);cost.setText("DODAJ KOSZT ZAKUPU / NAPRAWY");brandButton(cost,false);cost.setOnClickListener(vw->addEquipmentCost(names.get(key),()->draw[0].run()));card.addView(cost);
+                TextView d=new TextView(this);d.setText("Wynajmy: "+(int)v[0]+"  •  Dni: "+(int)v[1]+"\nPrzychód: "+String.format(Locale.US,"%.2f zł",v[2])+"\nStraty z najmu: "+String.format(Locale.US,"%.2f zł",v[3])+"\nZakup: "+String.format(Locale.US,"%.2f zł",costData[0])+"  •  Naprawy: "+String.format(Locale.US,"%.2f zł",costData[1])+"\nWynik po kosztach: "+String.format(Locale.US,"%.2f zł",result));d.setTextColor(0xff526174);d.setTextSize(13);d.setLineSpacing(2,1f);d.setPadding(0,6,0,8);card.addView(d);
+                Button cost=new Button(this);cost.setText("＋ DODAJ KOSZT");brandButton(cost,false);cost.setTextSize(12);cost.setMinHeight(0);cost.setMinimumHeight(0);cost.setPadding(8,2,8,2);cost.setOnClickListener(vw->addEquipmentCost(names.get(key),()->draw[0].run()));LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.topMargin=4;card.addView(cost,cp);
                 LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=8;list.addView(card,lp);
             }
         };
         years.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onItemSelected(android.widget.AdapterView<?> a,View v,int p,long id){draw[0].run();}public void onNothingSelected(android.widget.AdapterView<?> a){}});
-        addButton("WRÓĆ DO STATYSTYK",()->reservationStatsPage()); draw[0].run();
+        Button back=new Button(this);back.setText("← WRÓĆ DO STATYSTYK");brandButton(back,false);back.setTextSize(12);back.setMinHeight(44);back.setOnClickListener(v->reservationStatsPage());LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(-1,-2);bp.topMargin=6;root.addView(back,bp); draw[0].run();
     }
     private void addEquipmentCost(String equipment,Runnable refresh) {
         LinearLayout box=new LinearLayout(this);box.setOrientation(1);Spinner kind=new Spinner(this);kind.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,new String[]{"Zakup sprzętu","Naprawa / serwis"}));box.addView(kind);
