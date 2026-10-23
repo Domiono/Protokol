@@ -79,9 +79,9 @@ public class ReservationsWidgetService extends RemoteViewsService {
 
             String customer = x.optString("customer_name", x.optString("client", "")).trim();
             String header = (done ? "✓ WYDANE" : "● DO WYDANIA") + "   " + dateRange(x, raw);
-            String details = (time.isEmpty() ? "" : time)
-                    + (customer.isEmpty() ? "" : (time.isEmpty() ? "" : "\\n") + customer)
-                    + (phone.isEmpty() ? "" : ((time.isEmpty() && customer.isEmpty()) ? "" : "\\n") + (isPhoneNumber(phone) ? "TEL. " : "OLX: ") + phone);
+            String details = time;
+            if (!customer.isEmpty()) details += (details.isEmpty() ? "" : "   •   ") + customer;
+            if (!phone.isEmpty()) details += (details.isEmpty() ? "" : "   •   ") + (isPhoneNumber(phone) ? "TEL. " : "OLX: ") + phone;
             v.setTextViewText(R.id.widget_item_text, header);
             v.setTextViewText(R.id.widget_equipment_name, eq);
             v.setInt(R.id.widget_equipment_name, "setBackgroundColor", equipmentColor(eq));
