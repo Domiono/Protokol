@@ -785,51 +785,358 @@ public class MainActivity extends Activity {
         return "";
     }
 
-    private void customerPage() {
-        root.removeAllViews(); root.setOrientation(1); root.setPadding(18,16,18,18); root.setBackgroundColor(0xfff5f6fa);
-        TextView heading=new TextView(this); heading.setText("KLIENCI"); heading.setTextSize(25); heading.setTypeface(null,1); heading.setTextColor(0xff172235); root.addView(heading);
-        TextView info=new TextView(this); info.setText("Klienci są łączeni po ujednoliconym numerze telefonu. Dane pobierane są ze wspólnych rezerwacji i protokołów."); info.setTextSize(13); info.setTextColor(0xff697386); info.setPadding(0,6,0,12); root.addView(info);
-        EditText search=field("Szukaj po nazwie lub telefonie");
-        ScrollView sc=new ScrollView(this); LinearLayout list=new LinearLayout(this); list.setOrientation(1); sc.addView(list); root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));
-        Runnable render=()->{
-            list.removeAllViews(); JSONArray all=store.customers(); String q=search.getText().toString().trim().toLowerCase(new Locale("pl","PL")); int count=0;
-            for(int i=0;i<all.length();i++){JSONObject c=all.optJSONObject(i);if(c==null)continue;
-                String name=c.optString("name",""),phone=c.optString("phone",""); if(!q.isEmpty()&&!name.toLowerCase(new Locale("pl","PL")).contains(q)&&!phone.contains(q))continue; count++;
-                LinearLayout card=new LinearLayout(this);card.setOrientation(1);card.setPadding(15,13,15,13);card.setBackground(roundBg(Color.WHITE,14));card.setElevation(1);
-                TextView n=new TextView(this);n.setText(name.isEmpty()?"Klient bez nazwy":name);n.setTextSize(16);n.setTypeface(null,1);n.setTextColor(0xff172235);card.addView(n);
-                TextView p=new TextView(this);p.setText(phone);p.setTextSize(13);p.setTextColor(0xff526174);card.addView(p);
-                JSONArray reservations=c.optJSONArray("reservations"),protocols=c.optJSONArray("protocols");
-                TextView h=new TextView(this);h.setText("Rezerwacje: "+(reservations==null?0:reservations.length())+"  •  Protokoły: "+(protocols==null?0:protocols.length()));h.setTextSize(12);h.setTextColor(0xff697386);card.addView(h);
-                LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=9;list.addView(card,lp);
-                card.setOnClickListener(v->customerDetail(c));
+
+    private String customerDate(String raw) {
+        if(raw==null) return "";
+        raw=raw.trim();
+        if(raw.matches("\\d{4}-\\d{2}-\\d{2}.*")) return raw.substring(0,10);
+        if(raw.matches("\\d{2}\\.\\d{2}\\.\\d{4}.*")) return raw.substring(6,10)+"-"+raw.substring(3,5)+"-"+raw.substring(0,2);
+        return "";
+    }
+    private String customerLastActivity(JSONObject c) {
+        String last="";
+        JSONArray reservations=c.optJSONArray("reservations");
+        if(reservations!=null) for(int i=0;i<reservations.length();i++) {
+            JSONObject r=reservations.optJSONObject(i); if(r==null)continue;
+            for(String key:new String[]{"settled_at","end_date","start_date"}) {
+                String d=customerDate(r.optString(key));
+                if(d.compareTo(last)>0)last=d;
             }
-            if(count==0){TextView empty=new TextView(this);empty.setText(all.length()==0?"Brak klientów. Zsynchronizuj rezerwacje i protokoły.":"Nie znaleziono klienta.");empty.setTextColor(0xff697386);list.addView(empty);}
+        }
+        JSONArray protocols=c.optJSONArray("protocols");
+        if(protocols!=null) for(int i=0;i<protocols.length();i++) {
+            JSONObject p=protocols.optJSONObject(i);if(p==null)continue;
+            for(String key:new String[]{"return_date","rental_date"}) {
+                String d=customerDate(p.optString(key));
+                if(d.compareTo(last)>0)last=d;
+            }
+        }
+        return last;
+    }
+    private int customerReservationCount(JSONObject c){
+        JSONArray r=c.optJSONArray("reservations");return r==null?0:r.length();
+    }
+    private int customerProtocolCount(JSONObject c){
+        JSONArray p=c.optJSONArray("protocols");return p==null?0:p.length();
+    }
+    private int customerPaidCount(JSONObject c){
+        int count=0;JSONArray reservations=c.optJSONArray("reservations");
+        if(reservations!=null)for(int i=0;i<reservations.length();i++){
+            JSONObject r=reservations.optJSONObject(i);
+            if(r!=null&&r.optBoolean("settled")&&r.has("income")&&!r.isNull("income"))count++;
+        }
+        return count;
+    }
+    private double customerTotalRevenue(JSONObject c){
+        double total=0;JSONArray reservations=c.optJSONArray("reservations");
+        if(reservations!=null)for(int i=0;i<reservations.length();i++){
+            JSONObject r=reservations.optJSONObject(i);
+            if(r!=null&&r.optBoolean("settled")&&r.has("income")&&!r.isNull("income")){
+                double amount=r.optDouble("income",0);
+                if(!Double.isNaN(amount)&&!Double.isInfinite(amount)&&amount>=0)total+=amount;
+            }
+        }
+        return total;
+    }
+    private String customerMoney(double amount){
+        return String.format(new Locale("pl","PL"),"%,.2f zł",amount);
+    }
+    private boolean customerIsAdmin(){
+        return "admin".equals(getSharedPreferences("rentmor",0).getString("role",""));
+    }
+    private String customerTitle(JSONObject c){
+        String value=c.optString("name","").trim();
+        return value.isEmpty()?"Nieuzupełniona nazwa":value;
+    }
+    private String customerDisplayDate(String value){
+        if(value==null||value.length()<10)return "Brak daty";
+        return value.substring(8,10)+"."+value.substring(5,7)+"."+value.substring(0,4);
+    }
+    private void customerContact(String raw,boolean sms){
+        String phone=raw==null?"":raw.replaceAll("[^+0-9]","");
+        if(!phone.matches("\\+?\\d{9,15}")){toast("Ten klient nie ma prawidłowego numeru telefonu.");return;}
+        try{
+            Intent intent=new Intent(sms?Intent.ACTION_SENDTO:Intent.ACTION_DIAL,
+                android.net.Uri.parse((sms?"smsto:":"tel:")+phone));
+            startActivity(intent);
+        }catch(Exception e){toast(sms?"Nie znaleziono aplikacji SMS.":"Nie znaleziono aplikacji telefonu.");}
+    }
+    private void customerAction(LinearLayout parent,String caption,boolean primary,Runnable action){
+        Button b=new Button(this);b.setText(caption);brandButton(b,primary);
+        b.setTextSize(11);b.setPadding(dp(4),dp(7),dp(4),dp(7));b.setMinWidth(0);b.setMinimumWidth(0);
+        b.setOnClickListener(v->action.run());
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);lp.setMargins(dp(2),0,dp(2),0);
+        parent.addView(b,lp);
+    }
+    private void customerPage() {
+        root.removeAllViews();root.setOrientation(1);root.setPadding(14,16,14,18);root.setBackgroundColor(0xfff5f6fa);
+        TextView heading=new TextView(this);heading.setText("KLIENCI");heading.setTextSize(25);heading.setTypeface(null,1);heading.setTextColor(0xff172235);root.addView(heading);
+        TextView info=new TextView(this);info.setText("Karty klientów, historia wypożyczeń i notatki.");info.setTextSize(13);info.setTextColor(0xff697386);info.setPadding(0,4,0,10);root.addView(info);
+
+        EditText search=new EditText(this);search.setSingleLine(true);search.setTextSize(15);
+        search.setHint("Szukaj po nazwie, nicku lub telefonie");
+        search.setPadding(dp(12),dp(10),dp(12),dp(10));search.setBackground(roundBg(Color.WHITE,12));
+        root.addView(search,new LinearLayout.LayoutParams(-1,-2));
+        final int[] filter={0};
+        LinearLayout filters=new LinearLayout(this);filters.setOrientation(0);
+        android.widget.HorizontalScrollView filterScroll=new android.widget.HorizontalScrollView(this);
+        filterScroll.setHorizontalScrollBarEnabled(false);filterScroll.addView(filters);
+        LinearLayout.LayoutParams filterLp=new LinearLayout.LayoutParams(-1,-2);filterLp.topMargin=dp(8);root.addView(filterScroll,filterLp);
+
+        LinearLayout sortRow=new LinearLayout(this);sortRow.setOrientation(0);sortRow.setGravity(Gravity.CENTER_VERTICAL);
+        TextView sortCaption=new TextView(this);sortCaption.setText("Sortuj:");sortCaption.setTextColor(0xff526174);sortCaption.setTextSize(12);sortRow.addView(sortCaption);
+        Spinner order=new Spinner(this);
+        String[] sorting={"Ostatnia aktywność","Najwięcej rezerwacji","Alfabetycznie"};
+        ArrayAdapter<String> orderAdapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,sorting);
+        orderAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        order.setAdapter(orderAdapter);sortRow.addView(order,new LinearLayout.LayoutParams(0,-2,1));
+        LinearLayout.LayoutParams sortLp=new LinearLayout.LayoutParams(-1,-2);sortLp.topMargin=dp(3);sortLp.bottomMargin=dp(6);root.addView(sortRow,sortLp);
+
+        TextView counter=new TextView(this);counter.setTextColor(0xff697386);counter.setTextSize(12);counter.setPadding(dp(3),0,0,dp(7));root.addView(counter);
+        ScrollView sc=new ScrollView(this);sc.setFillViewport(true);
+        LinearLayout list=new LinearLayout(this);list.setOrientation(1);list.setPadding(0,0,0,dp(10));
+        sc.addView(list);root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));
+        Runnable render=()->{
+            list.removeAllViews();JSONArray all=store.customers();
+            String q=search.getText().toString().trim().toLowerCase(new Locale("pl","PL"));
+            ArrayList<JSONObject> visible=new ArrayList<>();
+            for(int i=0;i<all.length();i++){
+                JSONObject customer=all.optJSONObject(i);if(customer==null)continue;
+                String name=customer.optString("name").toLowerCase(new Locale("pl","PL"));
+                String phone=customer.optString("phone").toLowerCase(new Locale("pl","PL"));
+                if(!q.isEmpty()&&!name.contains(q)&&!phone.contains(q))continue;
+                if(filter[0]==1&&customerLastActivity(customer).isEmpty())continue;
+                if(filter[0]==2&&customerReservationCount(customer)<2)continue;
+                if(filter[0]==3&&!customer.optString("name").trim().isEmpty())continue;
+                visible.add(customer);
+            }
+            Collections.sort(visible,(a,b)->{
+                int value;
+                if(order.getSelectedItemPosition()==1)value=Integer.compare(customerReservationCount(b),customerReservationCount(a));
+                else if(order.getSelectedItemPosition()==2)value=customerTitle(a).compareToIgnoreCase(customerTitle(b));
+                else value=customerLastActivity(b).compareTo(customerLastActivity(a));
+                if(value!=0)return value;
+                return customerTitle(a).compareToIgnoreCase(customerTitle(b));
+            });
+            counter.setText("Klienci: "+visible.size()+" z "+all.length());
+            for(JSONObject customer:visible){
+                String phone=customer.optString("phone","");
+                int reservations=customerReservationCount(customer),protocols=customerProtocolCount(customer);
+                LinearLayout card=new LinearLayout(this);card.setOrientation(1);
+                card.setPadding(dp(12),dp(12),dp(12),dp(12));card.setBackground(roundBg(Color.WHITE,14));
+                LinearLayout titleRow=new LinearLayout(this);titleRow.setOrientation(0);titleRow.setGravity(Gravity.TOP);
+                TextView name=new TextView(this);name.setText(customerTitle(customer));name.setTextSize(16);name.setTypeface(null,1);name.setTextColor(0xff172235);
+                titleRow.addView(name,new LinearLayout.LayoutParams(0,-2,1));
+                TextView badge=new TextView(this);badge.setText(reservations+" rez.");
+                badge.setTextSize(11);badge.setTypeface(null,1);badge.setTextColor(0xff775300);
+                badge.setPadding(dp(8),dp(5),dp(8),dp(5));badge.setBackground(roundBg(0xfffff1be,12));titleRow.addView(badge);
+                card.addView(titleRow);
+                TextView phoneLabel=new TextView(this);phoneLabel.setText(phone);phoneLabel.setTextSize(14);phoneLabel.setTextColor(0xff526174);phoneLabel.setPadding(0,dp(3),0,dp(4));card.addView(phoneLabel);
+                TextView stats=new TextView(this);
+                stats.setText("Rezerwacje: "+reservations+"  •  Protokoły: "+protocols);
+                stats.setTextSize(12);stats.setTextColor(0xff697386);card.addView(stats);
+                String date=customerLastActivity(customer);
+                if(!date.isEmpty()){
+                    TextView recent=new TextView(this);recent.setText("Ostatni wpis: "+customerDisplayDate(date));
+                    recent.setTextSize(12);recent.setTextColor(0xff697386);card.addView(recent);
+                }
+                if(customerIsAdmin()&&customerPaidCount(customer)>0){
+                    TextView paid=new TextView(this);
+                    paid.setText("Przychód z rozliczonych najmów: "+customerMoney(customerTotalRevenue(customer)));
+                    paid.setTextColor(0xff22744e);paid.setTextSize(12);paid.setPadding(0,dp(3),0,0);card.addView(paid);
+                }
+                String note=customer.optString("notes","").trim();
+                if(!note.isEmpty()){
+                    TextView noteView=new TextView(this);noteView.setText("Notatka: "+note.replace('\n',' '));
+                    noteView.setTextSize(12);noteView.setTextColor(0xff526174);noteView.setMaxLines(2);
+                    noteView.setEllipsize(android.text.TextUtils.TruncateAt.END);noteView.setPadding(0,dp(5),0,0);card.addView(noteView);
+                }
+                LinearLayout buttons=new LinearLayout(this);buttons.setOrientation(0);
+                LinearLayout.LayoutParams blp=new LinearLayout.LayoutParams(-1,-2);blp.topMargin=dp(10);card.addView(buttons,blp);
+                customerAction(buttons,"Zadzwoń",false,()->customerContact(phone,false));
+                customerAction(buttons,"SMS",false,()->customerContact(phone,true));
+                customerAction(buttons,"Historia",true,()->customerDetail(customer));
+                if(customerIsAdmin())customerAction(buttons,"Edytuj",false,()->customerEditDialog(customer,()->renderCustomerPageAfterEdit()));
+                LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=dp(9);list.addView(card,lp);
+                card.setOnClickListener(v->customerDetail(customer));
+            }
+            if(visible.isEmpty()){
+                TextView empty=new TextView(this);
+                empty.setText(all.length()==0?"Brak klientów. Wybierz Synchronizuj.":"Nie znaleziono klientów pasujących do wyszukiwania lub filtra.");
+                empty.setTextSize(14);empty.setTextColor(0xff697386);empty.setPadding(dp(10),dp(16),dp(10),dp(16));list.addView(empty);
+            }
         };
-        search.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int before,int count){render.run();}public void afterTextChanged(android.text.Editable e){}});
-        render.run(); addButton("⟳ SYNCHRONIZUJ",()->{if(!isOnline()){toast("Brak internetu.");return;}new Thread(()->{try{sync.sync();runOnUiThread(()->{render.run();toast("Klienci zaktualizowani.");});}catch(Exception e){runOnUiThread(()->toast("Błąd synchronizacji: "+e.getMessage()));}}).start();});
+        String[] options={"Wszyscy","Z datą aktywności","2+ rezerwacje","Bez nazwy"};
+        final Runnable[] drawFilters=new Runnable[1];
+        drawFilters[0]=()->{
+            filters.removeAllViews();
+            for(int i=0;i<options.length;i++){
+                final int selected=i;Button b=new Button(this);b.setText(options[i]);brandButton(b,filter[0]==i);
+                b.setTextSize(11);b.setSingleLine(true);b.setPadding(dp(12),dp(7),dp(12),dp(7));
+                LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-2,-2);lp.rightMargin=dp(6);filters.addView(b,lp);
+                b.setOnClickListener(v->{filter[0]=selected;drawFilters[0].run();render.run();});
+            }
+        };
+        drawFilters[0].run();
+        search.addTextChangedListener(new android.text.TextWatcher(){
+            public void beforeTextChanged(CharSequence s,int start,int count,int after){}
+            public void onTextChanged(CharSequence s,int start,int before,int count){render.run();}
+            public void afterTextChanged(android.text.Editable e){}
+        });
+        order.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            public void onItemSelected(android.widget.AdapterView<?> parent,View view,int position,long id){render.run();}
+            public void onNothingSelected(android.widget.AdapterView<?> parent){}
+        });
+        render.run();
+        addButton("⟳ SYNCHRONIZUJ",()->{
+            if(!isOnline()){toast("Brak internetu. Pokazuję dane z telefonu.");return;}
+            new Thread(()->{try{sync.sync();runOnUiThread(()->{render.run();toast("Karty klientów zaktualizowane.");});}
+                catch(Exception e){runOnUiThread(()->toast("Błąd synchronizacji: "+e.getMessage()));}}).start();
+        });
         addButton("WRÓĆ",()->showHome());
     }
-    private void customerDetail(JSONObject original) {
+    private void renderCustomerPageAfterEdit(){
+        // Reopen the list with freshly saved local data; no server round trip required.
+        customerPage();
+    }
+    private void saveCustomerProfile(JSONObject existing,String newName,String newNotes,Runnable afterLocalSave){
+        if(!customerIsAdmin()){toast("Edycja klientów jest dostępna tylko dla administratora.");return;}
+        String name=newName==null?"":newName.trim(),notes=newNotes==null?"":newNotes.trim();
         try {
-            JSONObject c=new JSONObject(original.toString()); root.removeAllViews();root.setOrientation(1);root.setPadding(18,16,18,18);root.setBackgroundColor(0xfff5f6fa);
-            TextView heading=new TextView(this);heading.setText(c.optString("name").isEmpty()?"Klient":c.optString("name"));heading.setTextSize(23);heading.setTypeface(null,1);heading.setTextColor(0xff172235);root.addView(heading);
-            detailLine(root,"Telefon",c.optString("phone"));
-            EditText name=field("Imię i nazwisko / firma");name.setText(c.optString("name"));
-            EditText notes=field("Notatki o kliencie");notes.setText(c.optString("notes"));notes.setMinLines(3);
-            TextView history=new TextView(this);history.setText("HISTORIA WYNAJMÓW");history.setTextSize(16);history.setTypeface(null,1);history.setTextColor(0xff172235);history.setPadding(0,12,0,5);root.addView(history);
-            JSONArray reservations=c.optJSONArray("reservations");if(reservations!=null)for(int i=0;i<reservations.length();i++){JSONObject r=reservations.optJSONObject(i);if(r!=null)detailLine(root,"Rezerwacja",r.optString("start_date",r.optString("month"))+" • "+r.optString("equipment",r.optString("text")));}
-            JSONArray protocols=c.optJSONArray("protocols");
-            if(protocols!=null)for(int i=0;i<protocols.length();i++){
-                JSONObject p=protocols.optJSONObject(i);if(p==null)continue;
-                LinearLayout protocolCard=new LinearLayout(this);protocolCard.setOrientation(1);protocolCard.setPadding(12,10,12,10);protocolCard.setBackground(roundBg(Color.WHITE,10));
-                TextView protocolTitle=new TextView(this);protocolTitle.setText("▤  "+(p.optString("number").isEmpty()?"Protokół":p.optString("number")));protocolTitle.setTextSize(14);protocolTitle.setTypeface(null,1);protocolTitle.setTextColor(0xff172b43);protocolCard.addView(protocolTitle);
-                TextView protocolDesc=new TextView(this);protocolDesc.setText(p.optString("rental_date")+" • "+p.optString("equipment")+"\nDotknij, aby otworzyć protokół");protocolDesc.setTextSize(12);protocolDesc.setTextColor(0xff697386);protocolDesc.setPadding(0,4,0,0);protocolCard.addView(protocolDesc);
-                LinearLayout.LayoutParams protocolParams=new LinearLayout.LayoutParams(-1,-2);protocolParams.bottomMargin=7;root.addView(protocolCard,protocolParams);
-                protocolCard.setOnClickListener(v->showProtocolDetail(p,()->customerDetail(c)));
+            JSONObject op=new JSONObject();
+            op.put("id",existing.optString("phone_key"));
+            op.put("phone",existing.optString("phone"));
+            op.put("name",name);op.put("notes",notes);
+            JSONObject updated=new JSONObject(existing.toString());
+            updated.put("name",name);updated.put("notes",notes);
+            store.enqueue("customer_save",op);
+            store.saveCustomerDraft(updated);
+            afterLocalSave.run();
+            if(isOnline()){
+                new Thread(()->{
+                    try{sync.sync();runOnUiThread(()->toast("Dane i notatki klienta zsynchronizowane."));}
+                    catch(Exception e){runOnUiThread(()->toast("Zapisano na telefonie. Dane czekają na synchronizację."));}
+                }).start();
+            } else toast("Zapisano na telefonie. Synchronizacja nastąpi po połączeniu z internetem.");
+        }catch(Exception e){toast("Nie udało się zapisać karty klienta: "+e.getMessage());}
+    }
+    private void customerEditDialog(JSONObject customer,Runnable done){
+        LinearLayout content=new LinearLayout(this);content.setOrientation(1);
+        content.setPadding(dp(18),dp(10),dp(18),dp(4));
+        TextView header=new TextView(this);header.setText("Nazwa klienta lub nick z OLX");
+        header.setTextSize(13);header.setTextColor(0xff526174);content.addView(header);
+        EditText name=new EditText(this);name.setSingleLine(true);name.setText(customer.optString("name"));name.setTextSize(16);content.addView(name);
+        TextView notesLabel=new TextView(this);notesLabel.setText("Notatka o kliencie");notesLabel.setTextSize(13);
+        notesLabel.setTextColor(0xff526174);notesLabel.setPadding(0,dp(10),0,0);content.addView(notesLabel);
+        EditText notes=new EditText(this);notes.setMinLines(3);notes.setGravity(Gravity.TOP|Gravity.START);
+        notes.setText(customer.optString("notes"));notes.setHint("Np. preferuje odbiór wieczorem");
+        notes.setTextSize(15);content.addView(notes);
+        new AlertDialog.Builder(this).setTitle("Edytuj klienta")
+            .setView(content).setNegativeButton("Anuluj",null)
+            .setPositiveButton("Zapisz",(dialog,which)->saveCustomerProfile(customer,name.getText().toString(),notes.getText().toString(),done))
+            .show();
+    }
+    private JSONObject findCustomerByKey(String key,JSONObject fallback) {
+        JSONArray items=store.customers();
+        for(int i=0;i<items.length();i++){
+            JSONObject c=items.optJSONObject(i);
+            if(c!=null&&key.equals(c.optString("phone_key")))return c;
+        }
+        return fallback;
+    }
+    private void customerDetail(JSONObject original) {
+        JSONObject customer=findCustomerByKey(original.optString("phone_key"),original);
+        root.removeAllViews();root.setOrientation(1);root.setPadding(14,16,14,18);root.setBackgroundColor(0xfff5f6fa);
+        TextView title=new TextView(this);title.setText(customerTitle(customer));title.setTextSize(23);
+        title.setTypeface(null,1);title.setTextColor(0xff172235);root.addView(title);
+        TextView phone=new TextView(this);phone.setText(customer.optString("phone"));
+        phone.setTextSize(15);phone.setTextColor(0xff526174);phone.setPadding(0,dp(4),0,dp(12));root.addView(phone);
+        LinearLayout buttons=new LinearLayout(this);buttons.setOrientation(0);
+        root.addView(buttons,new LinearLayout.LayoutParams(-1,-2));
+        String phoneNumber=customer.optString("phone");
+        customerAction(buttons,"Zadzwoń",false,()->customerContact(phoneNumber,false));
+        customerAction(buttons,"SMS",false,()->customerContact(phoneNumber,true));
+        if(customerIsAdmin())customerAction(buttons,"Edytuj i notatki",true,
+            ()->customerEditDialog(customer,()->customerDetail(findCustomerByKey(customer.optString("phone_key"),customer))));
+
+        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);
+        LinearLayout body=new LinearLayout(this);body.setOrientation(1);body.setPadding(0,dp(12),0,dp(16));
+        scroll.addView(body);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+
+        LinearLayout overview=new LinearLayout(this);overview.setOrientation(1);
+        overview.setPadding(dp(13),dp(12),dp(13),dp(12));overview.setBackground(roundBg(Color.WHITE,14));
+        body.addView(overview);
+        detailLine(overview,"Rezerwacje",String.valueOf(customerReservationCount(customer)));
+        detailLine(overview,"Protokoły",String.valueOf(customerProtocolCount(customer)));
+        String latest=customerLastActivity(customer);
+        if(!latest.isEmpty())detailLine(overview,"Ostatni wpis",customerDisplayDate(latest));
+        if(customerIsAdmin()){
+            if(customerPaidCount(customer)>0){
+                detailLine(overview,"Przychód z "+customerPaidCount(customer)+" rozliczonych rezerwacji",
+                    customerMoney(customerTotalRevenue(customer)));
+            } else detailLine(overview,"Rozliczenia","Brak rozliczonych wynajmów z kwotą");
+        }
+        String notes=customer.optString("notes","").trim();
+        LinearLayout notesBox=new LinearLayout(this);notesBox.setOrientation(1);
+        notesBox.setPadding(dp(13),dp(12),dp(13),dp(12));
+        notesBox.setBackground(roundBg(0xfffff8e4,13));
+        LinearLayout.LayoutParams notesParams=new LinearLayout.LayoutParams(-1,-2);notesParams.topMargin=dp(10);body.addView(notesBox,notesParams);
+        TextView notesHeader=new TextView(this);notesHeader.setText("NOTATKI O KLIENCIE");
+        notesHeader.setTextColor(0xff7c5c16);notesHeader.setTypeface(null,1);notesHeader.setTextSize(13);notesBox.addView(notesHeader);
+        TextView noteText=new TextView(this);
+        noteText.setText(notes.isEmpty()?"Brak notatek. Możesz je dodać przez Edytuj i notatki.":notes);
+        noteText.setTextColor(0xff424954);noteText.setTextSize(14);noteText.setPadding(0,dp(7),0,0);notesBox.addView(noteText);
+
+        TextView historyHeading=new TextView(this);historyHeading.setText("HISTORIA WYNAJMÓW");
+        historyHeading.setTextColor(0xff172235);historyHeading.setTextSize(17);historyHeading.setTypeface(null,1);
+        historyHeading.setPadding(0,dp(18),0,dp(9));body.addView(historyHeading);
+
+        ArrayList<JSONObject> history=new ArrayList<>();
+        JSONArray reservations=customer.optJSONArray("reservations");
+        if(reservations!=null)for(int i=0;i<reservations.length();i++){
+            JSONObject r=reservations.optJSONObject(i);if(r==null)continue;
+            try{JSONObject item=new JSONObject();item.put("kind","reservation");
+                item.put("date",customerDate(r.optString("start_date")));
+                item.put("original",r);history.add(item);}catch(Exception ignored){}
+        }
+        JSONArray protocols=customer.optJSONArray("protocols");
+        if(protocols!=null)for(int i=0;i<protocols.length();i++){
+            JSONObject p=protocols.optJSONObject(i);if(p==null)continue;
+            try{JSONObject item=new JSONObject();item.put("kind","protocol");
+                item.put("date",customerDate(p.optString("rental_date")));
+                item.put("original",p);history.add(item);}catch(Exception ignored){}
+        }
+        Collections.sort(history,(a,b)->b.optString("date").compareTo(a.optString("date")));
+        if(history.isEmpty()){
+            TextView empty=new TextView(this);empty.setText("Brak rezerwacji i protokołów.");
+            empty.setTextColor(0xff697386);body.addView(empty);
+        }
+        for(JSONObject item:history){
+            JSONObject entry=item.optJSONObject("original");if(entry==null)continue;
+            boolean isReservation="reservation".equals(item.optString("kind"));
+            LinearLayout card=new LinearLayout(this);card.setOrientation(1);
+            card.setPadding(dp(13),dp(11),dp(13),dp(11));card.setBackground(roundBg(Color.WHITE,12));
+            TextView kind=new TextView(this);kind.setText(isReservation?"REZERWACJA":"PROTOKÓŁ");
+            kind.setTextSize(11);kind.setTypeface(null,1);kind.setTextColor(0xff526174);card.addView(kind);
+            String equipment=entry.optString("equipment","");
+            TextView equipmentView=new TextView(this);
+            equipmentView.setText(equipment.isEmpty()?(isReservation?entry.optString("text","Rezerwacja"):entry.optString("number","Protokół")):equipment);
+            equipmentView.setTextSize(15);equipmentView.setTypeface(null,1);equipmentView.setTextColor(0xff172235);equipmentView.setPadding(0,dp(3),0,dp(4));card.addView(equipmentView);
+            TextView details=new TextView(this);
+            String when=isReservation?entry.optString("start_date",entry.optString("month")):entry.optString("rental_date");
+            String status=isReservation?(entry.optBoolean("settled")?"Rozliczona":entry.optBoolean("done")?"Wydana":"Rezerwacja"):entry.optString("status","Protokół");
+            String text=when+"  •  "+status;
+            if(isReservation&&customerIsAdmin()&&entry.optBoolean("settled")&&entry.has("income")){
+                text+="\nPrzychód: "+customerMoney(entry.optDouble("income",0));
+                if(entry.optDouble("loss",0)>0)text+="  •  Strata: "+customerMoney(entry.optDouble("loss",0));
             }
-            addButton("ZAPISZ DANE I NOTATKI",()->{try{JSONObject op=new JSONObject();op.put("id",c.optString("phone_key"));op.put("phone",c.optString("phone"));op.put("name",name.getText().toString());op.put("notes",notes.getText().toString());store.enqueue("customer_save",op);if(isOnline())new Thread(()->{try{sync.sync();runOnUiThread(()->{toast("Zapisano kartę klienta.");customerPage();});}catch(Exception e){runOnUiThread(()->toast("Zapisano lokalnie. Synchronizacja nie powiodła się: "+e.getMessage()));}}).start();else toast("Zapisano do wysłania po odzyskaniu internetu.");}catch(Exception e){toast("Nie udało się zapisać danych.");}});
-            addButton("WRÓĆ DO KLIENTÓW",()->customerPage());
-        } catch(Exception ignored) { customerPage(); }
+            if(!isReservation)text+="\nDotknij, aby otworzyć protokół";
+            details.setText(text);details.setTextSize(12);details.setTextColor(0xff697386);card.addView(details);
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=dp(9);body.addView(card,lp);
+            if(!isReservation)card.setOnClickListener(v->showProtocolDetail(entry,
+                ()->customerDetail(findCustomerByKey(customer.optString("phone_key"),customer))));
+        }
+        addButton("WRÓĆ DO KLIENTÓW",()->customerPage());
     }
 
     private JSONObject findReservation(JSONArray reservations,String id){for(int i=0;i<reservations.length();i++){JSONObject r=reservations.optJSONObject(i);if(r!=null&&id.equals(r.optString("id")))return r;}return null;}
