@@ -47,11 +47,15 @@ public class ReservationsWidgetService extends RemoteViewsService {
             RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.reservations_widget_row);
             if (!admin) {
                 v.setTextViewText(R.id.widget_item_text, "Widżet dostępny dla administratora");
+                v.setViewVisibility(R.id.widget_equipment_name, View.GONE);
+                v.setViewVisibility(R.id.widget_details_text, View.GONE);
                 hideActions(v);
                 return v;
             }
             if (rows.isEmpty()) {
                 v.setTextViewText(R.id.widget_item_text, "Brak aktywnych rezerwacji w tym miesiącu");
+                v.setViewVisibility(R.id.widget_equipment_name, View.GONE);
+                v.setViewVisibility(R.id.widget_details_text, View.GONE);
                 hideActions(v);
                 return v;
             }
@@ -74,14 +78,17 @@ public class ReservationsWidgetService extends RemoteViewsService {
             if (phone.isEmpty() && parts.length >= 3) phone = parts[parts.length - 1].trim();
 
             String customer = x.optString("customer_name", x.optString("client", "")).trim();
-            String txt = (done ? "✓ WYDANE" : "● DO WYDANIA") + "   " + dateRange(x, raw)
-                    + "\n" + eq + (time.isEmpty() ? "" : "   •   " + time)
-                    + (customer.isEmpty() ? "" : "\n" + customer)
-                    + (phone.isEmpty() ? "" : "\n" + (isPhoneNumber(phone) ? "TEL. " : "OLX: ") + phone);
-            v.setTextViewText(R.id.widget_item_text, txt);
+            String header = (done ? "✓ WYDANE" : "● DO WYDANIA") + "   " + dateRange(x, raw);
+            String details = (time.isEmpty() ? "" : time)
+                    + (customer.isEmpty() ? "" : (time.isEmpty() ? "" : "\\n") + customer)
+                    + (phone.isEmpty() ? "" : ((time.isEmpty() && customer.isEmpty()) ? "" : "\\n") + (isPhoneNumber(phone) ? "TEL. " : "OLX: ") + phone);
+            v.setTextViewText(R.id.widget_item_text, header);
+            v.setTextViewText(R.id.widget_equipment_name, eq);
+            v.setInt(R.id.widget_equipment_name, "setBackgroundColor", equipmentColor(eq));
+            v.setTextViewText(R.id.widget_details_text, details);
+            v.setViewVisibility(R.id.widget_details_text, details.isEmpty() ? View.GONE : View.VISIBLE);
             v.setTextColor(R.id.widget_item_text, done ? 0xff176b55 : 0xff203a57);
             v.setInt(R.id.widget_card, "setBackgroundResource", done ? R.drawable.widget_row_issued : R.drawable.widget_row_pending);
-            v.setInt(R.id.widget_equipment_color, "setBackgroundColor", equipmentColor(eq));
 
             setAction(v, R.id.widget_action_status, x, "toggle", phone);
             v.setTextViewText(R.id.widget_action_status, done ? "COFNIJ" : "OZNACZ WYDANE");
