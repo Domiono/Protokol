@@ -48,6 +48,7 @@ public class SyncManager {
         store.replaceServerExpenses(server.optJSONArray("expenses")==null?new JSONArray():server.optJSONArray("expenses"));
         ReservationsWidgetProvider.refresh(context);
         store.setEquipment(server.optJSONArray("equipment")==null?new JSONArray():server.optJSONArray("equipment"));
+        context.getSharedPreferences("rentmor",0).edit().putString("site_products",server.optJSONArray("site_products")==null?"[]":server.optJSONArray("site_products").toString()).putString("site_stats",server.optJSONObject("site_stats")==null?"{}":server.optJSONObject("site_stats").toString()).apply();
         context.getSharedPreferences("rentmor",0).edit().putString("role",server.optString("role")).apply();
         return server;
     }
