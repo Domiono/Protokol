@@ -75,12 +75,13 @@ public class ReservationsWidgetService extends RemoteViewsService {
 
             String customer = x.optString("customer_name", x.optString("client", "")).trim();
             String txt = (done ? "✓ WYDANE" : "● DO WYDANIA") + "   " + dateRange(x, raw)
-                    + "\\n" + eq + (time.isEmpty() ? "" : "   •   " + time)
-                    + (customer.isEmpty() ? "" : "\\n" + customer)
-                    + (phone.isEmpty() ? "" : "\\n" + (isPhoneNumber(phone) ? "TEL. " : "OLX: ") + phone);
+                    + "\n" + eq + (time.isEmpty() ? "" : "   •   " + time)
+                    + (customer.isEmpty() ? "" : "\n" + customer)
+                    + (phone.isEmpty() ? "" : "\n" + (isPhoneNumber(phone) ? "TEL. " : "OLX: ") + phone);
             v.setTextViewText(R.id.widget_item_text, txt);
             v.setTextColor(R.id.widget_item_text, done ? 0xff176b55 : 0xff203a57);
-            v.setInt(R.id.widget_item, "setBackgroundResource", done ? R.drawable.widget_row_issued : R.drawable.widget_row_pending);
+            v.setInt(R.id.widget_card, "setBackgroundResource", done ? R.drawable.widget_row_issued : R.drawable.widget_row_pending);
+            v.setInt(R.id.widget_equipment_color, "setBackgroundColor", equipmentColor(eq));
 
             setAction(v, R.id.widget_action_status, x, "toggle", phone);
             v.setTextViewText(R.id.widget_action_status, done ? "COFNIJ" : "OZNACZ WYDANE");
@@ -92,6 +93,19 @@ public class ReservationsWidgetService extends RemoteViewsService {
                 setAction(v, R.id.widget_action_call, x, "call", phone);
             }
             return v;
+        }
+
+        int equipmentColor(String name) {
+            String s = name == null ? "" : name.toLowerCase(Locale.ROOT);
+            if (s.contains("puzzi") || s.contains("odkurzacz") || s.contains("karcher")) return 0xff3b82b8;
+            if (s.contains("szlifier") || s.contains("żyrafa") || s.contains("zyrafa")) return 0xffd58a32;
+            if (s.contains("agregat malarski") || s.contains("wagner") || s.contains("wąbrotech") || s.contains("wabrotech")) return 0xff8b70b5;
+            if (s.contains("glebogryz") || s.contains("kosi") || s.contains("wykasz") || s.contains("stiga")) return 0xff57966a;
+            if (s.contains("rębak") || s.contains("rebak")) return 0xff9b7653;
+            if (s.contains("zagęsz") || s.contains("zagesz")) return 0xffc2a23b;
+            if (s.contains("bruzdown")) return 0xffbd6262;
+            if (s.contains("osusz")) return 0xff4d9c9a;
+            return 0xff8293a6;
         }
 
         void hideActions(RemoteViews v) {
