@@ -186,7 +186,7 @@ foreach ($operations as $op) {
         $lock = fopen($file . '.lock', 'c+');
         if (!$lock || !flock($lock, LOCK_EX)) { if ($lock) fclose($lock); $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Baza sprzętu jest chwilowo zajęta.']; continue; }
         $items = rm_read_json_file($file, []);
-        $id = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($op['id'] ?? ''));
+        $id = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($op['product_id'] ?? $op['id'] ?? ''));
         if ($action === 'product_delete') {
             $before=count($items);
             $items=array_values(array_filter($items,fn($p)=>(string)($p['id']??'')!==$id));
