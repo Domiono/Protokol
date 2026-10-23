@@ -220,8 +220,8 @@ public class MainActivity extends Activity {
             };
             chart[0]=graph;chartCard.addView(graph,new LinearLayout.LayoutParams(-1,dp(190)));
         };
-        Runnable buildRanges=()->{rangeBar.removeAllViews();for(int days:new int[]{7,30,90}){Button b=new Button(this);b.setText(days+" DNI");brandButton(b,range[0]==days);b.setTextSize(12);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);lp.setMargins(2,2,2,8);rangeBar.addView(b,lp);b.setOnClickListener(v->{range[0]=days;buildRanges.run();render.run();});}};
-        buildRanges.run();render.run();refreshSiteData(render);
+        final Runnable[] buildRanges=new Runnable[1];buildRanges[0]=()->{rangeBar.removeAllViews();for(int days:new int[]{7,30,90}){Button b=new Button(this);b.setText(days+" DNI");brandButton(b,range[0]==days);b.setTextSize(12);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);lp.setMargins(2,2,2,8);rangeBar.addView(b,lp);b.setOnClickListener(v->{range[0]=days;buildRanges[0].run();render.run();});}};
+        buildRanges[0].run();render.run();refreshSiteData(render);
         if(siteLiveHandler!=null&&siteLiveRefresh!=null)siteLiveHandler.removeCallbacks(siteLiveRefresh);
         siteLiveHandler=new Handler(getMainLooper());siteLiveRefresh=()->{if(!isFinishing()&&root!=null){refreshSiteData(render);siteLiveHandler.postDelayed(siteLiveRefresh,30000);}};
         siteLiveHandler.postDelayed(siteLiveRefresh,30000);
