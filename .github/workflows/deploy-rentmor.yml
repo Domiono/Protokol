@@ -12,8 +12,13 @@ on:
       - 'server/product_description.php'
       - 'scripts/patch_public_product_layout.py'
       - 'scripts/inject_online_tracker.py'
+      - 'scripts/secure_sftp_connection.sh'
       - '.github/workflows/deploy-rentmor.yml'
   workflow_dispatch:
+
+concurrency:
+  group: rentmor-public-homepage
+  cancel-in-progress: false
 
 jobs:
   deploy-api:
@@ -24,9 +29,9 @@ jobs:
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
-          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
-          if [ -n "$FTP_SERVER" ] && [ -n "$FTP_USERNAME" ] && [ -n "$FTP_PASSWORD" ]; then
+          if [ -n "$FTP_SERVER" ] && [ -n "$FTP_USERNAME" ] && [ -n "$LFTP_PASSWORD" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
@@ -71,36 +76,38 @@ jobs:
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
-          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
           set -eu
           : "${FTP_SERVER:?Missing FTP_SERVER}"
           : "${FTP_USERNAME:?Missing FTP_USERNAME}"
-          : "${FTP_PASSWORD:?Missing FTP_PASSWORD}"
+          : "${LFTP_PASSWORD:?Missing FTP_PASSWORD}"
 
           # Pass credentials as process arguments, not by interpolating them
           # into lftp's command language. This avoids quote/shell parsing issues.
-          LFTP_COMMAND="set cmd:fail-exit yes; set net:max-retries 2; set net:timeout 20; set ftp:passive-mode yes; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/online.php -o public_html/online.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
+          source scripts/secure_sftp_connection.sh
+          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/online.php -o public_html/online.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
           if [ -f server/admin.php ]; then
             LFTP_COMMAND="$LFTP_COMMAND; put server/admin.php -o public_html/admin.php"
           else
             echo "server/admin.php not present in repository; admin.php upload skipped"
           fi
-          lftp -u "${FTP_USERNAME},${FTP_PASSWORD}" "ftp://${FTP_SERVER}" -e "$LFTP_COMMAND; bye"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$LFTP_COMMAND; bye"
 
       - name: Embed online tracker in the current public site
         if: steps.config.outputs.enabled == 'true'
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
-          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
           set -eu
           TEMP_DIR="$(mktemp -d)"
           trap 'rm -rf "$TEMP_DIR"' EXIT
+          source scripts/secure_sftp_connection.sh
 
           # Download the ACTUAL live index.php so recent site changes are preserved.
-          lftp -u "${FTP_USERNAME},${FTP_PASSWORD}" "ftp://${FTP_SERVER}" -e "set cmd:fail-exit yes; set net:max-retries 2; set net:timeout 20; set ftp:passive-mode yes; get public_html/index.php -o $TEMP_DIR/index.php; bye"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/index.php -o $TEMP_DIR/index.php; bye"
           cp "$TEMP_DIR/index.php" "$TEMP_DIR/original.php"
           python3 scripts/inject_online_tracker.py "$TEMP_DIR/index.php"
           python3 scripts/patch_public_product_layout.py "$TEMP_DIR/index.php"
@@ -110,7 +117,7 @@ jobs:
             echo "Online tracker already present in the live homepage."
           else
             # Upload only the one-script insertion, never an outdated index snapshot.
-            lftp -u "${FTP_USERNAME},${FTP_PASSWORD}" "ftp://${FTP_SERVER}" -e "set cmd:fail-exit yes; set net:max-retries 2; set net:timeout 20; set ftp:passive-mode yes; put $TEMP_DIR/index.php -o public_html/index.php; bye"
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; mkdir -p rentmor-backups; put $TEMP_DIR/original.php -o rentmor-backups/index-before-site-update-$GITHUB_RUN_ID.php; put $TEMP_DIR/index.php -o public_html/index.php; bye"
             echo "Public homepage updated with online tracking."
           fi
 
