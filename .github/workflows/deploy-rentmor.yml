@@ -50,12 +50,10 @@ jobs:
 
           # Pass credentials as process arguments, not by interpolating them
           # into lftp's command language. This avoids quote/shell parsing issues.
-          lftp -u "${FTP_USERNAME},${FTP_PASSWORD}" "ftp://${FTP_SERVER}" -e '
-            set cmd:fail-exit yes
-            set net:max-retries 2
-            set net:timeout 20
-            set ftp:passive-mode yes
-            put server/protocol_sync.php -o protocol_sync.php
-            if [ -f server/admin.php ]; then put server/admin.php -o admin.php; else echo 'server/admin.php not present in repository; admin.php upload skipped'; fi
-            bye
-          '
+          LFTP_COMMAND="set cmd:fail-exit yes; set net:max-retries 2; set net:timeout 20; set ftp:passive-mode yes; put server/protocol_sync.php -o protocol_sync.php"
+          if [ -f server/admin.php ]; then
+            LFTP_COMMAND="$LFTP_COMMAND; put server/admin.php -o admin.php"
+          else
+            echo "server/admin.php not present in repository; admin.php upload skipped"
+          fi
+          lftp -u "${FTP_USERNAME},${FTP_PASSWORD}" "ftp://${FTP_SERVER}" -e "$LFTP_COMMAND; bye"
