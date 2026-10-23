@@ -31,5 +31,5 @@ jobs:
           for filename in index.php .htaccess robots.txt sitemap.xml sitemap.php sitemap_index.xml style.css styles.css main.css; do
             COMMAND="$COMMAND; get public_html/$filename -o $TMP_DIR/$filename"
           done
-          lftp -u "${FTP_USERNAME},${FTP_PASSWORD}" "ftp://${FTP_SERVER}" -e "$COMMAND; bye" >/dev/null 2>&1
+          lftp -u "${FTP_USERNAME},${FTP_PASSWORD}" "ftp://${FTP_SERVER}" -e "$COMMAND; bye" >/dev/null 2>&1 || true
           python3 scripts/audit_live_site.py "$TMP_DIR"
