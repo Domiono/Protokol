@@ -438,7 +438,7 @@ public class MainActivity extends Activity {
                     JSONArray expenses=store.expenses(new SimpleDateFormat("yyyy-MM",Locale.US).format(cur.getTime()));
                     for(int j=0;j<expenses.length();j++){JSONObject e=expenses.optJSONObject(j);if(e==null)continue;String equipment=e.optString("equipment_name","").trim();if(equipment.isEmpty())continue;
                         String key=equipment.toLowerCase(new Locale("pl","PL")).replaceAll("\\s+"," ").trim();double[] v=costs.get(key);if(v==null){v=new double[2];costs.put(key,v);}String note=e.optString("note","").toLowerCase(new Locale("pl","PL"));
-                        if(note.contains("zakup"))v[0]+=e.optDouble("amount");else v[1]+=e.optDouble("amount");names.putIfAbsent(key,equipment);
+                        if(note.contains("zakup"))v[0]+=e.optDouble("amount");else v[1]+=e.optDouble("amount");names.putIfAbsent(key,equipment);totals.putIfAbsent(key,new double[4]);
                     }
                 }cur.add(Calendar.MONTH,1);
             }
