@@ -370,6 +370,7 @@ public class MainActivity extends Activity {
     private void reservationStatsPage() {
         root.removeAllViews(); root.setOrientation(1); root.setPadding(18,16,18,18); root.setBackgroundColor(0xfff5f6fa);
         TextView heading=new TextView(this); heading.setText("STATYSTYKI NAJMU"); heading.setTextSize(24); heading.setTypeface(null,1); heading.setTextColor(0xff172235); root.addView(heading);
+        Button profitability=new Button(this); profitability.setText("RENTOWNOŚĆ SPRZĘTU"); brandButton(profitability,true); profitability.setOnClickListener(v->equipmentProfitabilityPage()); root.addView(profitability);
         Calendar now=Calendar.getInstance(); final String[] month={String.format(Locale.US,"%04d-%02d",now.get(Calendar.YEAR),now.get(Calendar.MONTH)+1)};
         TextView monthLabel=new TextView(this); monthLabel.setTextSize(16); monthLabel.setTextColor(0xff526174); monthLabel.setPadding(0,8,0,8); root.addView(monthLabel);
         LinearLayout bar=new LinearLayout(this); bar.setGravity(Gravity.CENTER_VERTICAL);
@@ -406,6 +407,53 @@ public class MainActivity extends Activity {
         next.setOnClickListener(v->{Calendar c=parseReservationMonth(month[0]);c.add(Calendar.MONTH,1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(c.getTime());render.run();});
         pick.setOnClickListener(v->{Calendar c=parseReservationMonth(month[0]);new DatePickerDialog(this,(d,y,m,day)->{month[0]=String.format(Locale.US,"%04d-%02d",y,m+1);render.run();},c.get(Calendar.YEAR),c.get(Calendar.MONTH),1).show();});
         addButton("WRÓĆ",()->showHome()); render.run();
+    }
+    private void equipmentProfitabilityPage() {
+        root.removeAllViews(); root.setOrientation(1); root.setPadding(18,16,18,18); root.setBackgroundColor(0xfff5f6fa);
+        TextView h=new TextView(this); h.setText("RENTOWNOŚĆ SPRZĘTU"); h.setTextSize(23); h.setTypeface(null,1); h.setTextColor(0xff172235); root.addView(h);
+        TextView hint=new TextView(this); hint.setText("Zestawienie łączy wszystkie sztuki tego samego modelu. Uwzględnia rozliczone rezerwacje."); hint.setTextColor(0xff718096); root.addView(hint);
+        Spinner years=new Spinner(this); ArrayList<String> opts=new ArrayList<>(); opts.add("Od początku"); int y=Calendar.getInstance().get(Calendar.YEAR); for(int n=y;n>=2020;n--)opts.add(String.valueOf(n));
+        ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,opts); adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item); years.setAdapter(adapter); root.addView(years);
+        ScrollView sv=new ScrollView(this); LinearLayout list=new LinearLayout(this); list.setOrientation(1); list.setPadding(0,10,0,10); sv.addView(list); root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
+        Runnable draw=()->{
+            list.removeAllViews(); int yr=years.getSelectedItemPosition()==0?0:Integer.parseInt(String.valueOf(years.getSelectedItem()));
+            LinkedHashMap<String,String> names=new LinkedHashMap<>(); LinkedHashMap<String,double[]> totals=new LinkedHashMap<>();
+            Calendar cur=Calendar.getInstance(); cur.set(2015,0,1); Calendar today=Calendar.getInstance(); double all=0;
+            while(!cur.after(today)){
+                if(yr==0||cur.get(Calendar.YEAR)==yr){
+                    String month=new SimpleDateFormat("yyyy-MM",Locale.US).format(cur.getTime()); JSONArray rows=store.reservations(month);
+                    for(int k=0;k<rows.length();k++){JSONObject r=rows.optJSONObject(k);if(r==null||!r.optBoolean("settled"))continue;
+                        String name=reservationEquipment(r);if(name.isEmpty())name="Pozostałe";String key=name.toLowerCase(new Locale("pl","PL")).replaceAll("\\s+"," ").trim();
+                        names.putIfAbsent(key,name);double[] v=totals.get(key);if(v==null){v=new double[4];totals.put(key,v);}
+                        v[0]++;v[2]+=r.optDouble("income");v[3]+=r.optDouble("loss");
+                        try{SimpleDateFormat df=new SimpleDateFormat("yyyy-MM-dd",Locale.US);Date a=df.parse(r.optString("start_date")),b=df.parse(r.optString("end_date"));v[1]+=a!=null&&b!=null?Math.max(1,(b.getTime()-a.getTime())/86400000L+1):1;}catch(Exception ex){v[1]++;}
+                        all+=r.optDouble("income");
+                    }
+                } cur.add(Calendar.MONTH,1);
+            }
+            addStatCard(list,"PRZYCHÓD ŁĄCZNIE",String.format(Locale.US,"%.2f zł",all),0xff172b43);
+            TextView title=new TextView(this);title.setText("WYNIKI WEDŁUG MODELU");title.setTextSize(16);title.setTypeface(null,1);title.setTextColor(0xff172235);title.setPadding(2,12,2,8);list.addView(title);
+            ArrayList<String> keys=new ArrayList<>(names.keySet());Collections.sort(keys,(a,b)->Double.compare(totals.get(b)[2],totals.get(a)[2]));
+            if(keys.isEmpty()){TextView empty=new TextView(this);empty.setText("Brak rozliczonych wynajmów w tym okresie.");list.addView(empty);}
+            for(String key:keys){double[] v=totals.get(key);LinearLayout card=new LinearLayout(this);card.setOrientation(1);card.setPadding(14,12,14,12);card.setBackground(roundBg(Color.WHITE,12));
+                TextView nm=new TextView(this);nm.setText(names.get(key));nm.setTextSize(16);nm.setTypeface(null,1);nm.setTextColor(0xff172b43);card.addView(nm);
+                TextView d=new TextView(this);d.setText("Wynajmy: "+(int)v[0]+"  •  Dni: "+(int)v[1]+"\nPrzychód: "+String.format(Locale.US,"%.2f zł",v[2])+"\nStraty z najmu: "+String.format(Locale.US,"%.2f zł",v[3]));d.setTextColor(0xff526174);d.setPadding(0,6,0,8);card.addView(d);
+                Button cost=new Button(this);cost.setText("DODAJ KOSZT ZAKUPU / NAPRAWY");brandButton(cost,false);cost.setOnClickListener(vw->addEquipmentCost(names.get(key),()->draw.run()));card.addView(cost);
+                LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=8;list.addView(card,lp);
+            }
+        };
+        years.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onItemSelected(android.widget.AdapterView<?> a,View v,int p,long id){draw.run();}public void onNothingSelected(android.widget.AdapterView<?> a){}});
+        addButton("WRÓĆ DO STATYSTYK",()->reservationStatsPage()); draw.run();
+    }
+    private void addEquipmentCost(String equipment,Runnable refresh) {
+        LinearLayout box=new LinearLayout(this);box.setOrientation(1);Spinner kind=new Spinner(this);kind.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,new String[]{"Zakup sprzętu","Naprawa / serwis"}));box.addView(kind);
+        EditText amount=new EditText(this);amount.setHint("Kwota w zł");amount.setInputType(8194);box.addView(amount);
+        EditText date=new EditText(this);date.setHint("Data RRRR-MM-DD");date.setText(new SimpleDateFormat("yyyy-MM-dd",Locale.US).format(new Date()));box.addView(date);
+        new AlertDialog.Builder(this).setTitle(equipment).setView(box).setNegativeButton("Anuluj",null).setPositiveButton("Zapisz",(dlg,which)->{try{
+            double value=Double.parseDouble(amount.getText().toString().trim().replace(',','.'));String ds=date.getText().toString().trim();if(value<=0||!ds.matches("\\d{4}-\\d{2}-\\d{2}"))throw new Exception();
+            JSONObject e=new JSONObject();e.put("id",UUID.randomUUID().toString());e.put("date",ds);e.put("month",ds.substring(0,7));e.put("name",equipment);e.put("amount",value);e.put("type",kind.getSelectedItemPosition()==0?"investment":"expense");e.put("equipment_name",equipment);e.put("note",kind.getSelectedItemPosition()==0?"Zakup modelu":"Naprawa / serwis");
+            store.saveExpense(e);store.enqueue("expense_save",e);if(isOnline())syncNow();toast("Zapisano koszt sprzętu.");refresh.run();
+        }catch(Exception ex){toast("Sprawdź kwotę i datę.");}}).show();
     }
     private void addStatCard(LinearLayout parent,String label,String value,int color) {
         LinearLayout card=new LinearLayout(this);card.setOrientation(1);card.setPadding(16,12,16,12);card.setBackground(roundBg(Color.WHITE,14));
