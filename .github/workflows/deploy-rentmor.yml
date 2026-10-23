@@ -7,6 +7,10 @@ on:
       - 'server/admin.php'
       - 'server/online.php'
       - 'server/online.js'
+      - 'server/sitemap.php'
+      - 'server/robots.txt'
+      - 'server/product_description.php'
+      - 'scripts/patch_public_product_layout.py'
       - 'scripts/inject_online_tracker.py'
       - '.github/workflows/deploy-rentmor.yml'
   workflow_dispatch:
@@ -37,7 +41,30 @@ jobs:
         if: steps.config.outputs.enabled == 'true'
         run: |
           sudo apt-get update
-          sudo apt-get install -y lftp
+          sudo apt-get install -y lftp php-cli
+
+      - name: Validate sitemap generator and description formatter
+        if: steps.config.outputs.enabled == 'true'
+        run: |
+          set -eu
+          php -l server/sitemap.php
+          php -l server/product_description.php
+          python3 -m py_compile scripts/patch_public_product_layout.py
+          TEST_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TEST_DIR"' EXIT
+          cp server/sitemap.php "$TEST_DIR/sitemap.php"
+          printf 'Rental terms test page' > "$TEST_DIR/zasady.php"
+          printf '[{"name":"Szlifierka betonowa"},{"name":"Odkurzacz Puzzi"}]' > "$TEST_DIR/data.json"
+          php "$TEST_DIR/sitemap.php" > "$TEST_DIR/sitemap.xml"
+          python3 - "$TEST_DIR/sitemap.xml" <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          urls = [x.text for x in root.iter() if x.tag.endswith('loc')]
+          for needed in ['https://rentmor.pl/', 'https://rentmor.pl/zasady.php', 'https://rentmor.pl/szlifierka-betonowa/', 'https://rentmor.pl/odkurzacz-puzzi/']:
+              assert needed in urls, (needed, urls)
+          print('Sitemap XML and rental terms test passed.')
+          PY
+          php -r 'require "server/product_description.php"; $html=rentmor_render_description("Parametry:\n- Moc 2200 W\n\n<strong>unsafe</strong>"); if (!str_contains($html, "&lt;strong&gt;unsafe&lt;/strong&gt;") || !str_contains($html, "<ul")) exit(1); echo "Description formatter test passed.\n";'
 
       - name: Upload RentMor PHP files over FTP
         if: steps.config.outputs.enabled == 'true'
@@ -53,7 +80,7 @@ jobs:
 
           # Pass credentials as process arguments, not by interpolating them
           # into lftp's command language. This avoids quote/shell parsing issues.
-          LFTP_COMMAND="set cmd:fail-exit yes; set net:max-retries 2; set net:timeout 20; set ftp:passive-mode yes; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/online.php -o public_html/online.php; put server/online.js -o public_html/online.js"
+          LFTP_COMMAND="set cmd:fail-exit yes; set net:max-retries 2; set net:timeout 20; set ftp:passive-mode yes; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/online.php -o public_html/online.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
           if [ -f server/admin.php ]; then
             LFTP_COMMAND="$LFTP_COMMAND; put server/admin.php -o public_html/admin.php"
           else
@@ -76,6 +103,8 @@ jobs:
           lftp -u "${FTP_USERNAME},${FTP_PASSWORD}" "ftp://${FTP_SERVER}" -e "set cmd:fail-exit yes; set net:max-retries 2; set net:timeout 20; set ftp:passive-mode yes; get public_html/index.php -o $TEMP_DIR/index.php; bye"
           cp "$TEMP_DIR/index.php" "$TEMP_DIR/original.php"
           python3 scripts/inject_online_tracker.py "$TEMP_DIR/index.php"
+          python3 scripts/patch_public_product_layout.py "$TEMP_DIR/index.php"
+          php -l "$TEMP_DIR/index.php"
 
           if cmp -s "$TEMP_DIR/original.php" "$TEMP_DIR/index.php"; then
             echo "Online tracker already present in the live homepage."
@@ -83,4 +112,22 @@ jobs:
             # Upload only the one-script insertion, never an outdated index snapshot.
             lftp -u "${FTP_USERNAME},${FTP_PASSWORD}" "ftp://${FTP_SERVER}" -e "set cmd:fail-exit yes; set net:max-retries 2; set net:timeout 20; set ftp:passive-mode yes; put $TEMP_DIR/index.php -o public_html/index.php; bye"
             echo "Public homepage updated with online tracking."
+          fi
+
+      - name: Check sitemap and rental terms after deployment
+        if: steps.config.outputs.enabled == 'true'
+        run: |
+          set -eu
+          TEST_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TEST_DIR"' EXIT
+          if curl -fsSL --max-time 25 --retry 1 -o "$TEST_DIR/sitemap.xml" "https://rentmor.pl/sitemap.xml"; then
+            python3 - "$TEST_DIR/sitemap.xml" <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root=ET.parse(sys.argv[1]).getroot()
+          locs=[x.text for x in root.iter() if x.tag.endswith("loc")]
+          assert "https://rentmor.pl/zasady.php" in locs, "Rental terms page missing from live sitemap"
+          print("Verified live sitemap.xml includes rental terms and",len(locs),"total URLs.")
+          PY
+          else
+            echo "Live HTTP check unavailable; FTP upload and local sitemap tests succeeded."
           fi
