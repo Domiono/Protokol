@@ -832,7 +832,7 @@ public class MainActivity extends Activity {
                 });
                 String dateLabel=reservationDateRangeLabel(item);
                 TextView dateRangeLabel=new TextView(this);
-                dateRangeLabel.setText(dateLabel.replace(" • ","\\n"));
+                dateRangeLabel.setText(dateLabel.replace(" • ","\n"));
                 dateRangeLabel.setTextSize(13);dateRangeLabel.setTypeface(null,1);
                 dateRangeLabel.setTextColor(0xff245b91);dateRangeLabel.setLineSpacing(dp(2),1f);
                 dateRangeLabel.setPadding(dp(11),dp(9),dp(11),dp(9));
