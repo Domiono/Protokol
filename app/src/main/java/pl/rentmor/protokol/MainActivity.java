@@ -23,7 +23,7 @@ import android.util.Base64;
 public class MainActivity extends Activity {
     private static final String HOME="https://rentmor.pl/protocol.php";
     private LocalStore store; private SyncManager sync; private LinearLayout root; private LinearLayout homePage; private boolean adminDownloadAdded=false; private TextView status;
-    private WebView activation; private boolean showingApp=false; private final ArrayList<Bitmap> issuePhotos=new ArrayList<>(); private TextView photoCount; private SignatureView signatureView; private final AtomicBoolean syncRunning=new AtomicBoolean(false); private ConnectivityManager.NetworkCallback networkCallback;
+    private WebView activation; private boolean showingApp=false; private final ArrayList<Bitmap> issuePhotos=new ArrayList<>(); private final ArrayList<Bitmap> productPhotos=new ArrayList<>(); private TextView productPhotoCount; private TextView photoCount; private SignatureView signatureView; private final AtomicBoolean syncRunning=new AtomicBoolean(false); private ConnectivityManager.NetworkCallback networkCallback;
     @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(Color.rgb(20,29,45));getWindow().setNavigationBarColor(Color.rgb(20,29,45));store=new LocalStore(this);sync=new SyncManager(this,store);registerNetworkSync();
         String saved=getSharedPreferences("rentmor",0).getString("cookie","");
         if(!saved.isEmpty()){showHome();openWidgetDestination();} else showActivation();
@@ -45,13 +45,14 @@ public class MainActivity extends Activity {
     }
     private void showHome(){showingApp=true;root=new LinearLayout(this);root.setOrientation(1);root.setPadding(20,22,20,24);root.setBackgroundColor(0xfff5f6fa);
         ScrollView scroll=new ScrollView(this); LinearLayout page=new LinearLayout(this);homePage=page;adminDownloadAdded=false;page.setOrientation(1);scroll.addView(page);
-        TextView eyebrow=new TextView(this);eyebrow.setText("RENTMOR");eyebrow.setTextSize(13);eyebrow.setLetterSpacing(.18f);eyebrow.setTextColor(0xff697386);eyebrow.setTypeface(null,1);page.addView(eyebrow);
-        TextView title=new TextView(this);title.setText("Protokoły");title.setTextSize(30);title.setTextColor(0xff172235);title.setTypeface(null,1);LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(-1,-2);tp.bottomMargin=14;page.addView(title,tp);
+        TextView eyebrow=new TextView(this);eyebrow.setText("RENTMOR • PRO");eyebrow.setTextSize(13);eyebrow.setLetterSpacing(.18f);eyebrow.setTextColor(0xff697386);eyebrow.setTypeface(null,1);page.addView(eyebrow);
+        TextView title=new TextView(this);title.setText("Pro RentMor");title.setTextSize(30);title.setTextColor(0xff172235);title.setTypeface(null,1);LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(-1,-2);tp.bottomMargin=14;page.addView(title,tp);
         LinearLayout statCard=new LinearLayout(this);statCard.setOrientation(1);statCard.setPadding(18,16,18,16);statCard.setBackground(roundBg(0xffffffff,18));TextView stTitle=new TextView(this);stTitle.setText("STATUS DANYCH");stTitle.setTextSize(11);stTitle.setTextColor(0xff697386);stTitle.setTypeface(null,1);statCard.addView(stTitle);
         status=new TextView(this);status.setText("W telefonie: "+store.allProtocols().length()+"   •   Do wysłania: "+store.pendingCount());status.setTextSize(14);status.setTextColor(0xff26384d);status.setPadding(0,8,0,0);statCard.addView(status);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.bottomMargin=20;page.addView(statCard,sp);
         menuCard(page,"☷","Rezerwacje","Lista odbiorów i rozliczenia najmu",()->reservationPage(),0xfffff6d9);
         menuCard(page,"♙","Klienci","Historia wynajmów, dane kontaktowe i notatki",()->customerPage(),0xffedf0f5);
         menuCard(page,"▥","Statystyki najmu","Przychody, straty i wynik według sprzętu",()->reservationStatsPage(),0xfffff1c2);
+        if("admin".equals(getSharedPreferences("rentmor",0).getString("role",""))) menuCard(page,"▣","Strona","Statystyki witryny, publikowanie i edycja sprzętu",()->sitePage(),0xffe8f1ff);
         if("admin".equals(getSharedPreferences("rentmor",0).getString("role",""))) menuCard(page," zł ","Pozostałe koszty","Paliwo, naprawy, reklama i zakupy sprzętu",()->expensePage(),0xfffff6d9);
         menuCard(page,"⟳","Synchronizuj teraz","Wyślij zapisane protokoły na serwer",()->syncNow(),0xffedf0f5);
         menuCard(page,"＋","Nowy protokół wydania","Utwórz protokół i dodaj zdjęcia",()->newIssue(),0xfffff6d9);
@@ -153,6 +154,89 @@ public class MainActivity extends Activity {
     private void registerNetworkSync(){ConnectivityManager cm=(ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);networkCallback=new ConnectivityManager.NetworkCallback(){@Override public void onAvailable(android.net.Network network){runOnUiThread(()->{if(showingApp&&getSharedPreferences("rentmor",0).getString("cookie","").length()>0)syncNow();});}};try{cm.registerDefaultNetworkCallback(networkCallback);}catch(Exception ignored){}}
     @Override protected void onDestroy(){try{if(networkCallback!=null)((ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE)).unregisterNetworkCallback(networkCallback);}catch(Exception ignored){}super.onDestroy();}
     private void syncNow(){if(!isOnline()){if(status!=null)status.setText("Brak internetu. Dane pozostają bezpiecznie w telefonie.");return;}if(!syncRunning.compareAndSet(false,true))return;if(status!=null)status.setText("Synchronizacja…");new Thread(()->{try{sync.sync();runOnUiThread(()->{if(status!=null)status.setText("Synchronizacja zakończona. Oczekujące: "+store.pendingCount());addAdminDownloadCard();});}catch(Exception e){runOnUiThread(()->{if(status!=null)status.setText("Nie wysłano: "+e.getMessage()+" • Dane zapisane lokalnie.");});}finally{syncRunning.set(false);}}).start();}
+
+    private void sitePage() {
+        root.removeAllViews(); root.setPadding(18,16,18,18);
+        TextView h=new TextView(this);h.setText("STRONA RENTMOR");h.setTextSize(25);h.setTypeface(null,1);h.setTextColor(0xff172235);root.addView(h);
+        TextView sub=new TextView(this);sub.setText("Zarządzaj publiczną ofertą i sprawdzaj ruch na stronie.");sub.setTextColor(0xff697386);sub.setPadding(0,5,0,14);root.addView(sub);
+        menuCard(root,"▥","Statystyki strony","Odsłony, źródła wejść i popularny sprzęt",()->siteStatsPage(),0xfffff1c2);
+        menuCard(root,"＋","Dodaj sprzęt","Opublikuj nową ofertę na RentMor.pl",()->productForm(null),0xfffff6d9);
+        menuCard(root,"▤","Lista sprzętu","Edytuj lub usuń opublikowane oferty",()->siteProductsPage(),0xffedf0f5);
+        addButton("WRÓĆ DO MENU",()->showHome());
+    }
+    private JSONObject siteStats() {
+        try { return new JSONObject(getSharedPreferences("rentmor",0).getString("site_stats","{}")); }
+        catch(Exception e) { return new JSONObject(); }
+    }
+    private JSONArray siteProducts() {
+        try { return new JSONArray(getSharedPreferences("rentmor",0).getString("site_products","[]")); }
+        catch(Exception e) { return new JSONArray(); }
+    }
+    private void refreshSiteData(Runnable done) {
+        if(!isOnline()){toast("Brak internetu. Pokazuję ostatnio pobrane dane.");done.run();return;}
+        new Thread(()->{try{sync.sync();runOnUiThread(done);}catch(Exception e){runOnUiThread(()->{toast("Nie udało się pobrać danych strony: "+e.getMessage());done.run();});}}).start();
+    }
+    private void siteStatsPage() {
+        root.removeAllViews();TextView h=new TextView(this);h.setText("STATYSTYKI STRONY");h.setTextSize(23);h.setTypeface(null,1);h.setTextColor(0xff172235);root.addView(h);
+        TextView info=new TextView(this);info.setText("Dane z licznika RentMor.pl");info.setTextColor(0xff697386);info.setPadding(0,4,0,12);root.addView(info);
+        LinearLayout cards=new LinearLayout(this);cards.setOrientation(1);root.addView(cards);
+        Runnable render=()->{cards.removeAllViews();JSONObject st=siteStats();
+            addMetric(cards,"Wszystkie odsłony",String.valueOf(st.optLong("total_views",0)));
+            addMetric(cards,"Unikalni odwiedzający",String.valueOf(st.optLong("unique_visitors",0)));
+            addMetric(cards,"Kliknięcia telefonu",String.valueOf(st.optLong("total_phone_clicks",0)));
+            JSONObject sources=st.optJSONObject("sources");long search=0,direct=0,other=0;
+            if(sources!=null){Iterator<String> it=sources.keys();while(it.hasNext()){JSONObject day=sources.optJSONObject(it.next());if(day!=null){search+=day.optLong("search_social",0);direct+=day.optLong("direct",0);other+=day.optLong("other_ext",0);}}}
+            addMetric(cards,"Wejścia z wyszukiwarki i social",String.valueOf(search));addMetric(cards,"Wejścia bezpośrednie",String.valueOf(direct));addMetric(cards,"Pozostałe źródła",String.valueOf(other));
+            TextView popular=new TextView(this);popular.setText("NAJPOPULARNIEJSZY SPRZĘT");popular.setTextSize(13);popular.setTypeface(null,1);popular.setTextColor(0xff526174);popular.setPadding(0,14,0,6);cards.addView(popular);
+            JSONObject pv=st.optJSONObject("product_views");if(pv==null||pv.length()==0){TextView empty=new TextView(this);empty.setText("Brak danych o odsłonach produktów.");cards.addView(empty);}else{
+                ArrayList<String> ids=new ArrayList<>();Iterator<String> it=pv.keys();while(it.hasNext())ids.add(it.next());Collections.sort(ids,(a,b)->Integer.compare(pv.optInt(b),pv.optInt(a)));
+                JSONArray products=siteProducts();for(int i=0;i<Math.min(5,ids.size());i++){String id=ids.get(i),name=id;for(int j=0;j<products.length();j++){JSONObject p=products.optJSONObject(j);if(p!=null&&id.equals(p.optString("id"))){name=p.optString("name",id);break;}}addMetric(cards,name,pv.optString(id)+" odsłon");}
+            }
+        };
+        refreshSiteData(render);addButton("⟳ ODŚWIEŻ",()->refreshSiteData(render));addButton("WRÓĆ",()->sitePage());
+    }
+    private void addMetric(LinearLayout parent,String label,String value){
+        LinearLayout card=new LinearLayout(this);card.setOrientation(1);card.setPadding(14,11,14,11);card.setBackground(roundBg(Color.WHITE,13));
+        TextView a=new TextView(this);a.setText(label);a.setTextSize(12);a.setTextColor(0xff697386);card.addView(a);
+        TextView b=new TextView(this);b.setText(value);b.setTextSize(20);b.setTypeface(null,1);b.setTextColor(0xff172235);card.addView(b);
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=7;parent.addView(card,lp);
+    }
+    private void siteProductsPage() {
+        root.removeAllViews();TextView h=new TextView(this);h.setText("LISTA SPRZĘTU NA STRONIE");h.setTextSize(22);h.setTypeface(null,1);h.setTextColor(0xff172235);root.addView(h);
+        LinearLayout list=new LinearLayout(this);list.setOrientation(1);root.addView(list);
+        Runnable render=()->{list.removeAllViews();JSONArray a=siteProducts();for(int i=0;i<a.length();i++){JSONObject p=a.optJSONObject(i);if(p==null)continue;
+            LinearLayout row=new LinearLayout(this);row.setOrientation(1);row.setPadding(14,12,14,12);row.setBackground(roundBg(Color.WHITE,14));
+            TextView name=new TextView(this);name.setText(p.optString("name"));name.setTextSize(16);name.setTypeface(null,1);name.setTextColor(0xff172235);row.addView(name);
+            TextView price=new TextView(this);price.setText(p.optString("price","0")+" zł / doba   •   Kaucja: "+p.optString("deposit","0")+" zł");price.setTextColor(0xff697386);row.addView(price);
+            LinearLayout actions=new LinearLayout(this);Button edit=new Button(this);edit.setText("EDYTUJ");brandButton(edit,false);Button del=new Button(this);del.setText("USUŃ");brandButton(del,false);actions.addView(edit,new LinearLayout.LayoutParams(0,-2,1));actions.addView(del,new LinearLayout.LayoutParams(0,-2,1));row.addView(actions);
+            edit.setOnClickListener(v->productForm(p));del.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("Usunąć ofertę?").setMessage("Produkt zniknie ze strony RentMor.pl.").setNegativeButton("Anuluj",null).setPositiveButton("Usuń",(d,w)->{try{JSONObject op=new JSONObject();op.put("id",UUID.randomUUID().toString());op.put("product_id",p.optString("id"));store.enqueue("product_delete",op);if(isOnline())new Thread(()->{try{sync.sync();runOnUiThread(()->{toast("Oferta usunięta ze strony.");refreshSiteData(render);});}catch(Exception e){runOnUiThread(()->toast("Błąd usuwania: "+e.getMessage()));}}).start();else toast("Brak internetu — usuń ofertę po połączeniu.");}catch(Exception e){toast("Nie udało się przygotować usunięcia.");}}).show());
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=8;list.addView(row,lp);
+        }if(a.length()==0){TextView empty=new TextView(this);empty.setText("Nie znaleziono ofert. Odśwież dane strony.");list.addView(empty);}};
+        refreshSiteData(render);addButton("＋ DODAJ SPRZĘT",()->productForm(null));addButton("⟳ ODŚWIEŻ",()->refreshSiteData(render));addButton("WRÓĆ",()->sitePage());
+    }
+    private void productForm(JSONObject existing) {
+        productPhotos.clear();productPhotoCount=null;root.removeAllViews();root.setPadding(18,14,18,18);
+        boolean editing=existing!=null;TextView h=new TextView(this);h.setText(editing?"EDYTUJ OFERTĘ":"DODAJ SPRZĘT NA STRONĘ");h.setTextSize(22);h.setTypeface(null,1);h.setTextColor(0xff172235);root.addView(h);
+        EditText name=field("Nazwa sprzętu");EditText desc=field("Opis sprzętu");desc.setMinLines(3);
+        Spinner category=new Spinner(this);String[] cats={"budowlane","ogrodnicze","czyszczace"};String[] labels={"Budowlane","Ogrodnicze","Czyszczące"};category.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,labels));root.addView(category);
+        EditText price=field("Cena za dobę (zł)");price.setInputType(8194);EditText deposit=field("Kaucja (zł)");deposit.setInputType(8194);
+        EditText seoTitle=field("Tytuł SEO (opcjonalnie)");EditText seoDesc=field("Opis SEO (opcjonalnie)");EditText olx=field("Link do OLX (opcjonalnie)");
+        if(editing){name.setText(existing.optString("name"));desc.setText(existing.optString("desc"));price.setText(existing.optString("price"));deposit.setText(existing.optString("deposit"));seoTitle.setText(existing.optString("seo_title"));seoDesc.setText(existing.optString("seo_description"));olx.setText(existing.optString("olx"));for(int i=0;i<cats.length;i++)if(cats[i].equals(existing.optString("category")))category.setSelection(i);}
+        Button photo=new Button(this);photo.setText("DODAJ ZDJĘCIA");brandButton(photo,false);root.addView(photo);productPhotoCount=new TextView(this);productPhotoCount.setText("Nie wybrano nowych zdjęć. Dotychczasowe zdjęcia zostaną zachowane.");productPhotoCount.setTextColor(0xff697386);root.addView(productPhotoCount);photo.setOnClickListener(v->pickProductPhotos());
+        addButton(editing?"ZAPISZ ZMIANY I OPUBLIKUJ":"OPUBLIKUJ NA RENTMOR.PL",()->{
+            if(!isOnline()){toast("Do publikacji produktu potrzebny jest internet.");return;}
+            String n=name.getText().toString().trim(),pr=price.getText().toString().trim(),de=deposit.getText().toString().trim();if(n.isEmpty()||pr.isEmpty()){toast("Podaj nazwę i cenę za dobę.");return;}
+            try{JSONObject op=new JSONObject();op.put("id",UUID.randomUUID().toString());if(editing)op.put("product_id",existing.optString("id"));
+                op.put("name",n);op.put("desc",desc.getText().toString());op.put("category",cats[category.getSelectedItemPosition()]);op.put("price",pr);op.put("deposit",de.isEmpty()?"0":de);op.put("seo_title",seoTitle.getText().toString());op.put("seo_description",seoDesc.getText().toString());op.put("olx",olx.getText().toString());
+                JSONArray photos=new JSONArray();for(Bitmap bmp:productPhotos){ByteArrayOutputStream out=new ByteArrayOutputStream();Bitmap scaled=bmp;int max=1600;if(bmp.getWidth()>max||bmp.getHeight()>max){float scale=Math.min((float)max/bmp.getWidth(),(float)max/bmp.getHeight());scaled=Bitmap.createScaledBitmap(bmp,Math.round(bmp.getWidth()*scale),Math.round(bmp.getHeight()*scale),true);}scaled.compress(Bitmap.CompressFormat.JPEG,82,out);photos.put(Base64.encodeToString(out.toByteArray(),Base64.NO_WRAP));if(scaled!=bmp)scaled.recycle();}op.put("photos_base64",photos);
+                store.enqueue("product_save",op);new Thread(()->{try{sync.sync();runOnUiThread(()->{toast("Oferta opublikowana na RentMor.pl.");siteProductsPage();});}catch(Exception e){runOnUiThread(()->toast("Nie udało się opublikować: "+e.getMessage()));}}).start();
+            }catch(Exception e){toast("Nie udało się przygotować oferty: "+e.getMessage());}
+        });
+        addButton("ANULUJ / WRÓĆ",()->sitePage());
+    }
+    private void pickProductPhotos(){
+        Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("image/*");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);startActivityForResult(i,4102);
+    }
 
     private void reservationPage() {
         root.removeAllViews(); root.setOrientation(1); root.setPadding(18,16,18,18); root.setBackgroundColor(0xfff5f6fa);
@@ -706,6 +790,12 @@ public class MainActivity extends Activity {
     }
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode==4102 && resultCode==RESULT_OK && data!=null) try {
+            productPhotos.clear();int added=0;
+            if(data.getClipData()!=null){android.content.ClipData clip=data.getClipData();for(int n=0;n<Math.min(6,clip.getItemCount());n++){android.net.Uri uri=clip.getItemAt(n).getUri();try(InputStream in=getContentResolver().openInputStream(uri)){Bitmap b=BitmapFactory.decodeStream(in);if(b!=null){productPhotos.add(b);added++;}}}}
+            else if(data.getData()!=null){try(InputStream in=getContentResolver().openInputStream(data.getData())){Bitmap b=BitmapFactory.decodeStream(in);if(b!=null){productPhotos.add(b);added++;}}}
+            if(productPhotoCount!=null)productPhotoCount.setText("Wybrano zdjęć: "+productPhotos.size());toast(added>0?"Dodano zdjęcia produktu.":"Nie udało się wczytać zdjęć.");
+        } catch(Exception e){toast("Błąd zdjęć produktu: "+e.getMessage());}
         if(requestCode==4101 && resultCode==RESULT_OK && data!=null) try {
             int added=0;
             if(data.getClipData()!=null){android.content.ClipData clip=data.getClipData();for(int n=0;n<clip.getItemCount();n++){android.net.Uri uri=clip.getItemAt(n).getUri();getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION);try(InputStream in=getContentResolver().openInputStream(uri)){Bitmap b=BitmapFactory.decodeStream(in);if(b!=null){issuePhotos.add(b);added++;}}}}
