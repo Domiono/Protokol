@@ -176,25 +176,58 @@ public class MainActivity extends Activity {
         if(!isOnline()){toast("Brak internetu. Pokazuję ostatnio pobrane dane.");done.run();return;}
         new Thread(()->{try{sync.sync();runOnUiThread(done);}catch(Exception e){runOnUiThread(()->{toast("Nie udało się pobrać danych strony: "+e.getMessage());done.run();});}}).start();
     }
+    private Handler siteLiveHandler;
+    private Runnable siteLiveRefresh;
     private void siteStatsPage() {
-        root.removeAllViews();TextView h=new TextView(this);h.setText("STATYSTYKI STRONY");h.setTextSize(23);h.setTypeface(null,1);h.setTextColor(0xff172235);root.addView(h);
-        TextView info=new TextView(this);info.setText("Dane z licznika RentMor.pl");info.setTextColor(0xff697386);info.setPadding(0,4,0,12);root.addView(info);
+        root.removeAllViews(); root.setPadding(14,14,14,18);
+        TextView h=new TextView(this);h.setText("STATYSTYKI STRONY");h.setTextSize(23);h.setTypeface(null,1);h.setTextColor(0xff172235);root.addView(h);
+        TextView info=new TextView(this);info.setText("Dane z licznika RentMor.pl");info.setTextColor(0xff697386);info.setPadding(0,4,0,10);root.addView(info);
         LinearLayout cards=new LinearLayout(this);cards.setOrientation(1);root.addView(cards);
-        Runnable render=()->{cards.removeAllViews();JSONObject st=siteStats();
+        final int[] range={7};
+        TextView chartTitle=new TextView(this);chartTitle.setText("ODSŁONY DZIEŃ PO DNIU");chartTitle.setTextSize(15);chartTitle.setTypeface(null,1);chartTitle.setTextColor(0xff526174);chartTitle.setPadding(2,16,2,8);root.addView(chartTitle);
+        LinearLayout rangeBar=new LinearLayout(this);rangeBar.setOrientation(0);root.addView(rangeBar);
+        LinearLayout chartCard=new LinearLayout(this);chartCard.setOrientation(1);chartCard.setPadding(12,12,12,12);chartCard.setBackground(roundBg(Color.WHITE,14));root.addView(chartCard);
+        final View[] chart={null};
+        final TextView[] liveLabel={null};
+        Runnable render=()->{
+            cards.removeAllViews();JSONObject st=siteStats();
+            JSONObject days=st.optJSONObject("days");if(days==null)days=new JSONObject();
+            String today=new SimpleDateFormat("yyyy-MM-dd",Locale.US).format(new Date());
+            long todayViews=days.optLong(today,0);
+            LinearLayout live=new LinearLayout(this);live.setOrientation(1);live.setPadding(14,12,14,12);live.setBackground(roundBg(0xffeaf8ef,13));
+            TextView liveHead=new TextView(this);liveHead.setText("DZISIAJ • ODSŁONY");liveHead.setTextSize(12);liveHead.setTypeface(null,1);liveHead.setTextColor(0xff267044);live.addView(liveHead);
+            TextView liveValue=new TextView(this);liveValue.setText(String.valueOf(todayViews));liveValue.setTextSize(29);liveValue.setTypeface(null,1);liveValue.setTextColor(0xff14532d);live.addView(liveValue);liveLabel[0]=liveValue;
+            TextView liveHint=new TextView(this);liveHint.setText("Automatyczne odświeżanie co 30 sekund");liveHint.setTextSize(11);liveHint.setTextColor(0xff43805b);live.addView(liveHint);cards.addView(live);
             addMetric(cards,"Wszystkie odsłony",String.valueOf(st.optLong("total_views",0)));
             addMetric(cards,"Unikalni odwiedzający",String.valueOf(st.optLong("unique_visitors",0)));
             addMetric(cards,"Kliknięcia telefonu",String.valueOf(st.optLong("total_phone_clicks",0)));
             JSONObject sources=st.optJSONObject("sources");long search=0,direct=0,other=0;
             if(sources!=null){Iterator<String> it=sources.keys();while(it.hasNext()){JSONObject day=sources.optJSONObject(it.next());if(day!=null){search+=day.optLong("search_social",0);direct+=day.optLong("direct",0);other+=day.optLong("other_ext",0);}}}
             addMetric(cards,"Wejścia z wyszukiwarki i social",String.valueOf(search));addMetric(cards,"Wejścia bezpośrednie",String.valueOf(direct));addMetric(cards,"Pozostałe źródła",String.valueOf(other));
-            TextView popular=new TextView(this);popular.setText("NAJPOPULARNIEJSZY SPRZĘT");popular.setTextSize(13);popular.setTypeface(null,1);popular.setTextColor(0xff526174);popular.setPadding(0,14,0,6);cards.addView(popular);
+            TextView popular=new TextView(this);popular.setText("NAJPOPULARNIEJSZY SPRZĘT");popular.setTextSize(14);popular.setTypeface(null,1);popular.setTextColor(0xff526174);popular.setPadding(2,16,2,8);cards.addView(popular);
             JSONObject pv=st.optJSONObject("product_views");if(pv==null||pv.length()==0){TextView empty=new TextView(this);empty.setText("Brak danych o odsłonach produktów.");cards.addView(empty);}else{
-                ArrayList<String> ids=new ArrayList<>();Iterator<String> it=pv.keys();while(it.hasNext())ids.add(it.next());Collections.sort(ids,(a,b)->Integer.compare(pv.optInt(b),pv.optInt(a)));
+                ArrayList<String> ids=new ArrayList<>();Iterator<String> it=pv.keys();while(it.hasNext())ids.add(it.next());Collections.sort(ids,(a,b)->Long.compare(pv.optLong(b),pv.optLong(a)));
                 JSONArray products=siteProducts();for(int i=0;i<Math.min(5,ids.size());i++){String id=ids.get(i),name=id;for(int j=0;j<products.length();j++){JSONObject p=products.optJSONObject(j);if(p!=null&&id.equals(p.optString("id"))){name=p.optString("name",id);break;}}addMetric(cards,name,pv.optString(id)+" odsłon");}
             }
+            chartCard.removeAllViews();
+            final ArrayList<String> labels=new ArrayList<>();final ArrayList<Integer> values=new ArrayList<>();
+            Calendar cal=Calendar.getInstance();cal.add(Calendar.DAY_OF_YEAR,-(range[0]-1));
+            SimpleDateFormat keyFormat=new SimpleDateFormat("yyyy-MM-dd",Locale.US),labelFormat=new SimpleDateFormat("dd.MM",Locale.getDefault());
+            for(int i=0;i<range[0];i++){String key=keyFormat.format(cal.getTime());labels.add(labelFormat.format(cal.getTime()));values.add((int)Math.min(Integer.MAX_VALUE,days.optLong(key,0)));cal.add(Calendar.DAY_OF_YEAR,1);}
+            View graph=new View(this){
+                Paint p=new Paint(3);
+                @Override protected void onDraw(Canvas canvas){super.onDraw(canvas);float w=getWidth(),h=getHeight(),left=38,top=18,bottom=34,right=10;float usableW=w-left-right,usableH=h-top-bottom;int max=1;for(int v:values)max=Math.max(max,v);p.setColor(0xffe5e9ef);p.setStrokeWidth(1);canvas.drawLine(left,top+usableH,left+usableW,top+usableH,p);canvas.drawLine(left,top,left+usableW,top,p);p.setTextSize(22);p.setColor(0xfff2bd16);float slot=usableW/Math.max(1,values.size());for(int i=0;i<values.size();i++){float bh=usableH*values.get(i)/(float)max;float x=left+i*slot+slot*.18f;canvas.drawRoundRect(x,top+usableH-bh,x+slot*.64f,top+usableH,5,5,p);if(values.size()<=14||i%5==0||i==values.size()-1){p.setColor(0xff657184);p.setTextSize(10);canvas.drawText(labels.get(i),x-5, h-9,p);}p.setColor(0xfff2bd16);}p.setColor(0xff657184);p.setTextSize(10);canvas.drawText(String.valueOf(max),2,top+5,p);canvas.drawText("0",18,top+usableH,p);}
+            };
+            chart[0]=graph;chartCard.addView(graph,new LinearLayout.LayoutParams(-1,dp(190)));
         };
-        refreshSiteData(render);addButton("⟳ ODŚWIEŻ",()->refreshSiteData(render));addButton("WRÓĆ",()->sitePage());
+        Runnable buildRanges=()->{rangeBar.removeAllViews();for(int days:new int[]{7,30,90}){Button b=new Button(this);b.setText(days+" DNI");brandButton(b,range[0]==days);b.setTextSize(12);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);lp.setMargins(2,2,2,8);rangeBar.addView(b,lp);b.setOnClickListener(v->{range[0]=days;buildRanges.run();render.run();});}};
+        buildRanges.run();render.run();refreshSiteData(render);
+        if(siteLiveHandler!=null&&siteLiveRefresh!=null)siteLiveHandler.removeCallbacks(siteLiveRefresh);
+        siteLiveHandler=new Handler(getMainLooper());siteLiveRefresh=()->{if(!isFinishing()&&root!=null){refreshSiteData(render);siteLiveHandler.postDelayed(siteLiveRefresh,30000);}};
+        siteLiveHandler.postDelayed(siteLiveRefresh,30000);
+        addButton("⟳ ODŚWIEŻ TERAZ",()->refreshSiteData(render));addButton("WRÓĆ",()->{if(siteLiveHandler!=null&&siteLiveRefresh!=null)siteLiveHandler.removeCallbacks(siteLiveRefresh);sitePage();});
     }
+    private int dp(int value){return (int)(value*getResources().getDisplayMetrics().density+0.5f);}
     private void addMetric(LinearLayout parent,String label,String value){
         LinearLayout card=new LinearLayout(this);card.setOrientation(1);card.setPadding(14,11,14,11);card.setBackground(roundBg(Color.WHITE,13));
         TextView a=new TextView(this);a.setText(label);a.setTextSize(12);a.setTextColor(0xff697386);card.addView(a);
@@ -215,25 +248,40 @@ public class MainActivity extends Activity {
         refreshSiteData(render);addButton("＋ DODAJ SPRZĘT",()->productForm(null));addButton("⟳ ODŚWIEŻ",()->refreshSiteData(render));addButton("WRÓĆ",()->sitePage());
     }
     private void productForm(JSONObject existing) {
-        productPhotos.clear();productPhotoCount=null;root.removeAllViews();root.setPadding(18,14,18,18);
-        boolean editing=existing!=null;TextView h=new TextView(this);h.setText(editing?"EDYTUJ OFERTĘ":"DODAJ SPRZĘT NA STRONĘ");h.setTextSize(22);h.setTypeface(null,1);h.setTextColor(0xff172235);root.addView(h);
-        EditText name=field("Nazwa sprzętu");EditText desc=field("Opis sprzętu");desc.setMinLines(3);
-        Spinner category=new Spinner(this);String[] cats={"budowlane","ogrodnicze","czyszczace"};String[] labels={"Budowlane","Ogrodnicze","Czyszczące"};category.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,labels));root.addView(category);
-        EditText price=field("Cena za dobę (zł)");price.setInputType(8194);EditText deposit=field("Kaucja (zł)");deposit.setInputType(8194);
-        EditText seoTitle=field("Tytuł SEO (opcjonalnie)");EditText seoDesc=field("Opis SEO (opcjonalnie)");EditText olx=field("Link do OLX (opcjonalnie)");
+        productPhotos.clear();productPhotoCount=null;root.removeAllViews();root.setPadding(16,14,16,18);
+        boolean editing=existing!=null;
+        TextView h=new TextView(this);h.setText(editing?"EDYTUJ OFERTĘ":"DODAJ SPRZĘT NA STRONĘ");h.setTextSize(23);h.setTypeface(null,1);h.setTextColor(0xff172235);root.addView(h);
+        TextView intro=new TextView(this);intro.setText("Uzupełnij dane oferty. Pola są podzielone na osobne sekcje, żeby łatwiej było je edytować.");intro.setTextSize(13);intro.setTextColor(0xff697386);intro.setPadding(0,5,0,14);root.addView(intro);
+        LinearLayout basic=productSection("1. PODSTAWOWE INFORMACJE","Nazwa, kategoria i opis sprzętu");
+        EditText name=productField(basic,"Nazwa sprzętu");Spinner category=new Spinner(this);String[] cats={"budowlane","ogrodnicze","czyszczace"};String[] labels={"Budowlane","Ogrodnicze","Czyszczące"};category.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,labels));addProductLabel(basic,"Kategoria");basic.addView(category,new LinearLayout.LayoutParams(-1,-2));
+        EditText desc=productField(basic,"Opis sprzętu");desc.setMinLines(5);desc.setGravity(Gravity.TOP|Gravity.START);
+        LinearLayout rental=productSection("2. WARUNKI WYNAJMU","Cena i zabezpieczenie wynajmu");
+        EditText price=productField(rental,"Cena za dobę (zł)");price.setInputType(8194);EditText deposit=productField(rental,"Kaucja (zł)");deposit.setInputType(8194);
+        LinearLayout seo=productSection("3. SEO I OGŁOSZENIE","Dane pomagające znaleźć ofertę w Google");
+        EditText seoTitle=productField(seo,"Tytuł SEO (opcjonalnie)");EditText seoDesc=productField(seo,"Opis SEO (opcjonalnie)");seoDesc.setMinLines(3);seoDesc.setGravity(Gravity.TOP|Gravity.START);EditText olx=productField(seo,"Link do OLX (opcjonalnie)");
+        LinearLayout photos=productSection("4. ZDJĘCIA","Dodaj maksymalnie 6 zdjęć produktu");
+        Button photo=new Button(this);photo.setText("WYBIERZ ZDJĘCIA");brandButton(photo,false);photos.addView(photo);productPhotoCount=new TextView(this);productPhotoCount.setText("Nie wybrano nowych zdjęć. Przy edycji dotychczasowe zdjęcia zostaną zachowane.");productPhotoCount.setTextSize(12);productPhotoCount.setTextColor(0xff697386);productPhotoCount.setPadding(0,8,0,2);photos.addView(productPhotoCount);photo.setOnClickListener(v->pickProductPhotos());
         if(editing){name.setText(existing.optString("name"));desc.setText(existing.optString("desc"));price.setText(existing.optString("price"));deposit.setText(existing.optString("deposit"));seoTitle.setText(existing.optString("seo_title"));seoDesc.setText(existing.optString("seo_description"));olx.setText(existing.optString("olx"));for(int i=0;i<cats.length;i++)if(cats[i].equals(existing.optString("category")))category.setSelection(i);}
-        Button photo=new Button(this);photo.setText("DODAJ ZDJĘCIA");brandButton(photo,false);root.addView(photo);productPhotoCount=new TextView(this);productPhotoCount.setText("Nie wybrano nowych zdjęć. Dotychczasowe zdjęcia zostaną zachowane.");productPhotoCount.setTextColor(0xff697386);root.addView(productPhotoCount);photo.setOnClickListener(v->pickProductPhotos());
+        TextView note=new TextView(this);note.setText("Po zapisaniu oferta zostanie opublikowana bezpośrednio na RentMor.pl.");note.setTextSize(12);note.setTextColor(0xff526174);note.setPadding(4,12,4,8);root.addView(note);
         addButton(editing?"ZAPISZ ZMIANY I OPUBLIKUJ":"OPUBLIKUJ NA RENTMOR.PL",()->{
             if(!isOnline()){toast("Do publikacji produktu potrzebny jest internet.");return;}
             String n=name.getText().toString().trim(),pr=price.getText().toString().trim(),de=deposit.getText().toString().trim();if(n.isEmpty()||pr.isEmpty()){toast("Podaj nazwę i cenę za dobę.");return;}
             try{JSONObject op=new JSONObject();if(editing)op.put("product_id",existing.optString("id"));
                 op.put("name",n);op.put("desc",desc.getText().toString());op.put("category",cats[category.getSelectedItemPosition()]);op.put("price",pr);op.put("deposit",de.isEmpty()?"0":de);op.put("seo_title",seoTitle.getText().toString());op.put("seo_description",seoDesc.getText().toString());op.put("olx",olx.getText().toString());
-                JSONArray photos=new JSONArray();for(Bitmap bmp:productPhotos){ByteArrayOutputStream out=new ByteArrayOutputStream();Bitmap scaled=bmp;int max=1600;if(bmp.getWidth()>max||bmp.getHeight()>max){float scale=Math.min((float)max/bmp.getWidth(),(float)max/bmp.getHeight());scaled=Bitmap.createScaledBitmap(bmp,Math.round(bmp.getWidth()*scale),Math.round(bmp.getHeight()*scale),true);}scaled.compress(Bitmap.CompressFormat.JPEG,82,out);photos.put(Base64.encodeToString(out.toByteArray(),Base64.NO_WRAP));if(scaled!=bmp)scaled.recycle();}op.put("photos_base64",photos);
+                JSONArray photoData=new JSONArray();for(Bitmap bmp:productPhotos){ByteArrayOutputStream out=new ByteArrayOutputStream();Bitmap scaled=bmp;int max=1600;if(bmp.getWidth()>max||bmp.getHeight()>max){float scale=Math.min((float)max/bmp.getWidth(),(float)max/bmp.getHeight());scaled=Bitmap.createScaledBitmap(bmp,Math.round(bmp.getWidth()*scale),Math.round(bmp.getHeight()*scale),true);}scaled.compress(Bitmap.CompressFormat.JPEG,82,out);photoData.put(Base64.encodeToString(out.toByteArray(),Base64.NO_WRAP));if(scaled!=bmp)scaled.recycle();}op.put("photos_base64",photoData);
                 store.enqueue("product_save",op);new Thread(()->{try{sync.sync();runOnUiThread(()->{toast("Oferta opublikowana na RentMor.pl.");siteProductsPage();});}catch(Exception e){runOnUiThread(()->toast("Nie udało się opublikować: "+e.getMessage()));}}).start();
             }catch(Exception e){toast("Nie udało się przygotować oferty: "+e.getMessage());}
         });
         addButton("ANULUJ / WRÓĆ",()->sitePage());
     }
+    private LinearLayout productSection(String title,String subtitle){
+        LinearLayout section=new LinearLayout(this);section.setOrientation(1);section.setPadding(14,12,14,14);section.setBackground(roundBg(Color.WHITE,15));
+        TextView h=new TextView(this);h.setText(title);h.setTextSize(14);h.setTypeface(null,1);h.setTextColor(0xff172235);section.addView(h);
+        TextView s=new TextView(this);s.setText(subtitle);s.setTextSize(12);s.setTextColor(0xff697386);s.setPadding(0,3,0,10);section.addView(s);
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=12;root.addView(section,lp);return section;
+    }
+    private void addProductLabel(LinearLayout parent,String label){TextView t=new TextView(this);t.setText(label);t.setTextSize(12);t.setTypeface(null,1);t.setTextColor(0xff526174);t.setPadding(0,7,0,2);parent.addView(t);}
+    private EditText productField(LinearLayout parent,String hint){addProductLabel(parent,hint);EditText e=new EditText(this);e.setSingleLine(false);e.setTextSize(15);e.setPadding(10,8,10,8);e.setBackground(roundBg(0xfff5f6fa,9));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=6;parent.addView(e,lp);e.setHint(hint);return e;}
     private void pickProductPhotos(){
         Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("image/*");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);startActivityForResult(i,4102);
     }
