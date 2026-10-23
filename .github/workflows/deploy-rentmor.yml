@@ -4,6 +4,7 @@ on:
     branches: [ main ]
     paths:
       - 'server/protocol_sync.php'
+      - 'server/admin.php'
       - '.github/workflows/deploy-rentmor.yml'
   workflow_dispatch:
 
@@ -35,7 +36,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y lftp
 
-      - name: Upload only protocol_sync.php over FTP
+      - name: Upload RentMor PHP files over FTP
         if: steps.config.outputs.enabled == 'true'
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
@@ -55,5 +56,6 @@ jobs:
             set net:timeout 20
             set ftp:passive-mode yes
             put server/protocol_sync.php -o protocol_sync.php
+            if [ -f server/admin.php ]; then put server/admin.php -o admin.php; else echo 'server/admin.php not present in repository; admin.php upload skipped'; fi
             bye
           '
