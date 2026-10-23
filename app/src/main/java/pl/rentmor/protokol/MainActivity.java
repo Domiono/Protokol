@@ -218,12 +218,13 @@ public class MainActivity extends Activity {
         b.setPadding(14,10,14,10);
     }
     private void compactReservationButton(Button b,boolean primary){
-        b.setAllCaps(false);b.setSingleLine(true);b.setTextSize(11);b.setTypeface(null,1);
+        b.setAllCaps(false);b.setSingleLine(true);b.setTextSize(12);b.setTypeface(null,1);
         b.setTextColor(0xff172235);b.setGravity(Gravity.CENTER);b.setIncludeFontPadding(false);
+        b.setEllipsize(android.text.TextUtils.TruncateAt.END);
         android.graphics.drawable.GradientDrawable bg=new android.graphics.drawable.GradientDrawable();
-        bg.setColor(primary?0xffffcc18:0xffedf0f5);bg.setCornerRadius(8f);
-        bg.setStroke(1,primary?0xfff0b900:0xffdce1e9);b.setBackground(bg);
-        b.setPadding(4,0,4,0);b.setMinHeight(0);b.setMinimumHeight(0);
+        bg.setColor(primary?0xffffcc18:0xffedf0f5);bg.setCornerRadius(dp(10));
+        bg.setStroke(dp(1),primary?0xfff0b900:0xffdce1e9);b.setBackground(bg);
+        b.setPadding(dp(6),dp(7),dp(6),dp(7));b.setMinHeight(dp(45));b.setMinimumHeight(dp(45));
         b.setMinWidth(0);b.setMinimumWidth(0);
         if(android.os.Build.VERSION.SDK_INT>=21){b.setStateListAnimator(null);b.setElevation(0f);}
     }
@@ -668,24 +669,66 @@ public class MainActivity extends Activity {
     }
 
     private void reservationPage() {
-        root.removeAllViews(); root.setOrientation(1); root.setPadding(18,16,18,18); root.setBackgroundColor(0xfff5f6fa);
+        root.removeAllViews(); root.setOrientation(1); root.setPadding(dp(13),dp(15),dp(13),dp(22)); root.setBackgroundColor(0xfff5f6fa);
         TextView heading=new TextView(this); heading.setText("REZERWACJE"); heading.setTextSize(25); heading.setTypeface(null,1); heading.setTextColor(0xff172235); root.addView(heading);
+        TextView pageHint=new TextView(this);pageHint.setText("Odbiory, terminy i rozliczenia w jednym miejscu");
+        pageHint.setTextSize(12);pageHint.setTextColor(0xff697386);
+        pageHint.setPadding(0,dp(2),0,dp(10));root.addView(pageHint);
         Calendar today=Calendar.getInstance();
         final String[] month={String.format(Locale.US,"%04d-%02d",today.get(Calendar.YEAR),today.get(Calendar.MONTH)+1)};
-        TextView monthLabel=new TextView(this); monthLabel.setTextSize(16); monthLabel.setTextColor(0xff526174); monthLabel.setPadding(0,8,0,8); root.addView(monthLabel);
+        TextView monthLabel=new TextView(this); monthLabel.setTextSize(15);monthLabel.setTypeface(null,1);monthLabel.setTextColor(0xff172235);monthLabel.setPadding(0,dp(5),0,dp(8)); root.addView(monthLabel);
         LinearLayout monthBar=new LinearLayout(this); monthBar.setGravity(Gravity.CENTER_VERTICAL);
         Button previous=new Button(this); previous.setText("‹"); brandButton(previous,false); Button selectMonth=new Button(this); selectMonth.setText("Wybierz miesiąc"); brandButton(selectMonth,false); Button next=new Button(this); next.setText("›"); brandButton(next,false);
-        monthBar.addView(previous); monthBar.addView(selectMonth,new LinearLayout.LayoutParams(0,-2,1)); monthBar.addView(next); root.addView(monthBar);
+        previous.setTextSize(18);next.setTextSize(18);
+        previous.setMinWidth(0);next.setMinWidth(0);
+        monthBar.addView(previous,new LinearLayout.LayoutParams(dp(49),dp(48)));
+        LinearLayout.LayoutParams monthPickParams=new LinearLayout.LayoutParams(0,dp(48),1);
+        monthPickParams.leftMargin=dp(5);monthPickParams.rightMargin=dp(5);
+        selectMonth.setTextSize(13);
+        monthBar.addView(selectMonth,monthPickParams);
+        monthBar.addView(next,new LinearLayout.LayoutParams(dp(49),dp(48)));
+        root.addView(monthBar);
+
+        Button toggleForm=new Button(this);toggleForm.setText("＋ NOWA REZERWACJA");
+        brandButton(toggleForm,true);
+        LinearLayout.LayoutParams toggleParams=new LinearLayout.LayoutParams(-1,dp(53));
+        toggleParams.topMargin=dp(12);toggleParams.bottomMargin=dp(7);root.addView(toggleForm,toggleParams);
+        LinearLayout form=new LinearLayout(this);form.setOrientation(1);
+        form.setPadding(dp(14),dp(14),dp(14),dp(14));form.setBackground(roundBg(Color.WHITE,15));
+        LinearLayout.LayoutParams formParams=new LinearLayout.LayoutParams(-1,-2);formParams.bottomMargin=dp(10);
+        root.addView(form,formParams);form.setVisibility(View.GONE);
+        toggleForm.setOnClickListener(v->{
+            boolean open=form.getVisibility()!=View.VISIBLE;
+            form.setVisibility(open?View.VISIBLE:View.GONE);
+            toggleForm.setText(open?"− ZAMKNIJ FORMULARZ":"＋ NOWA REZERWACJA");
+            if(open)form.post(()->{form.requestFocus();});
+        });
+        TextView formHeading=new TextView(this);formHeading.setText("NOWA REZERWACJA");
+        formHeading.setTextSize(16);formHeading.setTypeface(null,1);
+        formHeading.setTextColor(0xff172235);form.addView(formHeading);
+        TextView formHint=new TextView(this);formHint.setText("Wybierz termin, sprzęt i dane kontaktowe klienta.");
+        formHint.setTextSize(12);formHint.setTextColor(0xff697386);
+        formHint.setPadding(0,dp(3),0,dp(10));form.addView(formHint);
+        reservationFormLabel(form,"TERMIN WYNAJMU");
 
         final Calendar[] reservationStart={ (Calendar)today.clone() },reservationEnd={ (Calendar)today.clone() };
         LinearLayout dateRange=new LinearLayout(this);dateRange.setGravity(Gravity.CENTER_VERTICAL);
         Button startDateButton=new Button(this);Button endDateButton=new Button(this);brandButton(startDateButton,false);brandButton(endDateButton,false);
         Runnable updateDateButtons=()->{SimpleDateFormat df=new SimpleDateFormat("dd.MM.yyyy",Locale.getDefault());startDateButton.setText("OD  "+df.format(reservationStart[0].getTime()));endDateButton.setText("DO  "+df.format(reservationEnd[0].getTime()));};
-        dateRange.addView(startDateButton,new LinearLayout.LayoutParams(0,-2,1));dateRange.addView(endDateButton,new LinearLayout.LayoutParams(0,-2,1));root.addView(dateRange);
+        startDateButton.setTextSize(12);endDateButton.setTextSize(12);
+        LinearLayout.LayoutParams startParams=new LinearLayout.LayoutParams(0,dp(50),1);
+        startParams.rightMargin=dp(5);
+        dateRange.addView(startDateButton,startParams);
+        dateRange.addView(endDateButton,new LinearLayout.LayoutParams(0,dp(50),1));
+        form.addView(dateRange);
         startDateButton.setOnClickListener(v->{Calendar c=(Calendar)reservationStart[0].clone();new android.app.DatePickerDialog(this,(view,y,m,d)->{reservationStart[0].set(y,m,d);if(reservationEnd[0].before(reservationStart[0]))reservationEnd[0]=(Calendar)reservationStart[0].clone();updateDateButtons.run();},c.get(Calendar.YEAR),c.get(Calendar.MONTH),c.get(Calendar.DAY_OF_MONTH)).show();});
         endDateButton.setOnClickListener(v->{Calendar c=(Calendar)reservationEnd[0].clone();new android.app.DatePickerDialog(this,(view,y,m,d)->{Calendar chosen=(Calendar)reservationEnd[0].clone();chosen.set(y,m,d);if(chosen.before(reservationStart[0])){toast("Data zakończenia nie może być wcześniejsza niż początek.");return;}reservationEnd[0]=chosen;updateDateButtons.run();},c.get(Calendar.YEAR),c.get(Calendar.MONTH),c.get(Calendar.DAY_OF_MONTH)).show();});
         updateDateButtons.run();
-        Spinner equipment=new Spinner(this); root.addView(equipment);
+        reservationFormLabel(form,"SPRZĘT");
+        Spinner equipment=new Spinner(this);
+        equipment.setPadding(dp(4),dp(7),dp(4),dp(7));
+        equipment.setBackground(roundBg(0xfff3f5f9,9));
+        form.addView(equipment,new LinearLayout.LayoutParams(-1,dp(52)));
         Runnable fillEquipment=()->{
             JSONArray a=store.equipment(); ArrayList<String> names=new ArrayList<>(); names.add("— Wybierz sprzęt —");
             for(int i=0;i<a.length();i++){String n=a.optString(i).trim();if(!n.isEmpty())names.add(n);}
@@ -705,66 +748,138 @@ public class MainActivity extends Activity {
                     }catch(Exception ex){toast("Nie udało się dodać sprzętu.");}
                 }).show();
         });
-        EditText time=new EditText(this);time.setSingleLine(true);time.setHint("Godzina odbioru (np. 18:30)");time.setFocusable(false);time.setClickable(true);time.setCursorVisible(false);root.addView(time);
+        View addEquipmentAction=root.getChildAt(root.getChildCount()-1);
+        root.removeView(addEquipmentAction);
+        form.addView(addEquipmentAction,new LinearLayout.LayoutParams(-1,dp(46)));
+        reservationFormLabel(form,"GODZINA ODBIORU");
+        EditText time=new EditText(this);time.setSingleLine(true);time.setHint("Wybierz godzinę odbioru");
+        time.setTextSize(15);time.setPadding(dp(12),dp(10),dp(12),dp(10));
+        time.setBackground(roundBg(0xfff3f5f9,9));
+        time.setFocusable(false);time.setClickable(true);time.setCursorVisible(false);
+        form.addView(time,new LinearLayout.LayoutParams(-1,dp(49)));
         time.setOnClickListener(v->{int hour=18,minute=0;String current=time.getText().toString().trim();if(current.matches("\\d{1,2}:[0-5]\\d")){String[] parts=current.split(":");hour=Integer.parseInt(parts[0]);minute=Integer.parseInt(parts[1]);}new android.app.TimePickerDialog(this,(picker,h,m)->time.setText(String.format(Locale.US,"%02d:%02d",h,m)),hour,minute,true).show();});
-        AutoCompleteTextView phone=new AutoCompleteTextView(this);phone.setSingleLine(true);phone.setHint("Telefon lub nick z OLX");phone.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        reservationFormLabel(form,"KONTAKT DO KLIENTA");
+        AutoCompleteTextView phone=new AutoCompleteTextView(this);
+        phone.setSingleLine(true);phone.setHint("Telefon lub nick z OLX");
+        phone.setTextSize(15);phone.setPadding(dp(12),dp(10),dp(12),dp(10));
+        phone.setBackground(roundBg(0xfff3f5f9,9));
+        phone.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         ArrayList<String> knownPhones=new ArrayList<>();JSONArray knownCustomers=store.customers();for(int ci=0;ci<knownCustomers.length();ci++){JSONObject cc=knownCustomers.optJSONObject(ci);if(cc!=null&&!cc.optString("phone").isEmpty())knownPhones.add(cc.optString("phone"));}
-        ArrayAdapter<String> phoneAdapter=new ArrayAdapter<>(this,android.R.layout.simple_dropdown_item_1line,knownPhones);phone.setAdapter(phoneAdapter);phone.setThreshold(1);root.addView(phone);
-        EditText customerName=field("Imię i nazwisko / firma klienta (opcjonalnie)");
+        ArrayAdapter<String> phoneAdapter=new ArrayAdapter<>(this,android.R.layout.simple_dropdown_item_1line,knownPhones);phone.setAdapter(phoneAdapter);phone.setThreshold(1);
+        form.addView(phone,new LinearLayout.LayoutParams(-1,dp(49)));
+        reservationFormLabel(form,"NAZWA KLIENTA (OPCJONALNIE)");
+        EditText customerName=new EditText(this);customerName.setSingleLine(true);
+        customerName.setTextSize(15);customerName.setHint("Imię, firma lub nick");
+        customerName.setPadding(dp(12),dp(10),dp(12),dp(10));
+        customerName.setBackground(roundBg(0xfff3f5f9,9));
+        form.addView(customerName,new LinearLayout.LayoutParams(-1,dp(49)));
         phone.setOnItemClickListener((parent,view,position,id)->{String selected=String.valueOf(parent.getItemAtPosition(position));String key=customerPhoneKey(selected);for(int ci=0;ci<knownCustomers.length();ci++){JSONObject cc=knownCustomers.optJSONObject(ci);if(cc!=null&&customerPhoneKey(cc.optString("phone")).equals(key)){customerName.setText(cc.optString("name",""));break;}}});
-        TextView hint=new TextView(this);hint.setText("Ustaw datę OD–DO. Rezerwacja może obejmować kilka dni.");hint.setTextSize(12);hint.setTextColor(0xff718096);root.addView(hint);
+        TextView hint=new TextView(this);hint.setText("Ustaw datę OD–DO. Rezerwacja może obejmować kilka dni.");hint.setTextSize(11);hint.setTextColor(0xff718096);hint.setPadding(0,dp(10),0,dp(4));form.addView(hint);
 
-        ScrollView scroll=new ScrollView(this);LinearLayout list=new LinearLayout(this);list.setOrientation(1);list.setPadding(0,10,0,8);scroll.addView(list);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        LinearLayout summaryRow=new LinearLayout(this);summaryRow.setOrientation(1);
+        LinearLayout.LayoutParams summaryParams=new LinearLayout.LayoutParams(-1,-2);
+        summaryParams.topMargin=dp(13);summaryParams.bottomMargin=dp(8);root.addView(summaryRow,summaryParams);
+        TextView listHeading=new TextView(this);listHeading.setText("REZERWACJE W MIESIĄCU");
+        listHeading.setTextSize(13);listHeading.setTypeface(null,1);listHeading.setTextColor(0xff172235);
+        summaryRow.addView(listHeading);
+        TextView reservationSummary=new TextView(this);
+        reservationSummary.setTextSize(12);reservationSummary.setTextColor(0xff697386);
+        reservationSummary.setPadding(0,dp(3),0,0);summaryRow.addView(reservationSummary);
+        LinearLayout list=new LinearLayout(this);list.setOrientation(1);
+        list.setPadding(dp(2),dp(2),dp(2),dp(10));root.addView(list,new LinearLayout.LayoutParams(-1,-2));
         final Runnable[] render=new Runnable[1];
         render[0]=()->{
             Calendar selected=parseReservationMonth(month[0]);monthLabel.setText(new SimpleDateFormat("LLLL yyyy",new Locale("pl","PL")).format(selected.getTime()).toUpperCase(new Locale("pl","PL")));list.removeAllViews();
             JSONArray data=store.reservations(month[0]);ArrayList<JSONObject> items=new ArrayList<>();for(int i=0;i<data.length();i++){JSONObject item=data.optJSONObject(i);if(item!=null)items.add(item);}
             Collections.sort(items,(a,b)->{int issued=Boolean.compare(b.optBoolean("done"),a.optBoolean("done"));if(issued!=0)return issued;String da=a.optString("start_date","").trim(),db=b.optString("start_date","").trim();if(!da.matches("\\d{4}-\\d{2}-\\d{2}")){java.util.regex.Matcher ma=java.util.regex.Pattern.compile("(\\d{4}-\\d{2}-\\d{2})").matcher(a.optString("text",""));da=ma.find()?ma.group(1):"9999-99-99";}if(!db.matches("\\d{4}-\\d{2}-\\d{2}")){java.util.regex.Matcher mb=java.util.regex.Pattern.compile("(\\d{4}-\\d{2}-\\d{2})").matcher(b.optString("text",""));db=mb.find()?mb.group(1):"9999-99-99";}int dateOrder=da.compareTo(db);if(dateOrder!=0)return dateOrder;return reservationTimeForItem(a).compareTo(reservationTimeForItem(b));});
+            int active=0,issuedCount=0;
+            for(JSONObject reservation:items){
+                if(reservation.optBoolean("settled"))continue;
+                active++;
+                if(reservation.optBoolean("done"))issuedCount++;
+            }
+            reservationSummary.setText("Aktywne: "+active+"   •   Wydane: "+issuedCount+"   •   Do wydania: "+(active-issuedCount));
             int shown=0;
             for(JSONObject item:items){if(item.optBoolean("settled"))continue;shown++;
                 boolean done=item.optBoolean("done");
-                LinearLayout row=new LinearLayout(this);row.setOrientation(1);row.setPadding(10,8,10,8);row.setBackground(roundBg(Color.WHITE,16));row.setElevation(2);
-                LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);
-                TextView dayNumber=new TextView(this);dayNumber.setText(reservationDateRangeShort(item));dayNumber.setTextSize(21);dayNumber.setTypeface(null,1);dayNumber.setTextColor(0xff172235);dayNumber.setGravity(Gravity.CENTER);dayNumber.setBackground(roundBg(0xffe8f0fa,10));LinearLayout.LayoutParams dp=new LinearLayout.LayoutParams(40,40);dp.rightMargin=8;head.addView(dayNumber,dp);
-                LinearLayout dayCol=new LinearLayout(this);dayCol.setOrientation(1);dayCol.setGravity(Gravity.CENTER_VERTICAL);
-                TextView dayCaption=new TextView(this);dayCaption.setText(reservationMonthRangeLabel(item));dayCaption.setTextSize(12);dayCaption.setTextColor(0xff697386);dayCol.addView(dayCaption);
-                TextView dayLabel=new TextView(this);dayLabel.setText("OKRES REZERWACJI");dayLabel.setTextSize(10);dayLabel.setTypeface(null,1);dayLabel.setTextColor(0xff172235);dayCol.addView(dayLabel);head.addView(dayCol,new LinearLayout.LayoutParams(0,-2,1));
-                LinearLayout statusGroup=new LinearLayout(this);statusGroup.setGravity(Gravity.CENTER_VERTICAL);statusGroup.setPadding(2,0,0,0);
-                TextView state=new TextView(this);state.setText(done?"WYDANE":"DO WYDANIA");state.setTextSize(10);state.setTypeface(null,1);state.setTextColor(done?0xff166534:0xff925400);state.setPadding(8,7,8,7);state.setBackground(roundBg(done?0xffe7f5e9:0xfffff1d6,8));statusGroup.addView(state);
-                Button statusAction=new Button(this);statusAction.setText(done?"COFNIJ":"WYDANO");statusAction.setTextSize(10);statusAction.setAllCaps(false);statusAction.setMinWidth(0);statusAction.setMinimumWidth(0);statusAction.setPadding(9,4,9,4);statusAction.setTextColor(Color.WHITE);statusAction.setBackground(roundBg(done?0xff64748b:0xff16a34a,8));
-                LinearLayout.LayoutParams statusActionParams=new LinearLayout.LayoutParams(-2,32);statusActionParams.leftMargin=5;statusGroup.addView(statusAction,statusActionParams);
-                statusAction.setOnClickListener(v->{try{boolean nextDone=!item.optBoolean("done");item.put("done",nextDone);store.saveReservation(item);store.enqueue("reservation_save",item);ReservationsWidgetProvider.refresh(this);toast(nextDone?"Oznaczono jako wydane.":"Przywrócono status DO WYDANIA.");if(isOnline())syncNow();render[0].run();}catch(Exception ex){toast("Nie udało się zmienić statusu.");}});
-                head.addView(statusGroup);row.addView(head);
+                LinearLayout row=new LinearLayout(this);row.setOrientation(1);
+                row.setPadding(dp(14),dp(13),dp(14),dp(14));
+                row.setBackground(roundBg(Color.WHITE,15));row.setElevation(dp(2));
+                LinearLayout head=new LinearLayout(this);head.setOrientation(0);
+                head.setGravity(Gravity.CENTER_VERTICAL);
+                TextView cardLabel=new TextView(this);cardLabel.setText("REZERWACJA  •  "+
+                    reservationMonthRangeLabel(item).toUpperCase(new Locale("pl","PL")));
+                cardLabel.setTextSize(11);cardLabel.setTypeface(null,1);cardLabel.setTextColor(0xff697386);
+                head.addView(cardLabel,new LinearLayout.LayoutParams(0,-2,1));
+                TextView state=new TextView(this);state.setText(done?"✓ WYDANE":"DO WYDANIA");
+                state.setTextSize(11);state.setTypeface(null,1);
+                state.setTextColor(done?0xff166534:0xff925400);
+                state.setPadding(dp(9),dp(7),dp(9),dp(7));
+                state.setBackground(roundBg(done?0xffe7f5e9:0xfffff1d6,9));
+                head.addView(state);
+                row.addView(head);
+                Button statusAction=new Button(this);
+                statusAction.setText(done?"COFNIJ WYDANIE":"OZNACZ WYDANIE");
+                compactReservationButton(statusAction,false);
+                statusAction.setOnClickListener(v->{
+                    try{
+                        boolean nextDone=!item.optBoolean("done");item.put("done",nextDone);
+                        store.saveReservation(item);store.enqueue("reservation_save",item);
+                        ReservationsWidgetProvider.refresh(this);
+                        toast(nextDone?"Oznaczono jako wydane.":"Przywrócono status DO WYDANIA.");
+                        if(isOnline())syncNow();render[0].run();
+                    }catch(Exception ex){toast("Nie udało się zmienić statusu.");}
+                });
                 String dateLabel=reservationDateRangeLabel(item);
-                LinearLayout dateChips=new LinearLayout(this);dateChips.setGravity(Gravity.CENTER_VERTICAL);dateChips.setPadding(0,6,0,0);
-                String[] dateParts=dateLabel.split("\\s+•\\s+");
-                if(dateParts.length==2){
-                    TextView fromChip=new TextView(this);fromChip.setText(dateParts[0]);fromChip.setTextSize(12);fromChip.setTypeface(null,1);fromChip.setTextColor(0xff087e8b);fromChip.setPadding(8,5,8,5);fromChip.setBackground(roundBg(0xffe3f6f5,9));
-                    TextView toChip=new TextView(this);toChip.setText(dateParts[1]);toChip.setTextSize(12);toChip.setTypeface(null,1);toChip.setTextColor(0xff245b91);toChip.setPadding(8,5,8,5);toChip.setBackground(roundBg(0xffe9f1fb,9));
-                    dateChips.addView(fromChip);LinearLayout.LayoutParams toParams=new LinearLayout.LayoutParams(-2,-2);toParams.leftMargin=7;dateChips.addView(toChip,toParams);
-                }else{TextView legacyDate=new TextView(this);legacyDate.setText(dateLabel);legacyDate.setTextSize(12);legacyDate.setTypeface(null,1);legacyDate.setTextColor(0xff526174);legacyDate.setPadding(0,8,0,0);dateChips.addView(legacyDate);}
-                row.addView(dateChips);
-                TextView equipmentTitle=new TextView(this);equipmentTitle.setText(reservationEquipment(item));equipmentTitle.setTextSize(16);equipmentTitle.setTypeface(null,1);equipmentTitle.setTextColor(done?0xff697386:0xff172b43);equipmentTitle.setPadding(0,6,0,5);row.addView(equipmentTitle);
+                TextView dateRangeLabel=new TextView(this);
+                dateRangeLabel.setText(dateLabel.replace(" • ","\\n"));
+                dateRangeLabel.setTextSize(13);dateRangeLabel.setTypeface(null,1);
+                dateRangeLabel.setTextColor(0xff245b91);dateRangeLabel.setLineSpacing(dp(2),1f);
+                dateRangeLabel.setPadding(dp(11),dp(9),dp(11),dp(9));
+                dateRangeLabel.setBackground(roundBg(0xffedf4fd,10));
+                LinearLayout.LayoutParams dateLp=new LinearLayout.LayoutParams(-1,-2);
+                dateLp.topMargin=dp(11);row.addView(dateRangeLabel,dateLp);
+                TextView equipmentTitle=new TextView(this);equipmentTitle.setText(reservationEquipment(item));equipmentTitle.setTextSize(17);equipmentTitle.setTypeface(null,1);equipmentTitle.setTextColor(0xff172235);equipmentTitle.setPadding(0,dp(12),0,dp(8));row.addView(equipmentTitle);
                 String cardCustomerName=item.optString("customer_name",item.optString("client","")).trim();
-                if(!cardCustomerName.isEmpty()){TextView customerText=new TextView(this);customerText.setText("KLIENT   "+cardCustomerName);customerText.setTextSize(13);customerText.setTextColor(0xff526174);customerText.setPadding(0,0,0,4);row.addView(customerText);}
+                if(!cardCustomerName.isEmpty()){TextView customerText=new TextView(this);customerText.setText("KLIENT:  "+cardCustomerName);customerText.setTextSize(13);customerText.setTextColor(0xff526174);customerText.setPadding(0,0,0,4);row.addView(customerText);}
                 LinearLayout details=new LinearLayout(this);details.setGravity(Gravity.CENTER_VERTICAL);details.setPadding(0,0,0,5);
                 TextView timeBadge=new TextView(this);String timeText=reservationTimeForItem(item);timeBadge.setText("◷  "+(timeText.isEmpty()?"GODZINA NIEUSTALONA":timeText));timeBadge.setTextSize(12);timeBadge.setTypeface(null,1);timeBadge.setTextColor(0xff7c4a03);timeBadge.setPadding(8,5,8,5);timeBadge.setBackground(roundBg(0xfffff3df,9));details.addView(timeBadge);row.addView(details);
                 String ph=reservationPhoneForItem(item);if(!ph.isEmpty()){
-                    TextView phoneText=new TextView(this);phoneText.setText((isPhoneNumber(ph)?"TELEFON   ":"KLIENT / OLX   ")+ph);phoneText.setTextSize(13);phoneText.setTypeface(null,1);phoneText.setTextColor(0xff172235);phoneText.setPadding(0,0,0,4);row.addView(phoneText);
+                    TextView phoneText=new TextView(this);phoneText.setText((isPhoneNumber(ph)?"TELEFON:  ":"KONTAKT OLX:  ")+ph);phoneText.setTextSize(13);phoneText.setTypeface(null,1);phoneText.setTextColor(0xff172235);phoneText.setPadding(0,0,0,4);row.addView(phoneText);
                 }
                 LinearLayout actions=new LinearLayout(this);actions.setGravity(Gravity.CENTER_VERTICAL);
-                Button edit=new Button(this);edit.setText("EDYTUJ");compactReservationButton(edit,false);actions.addView(edit,new LinearLayout.LayoutParams(0,42,1));
-                Button settle=new Button(this);settle.setText("ROZLICZ");compactReservationButton(settle,true);actions.addView(settle,new LinearLayout.LayoutParams(0,42,1));settle.setEnabled("admin".equals(getSharedPreferences("rentmor",0).getString("role","")));row.addView(actions);
+                Button edit=new Button(this);edit.setText("EDYTUJ");compactReservationButton(edit,false);
+                LinearLayout.LayoutParams editLp=new LinearLayout.LayoutParams(0,dp(48),1);
+                editLp.rightMargin=dp(5);actions.addView(edit,editLp);
+                Button settle=new Button(this);settle.setText("ROZLICZ");compactReservationButton(settle,true);
+                actions.addView(settle,new LinearLayout.LayoutParams(0,dp(48),1));
+                settle.setEnabled("admin".equals(getSharedPreferences("rentmor",0).getString("role","")));
+                LinearLayout.LayoutParams actionsLp=new LinearLayout.LayoutParams(-1,-2);
+                actionsLp.topMargin=dp(10);row.addView(actions,actionsLp);
                 if(isPhoneNumber(ph)){
                     LinearLayout contactActions=new LinearLayout(this);contactActions.setGravity(Gravity.CENTER_VERTICAL);
-                    Button sms=new Button(this);sms.setText("WIADOMOŚĆ");compactReservationButton(sms,false);contactActions.addView(sms,new LinearLayout.LayoutParams(0,42,1));
-                    Button call=new Button(this);call.setText("ZADZWOŃ");compactReservationButton(call,true);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,42,1);cp.leftMargin=7;contactActions.addView(call,cp);row.addView(contactActions);
+                    Button sms=new Button(this);sms.setText("SMS");compactReservationButton(sms,false);
+                    LinearLayout.LayoutParams smsLp=new LinearLayout.LayoutParams(0,dp(48),1);
+                    smsLp.rightMargin=dp(5);contactActions.addView(sms,smsLp);
+                    Button call=new Button(this);call.setText("ZADZWOŃ");compactReservationButton(call,false);
+                    contactActions.addView(call,new LinearLayout.LayoutParams(0,dp(48),1));
+                    LinearLayout.LayoutParams contactLp=new LinearLayout.LayoutParams(-1,-2);
+                    contactLp.topMargin=dp(6);row.addView(contactActions,contactLp);
                     sms.setOnClickListener(v->{try{android.content.Intent intent=new android.content.Intent(android.content.Intent.ACTION_SENDTO,android.net.Uri.fromParts("smsto",ph.replaceAll("[^+0-9]",""),null));intent.putExtra("sms_body","Dzień dobry, kontaktuję się w sprawie rezerwacji sprzętu w RentMor.");startActivity(intent);}catch(Exception ex){toast("Nie można otworzyć wiadomości.");}});
                     call.setOnClickListener(v->{try{startActivity(new android.content.Intent(android.content.Intent.ACTION_DIAL,android.net.Uri.fromParts("tel",ph.replaceAll("[^+0-9]",""),null)));}catch(Exception ex){toast("Nie można otworzyć telefonu.");}});
                 }
-                Button delete=new Button(this);delete.setText("USUŃ REZERWACJĘ");compactReservationButton(delete,false);LinearLayout.LayoutParams deleteParams=new LinearLayout.LayoutParams(-1,40);deleteParams.topMargin=3;row.addView(delete,deleteParams);
+                LinearLayout statusRow=new LinearLayout(this);statusRow.setGravity(Gravity.CENTER_VERTICAL);
+                LinearLayout.LayoutParams statusLp=new LinearLayout.LayoutParams(0,dp(45),1);
+                statusLp.rightMargin=dp(5);statusRow.addView(statusAction,statusLp);
+                Button delete=new Button(this);delete.setText("USUŃ");compactReservationButton(delete,false);
+                delete.setTextColor(0xff9d3542);
+                android.graphics.drawable.GradientDrawable removeBg=roundBg(0xfffff1f2,10);
+                removeBg.setStroke(dp(1),0xfff4c8cb);delete.setBackground(removeBg);
+                statusRow.addView(delete,new LinearLayout.LayoutParams(0,dp(45),1));
+                LinearLayout.LayoutParams statusRowLp=new LinearLayout.LayoutParams(-1,-2);
+                statusRowLp.topMargin=dp(7);row.addView(statusRow,statusRowLp);
                 delete.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("Usunąć rezerwację?").setMessage("Rezerwacja zostanie usunięta z aplikacji i po synchronizacji z serwera. Tej operacji nie można cofnąć.").setNegativeButton("Anuluj",null).setPositiveButton("Usuń",(dialog,which)->{try{JSONObject op=new JSONObject();op.put("id",item.optString("id"));store.enqueue("reservation_delete",op);store.deleteReservation(item.optString("id"));ReservationsWidgetProvider.refresh(this);render[0].run();toast("Usunięto rezerwację.");if(isOnline())syncNow();}catch(Exception ex){toast("Nie udało się usunąć rezerwacji.");}}).show());
-                LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.bottomMargin=7;list.addView(row,rp);
+                LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.bottomMargin=dp(12);list.addView(row,rp);
                 edit.setOnClickListener(v->{
                     String raw=item.optString("text","");
                     String fromValue=item.optString("start_date","").trim(),toValue=item.optString("end_date","").trim();
@@ -791,7 +906,7 @@ public class MainActivity extends Activity {
                     EditText customerNameEdit=new EditText(this);customerNameEdit.setSingleLine(true);customerNameEdit.setHint("Imię i nazwisko / firma klienta");customerNameEdit.setText(item.optString("customer_name",item.optString("client","")));f.addView(customerNameEdit);
                     EditText phoneEdit=new EditText(this);phoneEdit.setSingleLine(true);phoneEdit.setHint("Telefon lub nick z OLX");phoneEdit.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);phoneEdit.setText(reservationPhoneForItem(item));f.addView(phoneEdit);
                     TextView info=new TextView(this);info.setText("Możesz zmienić termin, sprzęt i dane kontaktowe klienta.");info.setTextSize(12);info.setTextColor(0xff718096);info.setPadding(0,6,0,0);f.addView(info);
-                    new AlertDialog.Builder(this).setTitle("Edytuj rezerwację").setView(f).setNegativeButton("Anuluj",null).setPositiveButton("Zapisz",(d,w)->{
+                    new AlertDialog.Builder(this).setTitle("Edytuj rezerwację").setView(new ScrollView(this){{addView(f);}}).setNegativeButton("Anuluj",null).setPositiveButton("Zapisz",(d,w)->{
                         try{
                             String entered=timeEdit.getText().toString().trim(),normalizedTime="";
                             if(!entered.isEmpty()){
@@ -823,7 +938,7 @@ public class MainActivity extends Activity {
                     new AlertDialog.Builder(this).setTitle("Rozlicz najem").setMessage(item.optString("text")).setView(form).setNegativeButton("Anuluj",null).setPositiveButton("Zapisz rozliczenie",(d,w)->{try{String iv=income.getText().toString().trim().replace(',','.');String lv=loss.getText().toString().trim().replace(',','.');double earned=iv.isEmpty()?0:Double.parseDouble(iv),cost=lv.isEmpty()?0:Double.parseDouble(lv);if(earned<0||cost<0){toast("Kwoty nie mogą być ujemne.");return;}item.put("settled",true);item.put("income",earned);item.put("loss",cost);item.put("loss_note",note.getText().toString().trim());item.put("settled_at",new SimpleDateFormat("yyyy-MM-dd HH:mm:ss",Locale.US).format(new Date()));store.saveReservation(item);store.enqueue("reservation_settle",item);ReservationsWidgetProvider.refresh(this);render[0].run();if(isOnline())syncNow();}catch(Exception ex){toast("Wpisz prawidłowe kwoty.");}}).show();
                 });
             }
-            if(shown==0){TextView empty=new TextView(this);empty.setText("Brak rezerwacji w tym miesiącu.");empty.setTextColor(0xff718096);empty.setPadding(8,20,8,20);list.addView(empty);}
+            if(shown==0){TextView empty=new TextView(this);empty.setText("Brak aktywnych rezerwacji w wybranym miesiącu.");empty.setTextSize(14);empty.setTextColor(0xff718096);empty.setPadding(dp(14),dp(20),dp(14),dp(20));empty.setBackground(roundBg(Color.WHITE,12));list.addView(empty);}
         };
         previous.setOnClickListener(v->{Calendar c=parseReservationMonth(month[0]);c.add(Calendar.MONTH,-1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(c.getTime());render[0].run();});
         next.setOnClickListener(v->{Calendar c=parseReservationMonth(month[0]);c.add(Calendar.MONTH,1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(c.getTime());render[0].run();});
@@ -835,10 +950,24 @@ public class MainActivity extends Activity {
             String eq=String.valueOf(equipment.getSelectedItem());String shortTime=tm.isEmpty()?"":(tm.contains(":")?tm:tm+":00");
             SimpleDateFormat iso=new SimpleDateFormat("yyyy-MM-dd",Locale.US);String from=iso.format(reservationStart[0].getTime()),to=iso.format(reservationEnd[0].getTime());
             String value=from+" – "+to+(shortTime.isEmpty()?"":" "+shortTime)+" • "+eq+(ph.isEmpty()?"":" • "+ph);
-            try{JSONObject item=new JSONObject();item.put("id",UUID.randomUUID().toString());item.put("month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationStart[0].getTime()));item.put("text",value);item.put("equipment",eq);item.put("day",reservationStart[0].get(Calendar.DAY_OF_MONTH));item.put("start_date",from);item.put("end_date",to);item.put("end_day",reservationEnd[0].get(Calendar.DAY_OF_MONTH));item.put("end_month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationEnd[0].getTime()));item.put("time",shortTime);item.put("phone",ph);item.put("customer_name",customerName.getText().toString().trim());item.put("done",false);store.saveReservation(item);store.enqueue("reservation_save",item);ReservationsWidgetProvider.refresh(this);phone.setText("");time.setText("");render[0].run();if(isOnline())syncNow();}
+            try{JSONObject item=new JSONObject();item.put("id",UUID.randomUUID().toString());item.put("month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationStart[0].getTime()));item.put("text",value);item.put("equipment",eq);item.put("day",reservationStart[0].get(Calendar.DAY_OF_MONTH));item.put("start_date",from);item.put("end_date",to);item.put("end_day",reservationEnd[0].get(Calendar.DAY_OF_MONTH));item.put("end_month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationEnd[0].getTime()));item.put("time",shortTime);item.put("phone",ph);item.put("customer_name",customerName.getText().toString().trim());item.put("done",false);store.saveReservation(item);store.enqueue("reservation_save",item);ReservationsWidgetProvider.refresh(this);
+                phone.setText("");time.setText("");customerName.setText("");
+                month[0]=item.optString("month",month[0]);form.setVisibility(View.GONE);
+                toggleForm.setText("＋ NOWA REZERWACJA");
+                render[0].run();toast("Rezerwacja została dodana.");if(isOnline())syncNow();}
             catch(Exception ex){toast("Nie udało się dodać rezerwacji.");}
         });
-        addButton("WRÓĆ",()->showHome());render[0].run();
+        View submitReservation=root.getChildAt(root.getChildCount()-1);
+        root.removeView(submitReservation);
+        LinearLayout.LayoutParams submitParams=new LinearLayout.LayoutParams(-1,dp(53));
+        submitParams.topMargin=dp(12);form.addView(submitReservation,submitParams);
+        addButton("WRÓĆ",()->showHome());
+        render[0].run();
+    }
+
+    private void reservationFormLabel(LinearLayout form,String value){
+        TextView label=new TextView(this);label.setText(value);label.setTextSize(11);label.setTypeface(null,1);
+        label.setTextColor(0xff526174);label.setPadding(0,dp(11),0,dp(6));form.addView(label);
     }
 
     private void expensePage() {
