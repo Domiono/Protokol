@@ -43,38 +43,168 @@ public class MainActivity extends Activity {
         }});
         setContentView(activation); activation.loadUrl(HOME);
     }
-    private void showHome(){if(siteLiveHandler!=null && siteLiveRefresh!=null)siteLiveHandler.removeCallbacks(siteLiveRefresh);showingApp=true;LinearLayout screen=new LinearLayout(this);screen.setOrientation(1);screen.setPadding(20,22,20,24);screen.setBackgroundColor(0xfff5f6fa);final int insetLeft=screen.getPaddingLeft(),insetTop=screen.getPaddingTop(),insetRight=screen.getPaddingRight(),insetBottom=screen.getPaddingBottom();screen.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(insetLeft+insets.getSystemWindowInsetLeft(),insetTop+insets.getSystemWindowInsetTop(),insetRight+insets.getSystemWindowInsetRight(),insetBottom+insets.getSystemWindowInsetBottom());return insets;});
-        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true); LinearLayout page=new LinearLayout(this);root=page;homePage=page;adminDownloadAdded=false;page.setOrientation(1);scroll.addView(page);
-        TextView eyebrow=new TextView(this);eyebrow.setText("RENTMOR • PRO");eyebrow.setTextSize(13);eyebrow.setLetterSpacing(.18f);eyebrow.setTextColor(0xff697386);eyebrow.setTypeface(null,1);page.addView(eyebrow);
-        TextView title=new TextView(this);title.setText("Pro RentMor");title.setTextSize(30);title.setTextColor(0xff172235);title.setTypeface(null,1);LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(-1,-2);tp.bottomMargin=14;page.addView(title,tp);
-        LinearLayout statCard=new LinearLayout(this);statCard.setOrientation(1);statCard.setPadding(18,16,18,16);statCard.setBackground(roundBg(0xffffffff,18));TextView stTitle=new TextView(this);stTitle.setText("STATUS DANYCH");stTitle.setTextSize(11);stTitle.setTextColor(0xff697386);stTitle.setTypeface(null,1);statCard.addView(stTitle);
-        status=new TextView(this);status.setText("W telefonie: "+store.allProtocols().length()+"   •   Do wysłania: "+store.pendingCount());status.setTextSize(14);status.setTextColor(0xff26384d);status.setPadding(0,8,0,0);statCard.addView(status);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.bottomMargin=20;page.addView(statCard,sp);
-        menuCard(page,"☷","Rezerwacje","Lista odbiorów i rozliczenia najmu",()->reservationPage(),0xfffff6d9);
-        menuCard(page,"♙","Klienci","Historia wynajmów, dane kontaktowe i notatki",()->customerPage(),0xffedf0f5);
-        menuCard(page,"▥","Statystyki najmu","Przychody, straty i wynik według sprzętu",()->reservationStatsPage(),0xfffff1c2);
-        if("admin".equals(getSharedPreferences("rentmor",0).getString("role",""))) menuCard(page,"▣","Strona","Statystyki witryny, publikowanie i edycja sprzętu",()->sitePage(),0xffe8f1ff);
-        if("admin".equals(getSharedPreferences("rentmor",0).getString("role",""))) menuCard(page," zł ","Pozostałe koszty","Paliwo, naprawy, reklama i zakupy sprzętu",()->expensePage(),0xfffff6d9);
-        menuCard(page,"⟳","Synchronizuj teraz","Wyślij zapisane protokoły na serwer",()->syncNow(),0xffedf0f5);
-        menuCard(page,"＋","Nowy protokół wydania","Utwórz protokół i dodaj zdjęcia",()->newIssue(),0xfffff6d9);
-        menuCard(page,"▤","Lista protokołów","Przeglądaj dokumenty i zapisuj PDF",()->protocolList(),0xfffff1c2);
-        menuCard(page,"↩","Obsłuż zwrot sprzętu","Zarejestruj stan sprzętu przy zwrocie",()->returnList(),0xfff0f2f6);
-        menuCard(page,"⚙","Aktywuj / zmień urządzenie","Ustaw dostęp tego telefonu",()->resetActivation(),0xffeef1f5);
+    private LinearLayout homeToolsList;
+    private void showHome(){
+        if(siteLiveHandler!=null && siteLiveRefresh!=null)siteLiveHandler.removeCallbacks(siteLiveRefresh);
+        showingApp=true;
+        LinearLayout screen=new LinearLayout(this);
+        screen.setOrientation(1);screen.setBackgroundColor(0xfff4f6fa);
+        final int inL=dp(13),inT=dp(10),inR=dp(13),inB=dp(16);
+        screen.setPadding(inL,inT,inR,inB);
+        screen.setOnApplyWindowInsetsListener((v,insets)->{
+            v.setPadding(inL+insets.getSystemWindowInsetLeft(),inT+insets.getSystemWindowInsetTop(),
+                inR+insets.getSystemWindowInsetRight(),inB+insets.getSystemWindowInsetBottom());
+            return insets;
+        });
+        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);
+        scroll.setClipToPadding(false);
+        LinearLayout page=new LinearLayout(this);page.setOrientation(1);
+        root=page;homePage=page;adminDownloadAdded=false;homeToolsList=null;
+        page.setPadding(0,dp(3),0,dp(12));
+        scroll.addView(page);
+
+        LinearLayout hero=new LinearLayout(this);hero.setOrientation(1);
+        hero.setPadding(dp(19),dp(18),dp(19),dp(17));
+        hero.setBackground(roundBg(0xff17263e,18));
+        TextView eyebrow=new TextView(this);
+        eyebrow.setText("RENTMOR  /  PANEL ZARZĄDZANIA");
+        eyebrow.setTextSize(10);eyebrow.setLetterSpacing(.15f);
+        eyebrow.setTextColor(0xfffacc15);eyebrow.setTypeface(null,1);hero.addView(eyebrow);
+        TextView title=new TextView(this);title.setText("Pro RentMor");
+        title.setTextSize(28);title.setTypeface(null,1);title.setTextColor(Color.WHITE);
+        title.setPadding(0,dp(8),0,dp(7));hero.addView(title);
+        TextView heroSubtitle=new TextView(this);heroSubtitle.setText("Twoja wypożyczalnia w jednym miejscu");
+        heroSubtitle.setTextSize(12);heroSubtitle.setTextColor(0xffd4deea);hero.addView(heroSubtitle);
+        LinearLayout.LayoutParams heroParams=new LinearLayout.LayoutParams(-1,-2);
+        heroParams.bottomMargin=dp(11);page.addView(hero,heroParams);
+
+        LinearLayout statusCard=new LinearLayout(this);statusCard.setOrientation(0);
+        statusCard.setGravity(Gravity.CENTER_VERTICAL);statusCard.setPadding(dp(13),dp(12),dp(13),dp(12));
+        statusCard.setBackground(roundBg(Color.WHITE,14));
+        ImageView statusIcon=new ImageView(this);statusIcon.setImageResource(android.R.drawable.ic_popup_sync);
+        statusIcon.setColorFilter(0xff35578d);statusIcon.setPadding(dp(8),dp(8),dp(8),dp(8));
+        statusIcon.setBackground(roundBg(0xffe8f0fd,12));
+        statusCard.addView(statusIcon,new LinearLayout.LayoutParams(dp(42),dp(42)));
+        LinearLayout statusContent=new LinearLayout(this);statusContent.setOrientation(1);
+        statusContent.setPadding(dp(11),0,0,0);
+        TextView statusHeader=new TextView(this);statusHeader.setText("STATUS DANYCH");
+        statusHeader.setTextSize(11);statusHeader.setTypeface(null,1);
+        statusHeader.setTextColor(0xff526174);statusContent.addView(statusHeader);
+        status=new TextView(this);
+        status.setText("W telefonie: "+store.allProtocols().length()+"   •   Do wysłania: "+store.pendingCount());
+        status.setTextSize(13);status.setTextColor(0xff172235);status.setPadding(0,dp(3),0,0);
+        statusContent.addView(status);statusCard.addView(statusContent,new LinearLayout.LayoutParams(0,-2,1));
+        LinearLayout.LayoutParams statusParams=new LinearLayout.LayoutParams(-1,-2);
+        statusParams.bottomMargin=dp(8);page.addView(statusCard,statusParams);
+
+        homeSectionTitle(page,"SZYBKI DOSTĘP","Najczęściej używane funkcje");
+        LinearLayout quickRow1=homeQuickRow(page);
+        homeQuickCard(quickRow1,android.R.drawable.ic_menu_my_calendar,"Rezerwacje","Wydania i rozliczenia",
+            0xffffe8a2,()->reservationPage());
+        homeQuickCard(quickRow1,android.R.drawable.ic_input_add,"Nowy protokół","Dodaj wydanie",
+            0xffe4efff,()->newIssue());
+        LinearLayout quickRow2=homeQuickRow(page);
+        homeQuickCard(quickRow2,android.R.drawable.ic_menu_myplaces,"Klienci","Kontakty i notatki",
+            0xffeaf2fc,()->customerPage());
+        if("admin".equals(getSharedPreferences("rentmor",0).getString("role",""))){
+            homeQuickCard(quickRow2,android.R.drawable.ic_menu_view,"Strona","Oferta i statystyki",
+                0xffffecc0,()->sitePage());
+        }else {
+            homeQuickCard(quickRow2,android.R.drawable.ic_menu_agenda,"Protokoły","Wszystkie dokumenty",
+                0xffedf0f5,()->protocolList());
+        }
+
+        homeSectionTitle(page,"WYNAJEM","Dokumenty i obsługa sprzętu");
+        homeMenuItem(page,android.R.drawable.ic_menu_revert,"Obsłuż zwrot sprzętu",
+            "Potwierdź zwrot i stan sprzętu",0xffe4efff,()->returnList());
+        homeMenuItem(page,android.R.drawable.ic_menu_agenda,"Lista protokołów",
+            "Przeglądaj i pobieraj dokumenty PDF",0xffedf1fa,()->protocolList());
+
+        homeSectionTitle(page,"FINANSE I ANALITYKA","Wyniki Twojej wypożyczalni");
+        homeMenuItem(page,android.R.drawable.ic_menu_sort_by_size,"Statystyki najmu",
+            "Przychody, straty i wynik sprzętu",0xffffe8ac,()->reservationStatsPage());
+        if("admin".equals(getSharedPreferences("rentmor",0).getString("role",""))){
+            homeMenuItem(page,android.R.drawable.ic_menu_info_details,"Pozostałe koszty",
+                "Naprawy, paliwo, reklama i zakupy",0xffedf0f5,()->expensePage());
+        }
+
+        homeSectionTitle(page,"NARZĘDZIA","Ustawienia i dostęp");
+        homeToolsList=new LinearLayout(this);homeToolsList.setOrientation(1);page.addView(homeToolsList);
+        homeMenuItem(homeToolsList,android.R.drawable.ic_popup_sync,"Synchronizuj teraz",
+            "Prześlij dane na serwer",0xffe6f4ec,()->syncNow());
+        homeMenuItem(homeToolsList,android.R.drawable.ic_menu_preferences,"Aktywuj / zmień urządzenie",
+            "Skonfiguruj dostęp telefonu",0xffedf0f5,()->resetActivation());
         addAdminDownloadCard();
-        screen.addView(scroll,new LinearLayout.LayoutParams(-1,-1));setContentView(screen); if(isOnline()) syncNow();
+        screen.addView(scroll,new LinearLayout.LayoutParams(-1,-1));
+        setContentView(screen);
+        if(isOnline())syncNow();
+    }
+    private void homeSectionTitle(LinearLayout parent,String title,String caption){
+        LinearLayout section=new LinearLayout(this);section.setOrientation(1);
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);
+        lp.topMargin=dp(15);lp.bottomMargin=dp(9);parent.addView(section,lp);
+        TextView h=new TextView(this);h.setText(title);h.setTextSize(12);
+        h.setLetterSpacing(.08f);h.setTypeface(null,1);h.setTextColor(0xff172235);section.addView(h);
+        TextView sub=new TextView(this);sub.setText(caption);sub.setTextSize(11);
+        sub.setTextColor(0xff78869b);sub.setPadding(0,dp(2),0,0);section.addView(sub);
+    }
+    private LinearLayout homeQuickRow(LinearLayout parent){
+        LinearLayout row=new LinearLayout(this);row.setOrientation(0);
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);
+        lp.bottomMargin=dp(7);parent.addView(row,lp);return row;
+    }
+    private void homeQuickCard(LinearLayout row,int icon,String title,String subtitle,int accent,Runnable action){
+        LinearLayout card=new LinearLayout(this);card.setOrientation(1);
+        card.setPadding(dp(13),dp(12),dp(11),dp(12));card.setBackground(roundBg(Color.WHITE,15));
+        card.setElevation(dp(1));
+        ImageView picture=new ImageView(this);picture.setImageResource(icon);picture.setColorFilter(0xff172235);
+        picture.setPadding(dp(9),dp(9),dp(9),dp(9));picture.setBackground(roundBg(accent,11));
+        card.addView(picture,new LinearLayout.LayoutParams(dp(42),dp(42)));
+        TextView name=new TextView(this);name.setText(title);name.setTypeface(null,1);
+        name.setTextSize(15);name.setTextColor(0xff172235);name.setPadding(0,dp(10),0,0);
+        card.addView(name);
+        TextView info=new TextView(this);info.setText(subtitle);info.setTextSize(11);
+        info.setTextColor(0xff697386);info.setPadding(0,dp(3),0,0);card.addView(info);
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-1,1);
+        lp.setMargins(dp(3),0,dp(3),0);row.addView(card,lp);
+        card.setOnClickListener(v->action.run());card.setClickable(true);
+    }
+    private void homeMenuItem(LinearLayout parent,int icon,String title,String subtitle,int accent,Runnable action){
+        LinearLayout card=new LinearLayout(this);card.setOrientation(0);card.setGravity(Gravity.CENTER_VERTICAL);
+        card.setPadding(dp(13),dp(12),dp(11),dp(12));card.setBackground(roundBg(Color.WHITE,14));
+        card.setElevation(dp(1));
+        ImageView image=new ImageView(this);image.setImageResource(icon);image.setColorFilter(0xff172235);
+        image.setPadding(dp(9),dp(9),dp(9),dp(9));image.setBackground(roundBg(accent,11));
+        card.addView(image,new LinearLayout.LayoutParams(dp(44),dp(44)));
+        LinearLayout info=new LinearLayout(this);info.setOrientation(1);info.setPadding(dp(11),0,0,0);
+        TextView heading=new TextView(this);heading.setText(title);heading.setTypeface(null,1);
+        heading.setTextColor(0xff172235);heading.setTextSize(15);info.addView(heading);
+        TextView sub=new TextView(this);sub.setText(subtitle);sub.setTextColor(0xff697386);
+        sub.setTextSize(11);sub.setPadding(0,dp(3),0,0);info.addView(sub);
+        card.addView(info,new LinearLayout.LayoutParams(0,-2,1));
+        TextView arrow=new TextView(this);arrow.setText("›");arrow.setTextColor(0xff94a3b8);
+        arrow.setTextSize(24);card.addView(arrow);
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);
+        lp.bottomMargin=dp(7);lp.leftMargin=dp(3);lp.rightMargin=dp(3);
+        parent.addView(card,lp);card.setOnClickListener(v->action.run());
     }
     private void addAdminDownloadCard(){
-        if(adminDownloadAdded || homePage==null) return;
-        if(!"admin".equals(getSharedPreferences("rentmor",0).getString("role",""))) return;
+        if(adminDownloadAdded||homeToolsList==null)return;
+        if(!"admin".equals(getSharedPreferences("rentmor",0).getString("role","")))return;
         adminDownloadAdded=true;
-        menuCard(homePage,"⬇","Pobierz aplikację","Instalator APK na kolejne urządzenie",()->{
-            new AlertDialog.Builder(this).setTitle("Pobierz aplikację RentMor")
-                .setMessage("Otworzyć najnowszy instalator APK? Link będzie prowadził do aktualnej wersji aplikacji.")
-                .setNegativeButton("Anuluj",null)
-                .setPositiveButton("Pobierz",(d,w)->{
-                    try{Intent i=new Intent(Intent.ACTION_VIEW,android.net.Uri.parse("https://github.com/Domiono/Protokol/releases/latest/download/RentMor.apk"));startActivity(i);}
-                    catch(Exception e){toast("Nie można otworzyć pobierania: "+e.getMessage());}
-                }).show();
-        },0xffedf0f5);
+        homeMenuItem(homeToolsList,android.R.drawable.stat_sys_download_done,"Pobierz aplikację",
+            "Instalator na kolejny telefon lub tablet",0xffffe8ac,()->{
+                new AlertDialog.Builder(this).setTitle("Pobierz Pro RentMor")
+                    .setMessage("Otworzyć najnowszy instalator APK?")
+                    .setNegativeButton("Anuluj",null)
+                    .setPositiveButton("Pobierz",(d,w)->{
+                        try{
+                            Intent i=new Intent(Intent.ACTION_VIEW,android.net.Uri.parse(
+                                "https://github.com/Domiono/Protokol/releases/latest/download/RentMor.apk"));
+                            startActivity(i);
+                        }catch(Exception e){toast("Nie można otworzyć pobierania: "+e.getMessage());}
+                    }).show();
+            });
     }
     private android.graphics.drawable.GradientDrawable roundBg(int color,int radius){android.graphics.drawable.GradientDrawable d=new android.graphics.drawable.GradientDrawable();d.setColor(color);d.setCornerRadius(radius);return d;}
     private void brandButton(Button b,boolean primary){
