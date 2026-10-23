@@ -25,13 +25,19 @@ jobs:
           : "${FTP_USERNAME:?Missing configured login}"
           : "${LFTP_PASSWORD:?Missing configured password}"
           HOSTKEYS="$RUNNER_TEMP/rentmor_known_hosts"
-          ssh-keyscan -p 22222 -T 10 -t ed25519 "$FTP_SERVER" 2>/dev/null > "$HOSTKEYS"
-          test -s "$HOSTKEYS"
-          FINGERPRINT="$(ssh-keygen -lf "$HOSTKEYS" -E sha256)"
-          printf '%s\n' "$FINGERPRINT" | grep -Fq 'SHA256:nJyQovQRMmJEJuzI44hZS/VhZPrOhzRoEyh92Go6TEk' || {
-            echo "Host key changed since the prior probe. Refusing to send a password."
+          for attempt in 1 2 3; do
+            ssh-keyscan -p 22222 -T 12 -t ed25519,rsa "$FTP_SERVER" 2>/dev/null > "$HOSTKEYS" && test -s "$HOSTKEYS" && break
+            sleep 2
+          done
+          if [ ! -s "$HOSTKEYS" ]; then
+            echo "Server returned no host keys on SFTP port; no credentials were sent."
             exit 1
-          }
+          fi
+          FINGERPRINT="$(ssh-keygen -lf "$HOSTKEYS" -E sha256)"
+          if ! printf '%s\n' "$FINGERPRINT" | grep -Eq 'SHA256:(nJyQovQRMmJEJuzI44hZS/VhZPrOhzRoEyh92Go6TEk|GDfRh92pfMOviF06fYXQSIHQ0OSKwDNOXqzr[+]Tslrr0)'; then
+            echo "Host keys do not match earlier observed fingerprints. Refusing to send password."
+            exit 1
+          fi
           chmod 600 "$HOSTKEYS"
           echo "SFTP host key matches the previously observed fingerprint."
           # lftp takes the password from the environment, not command-line arguments.
