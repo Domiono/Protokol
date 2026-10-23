@@ -1,0 +1,97 @@
+name: Deploy RentMor galleries
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'server/rentmor-gallery.js'
+      - 'server/rentmor-gallery.css'
+      - 'scripts/patch_public_gallery.py'
+      - '.github/workflows/deploy-gallery.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: rentmor-public-homepage
+  cancel-in-progress: false
+
+jobs:
+  deploy-gallery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install FTP client and PHP syntax checker
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y lftp php-cli
+
+      - name: Verify gallery assets and patch script
+        run: |
+          set -eu
+          node --check server/rentmor-gallery.js
+          python3 -m py_compile scripts/patch_public_gallery.py
+          test -s server/rentmor-gallery.css
+
+      - name: Patch current homepage with private backup and verify the live result
+        env:
+          FTP_SERVER: \${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: \${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: \${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -eu
+          test -n "$FTP_SERVER"
+          test -n "$FTP_USERNAME"
+          test -n "$FTP_PASSWORD"
+          TMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TMP_DIR"' EXIT
+
+          # Read CURRENT PHP from hosting, never replace it with a stale copy.
+          lftp -u "$FTP_USERNAME,$FTP_PASSWORD" "ftp://$FTP_SERVER" -e "set cmd:fail-exit yes; set net:timeout 25; set net:max-retries 2; set ftp:passive-mode yes; get public_html/index.php -o $TMP_DIR/index.php; bye"
+          cp "$TMP_DIR/index.php" "$TMP_DIR/original.php"
+          test -s "$TMP_DIR/original.php"
+          python3 scripts/patch_public_gallery.py "$TMP_DIR/index.php"
+          php -l "$TMP_DIR/index.php"
+
+          # Abort if index.php changed during preparation.
+          lftp -u "$FTP_USERNAME,$FTP_PASSWORD" "ftp://$FTP_SERVER" -e "set cmd:fail-exit yes; set net:timeout 25; set net:max-retries 2; set ftp:passive-mode yes; get public_html/index.php -o $TMP_DIR/check.php; bye"
+          cmp -s "$TMP_DIR/original.php" "$TMP_DIR/check.php" || { echo "Index changed on host; refusing overwrite"; exit 1; }
+
+          # Backups OUTSIDE public_html prevent accidental source disclosure.
+          lftp -u "$FTP_USERNAME,$FTP_PASSWORD" "ftp://$FTP_SERVER" -e "set cmd:fail-exit yes; set net:timeout 25; set net:max-retries 2; set ftp:passive-mode yes; mkdir -p rentmor-backups; put $TMP_DIR/original.php -o rentmor-backups/index-before-gallery-$GITHUB_RUN_ID.php; bye"
+          echo "Private backup stored: rentmor-backups/index-before-gallery-$GITHUB_RUN_ID.php"
+
+          lftp -u "$FTP_USERNAME,$FTP_PASSWORD" "ftp://$FTP_SERVER" -e "set cmd:fail-exit yes; set net:timeout 25; set net:max-retries 2; set ftp:passive-mode yes; put server/rentmor-gallery.css -o public_html/rentmor-gallery.css; put server/rentmor-gallery.js -o public_html/rentmor-gallery.js; put $TMP_DIR/index.php -o public_html/index.php; bye"
+          echo "Gallery assets and homepage deployed."
+
+          python3 - <<'PY'
+          import urllib.request
+          import xml.etree.ElementTree as ET
+
+          def get(url):
+              req=urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0 (compatible; RentMorVerification/1.0)","Cache-Control":"no-cache"})
+              with urllib.request.urlopen(req,timeout=30) as response:
+                  assert response.status==200, (url,response.status)
+                  return response.read(3_000_000).decode("utf-8","replace")
+
+          css=get("https://rentmor.pl/rentmor-gallery.css?v=1")
+          js=get("https://rentmor.pl/rentmor-gallery.js?v=1")
+          assert ".rm-gallery-slide" in css and "startGalleries" in js
+          home=get("https://rentmor.pl/?gallery_validation=1")
+          assert 'rm-card-gallery' in home and 'data-rm-gallery' in home
+          print("Homepage photo sliders confirmed.")
+
+          sitemap=ET.fromstring(get("https://rentmor.pl/sitemap.xml"))
+          urls=[e.text for e in sitemap.iter() if e.tag.endswith("loc") and e.text]
+          assert "https://rentmor.pl/zasady.php" in urls
+          products=[url for url in urls if url not in ("https://rentmor.pl/","https://rentmor.pl/zasady.php")]
+          assert products
+          valid=False
+          for url in products[:8]:
+              try: page=get(url+"?gallery_validation=1")
+              except Exception: continue
+              if 'rm-detail-gallery' in page and 'data-rm-gallery' in page:
+                  print("Product photo gallery confirmed:", url)
+                  valid=True
+                  break
+          assert valid, "Product detail gallery not visible"
+          print("Gallery files and sitemap verified on live site.")
+          PY
