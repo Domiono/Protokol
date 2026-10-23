@@ -73,9 +73,9 @@ if fileList.exists():
     for filename in fileList.read_text("utf-8","replace").splitlines():
         if re.search(r"\\.(php|xml|txt|css)$",filename,re.I):
             print(" ",filename[:150])
-if path.exists():
+if (folder/"index.php").exists():
     print("\\nPRODUCT DETAIL TEMPLATE (selected lines 880-1020):")
-    lines=path.read_text("utf-8","replace").splitlines()
+    lines=(folder/"index.php").read_text("utf-8","replace").splitlines()
     for n in range(880,min(len(lines),1021)):
         line=lines[n]
         if not re.search(r"token|password|secret|chat_id|hasz_hasla|telegram",line,re.I):
