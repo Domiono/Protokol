@@ -4,6 +4,7 @@ on:
     branches: [ main ]
     paths:
       - '.github/workflows/audit-live-site.yml'
+      - 'scripts/audit_live_site.py'
   workflow_dispatch:
 jobs:
   inspect:
@@ -28,8 +29,9 @@ jobs:
           trap 'rm -rf "$TMP_DIR"' EXIT
           printf '%s\n' "Fetching only selected publicly served files over FTP..."
           COMMAND="set cmd:fail-exit no; set net:timeout 25; set ftp:passive-mode yes"
-          for filename in index.php .htaccess robots.txt sitemap.xml sitemap.php sitemap_index.xml style.css styles.css main.css; do
+          for filename in index.php zasady.php .htaccess robots.txt sitemap.xml sitemap.php sitemap_index.xml style.css styles.css main.css; do
             COMMAND="$COMMAND; get public_html/$filename -o $TMP_DIR/$filename"
           done
           lftp -u "${FTP_USERNAME},${FTP_PASSWORD}" "ftp://${FTP_SERVER}" -e "$COMMAND; bye" >/dev/null 2>&1 || true
+          lftp -u "${FTP_USERNAME},${FTP_PASSWORD}" "ftp://${FTP_SERVER}" -e "set cmd:fail-exit no; set ftp:passive-mode yes; cls -1 public_html; bye" > "$TMP_DIR/file-list.txt" 2>/dev/null || true
           python3 scripts/audit_live_site.py "$TMP_DIR"
