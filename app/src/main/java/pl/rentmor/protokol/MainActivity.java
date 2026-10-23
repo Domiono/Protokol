@@ -43,8 +43,8 @@ public class MainActivity extends Activity {
         }});
         setContentView(activation); activation.loadUrl(HOME);
     }
-    private void showHome(){showingApp=true;root=new LinearLayout(this);root.setOrientation(1);root.setPadding(20,22,20,24);root.setBackgroundColor(0xfff5f6fa);
-        ScrollView scroll=new ScrollView(this); LinearLayout page=new LinearLayout(this);homePage=page;adminDownloadAdded=false;page.setOrientation(1);scroll.addView(page);
+    private void showHome(){showingApp=true;LinearLayout screen=new LinearLayout(this);screen.setOrientation(1);screen.setPadding(20,22,20,24);screen.setBackgroundColor(0xfff5f6fa);final int insetLeft=screen.getPaddingLeft(),insetTop=screen.getPaddingTop(),insetRight=screen.getPaddingRight(),insetBottom=screen.getPaddingBottom();screen.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(insetLeft+insets.getSystemWindowInsetLeft(),insetTop+insets.getSystemWindowInsetTop(),insetRight+insets.getSystemWindowInsetRight(),insetBottom+insets.getSystemWindowInsetBottom());return insets;});
+        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true); LinearLayout page=new LinearLayout(this);root=page;homePage=page;adminDownloadAdded=false;page.setOrientation(1);scroll.addView(page);
         TextView eyebrow=new TextView(this);eyebrow.setText("RENTMOR • PRO");eyebrow.setTextSize(13);eyebrow.setLetterSpacing(.18f);eyebrow.setTextColor(0xff697386);eyebrow.setTypeface(null,1);page.addView(eyebrow);
         TextView title=new TextView(this);title.setText("Pro RentMor");title.setTextSize(30);title.setTextColor(0xff172235);title.setTypeface(null,1);LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(-1,-2);tp.bottomMargin=14;page.addView(title,tp);
         LinearLayout statCard=new LinearLayout(this);statCard.setOrientation(1);statCard.setPadding(18,16,18,16);statCard.setBackground(roundBg(0xffffffff,18));TextView stTitle=new TextView(this);stTitle.setText("STATUS DANYCH");stTitle.setTextSize(11);stTitle.setTextColor(0xff697386);stTitle.setTypeface(null,1);statCard.addView(stTitle);
@@ -60,7 +60,7 @@ public class MainActivity extends Activity {
         menuCard(page,"↩","Obsłuż zwrot sprzętu","Zarejestruj stan sprzętu przy zwrocie",()->returnList(),0xfff0f2f6);
         menuCard(page,"⚙","Aktywuj / zmień urządzenie","Ustaw dostęp tego telefonu",()->resetActivation(),0xffeef1f5);
         addAdminDownloadCard();
-        root.addView(scroll,new LinearLayout.LayoutParams(-1,-1));setContentView(root); if(isOnline()) syncNow();
+        screen.addView(scroll,new LinearLayout.LayoutParams(-1,-1));setContentView(screen); if(isOnline()) syncNow();
     }
     private void addAdminDownloadCard(){
         if(adminDownloadAdded || homePage==null) return;
@@ -182,22 +182,23 @@ public class MainActivity extends Activity {
         root.removeAllViews(); root.setPadding(14,14,14,18);
         TextView h=new TextView(this);h.setText("STATYSTYKI STRONY");h.setTextSize(23);h.setTypeface(null,1);h.setTextColor(0xff172235);root.addView(h);
         TextView info=new TextView(this);info.setText("Dane z licznika RentMor.pl");info.setTextColor(0xff697386);info.setPadding(0,4,0,10);root.addView(info);
-        LinearLayout cards=new LinearLayout(this);cards.setOrientation(1);root.addView(cards);
+        LinearLayout liveCards=new LinearLayout(this);liveCards.setOrientation(1);root.addView(liveCards);
         final int[] range={7};
         TextView chartTitle=new TextView(this);chartTitle.setText("ODSŁONY DZIEŃ PO DNIU");chartTitle.setTextSize(15);chartTitle.setTypeface(null,1);chartTitle.setTextColor(0xff526174);chartTitle.setPadding(2,16,2,8);root.addView(chartTitle);
         LinearLayout rangeBar=new LinearLayout(this);rangeBar.setOrientation(0);root.addView(rangeBar);
         LinearLayout chartCard=new LinearLayout(this);chartCard.setOrientation(1);chartCard.setPadding(12,12,12,12);chartCard.setBackground(roundBg(Color.WHITE,14));root.addView(chartCard);
+        LinearLayout cards=new LinearLayout(this);cards.setOrientation(1);root.addView(cards);
         final View[] chart={null};
         final TextView[] liveLabel={null};
         Runnable render=()->{
-            cards.removeAllViews();JSONObject st=siteStats();
+            cards.removeAllViews();liveCards.removeAllViews();JSONObject st=siteStats();
             JSONObject days=st.optJSONObject("days");if(days==null)days=new JSONObject();
             String today=new SimpleDateFormat("yyyy-MM-dd",Locale.US).format(new Date());
             long todayViews=days.optLong(today,0);
             LinearLayout live=new LinearLayout(this);live.setOrientation(1);live.setPadding(14,12,14,12);live.setBackground(roundBg(0xffeaf8ef,13));
             TextView liveHead=new TextView(this);liveHead.setText("DZISIAJ • ODSŁONY");liveHead.setTextSize(12);liveHead.setTypeface(null,1);liveHead.setTextColor(0xff267044);live.addView(liveHead);
             TextView liveValue=new TextView(this);liveValue.setText(String.valueOf(todayViews));liveValue.setTextSize(29);liveValue.setTypeface(null,1);liveValue.setTextColor(0xff14532d);live.addView(liveValue);liveLabel[0]=liveValue;
-            TextView liveHint=new TextView(this);liveHint.setText("Automatyczne odświeżanie co 30 sekund");liveHint.setTextSize(11);liveHint.setTextColor(0xff43805b);live.addView(liveHint);cards.addView(live);
+            TextView liveHint=new TextView(this);liveHint.setText("Automatyczne odświeżanie co 30 sekund");liveHint.setTextSize(11);liveHint.setTextColor(0xff43805b);live.addView(liveHint);liveCards.addView(live);
             addMetric(cards,"Wszystkie odsłony",String.valueOf(st.optLong("total_views",0)));
             addMetric(cards,"Unikalni odwiedzający",String.valueOf(st.optLong("unique_visitors",0)));
             addMetric(cards,"Kliknięcia telefonu",String.valueOf(st.optLong("total_phone_clicks",0)));
