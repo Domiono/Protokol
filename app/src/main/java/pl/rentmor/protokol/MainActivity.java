@@ -415,7 +415,7 @@ public class MainActivity extends Activity {
         Spinner years=new Spinner(this); ArrayList<String> opts=new ArrayList<>(); opts.add("Od początku"); int y=Calendar.getInstance().get(Calendar.YEAR); for(int n=y;n>=2020;n--)opts.add(String.valueOf(n));
         ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,opts); adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item); years.setAdapter(adapter); root.addView(years);
         ScrollView sv=new ScrollView(this); LinearLayout list=new LinearLayout(this); list.setOrientation(1); list.setPadding(0,10,0,10); sv.addView(list); root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
-        Runnable draw=()->{
+        final Runnable[] draw={null}; draw[0]=()->{
             list.removeAllViews(); int yr=years.getSelectedItemPosition()==0?0:Integer.parseInt(String.valueOf(years.getSelectedItem()));
             LinkedHashMap<String,String> names=new LinkedHashMap<>(); LinkedHashMap<String,double[]> totals=new LinkedHashMap<>();
             Calendar cur=Calendar.getInstance(); cur.set(2015,0,1); Calendar today=Calendar.getInstance(); double all=0;
@@ -450,11 +450,11 @@ public class MainActivity extends Activity {
                 TextView nm=new TextView(this);nm.setText(names.get(key));nm.setTextSize(16);nm.setTypeface(null,1);nm.setTextColor(0xff172b43);card.addView(nm);
                 double[] costData=costs.containsKey(key)?costs.get(key):new double[2];double result=v[2]-v[3]-costData[0]-costData[1];
                 TextView d=new TextView(this);d.setText("Wynajmy: "+(int)v[0]+"  •  Dni: "+(int)v[1]+"\nPrzychód: "+String.format(Locale.US,"%.2f zł",v[2])+"\nStraty z najmu: "+String.format(Locale.US,"%.2f zł",v[3])+"\nZakup: "+String.format(Locale.US,"%.2f zł",costData[0])+"  •  Naprawy: "+String.format(Locale.US,"%.2f zł",costData[1])+"\nWynik po kosztach: "+String.format(Locale.US,"%.2f zł",result));d.setTextColor(0xff526174);d.setPadding(0,6,0,8);card.addView(d);
-                Button cost=new Button(this);cost.setText("DODAJ KOSZT ZAKUPU / NAPRAWY");brandButton(cost,false);cost.setOnClickListener(vw->addEquipmentCost(names.get(key),()->draw.run()));card.addView(cost);
+                Button cost=new Button(this);cost.setText("DODAJ KOSZT ZAKUPU / NAPRAWY");brandButton(cost,false);cost.setOnClickListener(vw->addEquipmentCost(names.get(key),()->draw[0].run()));card.addView(cost);
                 LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=8;list.addView(card,lp);
             }
         };
-        years.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onItemSelected(android.widget.AdapterView<?> a,View v,int p,long id){draw.run();}public void onNothingSelected(android.widget.AdapterView<?> a){}});
+        years.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onItemSelected(android.widget.AdapterView<?> a,View v,int p,long id){draw[0].run();}public void onNothingSelected(android.widget.AdapterView<?> a){}});
         addButton("WRÓĆ DO STATYSTYK",()->reservationStatsPage()); draw.run();
     }
     private void addEquipmentCost(String equipment,Runnable refresh) {
