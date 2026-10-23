@@ -154,7 +154,8 @@ foreach ($operations as $op) {
             $date=rm_text($op,'date',10);$name=rm_text($op,'name',160);$month=rm_text($op,'month',7);
             $amount=filter_var($op['amount']??null,FILTER_VALIDATE_FLOAT);$type=(($op['type']??'')==='investment')?'investment':'expense';
             if(!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/',$date)||!preg_match('/^\\d{4}-\\d{2}$/',$month)||substr($date,0,7)!==$month||$name===''||$amount===false||$amount<=0||$amount>100000000){flock($costLock,LOCK_UN);fclose($costLock);$results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nieprawidłowe dane kosztu.'];continue;}
-            $item=['id'=>$id,'date'=>$date,'month'=>$month,'name'=>$name,'amount'=>round((float)$amount,2),'type'=>$type,'note'=>rm_text($op,'note',1000)];
+            $rawType=(string)($op['type']??'');$type=($rawType==='investment')?'investment':'expense';
+            $item=['id'=>$id,'date'=>$date,'month'=>$month,'name'=>$name,'amount'=>round((float)$amount,2),'type'=>$type,'equipment_name'=>rm_text($op,'equipment_name',160),'note'=>rm_text($op,'note',1000)];
             $found=false;foreach($costs as &$saved){if((string)($saved['id']??'')===$id){$saved=$item;$found=true;break;}}unset($saved);if(!$found)$costs[]=$item;
         } else {$costs=array_values(array_filter($costs,fn($saved)=>(string)($saved['id']??'')!==$id));}
         $json=json_encode(array_values($costs),JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);$tmp=$costFile.'.'.bin2hex(random_bytes(6)).'.tmp';
