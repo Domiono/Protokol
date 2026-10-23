@@ -42,7 +42,7 @@ public class ReservationsWidgetProvider extends AppWidgetProvider {
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
             v.setPendingIntentTemplate(R.id.widget_list, actionTemplate);
 
-            v.setTextViewText(R.id.widget_footer, "Przyciski na karcie: wydaj • SMS • zadzwoń");
+            v.setTextViewText(R.id.widget_footer, "");
             m.updateAppWidget(id, v);
         }
     }
@@ -55,6 +55,13 @@ public class ReservationsWidgetProvider extends AppWidgetProvider {
         String id = intent.getStringExtra("reservation_id");
         if (id == null || id.trim().isEmpty()) return;
 
+        if ("open".equals(action)) {
+            Intent open = new Intent(c, MainActivity.class);
+            open.putExtra("open_reservations", true);
+            open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            c.startActivity(open);
+            return;
+        }
         LocalStore store = new LocalStore(c);
         if ("toggle".equals(action)) {
             JSONArray all = store.allReservations();
