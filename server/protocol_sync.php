@@ -110,6 +110,15 @@ if ($method === 'GET') {
     unset($customer);
     $inventory = rm_read_json_file(__DIR__ . '/data.json', []);
     $siteStats = rm_read_json_file(__DIR__ . '/stats.json', []);
+    // Count recent public-site heartbeats. A session expires 95 seconds after its last ping.
+    $onlineSessions = rm_read_json_file(__DIR__ . '/online_sessions.json', []);
+    $onlineCount = 0;
+    $onlineCutoff = time() - 95;
+    foreach ($onlineSessions as $lastSeen) {
+        if (is_numeric($lastSeen) && (int)$lastSeen >= $onlineCutoff && (int)$lastSeen <= time() + 60) $onlineCount++;
+    }
+    $siteStats['online_visitors'] = $onlineCount;
+    $siteStats['online_window_seconds'] = 95;
     $equipment = [];
     foreach ($inventory as $product) {
         $name = trim((string)($product['name'] ?? ''));
