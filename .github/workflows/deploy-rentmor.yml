@@ -50,9 +50,9 @@ jobs:
 
           # Pass credentials as process arguments, not by interpolating them
           # into lftp's command language. This avoids quote/shell parsing issues.
-          LFTP_COMMAND="set cmd:fail-exit yes; set net:max-retries 2; set net:timeout 20; set ftp:passive-mode yes; put server/protocol_sync.php -o protocol_sync.php"
+          LFTP_COMMAND="set cmd:fail-exit yes; set net:max-retries 2; set net:timeout 20; set ftp:passive-mode yes; put server/protocol_sync.php -o public_html/protocol_sync.php"
           if [ -f server/admin.php ]; then
-            LFTP_COMMAND="$LFTP_COMMAND; put server/admin.php -o admin.php"
+            LFTP_COMMAND="$LFTP_COMMAND; put server/admin.php -o public_html/admin.php"
           else
             echo "server/admin.php not present in repository; admin.php upload skipped"
           fi
