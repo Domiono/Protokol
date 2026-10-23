@@ -455,7 +455,7 @@ public class MainActivity extends Activity {
             }
         };
         years.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onItemSelected(android.widget.AdapterView<?> a,View v,int p,long id){draw[0].run();}public void onNothingSelected(android.widget.AdapterView<?> a){}});
-        addButton("WRÓĆ DO STATYSTYK",()->reservationStatsPage()); draw.run();
+        addButton("WRÓĆ DO STATYSTYK",()->reservationStatsPage()); draw[0].run();
     }
     private void addEquipmentCost(String equipment,Runnable refresh) {
         LinearLayout box=new LinearLayout(this);box.setOrientation(1);Spinner kind=new Spinner(this);kind.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,new String[]{"Zakup sprzętu","Naprawa / serwis"}));box.addView(kind);
