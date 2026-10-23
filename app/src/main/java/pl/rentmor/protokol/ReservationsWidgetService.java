@@ -78,12 +78,13 @@ public class ReservationsWidgetService extends RemoteViewsService {
             if (phone.isEmpty() && parts.length >= 3) phone = parts[parts.length - 1].trim();
 
             String customer = x.optString("customer_name", x.optString("client", "")).trim();
-            String header = (done ? "✓ WYDANE" : "● DO WYDANIA") + "   " + dateRange(x, raw);
-            String details = time;
+            String header = (done ? "✓ WYDANE" : "● DO WYDANIA") + "   ·   " + dateRange(x, raw);
+            String details = time.isEmpty() ? "Godzina nieustalona" : "◷ " + time;
             if (!customer.isEmpty()) details += (details.isEmpty() ? "" : "   •   ") + customer;
             if (!phone.isEmpty()) details += (details.isEmpty() ? "" : "   •   ") + (isPhoneNumber(phone) ? "TEL. " : "OLX: ") + phone;
             v.setTextViewText(R.id.widget_item_text, header);
             v.setTextViewText(R.id.widget_equipment_name, eq);
+            setAction(v, R.id.widget_card, x, "open", phone);
             v.setInt(R.id.widget_equipment_name, "setBackgroundColor", equipmentColor(eq));
             v.setTextViewText(R.id.widget_details_text, details);
             v.setViewVisibility(R.id.widget_details_text, details.isEmpty() ? View.GONE : View.VISIBLE);
@@ -91,7 +92,7 @@ public class ReservationsWidgetService extends RemoteViewsService {
             v.setInt(R.id.widget_card, "setBackgroundResource", done ? R.drawable.widget_row_issued : R.drawable.widget_row_pending);
 
             setAction(v, R.id.widget_action_status, x, "toggle", phone);
-            v.setTextViewText(R.id.widget_action_status, done ? "COFNIJ" : "OZNACZ WYDANE");
+            v.setTextViewText(R.id.widget_action_status, done ? "COFNIJ" : "WYDANO");
             boolean validPhone = isPhoneNumber(phone);
             v.setViewVisibility(R.id.widget_action_sms, validPhone ? View.VISIBLE : View.GONE);
             v.setViewVisibility(R.id.widget_action_call, validPhone ? View.VISIBLE : View.GONE);
@@ -160,7 +161,13 @@ public class ReservationsWidgetService extends RemoteViewsService {
                 Matcher m = Pattern.compile("(\\d{4}-\\d{2}-\\d{2})\\s*[–-]\\s*(\\d{4}-\\d{2}-\\d{2})").matcher(raw);
                 if (m.find()) { a = m.group(1); b = m.group(2); }
             }
-            if (!a.matches("\\d{4}-\\d{2}-\\d{2}")) return "DZIEŃ " + x.optInt("day", 0);
+            if (!a.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                int day = x.optInt("day", 0);
+                String month = x.optString("month", "");
+                if (day >= 1 && day <= 31 && month.matches("\\d{4}-\\d{2}"))
+                    return String.format(Locale.US, "%02d.%s", day, month.substring(5, 7));
+                return "TERMIN NIEUSTALONY";
+            }
             if (!b.matches("\\d{4}-\\d{2}-\\d{2}")) b = a;
             return "OD: " + a.substring(8, 10) + "." + a.substring(5, 7) + " • DO: " + b.substring(8, 10) + "." + b.substring(5, 7);
         }
