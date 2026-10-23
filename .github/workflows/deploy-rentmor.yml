@@ -8,6 +8,8 @@ on:
       - 'server/online.php'
       - 'server/online.js'
       - 'server/sitemap.php'
+      - 'server/poradnik-jaki-papier-scierny-do-zyrafy.php'
+      - 'scripts/inject_guide_link.py'
       - 'server/robots.txt'
       - 'server/product_description.php'
       - 'scripts/patch_public_product_layout.py'
@@ -52,12 +54,15 @@ jobs:
         if: steps.config.outputs.enabled == 'true'
         run: |
           set -eu
+          php -l server/poradnik-jaki-papier-scierny-do-zyrafy.php
+          python3 -m py_compile scripts/inject_guide_link.py
           php -l server/sitemap.php
           php -l server/product_description.php
           python3 -m py_compile scripts/patch_public_product_layout.py
           TEST_DIR="$(mktemp -d)"
           trap 'rm -rf "$TEST_DIR"' EXIT
           cp server/sitemap.php "$TEST_DIR/sitemap.php"
+          cp server/poradnik-jaki-papier-scierny-do-zyrafy.php "$TEST_DIR/"
           printf 'Rental terms test page' > "$TEST_DIR/zasady.php"
           printf '[{"name":"Szlifierka betonowa"},{"name":"Odkurzacz Puzzi"}]' > "$TEST_DIR/data.json"
           php "$TEST_DIR/sitemap.php" > "$TEST_DIR/sitemap.xml"
@@ -65,7 +70,7 @@ jobs:
           import sys, xml.etree.ElementTree as ET
           root = ET.parse(sys.argv[1]).getroot()
           urls = [x.text for x in root.iter() if x.tag.endswith('loc')]
-          for needed in ['https://rentmor.pl/', 'https://rentmor.pl/zasady.php', 'https://rentmor.pl/szlifierka-betonowa/', 'https://rentmor.pl/odkurzacz-puzzi/']:
+          for needed in ['https://rentmor.pl/poradnik-jaki-papier-scierny-do-zyrafy.php', 'https://rentmor.pl/', 'https://rentmor.pl/zasady.php', 'https://rentmor.pl/szlifierka-betonowa/', 'https://rentmor.pl/odkurzacz-puzzi/']:
               assert needed in urls, (needed, urls)
           print('Sitemap XML and rental terms test passed.')
           PY
@@ -86,7 +91,7 @@ jobs:
           # Pass credentials as process arguments, not by interpolating them
           # into lftp's command language. This avoids quote/shell parsing issues.
           source scripts/secure_sftp_connection.sh
-          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/online.php -o public_html/online.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
+          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/online.php -o public_html/online.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/poradnik-jaki-papier-scierny-do-zyrafy.php -o public_html/poradnik-jaki-papier-scierny-do-zyrafy.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
           if [ -f server/admin.php ]; then
             LFTP_COMMAND="$LFTP_COMMAND; put server/admin.php -o public_html/admin.php"
           else
@@ -111,6 +116,7 @@ jobs:
           cp "$TEMP_DIR/index.php" "$TEMP_DIR/original.php"
           python3 scripts/inject_online_tracker.py "$TEMP_DIR/index.php"
           python3 scripts/patch_public_product_layout.py "$TEMP_DIR/index.php"
+          python3 scripts/inject_guide_link.py "$TEMP_DIR/index.php"
           php -l "$TEMP_DIR/index.php"
 
           if cmp -s "$TEMP_DIR/original.php" "$TEMP_DIR/index.php"; then
@@ -138,3 +144,25 @@ jobs:
           else
             echo "Live HTTP check unavailable; FTP upload and local sitemap tests succeeded."
           fi
+
+      - name: Verify published guide, homepage link and sitemap entry
+        if: steps.config.outputs.enabled == 'true'
+        run: |
+          set -eu
+          python3 - <<'PY'
+          import urllib.request, xml.etree.ElementTree as ET
+          guide = '/poradnik-jaki-papier-scierny-do-zyrafy.php'
+          def get(path):
+              req = urllib.request.Request('https://rentmor.pl' + path, headers={'Cache-Control':'no-cache'})
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  assert response.status == 200
+                  return response.read().decode('utf-8')
+          html = get(guide)
+          assert 'Jak dobrać gradację do gładzi' in html
+          assert 'rel="canonical"' in html
+          assert 'href="' + guide + '"' in get('/')
+          root = ET.fromstring(get('/sitemap.xml?guide-check=1'))
+          assert 'https://rentmor.pl' + guide in [x.text for x in root.iter() if x.tag.endswith('loc')]
+          print('Live article, homepage link and sitemap entry verified.')
+          PY
+

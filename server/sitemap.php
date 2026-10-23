@@ -18,6 +18,7 @@ $urls = [$base.'/' => null];
 // Do not include admin, API, protocol, private document or authentication pages.
 $staticPublicPages = [
     'zasady.php',
+    'poradnik-jaki-papier-scierny-do-zyrafy.php',
 ];
 foreach ($staticPublicPages as $filename) {
     $file = __DIR__ . '/' . $filename;
@@ -50,3 +51,4 @@ foreach ($urls as $location => $lastmod) {
     echo "</url>\n";
 }
 echo "</urlset>\n";
+
