@@ -23,7 +23,7 @@ import android.util.Base64;
 public class MainActivity extends Activity {
     private static final String HOME="https://rentmor.pl/protocol.php";
     private LocalStore store; private SyncManager sync; private LinearLayout root; private LinearLayout homePage; private boolean adminDownloadAdded=false; private TextView status;
-    private WebView activation; private boolean showingApp=false; private final ArrayList<Bitmap> issuePhotos=new ArrayList<>(); private final ArrayList<Bitmap> productPhotos=new ArrayList<>(); private TextView productPhotoCount; private TextView photoCount; private SignatureView signatureView; private final AtomicBoolean syncRunning=new AtomicBoolean(false); private ConnectivityManager.NetworkCallback networkCallback;
+    private WebView activation; private boolean showingApp=false; private final ArrayList<Bitmap> issuePhotos=new ArrayList<>(); private final ArrayList<Bitmap> productPhotos=new ArrayList<>(); private final ArrayList<String> productSelectedPhotoUris=new ArrayList<>(); private int existingProductPhotoCount=0; private int productPhotoSession=0; private boolean productPhotosLoading=false; private LinearLayout productExistingPhotoContainer,productNewPhotoContainer; private Button productPhotoPickButton; private TextView productPhotoCount; private TextView photoCount; private SignatureView signatureView; private final AtomicBoolean syncRunning=new AtomicBoolean(false); private ConnectivityManager.NetworkCallback networkCallback;
     @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(Color.rgb(20,29,45));getWindow().setNavigationBarColor(Color.rgb(20,29,45));store=new LocalStore(this);sync=new SyncManager(this,store);registerNetworkSync();
         String saved=getSharedPreferences("rentmor",0).getString("cookie","");
         if(!saved.isEmpty()){showHome();openWidgetDestination();} else showActivation();
@@ -464,7 +464,12 @@ public class MainActivity extends Activity {
         refreshSiteData(render);addButton("＋ DODAJ SPRZĘT",()->productForm(null));addButton("⟳ ODŚWIEŻ",()->refreshSiteData(render));addButton("WRÓĆ",()->sitePage());
     }
     private void productForm(JSONObject existing) {
-        productPhotos.clear();productPhotoCount=null;root.removeAllViews();root.setPadding(16,14,16,18);
+        productPhotoSession++;
+        root.removeAllViews();root.setPadding(16,14,16,18);
+        for(Bitmap old:productPhotos) if(old!=null&&!old.isRecycled())old.recycle();
+        productPhotos.clear();productSelectedPhotoUris.clear();productPhotosLoading=false;
+        productPhotoCount=null;productPhotoPickButton=null;productExistingPhotoContainer=null;productNewPhotoContainer=null;
+        existingProductPhotoCount=existing==null||existing.optJSONArray("images")==null?0:existing.optJSONArray("images").length();
         boolean editing=existing!=null;
         TextView h=new TextView(this);h.setText(editing?"EDYTUJ OFERTĘ":"DODAJ SPRZĘT NA STRONĘ");h.setTextSize(23);h.setTypeface(null,1);h.setTextColor(0xff172235);root.addView(h);
         TextView intro=new TextView(this);intro.setText("Uzupełnij dane oferty. Pola są podzielone na osobne sekcje, żeby łatwiej było je edytować.");intro.setTextSize(13);intro.setTextColor(0xff697386);intro.setPadding(0,5,0,14);root.addView(intro);
@@ -475,16 +480,41 @@ public class MainActivity extends Activity {
         EditText price=productField(rental,"Cena za dobę (zł)");price.setInputType(8194);EditText deposit=productField(rental,"Kaucja (zł)");deposit.setInputType(8194);
         LinearLayout seo=productSection("3. SEO I OGŁOSZENIE","Dane pomagające znaleźć ofertę w Google");
         EditText seoTitle=productField(seo,"Tytuł SEO (opcjonalnie)");EditText seoDesc=productField(seo,"Opis SEO (opcjonalnie)");seoDesc.setMinLines(3);seoDesc.setGravity(Gravity.TOP|Gravity.START);EditText olx=productField(seo,"Link do OLX (opcjonalnie)");
-        LinearLayout photos=productSection("4. ZDJĘCIA","Dodaj maksymalnie 6 zdjęć produktu");
-        Button photo=new Button(this);photo.setText("WYBIERZ ZDJĘCIA");brandButton(photo,false);photos.addView(photo);productPhotoCount=new TextView(this);productPhotoCount.setText("Nie wybrano nowych zdjęć. Przy edycji dotychczasowe zdjęcia zostaną zachowane.");productPhotoCount.setTextSize(12);productPhotoCount.setTextColor(0xff697386);productPhotoCount.setPadding(0,8,0,2);photos.addView(productPhotoCount);photo.setOnClickListener(v->pickProductPhotos());
+        LinearLayout photos=productSection("4. ZDJĘCIA","Galeria sprzętu na RentMor.pl — do 6 zdjęć łącznie.");
+        if(editing&&existingProductPhotoCount>0){
+            TextView uploaded=new TextView(this);uploaded.setText("ZDJĘCIA JUŻ NA STRONIE ("+existingProductPhotoCount+")");
+            uploaded.setTextSize(12);uploaded.setTypeface(null,1);uploaded.setTextColor(0xff526174);
+            uploaded.setPadding(0,dp(5),0,dp(8));photos.addView(uploaded);
+            android.widget.HorizontalScrollView existingScroll=new android.widget.HorizontalScrollView(this);
+            existingScroll.setHorizontalScrollBarEnabled(false);
+            productExistingPhotoContainer=new LinearLayout(this);productExistingPhotoContainer.setOrientation(0);
+            existingScroll.addView(productExistingPhotoContainer);
+            photos.addView(existingScroll,new LinearLayout.LayoutParams(-1,dp(127)));
+            showExistingProductPhotos(existing.optJSONArray("images"),productExistingPhotoContainer);
+        }
+        productPhotoPickButton=new Button(this);productPhotoPickButton.setText("＋ DODAJ ZDJĘCIA");
+        brandButton(productPhotoPickButton,false);
+        LinearLayout.LayoutParams chooseParams=new LinearLayout.LayoutParams(-1,-2);
+        chooseParams.topMargin=dp(9);photos.addView(productPhotoPickButton,chooseParams);
+        productPhotoPickButton.setOnClickListener(v->pickProductPhotos());
+        productPhotoCount=new TextView(this);productPhotoCount.setTextSize(12);
+        productPhotoCount.setTextColor(0xff697386);productPhotoCount.setPadding(0,dp(8),0,dp(6));
+        photos.addView(productPhotoCount);
+        android.widget.HorizontalScrollView addedScroll=new android.widget.HorizontalScrollView(this);
+        addedScroll.setHorizontalScrollBarEnabled(false);
+        productNewPhotoContainer=new LinearLayout(this);productNewPhotoContainer.setOrientation(0);
+        addedScroll.addView(productNewPhotoContainer);
+        photos.addView(addedScroll,new LinearLayout.LayoutParams(-1,-2));
+        updateSelectedProductPhotoPreviews();
         if(editing){name.setText(existing.optString("name"));desc.setText(existing.optString("desc"));price.setText(existing.optString("price"));deposit.setText(existing.optString("deposit"));seoTitle.setText(existing.optString("seo_title"));seoDesc.setText(existing.optString("seo_description"));olx.setText(existing.optString("olx"));for(int i=0;i<cats.length;i++)if(cats[i].equals(existing.optString("category")))category.setSelection(i);}
         TextView note=new TextView(this);note.setText("Po zapisaniu oferta zostanie opublikowana bezpośrednio na RentMor.pl.");note.setTextSize(12);note.setTextColor(0xff526174);note.setPadding(4,12,4,8);root.addView(note);
         addButton(editing?"ZAPISZ ZMIANY I OPUBLIKUJ":"OPUBLIKUJ NA RENTMOR.PL",()->{
+            if(productPhotosLoading){toast("Trwa wczytywanie zdjęć. Zapisz po ich dodaniu.");return;}
             if(!isOnline()){toast("Do publikacji produktu potrzebny jest internet.");return;}
             String n=name.getText().toString().trim(),pr=price.getText().toString().trim(),de=deposit.getText().toString().trim();if(n.isEmpty()||pr.isEmpty()){toast("Podaj nazwę i cenę za dobę.");return;}
             try{JSONObject op=new JSONObject();if(editing)op.put("product_id",existing.optString("id"));
                 op.put("name",n);op.put("desc",desc.getText().toString());op.put("category",cats[category.getSelectedItemPosition()]);op.put("price",pr);op.put("deposit",de.isEmpty()?"0":de);op.put("seo_title",seoTitle.getText().toString());op.put("seo_description",seoDesc.getText().toString());op.put("olx",olx.getText().toString());
-                JSONArray photoData=new JSONArray();for(Bitmap bmp:productPhotos){ByteArrayOutputStream out=new ByteArrayOutputStream();Bitmap scaled=bmp;int max=1600;if(bmp.getWidth()>max||bmp.getHeight()>max){float scale=Math.min((float)max/bmp.getWidth(),(float)max/bmp.getHeight());scaled=Bitmap.createScaledBitmap(bmp,Math.round(bmp.getWidth()*scale),Math.round(bmp.getHeight()*scale),true);}scaled.compress(Bitmap.CompressFormat.JPEG,82,out);photoData.put(Base64.encodeToString(out.toByteArray(),Base64.NO_WRAP));if(scaled!=bmp)scaled.recycle();}op.put("photos_base64",photoData);
+                JSONArray photoData=new JSONArray();for(Bitmap bmp:productPhotos){ByteArrayOutputStream out=new ByteArrayOutputStream();Bitmap scaled=bmp;int max=1280;if(bmp.getWidth()>max||bmp.getHeight()>max){float scale=Math.min((float)max/bmp.getWidth(),(float)max/bmp.getHeight());scaled=Bitmap.createScaledBitmap(bmp,Math.max(1,Math.round(bmp.getWidth()*scale)),Math.max(1,Math.round(bmp.getHeight()*scale)),true);}scaled.compress(Bitmap.CompressFormat.JPEG,78,out);photoData.put(Base64.encodeToString(out.toByteArray(),Base64.NO_WRAP));if(scaled!=bmp)scaled.recycle();}op.put("photos_base64",photoData);
                 store.enqueue("product_save",op);new Thread(()->{try{sync.sync();runOnUiThread(()->{toast("Oferta opublikowana na RentMor.pl.");siteProductsPage();});}catch(Exception e){runOnUiThread(()->toast("Nie udało się opublikować: "+e.getMessage()));}}).start();
             }catch(Exception e){toast("Nie udało się przygotować oferty: "+e.getMessage());}
         });
@@ -499,7 +529,142 @@ public class MainActivity extends Activity {
     private void addProductLabel(LinearLayout parent,String label){TextView t=new TextView(this);t.setText(label);t.setTextSize(12);t.setTypeface(null,1);t.setTextColor(0xff526174);t.setPadding(0,7,0,2);parent.addView(t);}
     private EditText productField(LinearLayout parent,String hint){addProductLabel(parent,hint);EditText e=new EditText(this);e.setSingleLine(false);e.setTextSize(15);e.setPadding(10,8,10,8);e.setBackground(roundBg(0xfff5f6fa,9));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=6;parent.addView(e,lp);e.setHint(hint);return e;}
     private void pickProductPhotos(){
-        Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("image/*");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);startActivityForResult(i,4102);
+        if(productPhotosLoading){toast("Trwa wczytywanie zdjęć.");return;}
+        int slots=6-existingProductPhotoCount-productPhotos.size();
+        if(slots<=0){toast("Galeria ma już 6 zdjęć. Nie można dodać kolejnych.");return;}
+        try{
+            // Android 13+ uses the system Photo Picker with explicit multi-selection.
+            if(android.os.Build.VERSION.SDK_INT>=33){
+                Intent picker=new Intent(android.provider.MediaStore.ACTION_PICK_IMAGES);
+                picker.setType("image/*");
+                if(slots>1){
+                    picker.putExtra(android.provider.MediaStore.EXTRA_PICK_IMAGES_MAX,
+                        Math.min(slots,android.provider.MediaStore.getPickImagesMaxLimit()));
+                }
+                startActivityForResult(picker,4102);
+            }else{
+                Intent picker=new Intent(Intent.ACTION_GET_CONTENT);
+                picker.setType("image/*");picker.addCategory(Intent.CATEGORY_OPENABLE);
+                picker.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);
+                startActivityForResult(Intent.createChooser(picker,"Wybierz zdjęcia sprzętu"),4102);
+            }
+        }catch(Exception e){
+            try{
+                Intent fallback=new Intent(Intent.ACTION_GET_CONTENT);
+                fallback.setType("image/*");fallback.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);
+                startActivityForResult(Intent.createChooser(fallback,"Wybierz zdjęcia sprzętu"),4102);
+            }catch(Exception error){toast("Nie można otworzyć galerii: "+error.getMessage());}
+        }
+    }
+
+    private Bitmap readProductPhotoThumbnail(android.net.Uri uri) throws IOException {
+        BitmapFactory.Options bounds=new BitmapFactory.Options();bounds.inJustDecodeBounds=true;
+        try(InputStream stream=getContentResolver().openInputStream(uri)){
+            if(stream==null)throw new IOException("Brak dostępu do zdjęcia.");
+            BitmapFactory.decodeStream(stream,null,bounds);
+        }
+        int sample=1;int originalSize=Math.max(bounds.outWidth,bounds.outHeight);
+        if(originalSize<=0)throw new IOException("Nie można odczytać wymiarów zdjęcia.");
+        while(originalSize/sample>1600)sample*=2;
+        BitmapFactory.Options options=new BitmapFactory.Options();
+        options.inSampleSize=sample;options.inPreferredConfig=Bitmap.Config.RGB_565;
+        try(InputStream stream=getContentResolver().openInputStream(uri)){
+            if(stream==null)throw new IOException("Brak dostępu do zdjęcia.");
+            Bitmap image=BitmapFactory.decodeStream(stream,null,options);
+            if(image==null)throw new IOException("Nie można odczytać obrazu.");
+            return image;
+        }
+    }
+    private void updateSelectedProductPhotoPreviews(){
+        if(productNewPhotoContainer==null||productPhotoCount==null)return;
+        productNewPhotoContainer.removeAllViews();
+        int remaining=Math.max(0,6-existingProductPhotoCount-productPhotos.size());
+        String label="Na stronie: "+existingProductPhotoCount+"  •  Nowe: "+productPhotos.size()+
+            "  •  Wolne miejsca: "+remaining;
+        if(productPhotosLoading)label+="\nWczytuję zdjęcia...";
+        else if(remaining>0)label+="\nMożesz wybrać kilka naraz lub dodawać po jednym.";
+        productPhotoCount.setText(label);
+        if(productPhotoPickButton!=null){
+            productPhotoPickButton.setEnabled(remaining>0&&!productPhotosLoading);
+            productPhotoPickButton.setText(remaining>0?"＋ DODAJ ZDJĘCIA ("+remaining+" MIEJSC)":"LIMIT 6 ZDJĘĆ");
+        }
+        for(int i=0;i<productPhotos.size();i++){
+            final int index=i;
+            LinearLayout tile=new LinearLayout(this);tile.setOrientation(1);
+            tile.setPadding(dp(4),dp(3),dp(4),dp(3));
+            tile.setBackground(roundBg(0xfff1f4f8,10));
+            ImageView image=new ImageView(this);image.setImageBitmap(productPhotos.get(i));
+            image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            tile.addView(image,new LinearLayout.LayoutParams(dp(94),dp(90)));
+            Button remove=new Button(this);remove.setText("Usuń");
+            remove.setAllCaps(false);remove.setTextSize(11);remove.setMinHeight(0);
+            remove.setPadding(0,dp(2),0,dp(2));brandButton(remove,false);
+            tile.addView(remove,new LinearLayout.LayoutParams(-1,dp(35)));
+            remove.setOnClickListener(v->{
+                if(index<productPhotos.size()){
+                    productPhotos.remove(index);
+                    productSelectedPhotoUris.remove(index);
+                    updateSelectedProductPhotoPreviews();
+                }
+            });
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(102),-2);
+            lp.rightMargin=dp(8);productNewPhotoContainer.addView(tile,lp);
+        }
+    }
+    private void showExistingProductPhotos(JSONArray saved,LinearLayout container){
+        if(saved==null)return;
+        int visible=Math.min(saved.length(),18);
+        for(int i=0;i<visible;i++){
+            final int number=i+1;
+            String filename=saved.optString(i,"");
+            String safeName=filename.substring(filename.lastIndexOf('/')+1);
+            LinearLayout tile=new LinearLayout(this);tile.setOrientation(1);
+            tile.setPadding(dp(4),dp(4),dp(4),dp(4));tile.setBackground(roundBg(0xfff1f4f8,10));
+            ImageView thumbnail=new ImageView(this);
+            thumbnail.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            thumbnail.setImageResource(android.R.drawable.ic_menu_gallery);
+            thumbnail.setPadding(dp(6),dp(6),dp(6),dp(6));
+            tile.addView(thumbnail,new LinearLayout.LayoutParams(dp(94),dp(88)));
+            TextView caption=new TextView(this);caption.setText("Zdjęcie "+number);
+            caption.setTextSize(11);caption.setTextColor(0xff526174);
+            caption.setGravity(Gravity.CENTER);tile.addView(caption);
+            LinearLayout.LayoutParams tileParams=new LinearLayout.LayoutParams(dp(102),dp(123));
+            tileParams.rightMargin=dp(8);container.addView(tile,tileParams);
+            if(!safeName.matches("[A-Za-z0-9._-]{1,180}")||safeName.equals(".")||safeName.equals("..")){
+                caption.setText("Brak podglądu");continue;
+            }
+            // Photos are already public in /uploads. Load compressed thumbnail off the UI thread.
+            new Thread(()->{
+                Bitmap bitmap=null;
+                java.net.HttpURLConnection connection=null;
+                try{
+                    String encoded=java.net.URLEncoder.encode(safeName,"UTF-8").replace("+","%20");
+                    connection=(java.net.HttpURLConnection)new java.net.URL("https://rentmor.pl/uploads/"+encoded).openConnection();
+                    connection.setConnectTimeout(6000);connection.setReadTimeout(9000);
+                    if(connection.getResponseCode()==200){
+                        BitmapFactory.Options settings=new BitmapFactory.Options();
+                        settings.inSampleSize=4;settings.inPreferredConfig=Bitmap.Config.RGB_565;
+                        try(InputStream stream=connection.getInputStream()){
+                            bitmap=BitmapFactory.decodeStream(stream,null,settings);
+                        }
+                    }
+                }catch(Exception ignored){}
+                finally{if(connection!=null)connection.disconnect();}
+                final Bitmap loaded=bitmap;
+                runOnUiThread(()->{
+                    if(container!=productExistingPhotoContainer){
+                        if(loaded!=null)loaded.recycle();return;
+                    }
+                    if(loaded!=null){
+                        thumbnail.setPadding(0,0,0,0);thumbnail.setImageBitmap(loaded);
+                    }else caption.setText("Niedostępne");
+                });
+            }).start();
+        }
+        if(saved.length()>visible){
+            TextView more=new TextView(this);more.setText("Pozostałe zdjęcia: "+(saved.length()-visible));
+            more.setTextSize(12);more.setTextColor(0xff697386);container.addView(more);
+        }
     }
 
     private void reservationPage() {
@@ -1361,12 +1526,46 @@ public class MainActivity extends Activity {
     }
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
-        if(requestCode==4102 && resultCode==RESULT_OK && data!=null) try {
-            productPhotos.clear();int added=0;
-            if(data.getClipData()!=null){android.content.ClipData clip=data.getClipData();for(int n=0;n<Math.min(6,clip.getItemCount());n++){android.net.Uri uri=clip.getItemAt(n).getUri();try(InputStream in=getContentResolver().openInputStream(uri)){Bitmap b=BitmapFactory.decodeStream(in);if(b!=null){productPhotos.add(b);added++;}}}}
-            else if(data.getData()!=null){try(InputStream in=getContentResolver().openInputStream(data.getData())){Bitmap b=BitmapFactory.decodeStream(in);if(b!=null){productPhotos.add(b);added++;}}}
-            if(productPhotoCount!=null)productPhotoCount.setText("Wybrano zdjęć: "+productPhotos.size());toast(added>0?"Dodano zdjęcia produktu.":"Nie udało się wczytać zdjęć.");
-        } catch(Exception e){toast("Błąd zdjęć produktu: "+e.getMessage());}
+        if(requestCode==4102 && resultCode==RESULT_OK && data!=null){
+            ArrayList<android.net.Uri> selected=new ArrayList<>();
+            if(data.getClipData()!=null){
+                android.content.ClipData clip=data.getClipData();
+                for(int i=0;i<clip.getItemCount();i++)selected.add(clip.getItemAt(i).getUri());
+            }
+            if(data.getData()!=null&&!selected.contains(data.getData()))selected.add(data.getData());
+            int remaining=Math.max(0,6-existingProductPhotoCount-productPhotos.size());
+            ArrayList<android.net.Uri> toLoad=new ArrayList<>();
+            for(android.net.Uri uri:selected){
+                if(toLoad.size()>=remaining)break;
+                if(uri!=null&&!productSelectedPhotoUris.contains(uri.toString())&&!toLoad.contains(uri))toLoad.add(uri);
+            }
+            if(toLoad.isEmpty()){toast("Nie wybrano nowych zdjęć lub osiągnięto limit 6.");return;}
+            final int session=productPhotoSession;
+            final LinearLayout target=productNewPhotoContainer;
+            productPhotosLoading=true;updateSelectedProductPhotoPreviews();
+            new Thread(()->{
+                ArrayList<Bitmap> loadedImages=new ArrayList<>();
+                ArrayList<String> imageKeys=new ArrayList<>();
+                for(android.net.Uri uri:toLoad){
+                    try{
+                        Bitmap bitmap=readProductPhotoThumbnail(uri);
+                        loadedImages.add(bitmap);imageKeys.add(uri.toString());
+                    }catch(Exception ignored){}
+                }
+                runOnUiThread(()->{
+                    if(session!=productPhotoSession||target!=productNewPhotoContainer){
+                        for(Bitmap bitmap:loadedImages)if(bitmap!=null&&!bitmap.isRecycled())bitmap.recycle();
+                        return;
+                    }
+                    for(int i=0;i<loadedImages.size();i++){
+                        if(existingProductPhotoCount+productPhotos.size()>=6)break;
+                        productPhotos.add(loadedImages.get(i));productSelectedPhotoUris.add(imageKeys.get(i));
+                    }
+                    productPhotosLoading=false;updateSelectedProductPhotoPreviews();
+                    toast(loadedImages.size()>0?"Dodano "+loadedImages.size()+" zdjęć.":"Nie udało się wczytać wybranych zdjęć.");
+                });
+            }).start();
+        }
         if(requestCode==4101 && resultCode==RESULT_OK && data!=null) try {
             int added=0;
             if(data.getClipData()!=null){android.content.ClipData clip=data.getClipData();for(int n=0;n<clip.getItemCount();n++){android.net.Uri uri=clip.getItemAt(n).getUri();getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION);try(InputStream in=getContentResolver().openInputStream(uri)){Bitmap b=BitmapFactory.decodeStream(in);if(b!=null){issuePhotos.add(b);added++;}}}}
