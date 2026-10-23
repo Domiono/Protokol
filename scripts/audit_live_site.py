@@ -33,6 +33,7 @@ for name in ("sitemap.xml","sitemap.php","sitemap_index.xml"):
             for url in urls[:65]:print("  ",url)
         except Exception as e:print("Bad XML",str(e)[:250],content[:800])
     else:
+        print("CURRENT GENERATOR:\n"+content[:2200])
         lines=content.splitlines()
         for n,line in enumerate(lines,1):
             if re.search(r"xml|sitemap|terms|zasad|regulamin|products|data.json|route|url|lastmod",line,re.I):
@@ -48,7 +49,7 @@ if path.exists():
         r"nl2br|whitespace-pre-line|whitespace-pre-wrap|prose|text-justify|leading-[0-9]|break-words|overflow-wrap",
         r"product.*description|opis.*produktu|Opis sprzętu",
         r"container|max-w-[0-9a-z\\[\\]-]+|grid-cols-|md:col-span|w-full",
-        r"@media\\s*\\(max-width",
+        r"@media\s*\(max-width",
     ]
     for idx, pat in enumerate(patterns):
         matches=[i for i,line in enumerate(lines) if re.search(pat,line,re.I)]
@@ -65,3 +66,17 @@ for name in ("styles.css","style.css","main.css"):
     for i,line in enumerate(lines):
         if re.search(r"product|desc|opis|prose|description|@media",line,re.I):
             print(" ",i+1,line[:200])
+
+print("\\nFILE LIST (public php/xml/txt/css):")
+fileList=folder/"file-list.txt"
+if fileList.exists():
+    for filename in fileList.read_text("utf-8","replace").splitlines():
+        if re.search(r"\\.(php|xml|txt|css)$",filename,re.I):
+            print(" ",filename[:150])
+if path.exists():
+    print("\\nPRODUCT DETAIL TEMPLATE (selected lines 880-1020):")
+    lines=path.read_text("utf-8","replace").splitlines()
+    for n in range(880,min(len(lines),1021)):
+        line=lines[n]
+        if not re.search(r"token|password|secret|chat_id|hasz_hasla|telegram",line,re.I):
+            print(str(n+1)+": "+line[:260])
