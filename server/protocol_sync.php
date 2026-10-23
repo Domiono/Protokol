@@ -108,6 +108,16 @@ if ($method === 'GET') {
         }
     }
     unset($customer);
+    // Do not expose settlement income/loss through nested customer history to non-admin devices.
+    if ($role !== 'admin') {
+        foreach ($customers as &$customer) {
+            foreach ($customer['reservations'] as &$reservation) {
+                unset($reservation['income'], $reservation['loss'], $reservation['loss_note'], $reservation['settled_at']);
+            }
+            unset($reservation);
+        }
+        unset($customer);
+    }
     $inventory = rm_read_json_file(__DIR__ . '/data.json', []);
     $siteStats = rm_read_json_file(__DIR__ . '/stats.json', []);
     // Count recent public-site heartbeats. A session expires 95 seconds after its last ping.
