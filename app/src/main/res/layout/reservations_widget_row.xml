@@ -9,11 +9,12 @@
     android:paddingTop="3dp"
     android:paddingBottom="3dp">
 
-    <View
+    <TextView
         android:id="@+id/widget_equipment_color"
         android:layout_width="6dp"
         android:layout_height="match_parent"
-        android:background="#8293A6" />
+        android:background="#8293A6"
+        android:text="" />
 
     <LinearLayout
         android:id="@+id/widget_card"
