@@ -1,0 +1,31 @@
+name: Check AZ.pl SFTP Connectivity
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/check-az-sftp.yml'
+  workflow_dispatch:
+
+jobs:
+  check-sftp:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe SFTP port and report unverified SSH fingerprints
+        env:
+          FTP_SERVER: \${{ secrets.FTP_SERVER }}
+        run: |
+          set -eu
+          : "\${FTP_SERVER:?FTP_SERVER secret missing}"
+          mkdir -p "$RUNNER_TEMP/rentmor-sftp"
+          # This performs only an SSH handshake; no credentials are sent.
+          set +e
+          timeout 25 ssh-keyscan -p 22222 -T 8 -t ed25519,ecdsa,rsa "$FTP_SERVER" 2>/dev/null > "$RUNNER_TEMP/rentmor-sftp/scanned"
+          set -e
+          if [ ! -s "$RUNNER_TEMP/rentmor-sftp/scanned" ]; then
+            echo "AZ.pl SFTP port 22222 is unreachable or has no SSH host key response."
+            exit 1
+          fi
+          echo "SFTP port 22222 responded to an SSH handshake."
+          echo "UNVERIFIED host key fingerprints (confirm out-of-band with AZ.pl before using credentials):"
+          ssh-keygen -lf "$RUNNER_TEMP/rentmor-sftp/scanned" -E sha256 | sed -E 's/ \([^)]*\)//g'
+          echo "No login, password, or file upload was attempted."
