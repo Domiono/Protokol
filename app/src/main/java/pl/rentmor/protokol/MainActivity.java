@@ -43,7 +43,7 @@ public class MainActivity extends Activity {
         }});
         setContentView(activation); activation.loadUrl(HOME);
     }
-    private void showHome(){showingApp=true;LinearLayout screen=new LinearLayout(this);screen.setOrientation(1);screen.setPadding(20,22,20,24);screen.setBackgroundColor(0xfff5f6fa);final int insetLeft=screen.getPaddingLeft(),insetTop=screen.getPaddingTop(),insetRight=screen.getPaddingRight(),insetBottom=screen.getPaddingBottom();screen.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(insetLeft+insets.getSystemWindowInsetLeft(),insetTop+insets.getSystemWindowInsetTop(),insetRight+insets.getSystemWindowInsetRight(),insetBottom+insets.getSystemWindowInsetBottom());return insets;});
+    private void showHome(){if(siteLiveHandler!=null && siteLiveRefresh!=null)siteLiveHandler.removeCallbacks(siteLiveRefresh);showingApp=true;LinearLayout screen=new LinearLayout(this);screen.setOrientation(1);screen.setPadding(20,22,20,24);screen.setBackgroundColor(0xfff5f6fa);final int insetLeft=screen.getPaddingLeft(),insetTop=screen.getPaddingTop(),insetRight=screen.getPaddingRight(),insetBottom=screen.getPaddingBottom();screen.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(insetLeft+insets.getSystemWindowInsetLeft(),insetTop+insets.getSystemWindowInsetTop(),insetRight+insets.getSystemWindowInsetRight(),insetBottom+insets.getSystemWindowInsetBottom());return insets;});
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true); LinearLayout page=new LinearLayout(this);root=page;homePage=page;adminDownloadAdded=false;page.setOrientation(1);scroll.addView(page);
         TextView eyebrow=new TextView(this);eyebrow.setText("RENTMOR • PRO");eyebrow.setTextSize(13);eyebrow.setLetterSpacing(.18f);eyebrow.setTextColor(0xff697386);eyebrow.setTypeface(null,1);page.addView(eyebrow);
         TextView title=new TextView(this);title.setText("Pro RentMor");title.setTextSize(30);title.setTextColor(0xff172235);title.setTypeface(null,1);LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(-1,-2);tp.bottomMargin=14;page.addView(title,tp);
@@ -199,6 +199,17 @@ public class MainActivity extends Activity {
             TextView liveHead=new TextView(this);liveHead.setText("DZISIAJ • ODSŁONY");liveHead.setTextSize(12);liveHead.setTypeface(null,1);liveHead.setTextColor(0xff267044);live.addView(liveHead);
             TextView liveValue=new TextView(this);liveValue.setText(String.valueOf(todayViews));liveValue.setTextSize(29);liveValue.setTypeface(null,1);liveValue.setTextColor(0xff14532d);live.addView(liveValue);liveLabel[0]=liveValue;
             TextView liveHint=new TextView(this);liveHint.setText("Automatyczne odświeżanie co 30 sekund");liveHint.setTextSize(11);liveHint.setTextColor(0xff43805b);live.addView(liveHint);liveCards.addView(live);
+            LinearLayout presence=new LinearLayout(this);presence.setOrientation(1);presence.setPadding(14,12,14,12);
+            presence.setBackground(roundBg(0xffeaf1ff,13));
+            TextView presenceTitle=new TextView(this);presenceTitle.setText("OSOBY TERAZ NA STRONIE");
+            presenceTitle.setTextSize(12);presenceTitle.setTypeface(null,1);presenceTitle.setTextColor(0xff27549a);presence.addView(presenceTitle);
+            TextView presenceValue=new TextView(this);
+            presenceValue.setText(st.has("online_visitors")?String.valueOf(st.optInt("online_visitors",0)):"—");
+            presenceValue.setTextSize(29);presenceValue.setTypeface(null,1);presenceValue.setTextColor(0xff1c3f75);presence.addView(presenceValue);
+            TextView presenceHint=new TextView(this);presenceHint.setText("Aktywne przeglądarki w ciągu ostatnich 95 sekund");
+            presenceHint.setTextSize(11);presenceHint.setTextColor(0xff43698e);presence.addView(presenceHint);
+            LinearLayout.LayoutParams presenceParams=new LinearLayout.LayoutParams(-1,-2);presenceParams.topMargin=dp(8);
+            liveCards.addView(presence,presenceParams);
             addMetric(cards,"Wszystkie odsłony",String.valueOf(st.optLong("total_views",0)));
             addMetric(cards,"Unikalni odwiedzający",String.valueOf(st.optLong("unique_visitors",0)));
             addMetric(cards,"Kliknięcia telefonu",String.valueOf(st.optLong("total_phone_clicks",0)));
@@ -211,15 +222,89 @@ public class MainActivity extends Activity {
                 JSONArray products=siteProducts();for(int i=0;i<Math.min(5,ids.size());i++){String id=ids.get(i),name=id;for(int j=0;j<products.length();j++){JSONObject p=products.optJSONObject(j);if(p!=null&&id.equals(p.optString("id"))){name=p.optString("name",id);break;}}addMetric(cards,name,pv.optString(id)+" odsłon");}
             }
             chartCard.removeAllViews();
-            final ArrayList<String> labels=new ArrayList<>();final ArrayList<Integer> values=new ArrayList<>();
+            final ArrayList<String> labels=new ArrayList<>(), dateKeys=new ArrayList<>();
+            final ArrayList<Integer> values=new ArrayList<>();
             Calendar cal=Calendar.getInstance();cal.add(Calendar.DAY_OF_YEAR,-(range[0]-1));
-            SimpleDateFormat keyFormat=new SimpleDateFormat("yyyy-MM-dd",Locale.US),labelFormat=new SimpleDateFormat("dd.MM",Locale.getDefault());
-            for(int i=0;i<range[0];i++){String key=keyFormat.format(cal.getTime());labels.add(labelFormat.format(cal.getTime()));values.add((int)Math.min(Integer.MAX_VALUE,days.optLong(key,0)));cal.add(Calendar.DAY_OF_YEAR,1);}
+            SimpleDateFormat keyFormat=new SimpleDateFormat("yyyy-MM-dd",Locale.US);
+            SimpleDateFormat shortFormat=new SimpleDateFormat("dd.MM",Locale.getDefault());
+            for(int i=0;i<range[0];i++){
+                String day=keyFormat.format(cal.getTime());dateKeys.add(day);
+                labels.add(shortFormat.format(cal.getTime()));
+                values.add((int)Math.min(Integer.MAX_VALUE,days.optLong(day,0)));
+                cal.add(Calendar.DAY_OF_YEAR,1);
+            }
+            final int[] selected={Math.max(0,values.size()-1)};
+            TextView detail=new TextView(this);
+            detail.setTextSize(17);detail.setTypeface(null,1);detail.setTextColor(0xff172235);
+            detail.setBackground(roundBg(0xfffff6d9,10));detail.setPadding(dp(12),dp(10),dp(12),dp(10));
+            detail.setText(labels.get(selected[0])+"  •  "+values.get(selected[0])+" odsłon");
+            chartCard.addView(detail,new LinearLayout.LayoutParams(-1,-2));
+            TextView tip=new TextView(this);
+            tip.setText("Dotknij słupka, aby zobaczyć datę i liczbę odsłon. Przy 30 i 90 dniach przesuń wykres w bok.");
+            tip.setTextSize(11);tip.setTextColor(0xff697386);tip.setPadding(2,dp(8),2,dp(3));
+            chartCard.addView(tip);
+            android.widget.HorizontalScrollView scroller=new android.widget.HorizontalScrollView(this);
+            scroller.setFillViewport(true);scroller.setHorizontalScrollBarEnabled(true);
+            chartCard.addView(scroller,new LinearLayout.LayoutParams(-1,dp(235)));
             View graph=new View(this){
-                Paint p=new Paint(3);
-                @Override protected void onDraw(Canvas canvas){super.onDraw(canvas);float w=getWidth(),h=getHeight(),left=38,top=18,bottom=34,right=10;float usableW=w-left-right,usableH=h-top-bottom;int max=1;for(int v:values)max=Math.max(max,v);p.setColor(0xffe5e9ef);p.setStrokeWidth(1);canvas.drawLine(left,top+usableH,left+usableW,top+usableH,p);canvas.drawLine(left,top,left+usableW,top,p);p.setTextSize(22);p.setColor(0xfff2bd16);float slot=usableW/Math.max(1,values.size());for(int i=0;i<values.size();i++){float bh=usableH*values.get(i)/(float)max;float x=left+i*slot+slot*.18f;canvas.drawRoundRect(x,top+usableH-bh,x+slot*.64f,top+usableH,5,5,p);if(values.size()<=14||i%5==0||i==values.size()-1){p.setColor(0xff657184);p.setTextSize(10);canvas.drawText(labels.get(i),x-5, h-9,p);}p.setColor(0xfff2bd16);}p.setColor(0xff657184);p.setTextSize(10);canvas.drawText(String.valueOf(max),2,top+5,p);canvas.drawText("0",18,top+usableH,p);}
+                final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);
+                @Override protected void onDraw(Canvas canvas){
+                    super.onDraw(canvas);
+                    float width=getWidth(),height=getHeight();
+                    float left=dp(40),right=dp(8),top=dp(33),bottom=dp(43);
+                    float plotWidth=Math.max(1,width-left-right);
+                    float plotHeight=Math.max(1,height-top-bottom);
+                    int highest=1;for(int v:values)highest=Math.max(highest,v);
+                    int axisMax=(int)Math.ceil(highest/10.0)*10;
+                    float slot=plotWidth/Math.max(1,values.size());
+                    paint.setColor(0xffe3e8f0);paint.setStrokeWidth(dp(1));
+                    for(int line=0;line<=2;line++){
+                        float y=top+plotHeight*line/2f;
+                        canvas.drawLine(left,y,width-right,y,paint);
+                        paint.setColor(0xff697386);paint.setTextSize(dp(10));
+                        String text=String.valueOf(axisMax-(int)(axisMax*line/2f));
+                        canvas.drawText(text,dp(3),y+dp(4),paint);
+                        paint.setColor(0xffe3e8f0);
+                    }
+                    for(int i=0;i<values.size();i++){
+                        float center=left+(i+0.5f)*slot;
+                        float barWidth=slot*0.60f;
+                        float barHeight=plotHeight*values.get(i)/(float)axisMax;
+                        float y=top+plotHeight-barHeight;
+                        paint.setColor(i==selected[0]?0xffe4a800:0xfffacc15);
+                        canvas.drawRoundRect(center-barWidth/2,y,center+barWidth/2,top+plotHeight,dp(4),dp(4),paint);
+                        if(values.size()<=7 || i==selected[0]){
+                            paint.setColor(0xff172235);paint.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));
+                            paint.setTextSize(dp(11));
+                            String number=String.valueOf(values.get(i));
+                            canvas.drawText(number,center-paint.measureText(number)/2f,Math.max(dp(16),y-dp(5)),paint);
+                        }
+                        if(values.size()<=7 || i%5==0 || i==values.size()-1){
+                            paint.setColor(0xff526174);paint.setTypeface(Typeface.DEFAULT);paint.setTextSize(dp(11));
+                            String day=labels.get(i);
+                            canvas.drawText(day,center-paint.measureText(day)/2f,height-dp(13),paint);
+                        }
+                    }
+                }
+                @Override public boolean onTouchEvent(android.view.MotionEvent event){
+                    if(event.getAction()==android.view.MotionEvent.ACTION_UP){
+                        float left=dp(40),right=dp(8);
+                        float width=Math.max(1,getWidth()-left-right);
+                        int index=(int)((event.getX()-left)/width*values.size());
+                        index=Math.max(0,Math.min(values.size()-1,index));
+                        selected[0]=index;
+                        detail.setText(labels.get(index)+"  •  "+values.get(index)+" odsłon");
+                        setContentDescription(dateKeys.get(index)+", "+values.get(index)+" odsłon");
+                        invalidate();performClick();return true;
+                    }
+                    return true;
+                }
+                @Override public boolean performClick(){super.performClick();return true;}
             };
-            chart[0]=graph;chartCard.addView(graph,new LinearLayout.LayoutParams(-1,dp(190)));
+            graph.setClickable(true);
+            int chartWidth=range[0]<=7?dp(315):Math.max(dp(315),range[0]*dp(35)+dp(40));
+            scroller.addView(graph,new android.widget.FrameLayout.LayoutParams(chartWidth,dp(230)));
+            if(range[0]>7)scroller.post(()->scroller.scrollTo(chartWidth,0));
         };
         final Runnable[] buildRanges=new Runnable[1];buildRanges[0]=()->{rangeBar.removeAllViews();for(int days:new int[]{7,30,90}){Button b=new Button(this);b.setText(days+" DNI");brandButton(b,range[0]==days);b.setTextSize(12);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);lp.setMargins(2,2,2,8);rangeBar.addView(b,lp);b.setOnClickListener(v->{range[0]=days;buildRanges[0].run();render.run();});}};
         buildRanges[0].run();render.run();refreshSiteData(render);
