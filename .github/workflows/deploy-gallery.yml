@@ -33,33 +33,53 @@ jobs:
 
       - name: Patch current homepage with private backup and verify the live result
         env:
-          FTP_SERVER: \${{ secrets.FTP_SERVER }}
-          FTP_USERNAME: \${{ secrets.FTP_USERNAME }}
-          FTP_PASSWORD: \${{ secrets.FTP_PASSWORD }}
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
           set -eu
           test -n "$FTP_SERVER"
           test -n "$FTP_USERNAME"
-          test -n "$FTP_PASSWORD"
+          test -n "$LFTP_PASSWORD"
           TMP_DIR="$(mktemp -d)"
           trap 'rm -rf "$TMP_DIR"' EXIT
+          # Only trust keys with previously observed SSH fingerprints.
+          HOSTKEY_SCAN="$TMP_DIR/scan_keys"
+          HOSTKEYS="$TMP_DIR/known_hosts"
+          for attempt in 1 2 3; do
+            ssh-keyscan -p 22222 -T 12 -t ed25519,rsa "$FTP_SERVER" 2>/dev/null > "$HOSTKEY_SCAN" && test -s "$HOSTKEY_SCAN" && break
+            sleep 2
+          done
+          test -s "$HOSTKEY_SCAN" || { echo "No SSH host key; refusing connection"; exit 1; }
+          : > "$HOSTKEYS"
+          while IFS= read -r line; do
+            printf "%s\n" "$line" > "$TMP_DIR/one_key"
+            fingerprint="$(ssh-keygen -lf "$TMP_DIR/one_key" -E sha256)"
+            case "$fingerprint" in
+              *SHA256:nJyQovQRMmJEJuzI44hZS/VhZPrOhzRoEyh92Go6TEk*|*SHA256:GDfRh92pfMOviF06fYXQSIHQ0OSKwDNOXqzr+Tslrr0*) printf "%s\n" "$line" >> "$HOSTKEYS" ;;
+            esac
+          done < "$HOSTKEY_SCAN"
+          test -s "$HOSTKEYS" || { echo "SFTP host key mismatch; refusing connection"; exit 1; }
+          chmod 600 "$HOSTKEYS"
+          SFTP_SETUP="set cmd:fail-exit yes; set net:timeout 25; set net:max-retries 2; set sftp:connect-program \"ssh -a -x -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOSTKEYS\""
+          echo "Previously pinned SFTP server key verified."
 
           # Read CURRENT PHP from hosting, never replace it with a stale copy.
-          lftp -u "$FTP_USERNAME,$FTP_PASSWORD" "ftp://$FTP_SERVER" -e "set cmd:fail-exit yes; set net:timeout 25; set net:max-retries 2; set ftp:passive-mode yes; get public_html/index.php -o $TMP_DIR/index.php; bye"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_SETUP; get public_html/index.php -o $TMP_DIR/index.php; bye"
           cp "$TMP_DIR/index.php" "$TMP_DIR/original.php"
           test -s "$TMP_DIR/original.php"
           python3 scripts/patch_public_gallery.py "$TMP_DIR/index.php"
           php -l "$TMP_DIR/index.php"
 
           # Abort if index.php changed during preparation.
-          lftp -u "$FTP_USERNAME,$FTP_PASSWORD" "ftp://$FTP_SERVER" -e "set cmd:fail-exit yes; set net:timeout 25; set net:max-retries 2; set ftp:passive-mode yes; get public_html/index.php -o $TMP_DIR/check.php; bye"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_SETUP; get public_html/index.php -o $TMP_DIR/check.php; bye"
           cmp -s "$TMP_DIR/original.php" "$TMP_DIR/check.php" || { echo "Index changed on host; refusing overwrite"; exit 1; }
 
           # Backups OUTSIDE public_html prevent accidental source disclosure.
-          lftp -u "$FTP_USERNAME,$FTP_PASSWORD" "ftp://$FTP_SERVER" -e "set cmd:fail-exit yes; set net:timeout 25; set net:max-retries 2; set ftp:passive-mode yes; mkdir -p rentmor-backups; put $TMP_DIR/original.php -o rentmor-backups/index-before-gallery-$GITHUB_RUN_ID.php; bye"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_SETUP; mkdir -p rentmor-backups; put $TMP_DIR/original.php -o rentmor-backups/index-before-gallery-$GITHUB_RUN_ID.php; bye"
           echo "Private backup stored: rentmor-backups/index-before-gallery-$GITHUB_RUN_ID.php"
 
-          lftp -u "$FTP_USERNAME,$FTP_PASSWORD" "ftp://$FTP_SERVER" -e "set cmd:fail-exit yes; set net:timeout 25; set net:max-retries 2; set ftp:passive-mode yes; put server/rentmor-gallery.css -o public_html/rentmor-gallery.css; put server/rentmor-gallery.js -o public_html/rentmor-gallery.js; put $TMP_DIR/index.php -o public_html/index.php; bye"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_SETUP; put server/rentmor-gallery.css -o public_html/rentmor-gallery.css; put server/rentmor-gallery.js -o public_html/rentmor-gallery.js; put $TMP_DIR/index.php -o public_html/index.php; bye"
           echo "Gallery assets and homepage deployed."
 
           python3 - <<'PY'
