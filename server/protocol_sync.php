@@ -109,6 +109,7 @@ if ($method === 'GET') {
     }
     unset($customer);
     $inventory = rm_read_json_file(__DIR__ . '/data.json', []);
+    $siteStats = rm_read_json_file(__DIR__ . '/stats.json', []);
     $equipment = [];
     foreach ($inventory as $product) {
         $name = trim((string)($product['name'] ?? ''));
@@ -116,7 +117,7 @@ if ($method === 'GET') {
     }
     rm_json_response(200, [
         'ok'=>true, 'role'=>$role, 'server_time'=>date(DATE_ATOM),
-        'protocols'=>array_values($protocols), 'customers'=>array_values($customers), 'expenses'=>($role === 'admin' ? array_values(rm_read_json_file(__DIR__ . '/costs.json', [])) : []), 'reservations'=>array_values(array_map(function($r) use ($role) { if ($role !== 'admin') { unset($r['income'],$r['loss'],$r['loss_note'],$r['settled_at']); } return $r; }, rm_read_json_file(__DIR__ . '/reservations.json', []))), 'equipment'=>array_keys($equipment)
+        'protocols'=>array_values($protocols), 'customers'=>array_values($customers), 'expenses'=>($role === 'admin' ? array_values(rm_read_json_file(__DIR__ . '/costs.json', [])) : []), 'reservations'=>array_values(array_map(function($r) use ($role) { if ($role !== 'admin') { unset($r['income'],$r['loss'],$r['loss_note'],$r['settled_at']); } return $r; }, rm_read_json_file(__DIR__ . '/reservations.json', []))), 'equipment'=>array_keys($equipment), 'site_stats'=>($role === 'admin' ? $siteStats : [])
     ]);
 }
 if ($method !== 'POST') rm_json_response(405, ['ok'=>false, 'error'=>'Niedozwolona metoda.']);
@@ -176,6 +177,55 @@ foreach ($operations as $op) {
         $ok=rm_write_json_atomic($customerFile,$customers);
         flock($customerLock,LOCK_UN); fclose($customerLock);
         $results[]=$ok?['op_id'=>$opId,'ok'=>true,'id'=>$key]:['op_id'=>$opId,'ok'=>false,'error'=>'Nie udało się zapisać karty klienta.'];
+        continue;
+    }
+
+    if ($action === 'product_save' || $action === 'product_delete') {
+        if ($role !== 'admin') { $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Zarządzanie ofertą jest dostępne tylko dla administratora.']; continue; }
+        $file = __DIR__ . '/data.json';
+        $lock = fopen($file . '.lock', 'c+');
+        if (!$lock || !flock($lock, LOCK_EX)) { if ($lock) fclose($lock); $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Baza sprzętu jest chwilowo zajęta.']; continue; }
+        $items = rm_read_json_file($file, []);
+        $id = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($op['id'] ?? ''));
+        if ($action === 'product_delete') {
+            $before=count($items);
+            $items=array_values(array_filter($items,fn($p)=>(string)($p['id']??'')!==$id));
+            $ok=$id!=='' && count($items)<$before;
+        } else {
+            $name=rm_text($op,'name',160); $desc=rm_text($op,'desc',4000);
+            $category=rm_text($op,'category',40);
+            if(!in_array($category,['budowlane','ogrodnicze','czyszczace'],true)) $category='budowlane';
+            $price=filter_var(str_replace(',','.',(string)($op['price']??'')),FILTER_VALIDATE_FLOAT);
+            $deposit=filter_var(str_replace(',','.',(string)($op['deposit']??'0')),FILTER_VALIDATE_FLOAT);
+            if($name==='' || $price===false || $price<0 || $deposit===false || $deposit<0) {
+                flock($lock,LOCK_UN); fclose($lock); $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Podaj nazwę oraz prawidłową cenę i kaucję.']; continue;
+            }
+            $found=-1; foreach($items as $idx=>$p) if((string)($p['id']??'')===$id && $id!=='') {$found=$idx;break;}
+            if($id==='') $id=bin2hex(random_bytes(10));
+            $old=$found>=0?$items[$found]:[];
+            $images=is_array($old['images']??null)?$old['images']:[];
+            $photoData=$op['photos_base64']??[];
+            if(is_array($photoData)) foreach(array_slice($photoData,0,6) as $encoded) {
+                if(!is_string($encoded) || strlen($encoded)>4000000) continue;
+                $binary=base64_decode($encoded,true); if($binary===false || strlen($binary)>2800000) continue;
+                $info=@getimagesizefromstring($binary);
+                if(!$info || !in_array($info['mime'],['image/jpeg','image/png','image/webp'],true)) continue;
+                $ext=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'][$info['mime']];
+                $dir=__DIR__.'/uploads'; if(!is_dir($dir) && !mkdir($dir,0755,true)) continue;
+                $filename='sprzet_'.bin2hex(random_bytes(12)).'.'.$ext;
+                if(file_put_contents($dir.'/'.$filename,$binary,LOCK_EX)!==false) $images[]=$filename;
+            }
+            $item=['id'=>$id,'name'=>htmlspecialchars($name,ENT_QUOTES,'UTF-8'),'category'=>$category,
+                'desc'=>htmlspecialchars($desc,ENT_QUOTES,'UTF-8'),'seo_title'=>rm_text($op,'seo_title',180),
+                'seo_description'=>rm_text($op,'seo_description',320),'price'=>round((float)$price,2),
+                'deposit'=>round((float)$deposit,2),'olx'=>rm_text($op,'olx',500),'images'=>$images,
+                'date'=>date('Y-m-d H:i'),'phone_clicks'=>(int)($old['phone_clicks']??0)];
+            if($found>=0) $items[$found]=$item; else array_unshift($items,$item);
+            $ok=true;
+        }
+        $ok=$ok && rm_write_json_atomic($file,$items);
+        flock($lock,LOCK_UN); fclose($lock);
+        $results[]=$ok?['op_id'=>$opId,'ok'=>true,'id'=>$id]:['op_id'=>$opId,'ok'=>false,'error'=>'Nie udało się zapisać oferty sprzętu.'];
         continue;
     }
 
