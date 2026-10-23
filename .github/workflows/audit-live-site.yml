@@ -1,0 +1,35 @@
+name: Audit Live RentMor Sitemap and Layout
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/audit-live-site.yml'
+  workflow_dispatch:
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install FTP client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y lftp
+      - name: Read live website sources (no modifications)
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -eu
+          : "${FTP_SERVER:?Missing FTP_SERVER}"
+          : "${FTP_USERNAME:?Missing FTP_USERNAME}"
+          : "${FTP_PASSWORD:?Missing FTP_PASSWORD}"
+          TMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TMP_DIR"' EXIT
+          printf '%s\n' "Fetching only selected publicly served files over FTP..."
+          COMMAND="set cmd:fail-exit no; set net:timeout 25; set ftp:passive-mode yes"
+          for filename in index.php .htaccess robots.txt sitemap.xml sitemap.php sitemap_index.xml style.css styles.css main.css; do
+            COMMAND="$COMMAND; get public_html/$filename -o $TMP_DIR/$filename"
+          done
+          lftp -u "${FTP_USERNAME},${FTP_PASSWORD}" "ftp://${FTP_SERVER}" -e "$COMMAND; bye" >/dev/null 2>&1
+          python3 scripts/audit_live_site.py "$TMP_DIR"
