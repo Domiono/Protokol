@@ -156,7 +156,7 @@ public class MainActivity extends Activity {
     private void homeQuickCard(LinearLayout row,int icon,String title,String subtitle,int accent,Runnable action){
         LinearLayout card=new LinearLayout(this);card.setOrientation(1);
         card.setPadding(dp(13),dp(12),dp(11),dp(12));card.setBackground(roundBg(Color.WHITE,15));
-        card.setElevation(dp(1));
+        card.setMinimumHeight(dp(135));card.setElevation(dp(1));
         ImageView picture=new ImageView(this);picture.setImageResource(icon);picture.setColorFilter(0xff172235);
         picture.setPadding(dp(9),dp(9),dp(9),dp(9));picture.setBackground(roundBg(accent,11));
         card.addView(picture,new LinearLayout.LayoutParams(dp(42),dp(42)));
@@ -165,7 +165,7 @@ public class MainActivity extends Activity {
         card.addView(name);
         TextView info=new TextView(this);info.setText(subtitle);info.setTextSize(11);
         info.setTextColor(0xff697386);info.setPadding(0,dp(3),0,0);card.addView(info);
-        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-1,1);
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);
         lp.setMargins(dp(3),0,dp(3),0);row.addView(card,lp);
         card.setOnClickListener(v->action.run());card.setClickable(true);
     }
