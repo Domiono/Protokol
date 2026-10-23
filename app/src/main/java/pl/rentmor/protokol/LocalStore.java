@@ -172,18 +172,73 @@ public class LocalStore extends SQLiteOpenHelper {
         } finally { db.endTransaction(); }
     }
 
+    public synchronized void saveCustomerDraft(JSONObject customer) {
+        String key=customer.optString("phone_key","");
+        if(key.isEmpty()) throw new IllegalArgumentException("Brak identyfikatora klienta.");
+        ContentValues values=new ContentValues();
+        values.put("phone_key",key);
+        values.put("data",customer.toString());
+        values.put("updated",System.currentTimeMillis());
+        getWritableDatabase().insertWithOnConflict("customers",null,values,SQLiteDatabase.CONFLICT_REPLACE);
+    }
     public synchronized void replaceServerCustomers(JSONArray a) {
-        SQLiteDatabase db=getWritableDatabase(); db.beginTransaction();
+        SQLiteDatabase db=getWritableDatabase();
+        // Keep locally edited names and notes visible until queued operations reach the server.
+        HashMap<String,JSONObject> pendingProfiles=new HashMap<>();
+        JSONArray pending=queued();
+        for(int i=0;i<pending.length();i++){
+            JSONObject operation=pending.optJSONObject(i);
+            if(operation==null||!"customer_save".equals(operation.optString("action")))continue;
+            String key=operation.optString("id","");
+            if(!key.isEmpty())pendingProfiles.put(key,operation);
+        }
+        HashMap<String,JSONObject> previous=new HashMap<>();
+        if(!pendingProfiles.isEmpty()){
+            Cursor old=db.rawQuery("SELECT phone_key,data FROM customers",null);
+            try {
+                while(old.moveToNext()){
+                    String key=old.getString(0);
+                    if(pendingProfiles.containsKey(key)){
+                        try{previous.put(key,new JSONObject(old.getString(1)));}catch(Exception ignored){}
+                    }
+                }
+            }finally{old.close();}
+        }
+        HashSet<String> seen=new HashSet<>();
+        db.beginTransaction();
         try {
             db.delete("customers",null,null);
-            if(a!=null) for(int i=0;i<a.length();i++) {
-                JSONObject x=a.optJSONObject(i); if(x==null) continue;
-                String key=x.optString("phone_key",""); if(key.isEmpty()) continue;
-                ContentValues v=new ContentValues(); v.put("phone_key",key); v.put("data",x.toString()); v.put("updated",System.currentTimeMillis());
-                db.insertWithOnConflict("customers",null,v,SQLiteDatabase.CONFLICT_REPLACE);
+            if(a!=null)for(int i=0;i<a.length();i++) {
+                JSONObject source=a.optJSONObject(i);if(source==null)continue;
+                String key=source.optString("phone_key","");if(key.isEmpty())continue;
+                try {
+                    JSONObject updated=new JSONObject(source.toString());
+                    JSONObject draft=pendingProfiles.get(key);
+                    if(draft!=null){
+                        updated.put("name",draft.optString("name",""));
+                        updated.put("notes",draft.optString("notes",""));
+                    }
+                    ContentValues v=new ContentValues();v.put("phone_key",key);v.put("data",updated.toString());
+                    v.put("updated",System.currentTimeMillis());
+                    db.insertWithOnConflict("customers",null,v,SQLiteDatabase.CONFLICT_REPLACE);
+                    seen.add(key);
+                }catch(Exception ignored){}
+            }
+            for(String key:pendingProfiles.keySet()){
+                if(seen.contains(key))continue;
+                JSONObject draft=pendingProfiles.get(key);
+                JSONObject restored=previous.get(key);
+                if(restored==null)restored=new JSONObject();
+                try{
+                    restored.put("phone_key",key);
+                    restored.put("phone",draft.optString("phone",""));
+                    restored.put("name",draft.optString("name",""));
+                    restored.put("notes",draft.optString("notes",""));
+                    saveCustomerDraft(restored);
+                }catch(Exception ignored){}
             }
             db.setTransactionSuccessful();
-        } finally { db.endTransaction(); }
+        }finally{db.endTransaction();}
     }
     public synchronized JSONArray customers() {
         JSONArray a=new JSONArray(); Cursor c=getReadableDatabase().rawQuery("SELECT data FROM customers ORDER BY phone_key",null);
