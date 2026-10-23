@@ -431,13 +431,25 @@ public class MainActivity extends Activity {
                     }
                 } cur.add(Calendar.MONTH,1);
             }
+            HashMap<String,double[]> costs=new HashMap<>();
+            cur=Calendar.getInstance();cur.set(2015,0,1);
+            while(!cur.after(today)){
+                if(yr==0||cur.get(Calendar.YEAR)==yr){
+                    JSONArray expenses=store.expenses(new SimpleDateFormat("yyyy-MM",Locale.US).format(cur.getTime()));
+                    for(int j=0;j<expenses.length();j++){JSONObject e=expenses.optJSONObject(j);if(e==null)continue;String equipment=e.optString("equipment_name","").trim();if(equipment.isEmpty())continue;
+                        String key=equipment.toLowerCase(new Locale("pl","PL")).replaceAll("\\s+"," ").trim();double[] v=costs.get(key);if(v==null){v=new double[2];costs.put(key,v);}String note=e.optString("note","").toLowerCase(new Locale("pl","PL"));
+                        if(note.contains("zakup"))v[0]+=e.optDouble("amount");else v[1]+=e.optDouble("amount");names.putIfAbsent(key,equipment);
+                    }
+                }cur.add(Calendar.MONTH,1);
+            }
             addStatCard(list,"PRZYCHÓD ŁĄCZNIE",String.format(Locale.US,"%.2f zł",all),0xff172b43);
             TextView title=new TextView(this);title.setText("WYNIKI WEDŁUG MODELU");title.setTextSize(16);title.setTypeface(null,1);title.setTextColor(0xff172235);title.setPadding(2,12,2,8);list.addView(title);
             ArrayList<String> keys=new ArrayList<>(names.keySet());Collections.sort(keys,(a,b)->Double.compare(totals.get(b)[2],totals.get(a)[2]));
             if(keys.isEmpty()){TextView empty=new TextView(this);empty.setText("Brak rozliczonych wynajmów w tym okresie.");list.addView(empty);}
             for(String key:keys){double[] v=totals.get(key);LinearLayout card=new LinearLayout(this);card.setOrientation(1);card.setPadding(14,12,14,12);card.setBackground(roundBg(Color.WHITE,12));
                 TextView nm=new TextView(this);nm.setText(names.get(key));nm.setTextSize(16);nm.setTypeface(null,1);nm.setTextColor(0xff172b43);card.addView(nm);
-                TextView d=new TextView(this);d.setText("Wynajmy: "+(int)v[0]+"  •  Dni: "+(int)v[1]+"\nPrzychód: "+String.format(Locale.US,"%.2f zł",v[2])+"\nStraty z najmu: "+String.format(Locale.US,"%.2f zł",v[3]));d.setTextColor(0xff526174);d.setPadding(0,6,0,8);card.addView(d);
+                double[] costData=costs.containsKey(key)?costs.get(key):new double[2];double result=v[2]-v[3]-costData[0]-costData[1];
+                TextView d=new TextView(this);d.setText("Wynajmy: "+(int)v[0]+"  •  Dni: "+(int)v[1]+"\nPrzychód: "+String.format(Locale.US,"%.2f zł",v[2])+"\nStraty z najmu: "+String.format(Locale.US,"%.2f zł",v[3])+"\nZakup: "+String.format(Locale.US,"%.2f zł",costData[0])+"  •  Naprawy: "+String.format(Locale.US,"%.2f zł",costData[1])+"\nWynik po kosztach: "+String.format(Locale.US,"%.2f zł",result));d.setTextColor(0xff526174);d.setPadding(0,6,0,8);card.addView(d);
                 Button cost=new Button(this);cost.setText("DODAJ KOSZT ZAKUPU / NAPRAWY");brandButton(cost,false);cost.setOnClickListener(vw->addEquipmentCost(names.get(key),()->draw.run()));card.addView(cost);
                 LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=8;list.addView(card,lp);
             }
