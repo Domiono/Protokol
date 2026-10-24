@@ -76,7 +76,6 @@ $role = rm_device_role(__DIR__ . '/protocol_devices.json');
 if ($role === '') rm_json_response(401, ['ok'=>false, 'error'=>'Urządzenie nieaktywne. Połącz się z internetem i aktywuj je ponownie.']);
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 // Token registration never returns Firebase credentials or other devices' tokens.
 if (($_GET['view'] ?? '') === 'push_token') {
     if ($method !== 'POST') rm_json_response(405,['ok'=>false,'error'=>'Niedozwolona metoda.']);
@@ -96,6 +95,28 @@ if (($_GET['view'] ?? '') === 'push_token') {
     $ok=rm_push_register(rm_push_device_hash(),$token,$authorized);
     if(!$ok)rm_json_response(503,['ok'=>false,'error'=>'Magazyn tokenów jest niedostępny.']);
     rm_json_response(200,['ok'=>true,'push_enabled'=>$authorized]);
+}
+
+// Safe read-only diagnostics: only this authenticated administrator device's state.
+if (($_GET['view'] ?? '') === 'push_status') {
+    if ($method !== 'GET') rm_json_response(405,['ok'=>false,'error'=>'Niedozwolona metoda.']);
+    if ($role !== 'admin') rm_json_response(403,['ok'=>false,'error'=>'Dostęp tylko dla administratora.']);
+    require_once __DIR__.'/push_bridge.php';
+    $account=rm_push_read_json(rm_push_private_dir().'/fcm-service-account.json');
+    $registered=false;
+    foreach (rm_push_read_json(rm_push_registry_file()) as $entry) {
+        if (!is_array($entry) || !isset($entry['device_hash'])) continue;
+        if (hash_equals((string)$entry['device_hash'],rm_push_device_hash()) &&
+            !empty($entry['token']) && (int)($entry['updated'] ?? 0)>time()-90*86400) {
+            $registered=true;break;
+        }
+    }
+    $folder=rm_push_private_dir();
+    $storageReady=is_dir($folder) ? is_writable($folder) : is_writable(dirname($folder));
+    rm_json_response(200,[
+        'ok'=>true, 'server_configured'=>isset($account['client_email'],$account['private_key'],$account['project_id']),
+        'registered'=>$registered, 'storage_writable'=>$storageReady
+    ]);
 }
 
 // A small authenticated inbox response for Android background checks.
