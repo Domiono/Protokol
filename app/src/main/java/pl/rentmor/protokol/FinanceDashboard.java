@@ -15,7 +15,7 @@ import java.util.*;
 public final class FinanceDashboard {
     private final Context context;private final JSONArray rentals,expenses;private final LinearLayout root;
     private LocalDate from=LocalDate.now().minusDays(29),to=LocalDate.now();private int grain=0;
-    private final boolean[] visible={true,false,true};private final int[] colors={0xff2563eb,0xffe87925,0xff059669};
+    private final boolean[] visible={true,true,true};private final int[] colors={0xff2563eb,0xffe4a000,0xff059669};
     private static final Locale PL=new Locale("pl","PL");private final Runnable equipmentAction,costAction;
     public FinanceDashboard(Context context,JSONArray rentals,JSONArray expenses,Runnable equipment,Runnable costs){this.context=context;this.rentals=rentals;this.expenses=expenses;equipmentAction=equipment;costAction=costs;root=column();render();}
     public View view(){return root;}
@@ -31,7 +31,7 @@ public final class FinanceDashboard {
     private String shortDate(LocalDate d){return d.format(DateTimeFormatter.ofPattern("dd.MM"));}
     private void chooseDate(boolean start){LocalDate d=start?from:to;new DatePickerDialog(context,(v,y,m,day)->{LocalDate chosen=LocalDate.of(y,m+1,day);LocalDate a=start?chosen:from,b=start?to:chosen;if(b.isBefore(a)||ChronoUnit.DAYS.between(a,b)>3660){Toast.makeText(context,"Wybierz prawidłowy okres (maks. 10 lat).",Toast.LENGTH_LONG).show();return;}from=a;to=b;render();},d.getYear(),d.getMonthValue()-1,d.getDayOfMonth()).show();}
     private void shift(int direction){long days=ChronoUnit.DAYS.between(from,to)+1;from=from.plusDays(direction*days);to=to.plusDays(direction*days);render();}
-    private void kpi(LinearLayout row,String title,long amount,int color){LinearLayout box=column();box.setPadding(dp(10),dp(10),dp(8),dp(10));box.setBackground(bg(0xfff4f6fa));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-2,1);p.setMargins(dp(3),dp(4),dp(3),dp(4));row.addView(box,p);text(box,title,11,0xff64748b,true);text(box,money(amount),19,color,true);}
+    private void kpi(LinearLayout row,String title,long amount,int color){LinearLayout box=column();box.setPadding(dp(10),dp(10),dp(8),dp(10));box.setBackground(bg(0xfff4f6fa));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-2,1);p.setMargins(dp(3),dp(4),dp(3),dp(4));row.addView(box,p);text(box,title,11,0xff64748b,true);TextView value=text(box,money(amount),18,color,true);value.setMaxLines(1);value.setAutoSizeTextTypeUniformWithConfiguration(11,18,1,TextView.AUTO_SIZE_TEXT_TYPE_UNIFORM);}
     private void render(){
         root.removeAllViews();FinanceAnalytics.Report report=FinanceAnalytics.calculate(rentals,expenses,from,to,grain);long span=ChronoUnit.DAYS.between(from,to)+1;
         FinanceAnalytics.Report previous=FinanceAnalytics.calculate(rentals,expenses,from.minusDays(span),from.minusDays(1),grain);
@@ -52,21 +52,52 @@ public final class FinanceDashboard {
         HorizontalScrollView scroll=new HorizontalScrollView(context);scroll.setHorizontalScrollBarEnabled(true);scroll.setFillViewport(true);LineChart chart=new LineChart(report,selected);int width=Math.max(dp(280),Math.min(dp(12000),dp(64+report.buckets.size()*42)));scroll.addView(chart,new android.widget.FrameLayout.LayoutParams(width,dp(255)));chartCard.addView(scroll,new LinearLayout.LayoutParams(-1,dp(255)));text(chartCard,"Przesuń wykres w bok • tygodnie od poniedziałku",11,0xff64748b,false);
         if(report.rentals==0&&report.costs()==0)text(chartCard,"Brak zapisanych rozliczeń i kosztów w tym okresie. Wykres nie uwzględnia nieuzupełnionych danych.",13,0xff64748b,false);
         LinearLayout costs=card();text(costs,"Z czego składają się koszty",19,0xff172b43,true);costRow(costs,"Straty przy rozliczeniu najmu",report.loss,report.costs(),0xffef4444);costRow(costs,"Koszty bieżące",report.cost,report.costs(),0xfff59e0b);costRow(costs,"Zakupy sprzętu / inwestycje",report.investment,report.costs(),0xff8b5cf6);
-        LinearLayout ranking=card();text(ranking,"Sprzęt według przychodu",19,0xff172b43,true);List<Map.Entry<String,long[]>> sorted=new ArrayList<>(report.equipment.entrySet());sorted.sort((a,b)->Long.compare(b.getValue()[0],a.getValue()[0]));
-        if(sorted.isEmpty())text(ranking,"Ranking pojawi się po rozliczeniu najmu.",13,0xff64748b,false);
-        for(int i=0;i<Math.min(5,sorted.size());i++){Map.Entry<String,long[]> item=sorted.get(i);text(ranking,(i+1)+". "+item.getKey(),14,0xff172b43,true);text(ranking,money(item.getValue()[0])+"  •  najmy: "+item.getValue()[2]+"  •  po stratach: "+money(item.getValue()[0]-item.getValue()[1]),12,0xff64748b,false);}
-        text(ranking,"Wynik sprzętu powyżej nie obejmuje kosztów bieżących ani zakupów.",11,0xff64748b,false);
+        LinearLayout ranking=card();text(ranking,"Który sprzęt zarabia najwięcej?",19,0xff172b43,true);
+        text(ranking,"Ranking według wyniku po przypisanych kosztach",12,0xff64748b,false);
+        EquipmentAnalytics.Snapshot models=EquipmentAnalytics.calculate(rentals,expenses,from,to);
+        List<EquipmentAnalytics.Model> sorted=models.sorted(1);
+        if(sorted.isEmpty())text(ranking,"Ranking pojawi się po rozliczeniu najmu lub przypisaniu kosztu do modelu.",13,0xff64748b,false);
+        for(int i=0;i<Math.min(5,sorted.size());i++){
+            EquipmentAnalytics.Model item=sorted.get(i);
+            LinearLayout line=row(ranking);line.setPadding(0,dp(6),0,dp(4));
+            TextView rank=text(line,String.valueOf(i+1)+".",14,i==0?0xffb28300:0xff94a3b8,true);
+            rank.setWidth(dp(27));
+            LinearLayout detail=column();line.addView(detail,new LinearLayout.LayoutParams(0,-2,1));
+            text(detail,item.name,14,0xff172b43,true);
+            text(detail,item.rentals+" wynajmów   •   przychód: "+money(item.income),12,0xff64748b,false);
+            TextView earned=text(line,money(item.result()),14,item.result()<0?0xffb42318:0xff047857,true);
+            earned.setGravity(android.view.Gravity.END);
+        }
+        if(models.unassignedExpenses>0)text(ranking,"Uwaga: koszty ogólne bez przypisanego sprzętu nie są wliczone do wyniku modelu.",11,0xffb45309,false);
+        LinearLayout rankingButtons=row(ranking);button(rankingButtons,"Wszystkie modele i szczegóły  ›",true,equipmentAction);
         LinearLayout table=card();Button show=new Button(context);show.setText("Rozwiń zestawienie okresów ("+report.buckets.size()+")");show.setAllCaps(false);table.addView(show);LinearLayout rows=column();rows.setVisibility(View.GONE);table.addView(rows);show.setOnClickListener(v->{boolean opened=rows.getVisibility()==View.VISIBLE;rows.setVisibility(opened?View.GONE:View.VISIBLE);show.setText(opened?"Rozwiń zestawienie okresów":"Zwiń zestawienie okresów");if(!opened&&rows.getChildCount()==0)for(FinanceAnalytics.Bucket b:report.buckets){text(rows,date(b.start)+(b.start.equals(b.end)?"":" – "+date(b.end)),13,0xff172b43,true);text(rows,"Przychód "+money(b.income)+"\nKoszty "+money(b.costs())+"   •   Wynik "+money(b.result()),12,0xff64748b,false);}});
         LinearLayout history=card();Button historyToggle=new Button(context);historyToggle.setAllCaps(false);historyToggle.setText("Historia rozliczeń ("+report.records.size()+")");history.addView(historyToggle);LinearLayout historyRows=column();historyRows.setVisibility(View.GONE);history.addView(historyRows);
         historyToggle.setOnClickListener(v->{boolean open=historyRows.getVisibility()==View.VISIBLE;historyRows.setVisibility(open?View.GONE:View.VISIBLE);if(!open&&historyRows.getChildCount()==0){List<JSONObject> records=new ArrayList<>(report.records);records.sort((a,b)->b.optString("settled_at").compareTo(a.optString("settled_at")));for(JSONObject o:records){text(historyRows,o.optString("equipment","Nieprzypisany sprzęt"),14,0xff172b43,true);text(historyRows,"Rozliczono: "+o.optString("settled_at"),12,0xff64748b,false);text(historyRows,String.format(PL,"Przychód: %,.2f zł • Strata: %,.2f zł",o.optDouble("income"),o.optDouble("loss")),13,0xff334155,false);if(!o.optString("loss_note").isEmpty())text(historyRows,o.optString("loss_note"),12,0xff64748b,false);}}});
         LinearLayout methods=card();text(methods,"Jak liczymy",15,0xff172b43,true);text(methods,"Przychód i straty: data rozliczenia najmu. Koszty i zakupy: data kosztu. Wynik operacyjny nie odejmuje zakupów sprzętu. Wynik końcowy je odejmuje. To zestawienie zapisów w aplikacji, nie zysk podatkowy ani saldo konta. Nie wpisuj tej samej straty ponownie jako kosztu.",12,0xff64748b,false);
         text(methods,"Źródło: dane zapisane w telefonie. Niewpisane kwoty nie są szacowane. Nierozliczone rezerwacje liczone według daty rozpoczęcia.",12,0xff64748b,false);
         if(report.undated>0||report.invalid>0)text(methods,"Pominięto: "+report.undated+" wpisów bez prawidłowej daty (w całej historii) oraz "+report.invalid+" wpisów z nieprawidłową lub brakującą kwotą w tym okresie.",12,0xffb45309,true);
-        LinearLayout links=row(root);button(links,"Rentowność sprzętu",false,equipmentAction);button(links,"Dodaj / edytuj koszty",false,costAction);
+        LinearLayout links=row(root);button(links,"Modele sprzętu",false,equipmentAction);button(links,"Dodaj / edytuj koszty",false,costAction);
+        if(root.isAttachedToWindow()&&android.animation.ValueAnimator.areAnimatorsEnabled()){root.animate().cancel();root.setAlpha(.82f);root.animate().alpha(1f).setDuration(190).start();}
     }
     private void costRow(LinearLayout c,String label,long amount,long total,int color){text(c,label+" • "+money(amount),13,0xff475569,false);ProgressBar p=new ProgressBar(context,null,android.R.attr.progressBarStyleHorizontal);p.setMax(1000);p.setProgress(total==0?0:(int)(1000.0*amount/total));p.setProgressTintList(android.content.res.ColorStateList.valueOf(color));c.addView(p,new LinearLayout.LayoutParams(-1,dp(8)));}
     private class LineChart extends View {
         final FinanceAnalytics.Report report;final TextView selection;final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);int selected=-1;float downX,downY;
+        private float reveal=1f;private android.animation.ValueAnimator drawAnimation;
+        @Override protected void onAttachedToWindow(){
+            super.onAttachedToWindow();
+            if(android.animation.ValueAnimator.areAnimatorsEnabled()){
+                reveal=0f;
+                drawAnimation=android.animation.ValueAnimator.ofFloat(0f,1f);
+                drawAnimation.setDuration(520);
+                drawAnimation.setInterpolator(new android.view.animation.DecelerateInterpolator());
+                drawAnimation.addUpdateListener(a->{reveal=(float)a.getAnimatedValue();invalidate();});
+                drawAnimation.start();
+            }
+        }
+        @Override protected void onDetachedFromWindow(){
+            if(drawAnimation!=null){drawAnimation.cancel();drawAnimation=null;}
+            super.onDetachedFromWindow();
+        }
         LineChart(FinanceAnalytics.Report r,TextView t){super(context);report=r;selection=t;setContentDescription("Wykres przychodów, kosztów i wyniku. Kwoty dostępne również w zestawieniu okresów.");}
         @Override protected void onMeasure(int widthSpec,int heightSpec){
             // HorizontalScrollView measures its child with UNSPECIFIED width.
@@ -81,7 +112,9 @@ public final class FinanceDashboard {
             p.setTextSize(dp(10));for(int i=0;i<=4;i++){float y=top+(bottom-top)*i/4;p.setColor(0xffe2e8f0);p.setStrokeWidth(dp(1));c.drawLine(dp(52),y,getWidth()-dp(14),y,p);p.setColor(0xff64748b);double val=max-(max-min)*i/4;c.drawText(String.format(PL,"%.0f",val/100),dp(2),y-dp(3),p);}
             p.setColor(0xff64748b);c.drawText("zł",dp(2),dp(10),p);
             int step=Math.max(1,report.buckets.size()/Math.max(1,getWidth()/dp(65)));for(int i=0;i<report.buckets.size();i+=step){String label=grain==2?report.buckets.get(i).start.format(DateTimeFormatter.ofPattern("MM.yy")):shortDate(report.buckets.get(i).start);c.drawText(label,x(i)-dp(14),getHeight()-dp(10),p);}
+            c.save();c.clipRect(0,0,dp(55)+(getWidth()-dp(60))*reveal,getHeight());
             for(int s=0;s<3;s++)if(visible[s]){Path path=new Path();for(int i=0;i<report.buckets.size();i++){float y=(float)(bottom-(value(report.buckets.get(i),s)-min)/(max-min)*(bottom-top));if(i==0)path.moveTo(x(i),y);else path.lineTo(x(i),y);}p.setColor(colors[s]);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(dp(2.5f));c.drawPath(path,p);p.setStyle(Paint.Style.FILL);for(int i=0;i<report.buckets.size();i++){float y=(float)(bottom-(value(report.buckets.get(i),s)-min)/(max-min)*(bottom-top));c.drawCircle(x(i),y,dp(i==selected?5:2.5f),p);}}
+            c.restore();
             if(selected>=0){p.setColor(0xff94a3b8);p.setStrokeWidth(dp(1));c.drawLine(x(selected),top,x(selected),bottom,p);}
         }
         @Override public boolean onTouchEvent(android.view.MotionEvent e){if(e.getAction()==MotionEvent.ACTION_DOWN){downX=e.getX();downY=e.getY();return true;}if(e.getAction()==MotionEvent.ACTION_UP){if(Math.abs(e.getX()-downX)<dp(12)&&Math.abs(e.getY()-downY)<dp(12)){int i=report.buckets.size()==1?0:Math.round((e.getX()-dp(55))/(getWidth()-dp(75))*(report.buckets.size()-1));selected=Math.max(0,Math.min(report.buckets.size()-1,i));FinanceAnalytics.Bucket b=report.buckets.get(selected);selection.setText(date(b.start)+(b.start.equals(b.end)?"":" – "+date(b.end))+"\nPrzychód: "+money(b.income)+"\nKoszty: "+money(b.costs())+"   •   Wynik: "+money(b.result()));invalidate();performClick();}return true;}return true;}
