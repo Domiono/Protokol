@@ -55,7 +55,7 @@ public final class PushRegistrar {
         new Thread(()->{
             try {
                 SyncManager sync=new SyncManager(context,new LocalStore(context));
-                JSONObjectResult result=new JSONObjectResult(sync.updatePushToken(token));
+                JSONObjectResult result=new JSONObjectResult(sync.updatePushToken(token,active));
                 // Server is authoritative about which devices are admins.
                 if(result.ok){
                     if(active && result.enabled) p.edit().putString(LAST,token).putString(ROLE,"admin")
