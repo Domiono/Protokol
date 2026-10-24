@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install secure SFTP client
+        run: sudo apt-get update -qq && sudo apt-get install -y lftp
       - name: Diagnose PHP access without exposing secrets
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
@@ -45,8 +47,6 @@ jobs:
               'php_file_is_docroot'=>realpath(__DIR__)===realpath((string)($_SERVER['DOCUMENT_ROOT']??''))],
               JSON_UNESCAPED_SLASHES);
           PHP
-          # Place a random header secret directly in the temporary PHP file; never log it.
-          sed -i 's/getenv('\''RENTMOR_PROBE_TOKEN'\'')/getenv('\''RENTMOR_PROBE_TOKEN'\'')/' "$WORK/probe.php"
           # PHP receives the header only, and verifies its hash.
           HASH="$(printf '%s' "$TOKEN" | sha256sum | awk '{print $1}')"
           python3 - "$WORK/probe.php" "$HASH" <<'PY'
