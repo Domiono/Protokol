@@ -76,6 +76,30 @@ $role = rm_device_role(__DIR__ . '/protocol_devices.json');
 if ($role === '') rm_json_response(401, ['ok'=>false, 'error'=>'Urządzenie nieaktywne. Połącz się z internetem i aktywuj je ponownie.']);
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+// A small authenticated inbox response for Android background checks.
+// Never send customer contact details to assistant devices.
+if (($_GET['view'] ?? '') === 'messages') {
+    if ($method !== 'GET') rm_json_response(405, ['ok'=>false,'error'=>'Niedozwolona metoda.']);
+    if ($role !== 'admin') rm_json_response(403, ['ok'=>false,'error'=>'Wiadomości są dostępne tylko dla administratora.']);
+    $rawMessages = rm_read_json_file(__DIR__ . '/messages.json', []);
+    $messages = [];
+    foreach ($rawMessages as $entry) {
+        if (!is_array($entry)) continue;
+        $entry = array_intersect_key($entry, array_flip(['id','date','client','contact','product','message']));
+        // Older entries without IDs must remain stable across polls.
+        $id = trim((string)($entry['id'] ?? ''));
+        if ($id === '') $id = hash('sha256',json_encode($entry,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+        $messages[] = [
+            'id'=>substr($id,0,128),
+            'date'=>substr((string)($entry['date'] ?? ''),0,80),
+            'client'=>substr((string)($entry['client'] ?? ''),0,200),
+            'contact'=>substr((string)($entry['contact'] ?? ''),0,160),
+            'product'=>substr((string)($entry['product'] ?? ''),0,200),
+            'message'=>substr((string)($entry['message'] ?? ''),0,8000)
+        ];
+    }
+    rm_json_response(200, ['ok'=>true, 'role'=>'admin', 'messages'=>$messages]);
+}
 rm_expire_protocol_photos(__DIR__ . '/protocols.json');
 if ($method === 'GET') {
     $protocols = rm_read_json_file(__DIR__ . '/protocols.json', []);
