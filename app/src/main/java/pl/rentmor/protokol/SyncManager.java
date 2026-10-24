@@ -31,6 +31,10 @@ public class SyncManager {
         JSONObject result=new JSONObject(raw); if(code<200||code>=300) throw new IOException(result.optString("error","Błąd serwera "+code));
         return result;
     }
+    /** Only the logged-in administrator can view their own Firebase registration health. */
+    public JSONObject fetchPushStatus() throws Exception {
+        return request(API+"?view=push_status","GET",null);
+    }
     public JSONObject updatePushToken(String token,boolean enabled) throws Exception {
         if(token==null)throw new IllegalArgumentException("Token is missing");
         JSONObject data=new JSONObject();data.put("token",token);data.put("enabled",enabled);
