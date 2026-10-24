@@ -50,6 +50,23 @@ public class AdminStatisticsAccessTest {
         equipment.invoke(activity);
         assertFalse(shows(activity.findViewById(android.R.id.content),"Rentowność sprzętu"));
     }
+    @Test public void assistantCannotOpenWebsiteCatalogueOrProductEditor() throws Exception {
+        MainActivity activity=open("assistant");
+        View screen=activity.findViewById(android.R.id.content);
+        assertFalse(shows(screen,"Strona"));
+        Method site=MainActivity.class.getDeclaredMethod("sitePage");
+        site.setAccessible(true);site.invoke(activity);
+        assertFalse(shows(activity.findViewById(android.R.id.content),"STRONA RENTMOR"));
+        Method list=MainActivity.class.getDeclaredMethod("siteProductsPage");
+        list.setAccessible(true);list.invoke(activity);
+        assertFalse(shows(activity.findViewById(android.R.id.content),"LISTA SPRZĘTU NA STRONIE"));
+        Method editor=MainActivity.class.getDeclaredMethod("productForm",org.json.JSONObject.class);
+        editor.setAccessible(true);editor.invoke(activity,new Object[]{null});
+        assertFalse(shows(activity.findViewById(android.R.id.content),"DODAJ SPRZĘT NA STRONĘ"));
+        Method stats=MainActivity.class.getDeclaredMethod("siteStatsPage");
+        stats.setAccessible(true);stats.invoke(activity);
+        assertFalse(shows(activity.findViewById(android.R.id.content),"STATYSTYKI STRONY"));
+    }
     @Test public void administratorSeesFinanceNavigation() {
         MainActivity activity=open("admin");
         View screen=activity.findViewById(android.R.id.content);
