@@ -7,6 +7,7 @@ on:
       - 'server/push_bridge.php'
       - 'scripts/patch_contact_push.py'
       - 'scripts/test_push_hook.py'
+      - 'scripts/diagnose_push_registry.py'
       - 'server/admin.php'
       - 'server/online.php'
       - 'server/traffic_filter.php'
@@ -162,6 +163,23 @@ jobs:
           # Deliberately store ABOVE public_html: never put a private JSON key in the web root.
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; mkdir -p rentmor-private; set cmd:fail-exit yes; put $KEY_FILE -o rentmor-private/fcm-service-account.json; chmod 600 rentmor-private/fcm-service-account.json; bye"
           rm -f "$KEY_FILE"
+
+      - name: Diagnose authorized Firebase tokens (no private data in logs)
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -eu
+          source scripts/secure_sftp_connection.sh
+          PRIVATE_DIR="$RUNNER_TEMP/rentmor-push-diagnostic"
+          mkdir -p "$PRIVATE_DIR"
+          chmod 700 "$PRIVATE_DIR"
+          trap 'rm -rf "$PRIVATE_DIR"' EXIT
+          # Snapshot the protected files into ephemeral CI storage; never log contents.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; get public_html/protocol_devices.json -o $PRIVATE_DIR/devices.json; get rentmor-private/fcm-tokens.json -o $PRIVATE_DIR/tokens.json; bye"
+          python3 scripts/diagnose_push_registry.py "$PRIVATE_DIR/devices.json" "$PRIVATE_DIR/tokens.json"
 
       - name: Publish prepared homepage with backup
         if: steps.config.outputs.enabled == 'true'
