@@ -134,6 +134,8 @@ public final class MessageInbox {
         name.setLayoutParams(new LinearLayout.LayoutParams(0,-2,1));
         TextView date=text(headline,message.optString("date"),11,MUTED,false);
         date.setGravity(Gravity.END);
+        TextView readStatus=text(c,unread?"● Nieprzeczytane":"✓ Przeczytane",
+            12,unread?0xffb77500:0xff288255,true);
         String product=message.optString("product","").trim();
         if(!product.isEmpty())text(c,"Dotyczy: "+product,12,0xffa47300,true);
         String body=message.optString("message","").trim();
@@ -157,7 +159,8 @@ public final class MessageInbox {
             Button email=button(details,"Napisz e-mail",0xffffcc18);
             email.setOnClickListener(v->activity.startActivity(new Intent(Intent.ACTION_SENDTO,Uri.parse("mailto:"+Uri.encode(contact)))));
         }
-        TextView disclosure=text(c,"Dotknij, aby przeczytać  ▾",12,0xff64748b,true);
+        TextView disclosure=text(c,unread?"Dotknij, aby przeczytać  ▾":"Dotknij, aby otworzyć  ▾",
+            12,0xff64748b,true);
         View.OnClickListener toggle=v->{
             boolean opening=details.getVisibility()!=View.VISIBLE;
             if(Build.VERSION.SDK_INT>=19&&android.animation.ValueAnimator.areAnimatorsEnabled()){
@@ -167,7 +170,10 @@ public final class MessageInbox {
             disclosure.setText(opening?"Zwiń wiadomość  ▴":"Dotknij, aby przeczytać  ▾");
             if(opening&&!id.isEmpty()){
                 store.markMessageRead(id);
+                MessageMonitor.messageRead(activity.getApplicationContext(),id);
                 name.setText(message.optString("client","Klient"));
+                readStatus.setText("✓ Przeczytane");
+                readStatus.setTextColor(0xff288255);
                 counter.setText("Nieprzeczytane: "+store.unreadMessagesCount()+"    •    Wszystkie: "+store.allMessages().length());
             }
         };
@@ -177,7 +183,7 @@ public final class MessageInbox {
         status.setText("Pobieranie wiadomości…");
         new Thread(()->{
             String error=null;
-            try{MessageMonitor.poll(activity.getApplicationContext());}
+            try{MessageMonitor.poll(activity.getApplicationContext(),false);}
             catch(Exception ex){error="Nie udało się odświeżyć: "+ex.getMessage();}
             final String result=error;
             activity.runOnUiThread(()->{
