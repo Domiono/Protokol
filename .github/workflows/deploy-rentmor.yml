@@ -146,11 +146,11 @@ jobs:
           if cmp -s "$TEMP_DIR/original.php" "$TEMP_DIR/index.php"; then
             echo "Online tracker already present in the live homepage."
           else
-            # Store a non-executable, HTTP-blocked backup before replacing the live index.
+            # Store a non-executable, HTTP-blocked backup before replacing the live index.\n          # SFTP may report failure when the backup directory already exists.\n          # Only mkdir is best-effort; every backup upload must still succeed.
             printf 'Require all denied\n' > "$TEMP_DIR/backup.htaccess"
             printf '<?php http_response_code(404); exit; ?>\n' > "$TEMP_DIR/backup.php"
             cat "$TEMP_DIR/original.php" >> "$TEMP_DIR/backup.php"
-            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; mkdir -p public_html/.rentmor-backups; put $TEMP_DIR/backup.htaccess -o public_html/.rentmor-backups/.htaccess; put $TEMP_DIR/backup.php -o public_html/.rentmor-backups/index-before-site-update-$GITHUB_RUN_ID.php; put $TEMP_DIR/index.php -o public_html/index.php; bye"
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; mkdir -p public_html/.rentmor-backups; set cmd:fail-exit yes; put $TEMP_DIR/backup.htaccess -o public_html/.rentmor-backups/.htaccess; put $TEMP_DIR/backup.php -o public_html/.rentmor-backups/index-before-site-update-$GITHUB_RUN_ID.php; put $TEMP_DIR/index.php -o public_html/index.php; bye"
             echo "Public homepage updated with online tracking."
           fi
 
