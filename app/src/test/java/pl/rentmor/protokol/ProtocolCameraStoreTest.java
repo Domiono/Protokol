@@ -16,6 +16,11 @@ import static org.junit.Assert.*;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk=34)
 public class ProtocolCameraStoreTest {
+    @org.junit.Before public void resetProviderPathsForSandbox() throws Exception {
+        // Robolectric gives each test a different filesDir; AndroidX caches paths by authority.
+        java.lang.reflect.Field cache=androidx.core.content.FileProvider.class.getDeclaredField("sCache");
+        cache.setAccessible(true);((java.util.Map<?,?>)cache.get(null)).clear();
+    }
     @Test public void fullSizeOutputSurvivesRecreationWithoutReturnedIntent() throws Exception {
         Context context=RuntimeEnvironment.getApplication();
         ProtocolCameraStore store=new ProtocolCameraStore(context);store.clear();
