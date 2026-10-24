@@ -21,7 +21,7 @@ public final class FinanceAnalytics {
         Report(LocalDate start,LocalDate end){super(start,end);}
     }
     public static LocalDate date(String s){try{return LocalDate.parse(s.length()>10?s.substring(0,10):s);}catch(Exception e){return null;}}
-    private static Long amount(JSONObject o,String key){
+    static Long amount(JSONObject o,String key){
         try{if(!o.has(key)||o.isNull(key))return null;BigDecimal n=new BigDecimal(o.getString(key).replace(',','.'));if(n.signum()<0)return null;return n.movePointRight(2).setScale(0,RoundingMode.HALF_UP).longValueExact();}catch(Exception e){return null;}
     }
     public static LocalDate bucketStart(LocalDate d,int grain){return grain==1?d.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)):grain==2?d.withDayOfMonth(1):d;}
