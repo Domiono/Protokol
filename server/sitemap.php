@@ -17,14 +17,14 @@ $urls = [$base.'/' => null];
 // Only include public static pages which really exist on the server.
 // Do not include admin, API, protocol, private document or authentication pages.
 $staticPublicPages = [
-    'zasady.php',
-    'poradnik-jaki-papier-scierny-do-zyrafy.php',
+    'zasady.php' => null,
+    // Update only when the article content meaningfully changes, not on upload.
+    'poradnik-jaki-papier-scierny-do-zyrafy.php' => '2026-10-24',
 ];
-foreach ($staticPublicPages as $filename) {
+foreach ($staticPublicPages as $filename => $lastModified) {
     $file = __DIR__ . '/' . $filename;
     if (!is_file($file)) continue;
-    $mtime = @filemtime($file);
-    $urls[$base . '/' . $filename] = $mtime ? gmdate('Y-m-d', $mtime) : null;
+    $urls[$base . '/' . $filename] = $lastModified;
 }
 
 $products = [];

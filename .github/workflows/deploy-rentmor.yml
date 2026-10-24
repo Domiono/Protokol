@@ -10,6 +10,8 @@ on:
       - 'server/sitemap.php'
       - 'server/poradnik-jaki-papier-scierny-do-zyrafy.php'
       - 'scripts/inject_guide_link.py'
+      - 'scripts/verify_public_seo.py'
+      - 'scripts/test_public_seo.py'
       - 'server/robots.txt'
       - 'server/product_description.php'
       - 'scripts/patch_public_product_layout.py'
@@ -54,6 +56,7 @@ jobs:
         if: steps.config.outputs.enabled == 'true'
         run: |
           set -eu
+          python3 scripts/test_public_seo.py
           php -l server/poradnik-jaki-papier-scierny-do-zyrafy.php
           python3 -m py_compile scripts/inject_guide_link.py
           php -l server/sitemap.php
@@ -76,7 +79,27 @@ jobs:
           PY
           php -r 'require "server/product_description.php"; $html=rentmor_render_description("Parametry:\n- Moc 2200 W\n\n<strong>unsafe</strong>"); if (!str_contains($html, "&lt;strong&gt;unsafe&lt;/strong&gt;") || !str_contains($html, "<ul")) exit(1); echo "Description formatter test passed.\n";'
 
-      - name: Upload RentMor PHP files over FTP
+      - name: Prepare and validate current public site before upload
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -eu
+          TEMP_DIR="$RUNNER_TEMP/rentmor-prepared"
+          mkdir -p "$TEMP_DIR"
+          source scripts/secure_sftp_connection.sh
+
+          # Download the ACTUAL live index.php so recent site changes are preserved.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/index.php -o $TEMP_DIR/index.php; bye"
+          cp "$TEMP_DIR/index.php" "$TEMP_DIR/original.php"
+          python3 scripts/inject_online_tracker.py "$TEMP_DIR/index.php"
+          python3 scripts/patch_public_product_layout.py "$TEMP_DIR/index.php"
+          python3 scripts/inject_guide_link.py "$TEMP_DIR/index.php"
+          php -l "$TEMP_DIR/index.php"
+
+      - name: Upload validated RentMor files over SFTP
         if: steps.config.outputs.enabled == 'true'
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
@@ -99,7 +122,7 @@ jobs:
           fi
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$LFTP_COMMAND; bye"
 
-      - name: Embed online tracker in the current public site
+      - name: Publish prepared homepage with backup
         if: steps.config.outputs.enabled == 'true'
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
@@ -107,18 +130,11 @@ jobs:
           LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
           set -eu
-          TEMP_DIR="$(mktemp -d)"
-          trap 'rm -rf "$TEMP_DIR"' EXIT
+          TEMP_DIR="$RUNNER_TEMP/rentmor-prepared"
           source scripts/secure_sftp_connection.sh
-
-          # Download the ACTUAL live index.php so recent site changes are preserved.
-          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/index.php -o $TEMP_DIR/index.php; bye"
-          cp "$TEMP_DIR/index.php" "$TEMP_DIR/original.php"
-          python3 scripts/inject_online_tracker.py "$TEMP_DIR/index.php"
-          python3 scripts/patch_public_product_layout.py "$TEMP_DIR/index.php"
-          python3 scripts/inject_guide_link.py "$TEMP_DIR/index.php"
-          php -l "$TEMP_DIR/index.php"
-
+          # Refuse to overwrite a homepage edited after preparation.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/index.php -o $TEMP_DIR/current.php; bye"
+          cmp "$TEMP_DIR/current.php" "$TEMP_DIR/original.php"
           if cmp -s "$TEMP_DIR/original.php" "$TEMP_DIR/index.php"; then
             echo "Online tracker already present in the live homepage."
           else
@@ -130,41 +146,6 @@ jobs:
             echo "Public homepage updated with online tracking."
           fi
 
-      - name: Check sitemap and rental terms after deployment
+      - name: Verify public SEO after deployment
         if: steps.config.outputs.enabled == 'true'
-        run: |
-          set -eu
-          TEST_DIR="$(mktemp -d)"
-          trap 'rm -rf "$TEST_DIR"' EXIT
-          if curl -fsSL --max-time 25 --retry 1 -o "$TEST_DIR/sitemap.xml" "https://rentmor.pl/sitemap.xml"; then
-            python3 - "$TEST_DIR/sitemap.xml" <<'PY'
-          import sys, xml.etree.ElementTree as ET
-          root=ET.parse(sys.argv[1]).getroot()
-          locs=[x.text for x in root.iter() if x.tag.endswith("loc")]
-          assert "https://rentmor.pl/zasady.php" in locs, "Rental terms page missing from live sitemap"
-          print("Verified live sitemap.xml includes rental terms and",len(locs),"total URLs.")
-          PY
-          else
-            echo "Live HTTP check unavailable; FTP upload and local sitemap tests succeeded."
-          fi
-
-      - name: Verify published guide, homepage link and sitemap entry
-        if: steps.config.outputs.enabled == 'true'
-        run: |
-          set -eu
-          python3 - <<'PY'
-          import urllib.request, xml.etree.ElementTree as ET
-          guide = '/poradnik-jaki-papier-scierny-do-zyrafy.php'
-          def get(path):
-              req = urllib.request.Request('https://rentmor.pl' + path, headers={'Cache-Control':'no-cache'})
-              with urllib.request.urlopen(req, timeout=30) as response:
-                  assert response.status == 200
-                  return response.read().decode('utf-8')
-          html = get(guide)
-          assert 'Jak dobrać gradację do gładzi' in html
-          assert 'rel="canonical"' in html
-          assert 'href="' + guide + '"' in get('/')
-          root = ET.fromstring(get('/sitemap.xml?guide-check=1'))
-          assert 'https://rentmor.pl' + guide in [x.text for x in root.iter() if x.tag.endswith('loc')]
-          print('Live article, homepage link and sitemap entry verified.')
-          PY
+        run: python3 scripts/verify_public_seo.py

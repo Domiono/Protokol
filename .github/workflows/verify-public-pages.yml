@@ -1,57 +1,19 @@
 name: Verify Public RentMor Pages
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - '.github/workflows/verify-public-pages.yml'
+  workflow_run:
+    workflows: ['Deploy RentMor API', 'Deploy RentMor galleries']
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   verify:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-      - name: Check public sitemap, rental rules and product details
-        run: |
-          python3 - <<'PY'
-          import urllib.request
-          import xml.etree.ElementTree as ET
-          import re
-
-          def fetch(url):
-              req=urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0 (compatible; RentMorSiteVerification/1.0)"})
-              with urllib.request.urlopen(req,timeout=25) as resp:
-                  status=resp.status
-                  body=resp.read(4_000_000).decode("utf-8","replace")
-                  final=resp.geturl()
-              if status!=200:raise AssertionError((url,status))
-              return final,body
-
-          sitemap_url="https://rentmor.pl/sitemap.xml"
-          _, xml=fetch(sitemap_url)
-          root=ET.fromstring(xml)
-          locations=[elem.text for elem in root.iter() if elem.tag.endswith("loc") and elem.text]
-          assert len(locations)>2, "Sitemap does not contain any products."
-          assert len(locations)==len(set(locations)), "Sitemap contains duplicate locations."
-          rental_terms="https://rentmor.pl/zasady.php"
-          assert rental_terms in locations, "Rental terms page is missing from sitemap."
-          print("Sitemap:",len(locations),"unique URLs. Rental terms included.")
-
-          _,terms_html=fetch(rental_terms)
-          assert "zasad" in terms_html.lower(), "Unexpected rental terms page."
-          assert not re.search(r'<meta[^>]*name=["\']robots["\'][^>]*content=["\'][^"\']*noindex',terms_html,re.I), "Rental terms has noindex."
-          print("Rental terms page: HTTP 200 and no obvious noindex directive.")
-
-          products=[x for x in locations if x not in {"https://rentmor.pl/",rental_terms}]
-          tested=False
-          for location in products[:5]:
-              try:final,html=fetch(location)
-              except Exception:
-                  continue
-              if 'rentmor-product-description' not in html:
-                  raise AssertionError("Product page lacks the updated description layout: "+location)
-              if 'rentmor_render_description' in html:
-                  raise AssertionError("Source PHP emitted into page: "+location)
-              print("Product page: HTTP 200, new description layout present:",location)
-              tested=True
-              break
-          assert tested, "Could not load a product page among first five sitemap products."
-          PY
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Check public SEO and offer pages
+        run: python3 scripts/verify_public_seo.py
