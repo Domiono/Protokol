@@ -1051,15 +1051,15 @@ public class MainActivity extends Activity {
     }
 
     private void reservationStatsPage() {
-        root.removeAllViews(); root.setOrientation(1); root.setPadding(18,16,18,18); root.setBackgroundColor(0xfff5f6fa);
+        root.removeAllViews(); root.setOrientation(1); root.setPadding(dp(16),dp(16),dp(16),dp(12)); root.setBackgroundColor(0xfff5f6fa);
         TextView heading=new TextView(this); heading.setText("STATYSTYKI NAJMU"); heading.setTextSize(24); heading.setTypeface(null,1); heading.setTextColor(0xff172235); root.addView(heading);
         Button profitability=new Button(this); profitability.setText("RENTOWNOŚĆ SPRZĘTU"); brandButton(profitability,true); profitability.setOnClickListener(v->equipmentProfitabilityPage()); root.addView(profitability);
         Calendar now=Calendar.getInstance(); final String[] month={String.format(Locale.US,"%04d-%02d",now.get(Calendar.YEAR),now.get(Calendar.MONTH)+1)};
-        TextView monthLabel=new TextView(this); monthLabel.setTextSize(16); monthLabel.setTextColor(0xff526174); monthLabel.setPadding(0,8,0,8); root.addView(monthLabel);
+        TextView monthLabel=new TextView(this); monthLabel.setTextSize(16); monthLabel.setTextColor(0xff526174); monthLabel.setPadding(0,dp(12),0,dp(8)); root.addView(monthLabel);
         LinearLayout bar=new LinearLayout(this); bar.setGravity(Gravity.CENTER_VERTICAL);
         Button prev=new Button(this); prev.setText("‹"); Button pick=new Button(this); pick.setText("Wybierz miesiąc"); Button next=new Button(this);
-        next.setText("›"); bar.addView(prev); bar.addView(pick,new LinearLayout.LayoutParams(0,-2,1)); bar.addView(next); root.addView(bar);
-        ScrollView scroll=new ScrollView(this); LinearLayout content=new LinearLayout(this); content.setOrientation(1); content.setPadding(0,10,0,10); scroll.addView(content); root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        next.setText("›"); statsButton(prev); statsButton(pick); statsButton(next); prev.setContentDescription("Poprzedni miesiąc"); next.setContentDescription("Następny miesiąc"); bar.addView(prev,new LinearLayout.LayoutParams(dp(48),-2)); bar.addView(pick,new LinearLayout.LayoutParams(0,-2,1)); bar.addView(next,new LinearLayout.LayoutParams(dp(48),-2)); root.addView(bar);
+        ScrollView scroll=new ScrollView(this); LinearLayout content=new LinearLayout(this); content.setOrientation(1); content.setPadding(0,dp(12),0,dp(16)); scroll.addView(content); root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         Runnable render=()->{
             Calendar selected=parseReservationMonth(month[0]); monthLabel.setText(new SimpleDateFormat("LLLL yyyy",new Locale("pl","PL")).format(selected.getTime()).toUpperCase(new Locale("pl","PL")));
             content.removeAllViews(); JSONArray data=store.reservations(month[0]); JSONArray costData=store.expenses(month[0]); double income=0,loss=0,otherCosts=0,investments=0; int count=0;
@@ -1067,24 +1067,42 @@ public class MainActivity extends Activity {
             LinkedHashMap<String,double[]> byEquipment=new LinkedHashMap<>(); ArrayList<JSONObject> history=new ArrayList<>();
             for(int i=0;i<data.length();i++){JSONObject item=data.optJSONObject(i); if(item==null||!item.optBoolean("settled"))continue;
                 double inc=item.optDouble("income"), los=item.optDouble("loss"); income+=inc; loss+=los; count++; history.add(item);
-                String name=item.optString("text").replaceFirst("^\\s*\\d{1,2}\\s+","").replaceFirst("\\s+\\d{1,2}\\s*/.*$","").trim();
+                String name=reservationEquipment(item);
                 if(name.isEmpty())name="Pozostałe / nierozpoznane";
                 double[] sums=byEquipment.get(name); if(sums==null){sums=new double[4];byEquipment.put(name,sums);} sums[0]++;sums[1]+=inc;sums[2]+=los;sums[3]+=inc-los;
             }
-            addStatCard(content,"PRZYCHÓD",String.format(Locale.US,"%.2f zł",income),0xff172b43);
-            addStatCard(content,"STRATY Z NAJMU",String.format(Locale.US,"%.2f zł",loss),0xffb42318);
-            addStatCard(content,"KOSZTY BIEŻĄCE",String.format(Locale.US,"%.2f zł",otherCosts),0xffb45309);
-            addStatCard(content,"ZAKUPY SPRZĘTU / INWESTYCJE",String.format(Locale.US,"%.2f zł",investments),0xffb45309);
+            addFinanceSummary(content,"PRZYCHÓD",financeMoney(income),0xff172b43);
+            addFinanceSummary(content,"STRATY Z NAJMU",financeMoney(loss),0xffb42318);
+            addFinanceSummary(content,"KOSZTY BIEŻĄCE",financeMoney(otherCosts),0xffb45309);
+            addFinanceSummary(content,"ZAKUPY SPRZĘTU / INWESTYCJE",financeMoney(investments),0xffb45309);
             double finalResult=income-loss-otherCosts-investments;
-            addStatCard(content,"WYNIK PO WSZYSTKICH KOSZTACH",String.format(Locale.US,"%.2f zł",finalResult),finalResult<0?0xffb42318:0xff18794e);
-            TextView countText=new TextView(this); countText.setText("Rozliczone najmy: "+count); countText.setTextColor(0xff526174); countText.setPadding(4,6,4,16); content.addView(countText);
-            TextView sub=new TextView(this); sub.setText("WYNIK WEDŁUG SPRZĘTU"); sub.setTextSize(16); sub.setTypeface(null,1); sub.setTextColor(0xff172235); sub.setPadding(2,12,2,8); content.addView(sub);
+            addFinanceSummary(content,"WYNIK PO WSZYSTKICH KOSZTACH",financeMoney(finalResult),finalResult<0?0xffb42318:0xff18794e);
+            TextView countText=new TextView(this); countText.setText("Rozliczone najmy: "+count); countText.setTextColor(0xff526174); countText.setTextSize(14); countText.setPadding(0,dp(4),0,dp(16)); content.addView(countText);
+            TextView sub=new TextView(this); sub.setText("WYNIK WEDŁUG SPRZĘTU"); sub.setTextSize(16); sub.setTypeface(null,1); sub.setTextColor(0xff172235); sub.setPadding(0,dp(16),0,dp(12)); content.addView(sub);
             if(byEquipment.isEmpty()){TextView empty=new TextView(this);empty.setText("Brak rozliczeń w tym miesiącu.");empty.setTextColor(0xff718096);content.addView(empty);}
             ArrayList<String> names=new ArrayList<>(byEquipment.keySet()); Collections.sort(names,(x,y)->Double.compare(byEquipment.get(y)[3],byEquipment.get(x)[3]));
-            for(String name:names){double[] v=byEquipment.get(name);TextView line=new TextView(this);line.setText(name+"\nNajmy: "+(int)v[0]+"  •  Przychód: "+String.format(Locale.US,"%.2f",v[1])+" zł\nStraty: "+String.format(Locale.US,"%.2f",v[2])+" zł  •  Wynik: "+String.format(Locale.US,"%.2f",v[3])+" zł");line.setTextSize(14);line.setTextColor(0xff26384d);line.setPadding(14,12,14,12);line.setBackground(roundBg(Color.WHITE,12));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=7;content.addView(line,lp);}
-            TextView hist=new TextView(this);hist.setText("HISTORIA ROZLICZEŃ ("+history.size()+")");hist.setTextSize(16);hist.setTypeface(null,1);hist.setTextColor(0xff172235);hist.setPadding(2,18,2,8);content.addView(hist);
+            for(String name:names){
+                double[] v=byEquipment.get(name); LinearLayout card=financeCard(content);
+                financeText(card,name,17,0xff172235,true);
+                financeText(card,"Rozliczone najmy: "+(int)v[0],14,0xff526174,false);
+                financeAmount(card,"Wynik z najmu",v[3]);
+                LinearLayout details=new LinearLayout(this); details.setOrientation(1);
+                financeText(details,"Przychód: "+financeMoney(v[1])+"\nStraty: "+financeMoney(v[2]),14,0xff526174,false);
+                financeDisclosure(card,details,"Szczegóły wyniku");
+            }
             Collections.reverse(history);
-            for(JSONObject item:history){double inc=item.optDouble("income"),los=item.optDouble("loss");TextView line=new TextView(this);line.setText(item.optString("text")+"\nPrzychód: "+String.format(Locale.US,"%.2f",inc)+" zł  •  Strata: "+String.format(Locale.US,"%.2f",los)+" zł\nWynik: "+String.format(Locale.US,"%.2f",inc-los)+" zł"+(item.optString("loss_note").isEmpty()?"":"  •  "+item.optString("loss_note")));line.setTextSize(13);line.setTextColor(0xff26384d);line.setPadding(14,12,14,12);line.setBackground(roundBg(Color.WHITE,12));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=7;content.addView(line,lp);}
+            LinearLayout historyList=new LinearLayout(this);historyList.setOrientation(1);
+            for(JSONObject item:history){
+                double inc=item.optDouble("income"),los=item.optDouble("loss");
+                LinearLayout card=financeCard(historyList);
+                financeText(card,reservationEquipment(item),16,0xff172235,true);
+                financeText(card,reservationDateRangeLabel(item),14,0xff526174,false);
+                financeAmount(card,"Wynik z najmu",inc-los);
+                LinearLayout details=new LinearLayout(this);details.setOrientation(1);
+                financeText(details,item.optString("text")+"\nPrzychód: "+financeMoney(inc)+"\nStrata: "+financeMoney(los)+(item.optString("loss_note").isEmpty()?"":"\n"+item.optString("loss_note")),14,0xff526174,false);
+                financeDisclosure(card,details,"Szczegóły rozliczenia");
+            }
+            financeDisclosure(content,historyList,"Historia rozliczeń ("+history.size()+")");
         };
         prev.setOnClickListener(v->{Calendar c=parseReservationMonth(month[0]);c.add(Calendar.MONTH,-1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(c.getTime());render.run();});
         next.setOnClickListener(v->{Calendar c=parseReservationMonth(month[0]);c.add(Calendar.MONTH,1);month[0]=new SimpleDateFormat("yyyy-MM",Locale.US).format(c.getTime());render.run();});
@@ -1092,12 +1110,12 @@ public class MainActivity extends Activity {
         addButton("WRÓĆ",()->showHome()); render.run();
     }
     private void equipmentProfitabilityPage() {
-        root.removeAllViews(); root.setOrientation(1); root.setPadding(18,38,18,42); root.setBackgroundColor(0xfff5f6fa);
-        TextView h=new TextView(this); h.setText("RENTOWNOŚĆ SPRZĘTU"); h.setTextSize(19); h.setTypeface(null,1); h.setTextColor(0xff172235); root.addView(h);
-        TextView hint=new TextView(this); hint.setText("Zestawienie łączy wszystkie sztuki tego samego modelu. Uwzględnia rozliczone rezerwacje."); hint.setTextColor(0xff718096); hint.setTextSize(12); hint.setPadding(0,3,0,8); root.addView(hint);
+        root.removeAllViews(); root.setOrientation(1); root.setPadding(dp(16),dp(16),dp(16),dp(12)); root.setBackgroundColor(0xfff5f6fa);
+        TextView h=new TextView(this); h.setText("RENTOWNOŚĆ SPRZĘTU"); h.setTextSize(22); h.setTypeface(null,1); h.setTextColor(0xff172235); root.addView(h);
+        TextView hint=new TextView(this); hint.setText("Zestawienie łączy wszystkie sztuki tego samego modelu. Uwzględnia rozliczone rezerwacje."); hint.setTextColor(0xff526174); hint.setTextSize(14); hint.setPadding(0,dp(8),0,dp(12)); root.addView(hint);
         Spinner years=new Spinner(this); ArrayList<String> opts=new ArrayList<>(); opts.add("Od początku"); int y=Calendar.getInstance().get(Calendar.YEAR); for(int n=y;n>=2020;n--)opts.add(String.valueOf(n));
-        ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,opts); adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item); years.setAdapter(adapter); years.setBackground(roundBg(Color.WHITE,10)); root.addView(years);
-        ScrollView sv=new ScrollView(this); LinearLayout list=new LinearLayout(this); list.setOrientation(1); list.setPadding(0,8,0,16); sv.addView(list); root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
+        ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,opts); adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item); years.setAdapter(adapter); years.setBackground(roundBg(Color.WHITE,10)); years.setMinimumHeight(dp(48)); root.addView(years);
+        ScrollView sv=new ScrollView(this); LinearLayout list=new LinearLayout(this); list.setOrientation(1); list.setPadding(0,dp(12),0,dp(16)); sv.addView(list); root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
         final Runnable[] draw={null}; draw[0]=()->{
             list.removeAllViews(); int yr=years.getSelectedItemPosition()==0?0:Integer.parseInt(String.valueOf(years.getSelectedItem()));
             LinkedHashMap<String,String> names=new LinkedHashMap<>(); LinkedHashMap<String,double[]> totals=new LinkedHashMap<>();
@@ -1125,20 +1143,28 @@ public class MainActivity extends Activity {
                     }
                 }cur.add(Calendar.MONTH,1);
             }
-            addStatCard(list,"PRZYCHÓD ŁĄCZNIE",String.format(Locale.US,"%.2f zł",all),0xff172b43);
-            TextView title=new TextView(this);title.setText("WYNIKI WEDŁUG MODELU");title.setTextSize(16);title.setTypeface(null,1);title.setTextColor(0xff172235);title.setPadding(2,12,2,8);list.addView(title);
+            addFinanceSummary(list,"PRZYCHÓD ŁĄCZNIE",financeMoney(all),0xff172b43);
+            TextView title=new TextView(this);title.setText("WYNIKI WEDŁUG MODELU");title.setTextSize(16);title.setTypeface(null,1);title.setTextColor(0xff172235);title.setPadding(0,dp(16),0,dp(12));list.addView(title);
             ArrayList<String> keys=new ArrayList<>(names.keySet());Collections.sort(keys,(a,b)->Double.compare(totals.get(b)[2],totals.get(a)[2]));
             if(keys.isEmpty()){TextView empty=new TextView(this);empty.setText("Brak rozliczonych wynajmów w tym okresie.");list.addView(empty);}
-            for(String key:keys){double[] v=totals.get(key);LinearLayout card=new LinearLayout(this);card.setOrientation(1);card.setPadding(14,12,14,12);card.setBackground(roundBg(Color.WHITE,12));
-                TextView nm=new TextView(this);nm.setText(names.get(key));nm.setTextSize(15);nm.setTypeface(null,1);nm.setTextColor(0xff172b43);card.addView(nm);
-                double[] costData=costs.containsKey(key)?costs.get(key):new double[2];double result=v[2]-v[3]-costData[0]-costData[1];
-                TextView d=new TextView(this);d.setText("Wynajmy: "+(int)v[0]+"  •  Dni: "+(int)v[1]+"\nPrzychód: "+String.format(Locale.US,"%.2f zł",v[2])+"\nStraty z najmu: "+String.format(Locale.US,"%.2f zł",v[3])+"\nZakup: "+String.format(Locale.US,"%.2f zł",costData[0])+"  •  Naprawy: "+String.format(Locale.US,"%.2f zł",costData[1])+"\nWynik po kosztach: "+String.format(Locale.US,"%.2f zł",result));d.setTextColor(0xff526174);d.setTextSize(13);d.setLineSpacing(2,1f);d.setPadding(0,6,0,8);card.addView(d);
-                Button cost=new Button(this);cost.setText("＋ DODAJ KOSZT");brandButton(cost,false);cost.setTextSize(12);cost.setMinHeight(0);cost.setMinimumHeight(0);cost.setPadding(8,2,8,2);cost.setOnClickListener(vw->addEquipmentCost(names.get(key),()->draw[0].run()));LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.topMargin=4;card.addView(cost,cp);
-                LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=8;list.addView(card,lp);
+            for(String key:keys){
+                double[] v=totals.get(key); LinearLayout card=financeCard(list);
+                financeText(card,names.get(key),17,0xff172235,true);
+                financeText(card,"Wynajmy: "+(int)v[0]+"   •   Dni: "+(int)v[1],14,0xff526174,false);
+                double[] costData=costs.containsKey(key)?costs.get(key):new double[2];
+                double result=v[2]-v[3]-costData[0]-costData[1];
+                financeAmount(card,"Wynik po kosztach",result);
+                financeText(card,"Przychód: "+financeMoney(v[2]),14,0xff526174,false);
+                LinearLayout details=new LinearLayout(this);details.setOrientation(1);
+                financeText(details,"Straty z najmu: "+financeMoney(v[3])+"\nZakup sprzętu: "+financeMoney(costData[0])+"\nNaprawy / serwis: "+financeMoney(costData[1]),14,0xff526174,false);
+                financeDisclosure(card,details,"Szczegóły kosztów");
+                Button cost=new Button(this);cost.setText("＋ Dodaj koszt");statsButton(cost);
+                cost.setOnClickListener(vw->addEquipmentCost(names.get(key),()->draw[0].run()));
+                LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.topMargin=dp(8);card.addView(cost,cp);
             }
         };
         years.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onItemSelected(android.widget.AdapterView<?> a,View v,int p,long id){draw[0].run();}public void onNothingSelected(android.widget.AdapterView<?> a){}});
-        Button back=new Button(this);back.setText("← WRÓĆ DO STATYSTYK");brandButton(back,false);back.setTextSize(12);back.setMinHeight(44);back.setOnClickListener(v->reservationStatsPage());LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(-1,-2);bp.topMargin=6;root.addView(back,bp); draw[0].run();
+        Button back=new Button(this);back.setText("← WRÓĆ DO STATYSTYK");brandButton(back,false);statsButton(back);back.setOnClickListener(v->reservationStatsPage());LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(-1,-2);bp.topMargin=6;root.addView(back,bp); draw[0].run();
     }
     private void addEquipmentCost(String equipment,Runnable refresh) {
         LinearLayout box=new LinearLayout(this);box.setOrientation(1);Spinner kind=new Spinner(this);kind.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,new String[]{"Zakup sprzętu","Naprawa / serwis"}));box.addView(kind);
@@ -1150,6 +1176,42 @@ public class MainActivity extends Activity {
             store.saveExpense(e);store.enqueue("expense_save",e);if(isOnline())syncNow();toast("Zapisano koszt sprzętu.");refresh.run();
         }catch(Exception ex){toast("Sprawdź kwotę i datę.");}}).show();
     }
+    // Statistics use density-independent spacing and scalable text on phones/tablets.
+    private String financeMoney(double value) {
+        return NumberFormat.getCurrencyInstance(new Locale("pl","PL")).format(value);
+    }
+    private void statsButton(Button button) {
+        brandButton(button,false);button.setAllCaps(false);button.setTextSize(14);
+        button.setMinWidth(0);button.setMinimumWidth(0);
+        button.setMinHeight(dp(48));button.setMinimumHeight(dp(48));
+        button.setPadding(dp(12),dp(10),dp(12),dp(10));
+    }
+    private LinearLayout financeCard(LinearLayout parent) {
+        LinearLayout card=new LinearLayout(this);card.setOrientation(1);
+        card.setPadding(dp(16),dp(14),dp(16),dp(14));card.setBackground(roundBg(Color.WHITE,16));
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=dp(12);parent.addView(card,lp);
+        return card;
+    }
+    private void financeText(LinearLayout parent,String text,int size,int color,boolean bold) {
+        TextView view=new TextView(this);view.setText(text);view.setTextSize(size);view.setTextColor(color);
+        if(bold)view.setTypeface(null,1);
+        view.setLineSpacing(dp(3),1f);view.setPadding(0,dp(3),0,dp(3));parent.addView(view);
+    }
+    private void financeAmount(LinearLayout parent,String label,double value) {
+        financeText(parent,label,13,0xff526174,false);
+        financeText(parent,financeMoney(value),24,value<0?0xffb42318:0xff18794e,true);
+    }
+    private void addFinanceSummary(LinearLayout parent,String label,String value,int color) {
+        LinearLayout card=financeCard(parent);
+        financeText(card,label,12,0xff526174,true);financeText(card,value,26,color,true);
+    }
+    private void financeDisclosure(LinearLayout parent,LinearLayout details,String label) {
+        Button toggle=new Button(this);statsButton(toggle);toggle.setText(label+" ▾");
+        details.setVisibility(View.GONE);parent.addView(toggle,new LinearLayout.LayoutParams(-1,-2));parent.addView(details);
+        toggle.setOnClickListener(v->{boolean open=details.getVisibility()!=View.VISIBLE;
+            details.setVisibility(open?View.VISIBLE:View.GONE);toggle.setText(label+(open?" ▴":" ▾"));});
+    }
+
     private void addStatCard(LinearLayout parent,String label,String value,int color) {
         LinearLayout card=new LinearLayout(this);card.setOrientation(1);card.setPadding(16,12,16,12);card.setBackground(roundBg(Color.WHITE,14));
         TextView l=new TextView(this);l.setText(label);l.setTextSize(11);l.setTypeface(null,1);l.setTextColor(0xff718096);card.addView(l);
@@ -1805,3 +1867,4 @@ public class MainActivity extends Activity {
     private void toast(String s){runOnUiThread(()->Toast.makeText(this,s,Toast.LENGTH_LONG).show());}
     @Override public void onBackPressed(){if(showingApp)showHome();else super.onBackPressed();}
 }
+
