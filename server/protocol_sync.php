@@ -102,7 +102,10 @@ if (($_GET['view'] ?? '') === 'push_status') {
     if ($method !== 'GET') rm_json_response(405,['ok'=>false,'error'=>'Niedozwolona metoda.']);
     if ($role !== 'admin') rm_json_response(403,['ok'=>false,'error'=>'Dostęp tylko dla administratora.']);
     require_once __DIR__.'/push_bridge.php';
-    $account=rm_push_read_json(rm_push_private_dir().'/fcm-service-account.json');
+    $keyPath=rm_push_private_dir().'/fcm-service-account.json';
+    $keyExists=is_file($keyPath);
+    $keyReadable=$keyExists && is_readable($keyPath);
+    $account=rm_push_read_json($keyPath);
     $registered=false;
     foreach (rm_push_read_json(rm_push_registry_file()) as $entry) {
         if (!is_array($entry) || !isset($entry['device_hash'])) continue;
@@ -114,7 +117,9 @@ if (($_GET['view'] ?? '') === 'push_status') {
     $folder=rm_push_private_dir();
     $storageReady=is_dir($folder) ? is_writable($folder) : is_writable(dirname($folder));
     rm_json_response(200,[
-        'ok'=>true, 'server_configured'=>isset($account['client_email'],$account['private_key'],$account['project_id']),
+        'ok'=>true,
+        'server_configured'=>isset($account['client_email'],$account['private_key'],$account['project_id']),
+        'key_exists'=>$keyExists, 'key_readable'=>$keyReadable,
         'registered'=>$registered, 'storage_writable'=>$storageReady
     ]);
 }
