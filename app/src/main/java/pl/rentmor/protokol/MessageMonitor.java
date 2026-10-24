@@ -55,6 +55,15 @@ public final class MessageMonitor {
             if(fresh.length()>0)notifyNew(context,fresh);
         }
     }
+    /** FCM messages contain only a message ID; never display private contact details on the lockscreen. */
+    public static void notifyPush(Context context,String messageId) {
+        android.content.SharedPreferences p=context.getSharedPreferences("rentmor",0);
+        if(!"admin".equals(p.getString("role",""))||p.getString("cookie","").isEmpty())return;
+        if(messageId==null||messageId.isEmpty())return;
+        if(messageId.equals(p.getString("last_fcm_message_id","")))return;
+        p.edit().putString("last_fcm_message_id",messageId).apply();
+        notifyNew(context,new JSONArray().put(new JSONObject()));
+    }
     private static void notifyNew(Context context,JSONArray fresh) {
         NotificationManager manager=(NotificationManager)context.getSystemService(Context.NOTIFICATION_SERVICE);
         if(manager==null)return;
