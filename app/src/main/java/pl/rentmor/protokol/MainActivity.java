@@ -32,10 +32,39 @@ public class MainActivity extends Activity {
         } else showActivation();
     }
     private void openWidgetDestination(){
+        if(getIntent()!=null && getIntent().getBooleanExtra("open_messages",false)){
+            getIntent().removeExtra("open_messages");
+            if(root!=null)root.postDelayed(()->messageInboxPage(),180);
+            return;
+        }
         if(getIntent()!=null && getIntent().getBooleanExtra("open_reservations",false)){
             getIntent().removeExtra("open_reservations");
             if(root!=null) root.postDelayed(()->reservationPage(),180);
         }
+    }
+    @Override protected void onNewIntent(Intent intent){
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if(showingApp)openWidgetDestination();
+    }
+    private final Handler messagePollHandler=new Handler(Looper.getMainLooper());
+    private final Runnable messagePollTask=new Runnable(){
+        @Override public void run(){
+            if(showingApp&&isAdmin()){
+                new Thread(()->{try{MessageMonitor.poll(getApplicationContext());}catch(Exception ignored){}},
+                    "rentmor-foreground-messages").start();
+            }
+            messagePollHandler.postDelayed(this,60000);
+        }
+    };
+    @Override protected void onResume(){
+        super.onResume();
+        messagePollHandler.removeCallbacks(messagePollTask);
+        messagePollHandler.postDelayed(messagePollTask,60000);
+    }
+    @Override protected void onPause(){
+        messagePollHandler.removeCallbacks(messagePollTask);
+        super.onPause();
     }
     private void showActivation(){
         activation=new WebView(this); activation.getSettings().setJavaScriptEnabled(true);activation.getSettings().setDomStorageEnabled(true);
@@ -137,6 +166,13 @@ public class MainActivity extends Activity {
                 "Naprawy, paliwo, reklama i zakupy",0xffedf0f5,()->expensePage());
         }
 
+        if(isAdmin()){
+            homeSectionTitle(page,"KONTAKT Z KLIENTAMI","Wiadomości wysłane przez RentMor.pl");
+            int unread=store.unreadMessagesCount();
+            homeMenuItem(page,android.R.drawable.ic_dialog_email,"Wiadomości klientów",
+                unread>0?"Nowe wiadomości: "+unread:"Otwórz skrzynkę i odczytaj zapytania",
+                0xffffedd0,()->messageInboxPage());
+        }
         homeSectionTitle(page,"NARZĘDZIA","Ustawienia i dostęp");
         homeToolsList=new LinearLayout(this);homeToolsList.setOrientation(1);page.addView(homeToolsList);
         homeMenuItem(homeToolsList,android.R.drawable.ic_popup_sync,"Synchronizuj teraz",
@@ -147,6 +183,16 @@ public class MainActivity extends Activity {
         screen.addView(scroll,new LinearLayout.LayoutParams(-1,-1));
         setContentView(screen);
         if(isOnline())syncNow();
+        if(isAdmin()){
+            MessageMonitor.schedule(this);
+            new Thread(()->{try{MessageMonitor.poll(getApplicationContext());}catch(Exception ignored){}},
+                "rentmor-check-on-open").start();
+            if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED
+                &&!getSharedPreferences("rentmor",0).getBoolean("asked_contact_notifications",false)){
+                getSharedPreferences("rentmor",0).edit().putBoolean("asked_contact_notifications",true).apply();
+                requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},738);
+            }
+        }else MessageMonitor.cancel(this);
     }
     private void homeSectionTitle(LinearLayout parent,String title,String caption){
         LinearLayout section=new LinearLayout(this);section.setOrientation(1);
@@ -258,8 +304,9 @@ public class MainActivity extends Activity {
     private void resetActivation(){
         showingApp=false;
         // Do not inherit administrator privileges when activating a different device.
+        MessageMonitor.reset(this);
         getSharedPreferences("rentmor",0).edit().remove("cookie").remove("role")
-            .remove("site_stats").remove("site_products").apply();
+            .remove("site_stats").remove("site_products").remove("asked_contact_notifications").apply();
         CookieManager cm=CookieManager.getInstance();
         cm.setAcceptCookie(true);
         cm.removeAllCookies(removed->{cm.flush();runOnUiThread(()->showActivation());});
@@ -1094,6 +1141,16 @@ public class MainActivity extends Activity {
     private void editExpense(JSONObject old,Runnable refresh) {
         LinearLayout form=new LinearLayout(this);form.setOrientation(1);EditText n=new EditText(this);n.setHint("Nazwa kosztu");n.setText(old.optString("name"));EditText a=new EditText(this);a.setHint("Kwota zł");a.setInputType(8194);a.setText(String.valueOf(old.optDouble("amount")));EditText d=new EditText(this);d.setHint("Data RRRR-MM-DD");d.setText(old.optString("date"));EditText note=new EditText(this);note.setHint("Opis");note.setText(old.optString("note"));Spinner typ=new Spinner(this);ArrayAdapter<String> ad=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,new String[]{"Koszt bieżący","Zakup sprzętu / inwestycja"});typ.setAdapter(ad);typ.setSelection("investment".equals(old.optString("type"))?1:0);form.addView(n);form.addView(a);form.addView(d);form.addView(typ);form.addView(note);
         new AlertDialog.Builder(this).setTitle("Edytuj koszt").setView(form).setNegativeButton("Anuluj",null).setPositiveButton("Zapisz",(di,w)->{try{String nm=n.getText().toString().trim(),ds=d.getText().toString().trim(),av=a.getText().toString().trim().replace(',','.');double val=Double.parseDouble(av);if(nm.isEmpty()||val<=0||!ds.matches("\\d{4}-\\d{2}-\\d{2}"))throw new Exception();old.put("name",nm);old.put("date",ds);old.put("month",ds.substring(0,7));old.put("amount",val);old.put("type",typ.getSelectedItemPosition()==1?"investment":"expense");old.put("note",note.getText().toString().trim());store.saveExpense(old);store.enqueue("expense_save",old);if(isOnline())syncNow();refresh.run();}catch(Exception ex){toast("Nieprawidłowe dane kosztu.");}}).show();
+    }
+
+    private void messageInboxPage(){
+        if(!isAdmin()){
+            toast("Wiadomości ze strony są dostępne tylko dla administratora.");
+            showHome();return;
+        }
+        protocolPage("Wiadomości klientów","Zapytania z formularza kontaktowego RentMor.pl");
+        root.addView(new MessageInbox(this,store).view());
+        addButton("← WRÓĆ DO MENU",()->showHome());
     }
 
     private void reservationStatsPage() {
