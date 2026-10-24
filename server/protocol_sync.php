@@ -76,6 +76,26 @@ $role = rm_device_role(__DIR__ . '/protocol_devices.json');
 if ($role === '') rm_json_response(401, ['ok'=>false, 'error'=>'Urządzenie nieaktywne. Połącz się z internetem i aktywuj je ponownie.']);
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+// Token registration never returns Firebase credentials or other devices' tokens.
+if (($_GET['view'] ?? '') === 'push_token') {
+    if ($method !== 'POST') rm_json_response(405,['ok'=>false,'error'=>'Niedozwolona metoda.']);
+    if (($_SERVER['HTTP_X_RENTMOR_SYNC'] ?? '') !== '1') rm_json_response(403,['ok'=>false,'error'=>'Brak nagłówka uwierzytelnienia aplikacji.']);
+    $rawPush=file_get_contents('php://input');
+    if(!is_string($rawPush)||strlen($rawPush)>6000)rm_json_response(400,['ok'=>false,'error'=>'Nieprawidłowe dane push.']);
+    $input=json_decode($rawPush,true);
+    if(!is_array($input))rm_json_response(400,['ok'=>false,'error'=>'Nieprawidłowe dane push.']);
+    $token=$input['token']??'';
+    if(!is_string($token)||($token!==''&&!preg_match('/^[A-Za-z0-9:._-]{40,4096}$/D',$token)))
+        rm_json_response(400,['ok'=>false,'error'=>'Nieprawidłowy token.']);
+    require_once __DIR__.'/push_bridge.php';
+    // Non-admin devices may unregister a previously assigned token,
+    // but only active admin devices may register new tokens.
+    $ok=rm_push_register(rm_push_device_hash(),$token,$role==='admin');
+    if(!$ok)rm_json_response(503,['ok'=>false,'error'=>'Magazyn tokenów jest niedostępny.']);
+    rm_json_response(200,['ok'=>true,'push_enabled'=>$role==='admin']);
+}
+
 // A small authenticated inbox response for Android background checks.
 // Never send customer contact details to assistant devices.
 if (($_GET['view'] ?? '') === 'messages') {
