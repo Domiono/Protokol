@@ -14,6 +14,9 @@ public final class MessageMonitor {
     public static final int JOB_ID=733891;
     private static final String CHANNEL="rentmor_contact_messages";
     private static final String BASELINE_KEY="contact_inbox_initialized_v1";
+    private static final String DELIVERED_KEY="contact_delivered_push_ids_v1";
+    private static final Object DELIVERY_LOCK=new Object();
+    private static final int DELIVERY_HISTORY_LIMIT=128;
     private static final Object POLL_LOCK=new Object();
     private MessageMonitor(){}
 
@@ -46,11 +49,39 @@ public final class MessageMonitor {
     }
     public static void reset(Context context) {
         cancel(context);
-        context.getSharedPreferences("rentmor",0).edit().remove(BASELINE_KEY).apply();
+        context.getSharedPreferences("rentmor",0).edit()
+            .remove(BASELINE_KEY).remove(DELIVERED_KEY).remove("last_fcm_message_id").apply();
         new LocalStore(context).clearMessages();
     }
+    /** Persist a bounded list of FCM message IDs already notified or opened. */
+    public static boolean acknowledgePush(Context context,String messageId) {
+        if(messageId==null || messageId.isEmpty() || messageId.length()>128)return false;
+        synchronized(DELIVERY_LOCK){
+            android.content.SharedPreferences prefs=context.getSharedPreferences("rentmor",0);
+            JSONArray history;
+            try{history=new JSONArray(prefs.getString(DELIVERED_KEY,"[]"));}
+            catch(Exception ignored){history=new JSONArray();}
+            for(int i=0;i<history.length();i++)
+                if(messageId.equals(history.optString(i)))return false;
+            JSONArray updated=new JSONArray();
+            for(int i=Math.max(0,history.length()-(DELIVERY_HISTORY_LIMIT-1));i<history.length();i++)
+                updated.put(history.optString(i));
+            updated.put(messageId);
+            // Commit before asynchronous inbox sync starts to suppress a race on notification tap.
+            prefs.edit().putString(DELIVERED_KEY,updated.toString()).commit();
+            return true;
+        }
+    }
+    /** Once a user reads the message, dismiss redundant local alerts as well. */
+    public static void messageRead(Context context,String messageId) {
+        acknowledgePush(context,messageId);
+        NotificationManager manager=(NotificationManager)context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if(manager!=null)manager.cancel(4702);
+    }
     /** Requires authenticated admin cookie and calls the server only on a background thread. */
-    public static void poll(Context context) throws Exception {
+    public static void poll(Context context) throws Exception {poll(context,true);}
+    /** Inbox refresh loads data without generating a second notification. */
+    public static void poll(Context context,boolean notifyIfNew) throws Exception {
         synchronized(POLL_LOCK) {
             android.content.SharedPreferences prefs=context.getSharedPreferences("rentmor",0);
             if(!"admin".equals(prefs.getString("role",""))||prefs.getString("cookie","").isEmpty())return;
@@ -63,7 +94,17 @@ public final class MessageMonitor {
                 prefs.edit().putBoolean(BASELINE_KEY,true).apply();
                 return;
             }
-            if(fresh.length()>0)notifyNew(context,fresh);
+            JSONArray alertable=new JSONArray();
+            for(int i=0;i<fresh.length();i++){
+                JSONObject m=fresh.optJSONObject(i);
+                if(m==null)continue;
+                String id=m.optString("id","");
+                if(!id.isEmpty() && acknowledgePush(context,id))alertable.put(m);
+            }
+            // FCM presents notifications in the Android tray. Polling remains a data
+            // synchronization fallback, but must not duplicate FCM notifications.
+            if(notifyIfNew && alertable.length()>0 && !PushRegistrar.hasRegisteredToken(context))
+                notifyNew(context,alertable);
         }
     }
     /** FCM messages contain only a message ID; never display private contact details on the lockscreen. */
@@ -71,9 +112,9 @@ public final class MessageMonitor {
         android.content.SharedPreferences p=context.getSharedPreferences("rentmor",0);
         if(!"admin".equals(p.getString("role",""))||p.getString("cookie","").isEmpty())return;
         if(messageId==null||messageId.isEmpty())return;
-        if(messageId.equals(p.getString("last_fcm_message_id","")))return;
+        if(!acknowledgePush(context,messageId))return;
         p.edit().putString("last_fcm_message_id",messageId).apply();
-        notifyNew(context,new JSONArray().put(new JSONObject()));
+        notifyNew(context,new JSONArray().put(new JSONObject().put("id",messageId)));
     }
     private static void notifyNew(Context context,JSONArray fresh) {
         NotificationManager manager=(NotificationManager)context.getSystemService(Context.NOTIFICATION_SERVICE);
@@ -88,6 +129,8 @@ public final class MessageMonitor {
         if(sender.length()>60)sender=sender.substring(0,60);
         String title=count==1?"Nowa wiadomość od "+sender:"Nowe wiadomości ze strony: "+count;
         Intent intent=new Intent(context,MainActivity.class).putExtra("open_messages",true);
+        if(newest!=null && !newest.optString("id","").isEmpty())
+            intent.putExtra("message_id",newest.optString("id"));
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent pending=PendingIntent.getActivity(context,1002,intent,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         Notification.Builder b=Build.VERSION.SDK_INT>=26?
