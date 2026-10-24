@@ -17,14 +17,16 @@ def load(path):
 
 def evaluate(devices, registry, now=None):
     now = int(time.time() if now is None else now)
+    device_list = devices.get("devices", []) if isinstance(devices, dict) else []
+    if not isinstance(device_list, list):
+        device_list = []
     live = {
-        device.get("token_hash")
-        for device in devices.get("devices", []) if isinstance(devices, dict) and isinstance(devices.get("devices"), list)
-        for device in [device]
-        if isinstance(device, dict) and device.get("active")
-        and device.get("role") != "assistant"
-        and isinstance(device.get("token_hash"), str)
-    } if isinstance(devices, dict) else set()
+        d["token_hash"]
+        for d in device_list
+        if isinstance(d, dict) and d.get("active")
+        and d.get("role") != "assistant"
+        and isinstance(d.get("token_hash"), str)
+    }
     registrations = registry if isinstance(registry, list) else []
     recent = [r for r in registrations if isinstance(r, dict)
               and isinstance(r.get("updated"), (float, int))
