@@ -46,7 +46,7 @@ jobs:
           RENTMOR_KEYSTORE_PATH: ${{ runner.temp }}/rentmor-release.jks
           RENTMOR_KEYSTORE_PASSWORD: ${{ secrets.RENTMOR_KEYSTORE_PASSWORD }}
           RENTMOR_KEY_ALIAS: ${{ secrets.RENTMOR_KEY_ALIAS }}
-        run: gradle --no-daemon assembleRelease
+        run: gradle --no-daemon testDebugUnitTest assembleRelease
       - uses: actions/upload-artifact@v4
         with:
           name: protokol-rentmor-apk

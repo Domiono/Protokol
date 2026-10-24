@@ -27,7 +27,7 @@ public class MainActivity extends Activity {
     @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(Color.rgb(20,29,45));getWindow().setNavigationBarColor(Color.rgb(20,29,45));store=new LocalStore(this);sync=new SyncManager(this,store);registerNetworkSync();
         String saved=getSharedPreferences("rentmor",0).getString("cookie","");
         if(!saved.isEmpty()){showHome();
-            if(b!=null&&b.getString("protocol_camera_uri")!=null){pendingProtocolPhoto=android.net.Uri.parse(b.getString("protocol_camera_uri"));newIssue();}
+            if(new ProtocolCameraStore(this).pending()!=null){pendingProtocolPhoto=new ProtocolCameraStore(this).pending();newIssue();}
             else openWidgetDestination();
         } else showActivation();
     }
@@ -1836,18 +1836,16 @@ public class MainActivity extends Activity {
         if(pendingProtocolPhoto!=null)return;
         try{
             if(issueDraftWriter!=null)issueDraftWriter.run();
-            android.content.ContentValues values=new android.content.ContentValues();values.put(android.provider.MediaStore.Images.Media.DISPLAY_NAME,"RentMor-"+UUID.randomUUID()+".jpg");values.put(android.provider.MediaStore.Images.Media.MIME_TYPE,"image/jpeg");values.put(android.provider.MediaStore.Images.Media.RELATIVE_PATH,Environment.DIRECTORY_PICTURES+"/RentMor");values.put(android.provider.MediaStore.Images.Media.IS_PENDING,1);
-            pendingProtocolPhoto=getContentResolver().insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values);
-            if(pendingProtocolPhoto==null)throw new IOException("Nie można przygotować miejsca na zdjęcie");
+            pendingProtocolPhoto=new ProtocolCameraStore(this).create();
             Intent intent=new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);intent.putExtra(android.provider.MediaStore.EXTRA_OUTPUT,pendingProtocolPhoto);intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);intent.setClipData(ClipData.newRawUri("Zdjęcie protokołu",pendingProtocolPhoto));startActivityForResult(intent,4101);
         }catch(Exception ex){discardPendingProtocolPhoto();toast("Nie można otworzyć aparatu: "+ex.getMessage());}
     }
     private void discardPendingProtocolPhoto(){
-        if(pendingProtocolPhoto!=null){try{getContentResolver().delete(pendingProtocolPhoto,null,null);}catch(Exception ignored){}pendingProtocolPhoto=null;}
+        new ProtocolCameraStore(this).clear();pendingProtocolPhoto=null;
     }
     private Bitmap readProtocolCameraPhoto(android.net.Uri uri)throws IOException{
         Bitmap image=readProductPhotoThumbnail(uri);int orientation=1;
-        try(InputStream input=getContentResolver().openInputStream(uri)){if(input!=null)orientation=new android.media.ExifInterface(input).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION,1);}
+        try(InputStream input=getContentResolver().openInputStream(uri)){if(input!=null)orientation=new android.media.ExifInterface(input).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION,1);}catch(IOException ignored){/* Missing EXIF must not discard a readable image. */}
         Matrix transform=new Matrix();
         switch(orientation){case 2:transform.setScale(-1,1);break;case 3:transform.setRotate(180);break;case 4:transform.setScale(1,-1);break;case 5:transform.setRotate(90);transform.postScale(-1,1);break;case 6:transform.setRotate(90);break;case 7:transform.setRotate(-90);transform.postScale(-1,1);break;case 8:transform.setRotate(-90);break;default:return image;}
         Bitmap rotated=Bitmap.createBitmap(image,0,0,image.getWidth(),image.getHeight(),transform,true);if(rotated!=image)image.recycle();return rotated;
@@ -1899,12 +1897,29 @@ public class MainActivity extends Activity {
             }).start();
         }
         if(requestCode==4101){
-            boolean added=false;
-            try{if(resultCode==RESULT_OK&&pendingProtocolPhoto!=null){Bitmap image=readProtocolCameraPhoto(pendingProtocolPhoto);issuePhotos.add(image);added=true;}}
-            catch(Exception ex){toast("Nie udało się odczytać zdjęcia. Spróbuj ponownie.");}
-            finally{discardPendingProtocolPhoto();updateIssuePhotoThumbnails();}
-            if(added)new AlertDialog.Builder(this).setTitle("Zdjęcie dodane ("+issuePhotos.size()+")").setMessage("Możesz zrobić kolejne zdjęcie lub wrócić do protokołu.").setPositiveButton("Zrób następne",(d,w)->pickPhoto()).setNegativeButton("Gotowe",null).show();
+            if(pendingProtocolPhoto==null)pendingProtocolPhoto=new ProtocolCameraStore(this).pending();
+            if(resultCode!=RESULT_OK){discardPendingProtocolPhoto();return;}
+            // EXTRA_OUTPUT cameras normally return no Intent data at all.
+            receiveProtocolCameraPhoto(data);
         }
+    }
+    private void receiveProtocolCameraPhoto(Intent result){
+        Bitmap image=null;Exception failure=null;
+        if(pendingProtocolPhoto!=null){try{image=readProtocolCameraPhoto(pendingProtocolPhoto);}catch(Exception ex){failure=ex;}}
+        if(image==null&&result!=null&&result.getData()!=null){try{image=readProtocolCameraPhoto(result.getData());}catch(Exception ex){failure=ex;}}
+        if(image==null&&result!=null&&result.getExtras()!=null){Object thumbnail=result.getExtras().get("data");if(thumbnail instanceof Bitmap)image=(Bitmap)thumbnail;}
+        if(image==null){
+            String reason=failure==null?"Aparat nie przekazał pliku zdjęcia.":"Nie można odczytać pliku: "+failure.getMessage();
+            new AlertDialog.Builder(this).setTitle("Zdjęcie nie zostało dodane").setMessage(reason+"\nFormularz pozostaje zapisany. Możesz ponowić odczyt lub zrobić zdjęcie jeszcze raz.")
+                .setPositiveButton("Ponów odczyt",(d,w)->receiveProtocolCameraPhoto(result))
+                .setNeutralButton("Zrób ponownie",(d,w)->{discardPendingProtocolPhoto();pickPhoto();})
+                .setNegativeButton("Anuluj",(d,w)->discardPendingProtocolPhoto()).setCancelable(false).show();return;
+        }
+        issuePhotos.add(image);updateIssuePhotoThumbnails();
+        // Preserve the newly received photo before clearing its source file.
+        try{if(issueDraftWriter!=null)issueDraftWriter.run();}catch(Exception ex){toast("Zdjęcie dodane. Zapisz protokół przed zamknięciem aplikacji.");}
+        discardPendingProtocolPhoto();
+        new AlertDialog.Builder(this).setTitle("Zdjęcie dodane ("+issuePhotos.size()+")").setMessage("Możesz zrobić kolejne zdjęcie lub wrócić do protokołu.").setPositiveButton("Zrób następne",(d,w)->pickPhoto()).setNegativeButton("Gotowe",null).show();
     }
     private void returnList(){
         root.removeAllViews(); TextView h=new TextView(this); h.setText("PROTOKOŁY DO ZWROTU"); h.setTextSize(20); h.setTextColor(0xff172235); root.addView(h);

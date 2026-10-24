@@ -7,8 +7,8 @@ android {
         applicationId 'pl.rentmor.protokol'
         minSdk 29
         targetSdk 35
-        versionCode 3
-        versionName '1.2.0'
+        versionCode 4
+        versionName '1.2.1'
     }
 
     signingConfigs {
@@ -20,10 +20,18 @@ android {
         }
     }
 
+    testOptions { unitTests.includeAndroidResources = true }
+
     buildTypes {
         release {
             signingConfig signingConfigs.release
             minifyEnabled false
         }
     }
+}
+
+dependencies {
+    implementation 'androidx.core:core:1.13.1'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.13.2'
 }
