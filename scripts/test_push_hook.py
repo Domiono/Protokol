@@ -32,6 +32,22 @@ def test():
         try: patch(invalid)
         except ValueError: pass
         else: raise AssertionError("Changed contact form must be rejected")
+    # The background push must carry a system notification, never customer details.
+    import json
+    payload = subprocess.run(
+        ["php", "-r", 'require $argv[1]; echo rm_push_message_payload("TEST_TOKEN", "MSG_TEST");',
+         "server/push_bridge.php"],
+        capture_output=True, text=True, check=True,
+    )
+    wire = json.loads(payload.stdout)["message"]
+    assert wire["notification"]["title"] == "RentMor — nowa wiadomość"
+    assert wire["android"]["priority"] == "high"
+    assert wire["android"]["notification"]["channel_id"] == "rentmor_contact_messages"
+    assert wire["android"]["notification"]["visibility"] == "PRIVATE"
+    assert wire["data"] == {"type": "contact_message", "message_id": "MSG_TEST"}
+    assert "TEST_TOKEN" not in wire["notification"]["body"]
+    assert "MSG_TEST" not in wire["notification"]["body"]
+    print("FCM background notification payload and contact privacy checks passed.")
     print("Contact push hook tests passed.")
 
 if __name__=="__main__":test()
