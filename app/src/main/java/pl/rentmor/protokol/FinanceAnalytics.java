@@ -16,6 +16,7 @@ public final class FinanceAnalytics {
     }
     public static class Report extends Bucket {
         public int undated,invalid,pending;public List<Bucket> buckets=new ArrayList<>();
+        public List<JSONObject> records=new ArrayList<>();
         public Map<String,long[]> equipment=new LinkedHashMap<>();
         Report(LocalDate start,LocalDate end){super(start,end);}
     }
@@ -33,7 +34,7 @@ public final class FinanceAnalytics {
             if(!o.optBoolean("settled")){LocalDate planned=date(o.optString("start_date"));if(planned!=null&&!planned.isBefore(from)&&!planned.isAfter(to))r.pending++;continue;}
             LocalDate d=date(o.optString("settled_at"));if(d==null){r.undated++;continue;}if(d.isBefore(from)||d.isAfter(to))continue;
             Long inc=amount(o,"income"),loss=amount(o,"loss");if(inc==null||loss==null){r.invalid++;continue;}
-            Bucket b=map.get(bucketStart(d,grain));r.income+=inc;r.loss+=loss;r.rentals++;b.income+=inc;b.loss+=loss;b.rentals++;
+            r.records.add(o);Bucket b=map.get(bucketStart(d,grain));r.income+=inc;r.loss+=loss;r.rentals++;b.income+=inc;b.loss+=loss;b.rentals++;
             String name=o.optString("equipment").trim();if(name.isEmpty())name="Nieprzypisany sprzęt";long[] sums=r.equipment.get(name);if(sums==null){sums=new long[3];r.equipment.put(name,sums);}sums[0]+=inc;sums[1]+=loss;sums[2]++;
         }
         for(int i=0;i<expenses.length();i++){
