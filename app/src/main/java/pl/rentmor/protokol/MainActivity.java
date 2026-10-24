@@ -128,10 +128,11 @@ public class MainActivity extends Activity {
         homeMenuItem(page,android.R.drawable.ic_menu_agenda,"Lista protokołów",
             "Przeglądaj i pobieraj dokumenty PDF",0xffedf1fa,()->protocolList());
 
-        homeSectionTitle(page,"FINANSE I ANALITYKA","Wyniki Twojej wypożyczalni");
-        homeMenuItem(page,android.R.drawable.ic_menu_sort_by_size,"Statystyki najmu",
-            "Przychody, straty i wynik sprzętu",0xffffe8ac,()->reservationStatsPage());
-        if("admin".equals(getSharedPreferences("rentmor",0).getString("role",""))){
+        // Finance controls are never shown to assistant devices.
+        if(isAdmin()){
+            homeSectionTitle(page,"FINANSE I ANALITYKA","Wyniki Twojej wypożyczalni");
+            homeMenuItem(page,android.R.drawable.ic_menu_sort_by_size,"Statystyki najmu",
+                "Przychody, straty i wynik sprzętu",0xffffe8ac,()->reservationStatsPage());
             homeMenuItem(page,android.R.drawable.ic_menu_info_details,"Pozostałe koszty",
                 "Naprawy, paliwo, reklama i zakupy",0xffedf0f5,()->expensePage());
         }
@@ -256,7 +257,9 @@ public class MainActivity extends Activity {
     }
     private void resetActivation(){
         showingApp=false;
-        getSharedPreferences("rentmor",0).edit().remove("cookie").apply();
+        // Do not inherit administrator privileges when activating a different device.
+        getSharedPreferences("rentmor",0).edit().remove("cookie").remove("role")
+            .remove("site_stats").remove("site_products").apply();
         CookieManager cm=CookieManager.getInstance();
         cm.setAcceptCookie(true);
         cm.removeAllCookies(removed->{cm.flush();runOnUiThread(()->showActivation());});
@@ -292,7 +295,30 @@ public class MainActivity extends Activity {
     }
     private void registerNetworkSync(){ConnectivityManager cm=(ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);networkCallback=new ConnectivityManager.NetworkCallback(){@Override public void onAvailable(android.net.Network network){runOnUiThread(()->{if(showingApp&&getSharedPreferences("rentmor",0).getString("cookie","").length()>0)syncNow();});}};try{cm.registerDefaultNetworkCallback(networkCallback);}catch(Exception ignored){}}
     @Override protected void onDestroy(){try{if(networkCallback!=null)((ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE)).unregisterNetworkCallback(networkCallback);}catch(Exception ignored){}super.onDestroy();}
-    private void syncNow(){if(!isOnline()){if(status!=null)status.setText("Brak internetu. Dane pozostają bezpiecznie w telefonie.");return;}if(!syncRunning.compareAndSet(false,true))return;if(status!=null)status.setText("Synchronizacja…");new Thread(()->{try{sync.sync();runOnUiThread(()->{if(status!=null)status.setText("Synchronizacja zakończona. Oczekujące: "+store.pendingCount());addAdminDownloadCard();});}catch(Exception e){runOnUiThread(()->{if(status!=null)status.setText("Nie wysłano: "+e.getMessage()+" • Dane zapisane lokalnie.");});}finally{syncRunning.set(false);}}).start();}
+    private void syncNow(){
+        if(!isOnline()){
+            if(status!=null)status.setText("Brak internetu. Dane pozostają bezpiecznie w telefonie.");
+            return;
+        }
+        if(!syncRunning.compareAndSet(false,true))return;
+        final String previousRole=getSharedPreferences("rentmor",0).getString("role","");
+        if(status!=null)status.setText("Synchronizacja…");
+        new Thread(()->{
+            try{
+                sync.sync();
+                runOnUiThread(()->{
+                    String currentRole=getSharedPreferences("rentmor",0).getString("role","");
+                    // Reload navigation after activation, promotion or demotion.
+                    // This also closes a finance screen if an administrator loses access.
+                    if(!previousRole.equals(currentRole)){showHome();return;}
+                    if(status!=null)status.setText("Synchronizacja zakończona. Oczekujące: "+store.pendingCount());
+                    addAdminDownloadCard();
+                });
+            }catch(Exception e){
+                runOnUiThread(()->{if(status!=null)status.setText("Nie wysłano: "+e.getMessage()+" • Dane zapisane lokalnie.");});
+            }finally{syncRunning.set(false);}
+        }).start();
+    }
 
     private void sitePage() {
         root.removeAllViews(); root.setPadding(18,16,18,18);
@@ -1020,7 +1046,7 @@ public class MainActivity extends Activity {
     }
 
     private void expensePage() {
-        if(!"admin".equals(getSharedPreferences("rentmor",0).getString("role",""))){toast("Ta funkcja jest dostępna tylko dla administratora.");showHome();return;}
+        if(!isAdmin()){toast("Ta funkcja jest dostępna tylko dla administratora.");showHome();return;}
         root.removeAllViews();root.setOrientation(1);root.setPadding(18,16,18,18);root.setBackgroundColor(0xfff5f6fa);
         TextView heading=new TextView(this);heading.setText("POZOSTAŁE KOSZTY");heading.setTextSize(24);heading.setTypeface(null,1);heading.setTextColor(0xff172235);root.addView(heading);
         Calendar now=Calendar.getInstance();final String[] month={String.format(Locale.US,"%04d-%02d",now.get(Calendar.YEAR),now.get(Calendar.MONTH)+1)};
@@ -1059,12 +1085,13 @@ public class MainActivity extends Activity {
     }
 
     private void reservationStatsPage() {
-        if(!"admin".equals(getSharedPreferences("rentmor",0).getString("role",""))){toast("Statystyki finansowe są dostępne dla administratora.");return;}
+        if(!isAdmin()){toast("Statystyki finansowe są dostępne tylko dla administratora.");showHome();return;}
         protocolPage("Finanse RentMor","Przychody, koszty i wyniki Twojej wypożyczalni");
         root.addView(new FinanceDashboard(this,store.allReservations(),store.allExpenses(),()->equipmentProfitabilityPage(),()->expensePage()).view());
         addButton("WRÓĆ DO MENU",()->showHome());
     }
     private void legacyReservationStatsPage() {
+        if(!isAdmin()){toast("Statystyki najmu są dostępne tylko dla administratora.");showHome();return;}
         root.removeAllViews(); root.setOrientation(1); root.setPadding(dp(16),dp(16),dp(16),dp(12)); root.setBackgroundColor(0xfff5f6fa);
         TextView heading=new TextView(this); heading.setText("STATYSTYKI NAJMU"); heading.setTextSize(24); heading.setTypeface(null,1); heading.setTextColor(0xff172235); root.addView(heading);
         Button profitability=new Button(this); profitability.setText("RENTOWNOŚĆ SPRZĘTU"); brandButton(profitability,true); profitability.setOnClickListener(v->equipmentProfitabilityPage()); root.addView(profitability);
@@ -1124,7 +1151,7 @@ public class MainActivity extends Activity {
         addButton("WRÓĆ",()->showHome()); render.run();
     }
     private void equipmentProfitabilityPage() {
-        if(!"admin".equals(getSharedPreferences("rentmor",0).getString("role",""))) {
+        if(!isAdmin()) {
             toast("Statystyki są dostępne dla administratora.");return;
         }
         protocolPage("Rentowność sprzętu","Przychody, wynajmy i przypisane koszty każdego modelu");
@@ -1133,6 +1160,7 @@ public class MainActivity extends Activity {
         addButton("← WRÓĆ DO STATYSTYK",()->reservationStatsPage());
     }
     private void addEquipmentCost(String equipment,Runnable refresh) {
+        if(!isAdmin()){toast("Koszty sprzętu są dostępne tylko dla administratora.");showHome();return;}
         LinearLayout box=new LinearLayout(this);box.setOrientation(1);Spinner kind=new Spinner(this);kind.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,new String[]{"Zakup sprzętu","Naprawa / serwis"}));box.addView(kind);
         EditText amount=new EditText(this);amount.setHint("Kwota w zł");amount.setInputType(8194);box.addView(amount);
         EditText date=new EditText(this);date.setHint("Data RRRR-MM-DD");date.setText(new SimpleDateFormat("yyyy-MM-dd",Locale.US).format(new Date()));box.addView(date);
@@ -1334,8 +1362,11 @@ public class MainActivity extends Activity {
     private String customerMoney(double amount){
         return String.format(new Locale("pl","PL"),"%,.2f zł",amount);
     }
-    private boolean customerIsAdmin(){
+    private boolean isAdmin() {
         return "admin".equals(getSharedPreferences("rentmor",0).getString("role",""));
+    }
+    private boolean customerIsAdmin(){
+        return isAdmin();
     }
     private String customerTitle(JSONObject c){
         String value=c.optString("name","").trim();
