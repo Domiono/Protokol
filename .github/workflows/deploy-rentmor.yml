@@ -157,6 +157,7 @@ jobs:
             # Read back and compare the exact saved snapshot before overwriting index.php.
             lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get rentmor-backups/$BACKUP_NAME -o $TEMP_DIR/verified-backup.php; bye"
             cmp "$TEMP_DIR/original.php" "$TEMP_DIR/verified-backup.php"
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $TEMP_DIR/index.php -o public_html/index.php; bye"
             lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/index.php -o $TEMP_DIR/deployed.php; bye"
             cmp "$TEMP_DIR/index.php" "$TEMP_DIR/deployed.php"
             echo "Public homepage uploaded and verified."
