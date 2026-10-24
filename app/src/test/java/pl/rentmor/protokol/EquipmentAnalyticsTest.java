@@ -13,7 +13,7 @@ import static org.junit.Assert.*;
 public class EquipmentAnalyticsTest {
     @Test public void groupsEquipmentAcrossCaseAndAccountsCostsByTypeNotNote() throws Exception {
         JSONArray rentals=new JSONArray("[{\"settled\":true,\"settled_at\":\"2026-01-03 13:05\",\"equipment\":\"  PUZZI  \",\"income\":100.10,\"loss\":5.05,\"start_date\":\"2025-12-31\",\"end_date\":\"2026-01-02\"},{\"settled\":true,\"settled_at\":\"2026-01-05\",\"equipment\":\"puzzi\",\"income\":50,\"loss\":0,\"start_date\":\"2026-01-04\",\"end_date\":\"2026-01-04\"}]");
-        JSONArray costs=new JSONArray("[{\"date\":\"2026-01-04\",\"equipment_name\":\"Puzzi\",\"amount\":20,\"type\":\"expense\",\"note\":\"Zakup\\"},{\"date\":\"2026-01-05\",\"equipment_name\":\"pUzZi\",\"amount\":50,\"type\":\"investment\",\"note\":\"Serwis\"},{\"date\":\"2026-01-06\",\"amount\":12,\"type\":\"expense\"}]");
+        JSONArray costs=new JSONArray("[{\"date\":\"2026-01-04\",\"equipment_name\":\"Puzzi\",\"amount\":20,\"type\":\"expense\",\"note\":\"Zakup\"},{\"date\":\"2026-01-05\",\"equipment_name\":\"pUzZi\",\"amount\":50,\"type\":\"investment\",\"note\":\"Serwis\"},{\"date\":\"2026-01-06\",\"amount\":12,\"type\":\"expense\"}]");
         EquipmentAnalytics.Snapshot s=EquipmentAnalytics.calculate(rentals,costs,LocalDate.of(2026,1,1),LocalDate.of(2026,1,31));
         assertEquals(1,s.models.size());
         EquipmentAnalytics.Model m=s.sorted(0).get(0);
