@@ -160,9 +160,15 @@ jobs:
           echo "Firebase service account format validated.\\n";
           ' "$KEY_FILE"
           source scripts/secure_sftp_connection.sh
-          # Deliberately store ABOVE public_html: never put a private JSON key in the web root.
-          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; mkdir -p rentmor-private; set cmd:fail-exit yes; put $KEY_FILE -o rentmor-private/fcm-service-account.json; chmod 600 rentmor-private/fcm-service-account.json; bye"
-          rm -f "$KEY_FILE"
+          # public_html may be a symlink into domains/rentmor.pl/public_html.
+          # Resolve its real parent over SFTP, matching PHP dirname(__DIR__).
+          # Never store this sensitive file in public_html or in GitHub.
+          VERIFY_FILE="$RUNNER_TEMP/rentmor-fcm-upload-verify.json"
+          trap 'rm -f "$KEY_FILE" "$VERIFY_FILE"' EXIT
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; cd public_html; cd ..; set cmd:fail-exit no; mkdir -p rentmor-private; set cmd:fail-exit yes; put $KEY_FILE -o rentmor-private/fcm-service-account.json; chmod 600 rentmor-private/fcm-service-account.json; get rentmor-private/fcm-service-account.json -o $VERIFY_FILE; bye"
+          cmp "$KEY_FILE" "$VERIFY_FILE"
+          echo "Firebase key stored above the resolved web root and verified byte-for-byte."
+          rm -f "$KEY_FILE" "$VERIFY_FILE"
 
       - name: Diagnose authorized Firebase tokens (no private data in logs)
         if: steps.config.outputs.enabled == 'true'
@@ -179,7 +185,7 @@ jobs:
           trap 'rm -rf "$PRIVATE_DIR"' EXIT
           # Snapshot the protected files into ephemeral CI storage; never log contents.
           # A missing registry is expected before the first admin device registration.
-          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; get public_html/protocol_devices.json -o $PRIVATE_DIR/devices.json; get rentmor-private/fcm-tokens.json -o $PRIVATE_DIR/tokens.json; bye" || true
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; get public_html/protocol_devices.json -o $PRIVATE_DIR/devices.json; cd public_html; cd ..; get rentmor-private/fcm-tokens.json -o $PRIVATE_DIR/tokens.json; bye" || true
           python3 scripts/diagnose_push_registry.py "$PRIVATE_DIR/devices.json" "$PRIVATE_DIR/tokens.json"
 
       - name: Publish prepared homepage with backup
