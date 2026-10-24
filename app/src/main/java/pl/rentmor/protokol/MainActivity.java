@@ -319,7 +319,9 @@ public class MainActivity extends Activity {
         LinearLayout rangeBar=new LinearLayout(this);rangeBar.setOrientation(0);root.addView(rangeBar);
         LinearLayout chartCard=new LinearLayout(this);chartCard.setOrientation(1);chartCard.setPadding(12,12,12,12);chartCard.setBackground(roundBg(Color.WHITE,14));root.addView(chartCard);
         LinearLayout cards=new LinearLayout(this);cards.setOrientation(1);root.addView(cards);
-        final View[] chart={null};
+        final HorizontalScrollView[] chartScroll={null};
+        final int[] renderedRange={0};
+        final String[] selectedDay={null};
         final TextView[] liveLabel={null};
         Runnable render=()->{
             cards.removeAllViews();liveCards.removeAllViews();JSONObject st=siteStats();
@@ -352,6 +354,9 @@ public class MainActivity extends Activity {
                 ArrayList<String> ids=new ArrayList<>();Iterator<String> it=pv.keys();while(it.hasNext())ids.add(it.next());Collections.sort(ids,(a,b)->Long.compare(pv.optLong(b),pv.optLong(a)));
                 JSONArray products=siteProducts();for(int i=0;i<Math.min(5,ids.size());i++){String id=ids.get(i),name=id;for(int j=0;j<products.length();j++){JSONObject p=products.optJSONObject(j);if(p!=null&&id.equals(p.optString("id"))){name=p.optString("name",id);break;}}addMetric(cards,name,pv.optString(id)+" odsłon");}
             }
+            final boolean sameRange=renderedRange[0]==range[0] && chartScroll[0]!=null;
+            final int savedScrollX=sameRange?chartScroll[0].getScrollX():0;
+            renderedRange[0]=range[0];
             chartCard.removeAllViews();
             final ArrayList<String> labels=new ArrayList<>(), dateKeys=new ArrayList<>();
             final ArrayList<Integer> values=new ArrayList<>();
@@ -365,6 +370,11 @@ public class MainActivity extends Activity {
                 cal.add(Calendar.DAY_OF_YEAR,1);
             }
             final int[] selected={Math.max(0,values.size()-1)};
+            if(sameRange && selectedDay[0]!=null){
+                int previous=dateKeys.indexOf(selectedDay[0]);
+                if(previous>=0)selected[0]=previous;
+            }
+            selectedDay[0]=dateKeys.get(selected[0]);
             TextView detail=new TextView(this);
             detail.setTextSize(17);detail.setTypeface(null,1);detail.setTextColor(0xff172235);
             detail.setBackground(roundBg(0xfffff6d9,10));detail.setPadding(dp(12),dp(10),dp(12),dp(10));
@@ -376,9 +386,21 @@ public class MainActivity extends Activity {
             chartCard.addView(tip);
             android.widget.HorizontalScrollView scroller=new android.widget.HorizontalScrollView(this);
             scroller.setFillViewport(true);scroller.setHorizontalScrollBarEnabled(true);
+            scroller.setScrollBarStyle(View.SCROLLBARS_INSIDE_INSET);
+            scroller.setScrollbarFadingEnabled(false);
+            chartScroll[0]=scroller;
             chartCard.addView(scroller,new LinearLayout.LayoutParams(-1,dp(235)));
+            final int chartWidth=range[0]<=7?0:range[0]*dp(35)+dp(48);
             View graph=new View(this){
                 final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);
+                private float downX,downY;
+                private boolean tap;
+                private final int touchSlop=ViewConfiguration.get(MainActivity.this).getScaledTouchSlop();
+                @Override protected void onMeasure(int widthSpec,int heightSpec){
+                    // HorizontalScrollView measures its child with UNSPECIFIED width.
+                    // A plain View otherwise collapses to the viewport, removing overflow.
+                    setMeasuredDimension(resolveSize(chartWidth,widthSpec),resolveSize(dp(230),heightSpec));
+                }
                 @Override protected void onDraw(Canvas canvas){
                     super.onDraw(canvas);
                     float width=getWidth(),height=getHeight();
@@ -388,6 +410,9 @@ public class MainActivity extends Activity {
                     int highest=1;for(int v:values)highest=Math.max(highest,v);
                     int axisMax=(int)Math.ceil(highest/10.0)*10;
                     float slot=plotWidth/Math.max(1,values.size());
+                    paint.setTypeface(Typeface.DEFAULT);paint.setTextSize(dp(11));
+                    int labelStep=Math.max(1,(int)Math.ceil((paint.measureText("00.00")+dp(10))/slot));
+                    float lastLabelRight=-Float.MAX_VALUE;
                     paint.setColor(0xffe3e8f0);paint.setStrokeWidth(dp(1));
                     for(int line=0;line<=2;line++){
                         float y=top+plotHeight*line/2f;
@@ -410,20 +435,33 @@ public class MainActivity extends Activity {
                             String number=String.valueOf(values.get(i));
                             canvas.drawText(number,center-paint.measureText(number)/2f,Math.max(dp(16),y-dp(5)),paint);
                         }
-                        if(values.size()<=7 || i%5==0 || i==values.size()-1){
+                        if(i%labelStep==0 || i==values.size()-1){
                             paint.setColor(0xff526174);paint.setTypeface(Typeface.DEFAULT);paint.setTextSize(dp(11));
                             String day=labels.get(i);
-                            canvas.drawText(day,center-paint.measureText(day)/2f,height-dp(13),paint);
+                            float labelLeft=center-paint.measureText(day)/2f;
+                            if(labelLeft>=lastLabelRight+dp(8)){
+                                canvas.drawText(day,labelLeft,height-dp(13),paint);
+                                lastLabelRight=labelLeft+paint.measureText(day);
+                            }
                         }
                     }
                 }
                 @Override public boolean onTouchEvent(android.view.MotionEvent event){
-                    if(event.getAction()==android.view.MotionEvent.ACTION_UP){
+                    if(event.getActionMasked()==MotionEvent.ACTION_DOWN){
+                        downX=event.getX();downY=event.getY();tap=true;return true;
+                    }
+                    if(event.getActionMasked()==MotionEvent.ACTION_MOVE &&
+                        (Math.abs(event.getX()-downX)>touchSlop || Math.abs(event.getY()-downY)>touchSlop))tap=false;
+                    if(event.getActionMasked()==MotionEvent.ACTION_CANCEL ||
+                        event.getActionMasked()==MotionEvent.ACTION_POINTER_DOWN)tap=false;
+                    if(event.getActionMasked()==MotionEvent.ACTION_UP && tap &&
+                        Math.abs(event.getX()-downX)<=touchSlop && Math.abs(event.getY()-downY)<=touchSlop){
                         float left=dp(40),right=dp(8);
                         float width=Math.max(1,getWidth()-left-right);
                         int index=(int)((event.getX()-left)/width*values.size());
                         index=Math.max(0,Math.min(values.size()-1,index));
                         selected[0]=index;
+                        selectedDay[0]=dateKeys.get(index);
                         detail.setText(labels.get(index)+"  •  "+values.get(index)+" odsłon");
                         setContentDescription(dateKeys.get(index)+", "+values.get(index)+" odsłon");
                         invalidate();performClick();return true;
@@ -433,9 +471,12 @@ public class MainActivity extends Activity {
                 @Override public boolean performClick(){super.performClick();return true;}
             };
             graph.setClickable(true);
-            int chartWidth=range[0]<=7?dp(315):Math.max(dp(315),range[0]*dp(35)+dp(40));
-            scroller.addView(graph,new android.widget.FrameLayout.LayoutParams(chartWidth,dp(230)));
-            if(range[0]>7)scroller.post(()->scroller.scrollTo(chartWidth,0));
+            scroller.addView(graph,new android.widget.FrameLayout.LayoutParams(-2,dp(230)));
+            scroller.post(()->{
+                if(chartScroll[0]!=scroller)return;
+                if(sameRange)scroller.scrollTo(savedScrollX,0);
+                else scroller.fullScroll(View.FOCUS_RIGHT);
+            });
         };
         final Runnable[] buildRanges=new Runnable[1];buildRanges[0]=()->{rangeBar.removeAllViews();for(int days:new int[]{7,30,90}){Button b=new Button(this);b.setText(days+" DNI");brandButton(b,range[0]==days);b.setTextSize(12);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);lp.setMargins(2,2,2,8);rangeBar.addView(b,lp);b.setOnClickListener(v->{range[0]=days;buildRanges[0].run();render.run();});}};
         buildRanges[0].run();render.run();refreshSiteData(render);
