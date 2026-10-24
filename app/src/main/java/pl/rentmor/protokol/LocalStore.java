@@ -7,7 +7,7 @@ import org.json.*;
 import java.util.*;
 
 public class LocalStore extends SQLiteOpenHelper {
-    public LocalStore(Context c) { super(c, "rentmor_local.db", null, 5); }
+    public LocalStore(Context c) { super(c, "rentmor_local.db", null, 6); }
     @Override public void onCreate(SQLiteDatabase db) {
         db.execSQL("CREATE TABLE protocols(id TEXT PRIMARY KEY, number TEXT, status TEXT, data TEXT, updated INTEGER)");
         db.execSQL("CREATE TABLE queue(op_id TEXT PRIMARY KEY, action TEXT, payload TEXT, created INTEGER)");
@@ -15,8 +15,9 @@ public class LocalStore extends SQLiteOpenHelper {
         db.execSQL("CREATE TABLE reservations(id TEXT PRIMARY KEY, month TEXT, text TEXT, done INTEGER, data TEXT, updated INTEGER)");
         db.execSQL("CREATE TABLE expenses(id TEXT PRIMARY KEY, month TEXT, date TEXT, name TEXT, amount REAL, type TEXT, note TEXT, data TEXT, updated INTEGER)");
         db.execSQL("CREATE TABLE customers(phone_key TEXT PRIMARY KEY, data TEXT, updated INTEGER)");
+        db.execSQL("CREATE TABLE messages(id TEXT PRIMARY KEY, data TEXT NOT NULL, is_read INTEGER NOT NULL DEFAULT 0, position INTEGER NOT NULL DEFAULT 0)");
     }
-    @Override public void onUpgrade(SQLiteDatabase db,int oldV,int newV) { if(oldV<2) db.execSQL("CREATE TABLE IF NOT EXISTS reservations(id TEXT PRIMARY KEY, month TEXT, text TEXT, done INTEGER, updated INTEGER)"); if(oldV<3) db.execSQL("ALTER TABLE reservations ADD COLUMN data TEXT"); if(oldV<4) db.execSQL("CREATE TABLE IF NOT EXISTS expenses(id TEXT PRIMARY KEY, month TEXT, date TEXT, name TEXT, amount REAL, type TEXT, note TEXT, data TEXT, updated INTEGER)"); if(oldV<5) db.execSQL("CREATE TABLE IF NOT EXISTS customers(phone_key TEXT PRIMARY KEY, data TEXT, updated INTEGER)"); }
+    @Override public void onUpgrade(SQLiteDatabase db,int oldV,int newV) { if(oldV<2) db.execSQL("CREATE TABLE IF NOT EXISTS reservations(id TEXT PRIMARY KEY, month TEXT, text TEXT, done INTEGER, updated INTEGER)"); if(oldV<3) db.execSQL("ALTER TABLE reservations ADD COLUMN data TEXT"); if(oldV<4) db.execSQL("CREATE TABLE IF NOT EXISTS expenses(id TEXT PRIMARY KEY, month TEXT, date TEXT, name TEXT, amount REAL, type TEXT, note TEXT, data TEXT, updated INTEGER)"); if(oldV<5) db.execSQL("CREATE TABLE IF NOT EXISTS customers(phone_key TEXT PRIMARY KEY, data TEXT, updated INTEGER)"); if(oldV<6) db.execSQL("CREATE TABLE IF NOT EXISTS messages(id TEXT PRIMARY KEY, data TEXT NOT NULL, is_read INTEGER NOT NULL DEFAULT 0, position INTEGER NOT NULL DEFAULT 0)"); }
     public synchronized void enqueue(String action, JSONObject payload) {
         try {
             String opId = UUID.randomUUID().toString();
@@ -171,6 +172,61 @@ public class LocalStore extends SQLiteOpenHelper {
             try { while(rows.moveToNext()){String id=rows.getString(0);if(!keep.contains(id))db.delete("expenses","id=?",new String[]{id});} } finally { rows.close(); }
             db.setTransactionSuccessful();
         } finally { db.endTransaction(); }
+    }
+
+    /** Keep local read states while replacing the server-backed inbox. */
+    public synchronized JSONArray replaceMessages(JSONArray incoming) {
+        SQLiteDatabase db=getWritableDatabase();
+        JSONArray fresh=new JSONArray();
+        HashSet<String> current=new HashSet<>();
+        db.beginTransaction();
+        try {
+            for(int i=0;i<incoming.length();i++) {
+                JSONObject item=incoming.optJSONObject(i);
+                if(item==null)continue;
+                String id=item.optString("id","").trim();
+                if(id.isEmpty()||!current.add(id))continue;
+                ContentValues initial=new ContentValues();
+                initial.put("id",id);initial.put("data",item.toString());
+                initial.put("is_read",0);initial.put("position",i);
+                long inserted=db.insertWithOnConflict("messages",null,initial,SQLiteDatabase.CONFLICT_IGNORE);
+                if(inserted!=-1)fresh.put(item);
+                else {
+                    ContentValues updated=new ContentValues();
+                    updated.put("data",item.toString());updated.put("position",i);
+                    db.update("messages",updated,"id=?",new String[]{id});
+                }
+            }
+            Cursor old=db.rawQuery("SELECT id FROM messages",null);
+            try{while(old.moveToNext())if(!current.contains(old.getString(0)))
+                db.delete("messages","id=?",new String[]{old.getString(0)});
+            }finally{old.close();}
+            db.setTransactionSuccessful();
+        }finally{db.endTransaction();}
+        return fresh;
+    }
+    public synchronized JSONArray allMessages() {
+        JSONArray items=new JSONArray();
+        Cursor c=getReadableDatabase().rawQuery("SELECT data,is_read FROM messages ORDER BY position DESC",null);
+        try {
+            while(c.moveToNext()) {
+                try {JSONObject o=new JSONObject(c.getString(0));
+                    o.put("is_read",c.getInt(1)!=0);items.put(o);
+                }catch(Exception ignored){}
+            }
+        }finally{c.close();}
+        return items;
+    }
+    public synchronized int unreadMessagesCount(){
+        Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM messages WHERE is_read=0",null);
+        try{return c.moveToFirst()?c.getInt(0):0;}finally{c.close();}
+    }
+    public synchronized void markMessageRead(String id){
+        ContentValues v=new ContentValues();v.put("is_read",1);
+        getWritableDatabase().update("messages",v,"id=?",new String[]{id});
+    }
+    public synchronized void clearMessages(){
+        getWritableDatabase().delete("messages",null,null);
     }
 
     public synchronized void saveCustomerDraft(JSONObject customer) {
