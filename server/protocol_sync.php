@@ -91,9 +91,11 @@ if (($_GET['view'] ?? '') === 'push_token') {
     require_once __DIR__.'/push_bridge.php';
     // Non-admin devices may unregister a previously assigned token,
     // but only active admin devices may register new tokens.
-    $ok=rm_push_register(rm_push_device_hash(),$token,$role==='admin');
+    $enabled=($input['enabled'] ?? false) === true;
+    $authorized=$role==='admin' && $enabled;
+    $ok=rm_push_register(rm_push_device_hash(),$token,$authorized);
     if(!$ok)rm_json_response(503,['ok'=>false,'error'=>'Magazyn tokenów jest niedostępny.']);
-    rm_json_response(200,['ok'=>true,'push_enabled'=>$role==='admin']);
+    rm_json_response(200,['ok'=>true,'push_enabled'=>$authorized]);
 }
 
 // A small authenticated inbox response for Android background checks.
