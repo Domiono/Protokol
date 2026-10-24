@@ -67,6 +67,17 @@ public class AdminStatisticsAccessTest {
         stats.setAccessible(true);stats.invoke(activity);
         assertFalse(shows(activity.findViewById(android.R.id.content),"STATYSTYKI STRONY"));
     }
+    @Test public void contactInboxIsAdministratorOnly() throws Exception {
+        MainActivity assistant=open("assistant");
+        assertFalse(shows(assistant.findViewById(android.R.id.content),"Wiadomości klientów"));
+        Method inbox=MainActivity.class.getDeclaredMethod("messageInboxPage");
+        inbox.setAccessible(true);
+        inbox.invoke(assistant);
+        assertFalse(shows(assistant.findViewById(android.R.id.content),"Wiadomości klientów"));
+        assistant.finish();
+        MainActivity admin=open("admin");
+        assertTrue(shows(admin.findViewById(android.R.id.content),"Wiadomości klientów"));
+    }
     @Test public void administratorSeesFinanceNavigation() {
         MainActivity activity=open("admin");
         View screen=activity.findViewById(android.R.id.content);
