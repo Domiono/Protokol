@@ -8,6 +8,7 @@ on:
       - 'scripts/patch_contact_push.py'
       - 'scripts/test_push_hook.py'
       - 'scripts/diagnose_push_registry.py'
+      - 'scripts/fcm_runtime_installer.php.template'
       - 'server/admin.php'
       - 'server/online.php'
       - 'server/traffic_filter.php'
@@ -69,6 +70,7 @@ jobs:
           php -l server/online.php
           php -l server/protocol_sync.php
           php -l server/push_bridge.php
+          php -l scripts/fcm_runtime_installer.php.template
           python3 scripts/test_push_hook.py
           python3 scripts/test_statistics_filter.py
           php -l server/poradnik-jaki-papier-scierny-do-zyrafy.php
@@ -138,7 +140,7 @@ jobs:
           fi
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$LFTP_COMMAND; bye"
 
-      - name: Install Firebase sender key above web root (if configured)
+      - name: Install Firebase key into PHP runtime private directory (HTTPS)
         if: steps.config.outputs.enabled == 'true'
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
@@ -146,29 +148,47 @@ jobs:
           LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
           FCM_SERVICE_ACCOUNT_JSON: ${{ secrets.RENTMOR_FCM_SERVICE_ACCOUNT_JSON }}
         run: |
-          set -eu
+          set -euo pipefail
           if [ -z "$FCM_SERVICE_ACCOUNT_JSON" ]; then
-            echo "No Firebase sender key configured. Push send remains disabled; polling fallback works."
+            echo "Firebase sender secret is absent. Push notifications remain disabled."
             exit 0
           fi
           KEY_FILE="$RUNNER_TEMP/rentmor-fcm-service-account.json"
           printf '%s' "$FCM_SERVICE_ACCOUNT_JSON" > "$KEY_FILE"
           chmod 600 "$KEY_FILE"
           php -r '
-          $account=json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR);
-          if(!is_array($account)||empty($account["client_email"])||empty($account["private_key"])||empty($account["project_id"])) exit(1);
-          echo "Firebase service account format validated.\\n";
+            $a=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR);
+            if(!is_array($a)||($a["project_id"]??"")!=="rentmor-c64bd"||
+               ($a["type"]??"")!=="service_account"||empty($a["client_email"])||empty($a["private_key"]))exit(1);
+            echo "Firebase service account project and format validated.\n";
           ' "$KEY_FILE"
+
           source scripts/secure_sftp_connection.sh
-          # public_html may be a symlink into domains/rentmor.pl/public_html.
-          # Resolve its real parent over SFTP, matching PHP dirname(__DIR__).
-          # Never store this sensitive file in public_html or in GitHub.
-          VERIFY_FILE="$RUNNER_TEMP/rentmor-fcm-upload-verify.json"
-          trap 'rm -f "$KEY_FILE" "$VERIFY_FILE"' EXIT
-          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; cd public_html; cd ..; set cmd:fail-exit no; mkdir -p rentmor-private; set cmd:fail-exit yes; put $KEY_FILE -o rentmor-private/fcm-service-account.json; chmod 600 rentmor-private/fcm-service-account.json; get rentmor-private/fcm-service-account.json -o $VERIFY_FILE; bye"
-          cmp "$KEY_FILE" "$VERIFY_FILE"
-          echo "Firebase key stored above the resolved web root and verified byte-for-byte."
-          rm -f "$KEY_FILE" "$VERIFY_FILE"
+          TMP_DIR="$RUNNER_TEMP/rentmor-fcm-install"
+          mkdir -m 700 -p "$TMP_DIR"
+          PROBE="rm-fcm-install-$(openssl rand -hex 14).php"
+          TOKEN="$(openssl rand -hex 32)"
+          TOKEN_HASH="$(printf '%s' "$TOKEN" | sha256sum | cut -d' ' -f1)"
+          python3 - "$TOKEN_HASH" "$TMP_DIR/installer.php" <<'PY'
+          import pathlib,sys
+          template=pathlib.Path("scripts/fcm_runtime_installer.php.template").read_text()
+          assert template.count("__AUTH_HASH__")==1
+          pathlib.Path(sys.argv[2]).write_text(template.replace("__AUTH_HASH__",sys.argv[1]))
+          PY
+          php -l "$TMP_DIR/installer.php"
+          cleanup() {
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; rm public_html/$PROBE; bye" || true
+            rm -rf "$TMP_DIR" "$KEY_FILE"
+          }
+          trap cleanup EXIT
+          # The temporary endpoint accepts ONLY POST with an unguessable token
+          # and writes the secret OUTSIDE public_html directly as the PHP user.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $TMP_DIR/installer.php -o public_html/$PROBE; bye"
+          RESPONSE="$(curl --fail --silent --show-error --max-time 30 --request POST \
+            --header "X-RentMor-Probe: $TOKEN" \
+            --header 'Content-Type: application/json' --data-binary "@$KEY_FILE" \
+            "https://rentmor.pl/$PROBE")"
+          printf '%s' "$RESPONSE" | python3 -c 'import sys,json; a=json.load(sys.stdin); assert a.get("ok") and a.get("result")=="configured_and_readable", a.get("result"); print("PHP verified Firebase key stored and readable above the document root.")'
 
       - name: Diagnose authorized Firebase tokens (no private data in logs)
         if: steps.config.outputs.enabled == 'true'
