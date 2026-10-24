@@ -43,8 +43,10 @@ public class MainActivity extends Activity {
         }});
         setContentView(activation); activation.loadUrl(HOME);
     }
+    private Runnable protocolBackAction;
     private LinearLayout homeToolsList;
     private void showHome(){
+        protocolBackAction=null;
         if(siteLiveHandler!=null && siteLiveRefresh!=null)siteLiveHandler.removeCallbacks(siteLiveRefresh);
         showingApp=true;
         LinearLayout screen=new LinearLayout(this);
@@ -1667,10 +1669,44 @@ public class MainActivity extends Activity {
     }
 
     private JSONObject findReservation(JSONArray reservations,String id){for(int i=0;i<reservations.length();i++){JSONObject r=reservations.optJSONObject(i);if(r!=null&&id.equals(r.optString("id")))return r;}return null;}
+    private void protocolPage(String title,String subtitle) {
+        protocolBackAction=null;
+        if(siteLiveHandler!=null && siteLiveRefresh!=null)siteLiveHandler.removeCallbacks(siteLiveRefresh);
+        LinearLayout screen=new LinearLayout(this);screen.setOrientation(1);screen.setBackgroundColor(0xfff4f6fa);
+        screen.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(insets.getSystemWindowInsetLeft(),insets.getSystemWindowInsetTop(),insets.getSystemWindowInsetRight(),insets.getSystemWindowInsetBottom());return insets;});
+        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setClipToPadding(false);
+        root=new LinearLayout(this);root.setOrientation(1);root.setPadding(dp(16),dp(16),dp(16),dp(24));scroll.addView(root);
+        screen.addView(scroll,new LinearLayout.LayoutParams(-1,-1));setContentView(screen);
+        TextView heading=new TextView(this);heading.setText(title);heading.setTextSize(24);heading.setTypeface(null,1);heading.setTextColor(0xff172235);root.addView(heading);
+        TextView help=new TextView(this);help.setText(subtitle);help.setTextSize(13);help.setTextColor(0xff697386);help.setPadding(0,dp(6),0,dp(16));root.addView(help);
+    }
+    private LinearLayout protocolSection(String title) {
+        LinearLayout card=new LinearLayout(this);card.setOrientation(1);card.setPadding(dp(16),dp(14),dp(16),dp(14));card.setBackground(roundBg(Color.WHITE,16));
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=dp(12);root.addView(card,lp);
+        TextView label=new TextView(this);label.setText(title);label.setTextSize(15);label.setTypeface(null,1);label.setTextColor(0xff172235);label.setPadding(0,0,0,dp(8));card.addView(label);return card;
+    }
+    private EditText protocolField(LinearLayout card,String label,boolean multiline) {
+        TextView caption=new TextView(this);caption.setText(label);caption.setTextSize(12);caption.setTextColor(0xff526174);caption.setPadding(0,dp(8),0,dp(3));card.addView(caption);
+        EditText input=new EditText(this);input.setTextSize(16);input.setTextColor(0xff172235);input.setSingleLine(!multiline);input.setMinHeight(dp(48));
+        if(multiline){input.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE|android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);input.setMinLines(2);input.setGravity(Gravity.TOP);}
+        input.setPadding(dp(10),dp(10),dp(10),dp(10));input.setBackground(roundBg(0xfff4f6fa,8));card.addView(input,new LinearLayout.LayoutParams(-1,-2));return input;
+    }
+    private void protocolSignature() {
+        LinearLayout card=protocolSection("Podpis klienta");
+        TextView help=new TextView(this);help.setText("Podpisz palcem lub rysikiem. Podpis możesz wyczyścić i złożyć ponownie.");help.setTextSize(12);help.setTextColor(0xff697386);card.addView(help);
+        signatureView=new SignatureView(this);card.addView(signatureView,new LinearLayout.LayoutParams(-1,dp(180)));
+        Button clear=new Button(this);clear.setText("Wyczyść podpis");brandButton(clear,false);clear.setOnClickListener(v->signatureView.clear());card.addView(clear);
+    }
+    private void protocolSignaturePreview(LinearLayout card,JSONObject protocol,String key,String label) {
+        Bitmap bitmap=bitmapFrom(protocol,key);if(bitmap==null){detailLine(card,label,"Brak zapisanego podpisu");return;}
+        detailLine(card,label,"Dotknij podpisu, aby powiększyć");ImageView image=new ImageView(this);image.setImageBitmap(bitmap);image.setScaleType(ImageView.ScaleType.FIT_CENTER);image.setContentDescription(label);card.addView(image,new LinearLayout.LayoutParams(-1,dp(100)));image.setOnClickListener(v->showZoomPhoto(bitmap,label));
+    }
     private void newIssue(){
         issuePhotos.clear(); signatureView=null;
-        root.removeAllViews(); TextView h=new TextView(this);h.setText("NOWY PROTOKÓŁ WYDANIA");h.setTextSize(20);h.setTextColor(0xff172235);root.addView(h);
-        EditText client=field("Imię i nazwisko / firma klienta");EditText phone=field("Telefon");
+        protocolPage("Nowy protokół wydania","Uzupełnij dane, sprawdź stan sprzętu i dodaj podpis. Pola z * są wymagane.");
+        protocolBackAction=()->new AlertDialog.Builder(this).setTitle("Opuścić formularz?").setMessage("Niezapisany protokół zostanie odrzucony.").setNegativeButton("Zostań",null).setPositiveButton("Opuść",(d,w)->showHome()).show();
+        LinearLayout customerCard=protocolSection("1. Klient");
+        EditText client=protocolField(customerCard,"Imię i nazwisko / firma *",false);EditText phone=protocolField(customerCard,"Telefon",false);phone.setInputType(android.text.InputType.TYPE_CLASS_PHONE);
         TextView reservationLabel=new TextView(this);reservationLabel.setText("Powiąż z rezerwacją (opcjonalnie)");reservationLabel.setTextColor(0xff526174);reservationLabel.setPadding(0,10,0,2);root.addView(reservationLabel);
         JSONArray availableReservations=store.allReservations();ArrayList<String> reservationLabels=new ArrayList<>();ArrayList<String> reservationIds=new ArrayList<>();reservationLabels.add("— Bez przypisania —");reservationIds.add("");
         for(int ri=0;ri<availableReservations.length();ri++){JSONObject rr=availableReservations.optJSONObject(ri);if(rr==null)continue;String rid=rr.optString("id");if(rid.isEmpty())continue;String label=rr.optString("start_date",rr.optString("month"))+" • "+rr.optString("equipment",rr.optString("text"))+" • "+rr.optString("phone");reservationLabels.add(label);reservationIds.add(rid);}
@@ -1692,17 +1728,20 @@ public class MainActivity extends Activity {
         TextView equipmentLabel=new TextView(this);equipmentLabel.setText("Sprzęt z aktualnej listy RentMor");equipmentLabel.setTextColor(0xff526174);equipmentLabel.setPadding(0,10,0,2);root.addView(equipmentLabel);
         Spinner equipment=new Spinner(this);populateEquipment(equipment);root.addView(equipment,new LinearLayout.LayoutParams(-1,-2));
         addButton("⟳ Odśwież listę sprzętów",()->refreshEquipment(equipment));
-        EditText date=dateField("Data wydania",new SimpleDateFormat("dd.MM.yyyy",Locale.getDefault()).format(new Date()));EditText condition=field("Stan sprzętu");EditText accessories=field("Akcesoria");EditText notes=field("Uwagi");
+        LinearLayout equipmentCard=protocolSection("2. Wydanie i stan sprzętu");
+        EditText date=protocolField(equipmentCard,"Data wydania *",false);date.setText(new SimpleDateFormat("dd.MM.yyyy",Locale.getDefault()).format(new Date()));date.setFocusable(false);date.setOnClickListener(v->showDatePicker(date));
+        EditText condition=protocolField(equipmentCard,"Stan sprzętu przy wydaniu",true);condition.setHint("Np. sprawny, rysy na obudowie…");
+        EditText accessories=protocolField(equipmentCard,"Wydane akcesoria",true);accessories.setHint("Np. odkurzacz, wąż, przewód…");
+        EditText notes=protocolField(equipmentCard,"Dodatkowe uwagi",true);
         photoCount=new TextView(this);photoCount.setText("Nie dodano zdjęć.");photoCount.setTextColor(0xff526174);photoCount.setPadding(0,8,0,4);root.addView(photoCount);addButton("＋ Dodaj zdjęcia (można wybrać kilka)",()->pickPhoto());
-        signatureView=new SignatureView(this); root.addView(signatureView,new LinearLayout.LayoutParams(-1,180));
-        addButton("ZAPISZ PROTOKÓŁ W TELEFONIE",()->{if(client.getText().toString().trim().isEmpty()||equipment.getSelectedItem()==null||equipment.getSelectedItemPosition()==0){toast("Wpisz klienta i sprzęt.");return;}
-            try{String id=UUID.randomUUID().toString();JSONObject p=new JSONObject();p.put("id",id);p.put("number","RM-"+new SimpleDateFormat("yyyyMMdd-HHmm",Locale.US).format(new Date()));p.put("client",client.getText());p.put("phone",phone.getText());p.put("reservation_id",reservationIds.get(reservationSpinner.getSelectedItemPosition()));p.put("equipment",equipment.getSelectedItem().toString());p.put("rental_date",date.getText());p.put("condition",condition.getText());p.put("accessories",accessories.getText());p.put("notes",notes.getText());p.put("status","wydany");JSONArray photos=new JSONArray();for(Bitmap photo:issuePhotos)photos.put(bitmapBase64(photo,1920,85));if(photos.length()>0)p.put("photos_base64",photos);if(signatureView!=null)p.put("signature_base64",bitmapBase64(signatureView.image(),900,85));store.enqueue("create",p);makePdf(p);toast("Zapisano lokalnie. PDF znajduje się w Pobrane/RentMor.");showHome();}catch(Exception ex){toast("Błąd zapisu: "+ex.getMessage());}});
-        addButton("WRÓĆ",()->showHome());
+        protocolSignature();
+        addButton("ZAPISZ PROTOKÓŁ W TELEFONIE",()->{if(client.getText().toString().trim().isEmpty()||equipment.getSelectedItem()==null||equipment.getSelectedItemPosition()==0){if(client.getText().toString().trim().isEmpty()){client.setError("Wpisz nazwę klienta");client.requestFocus();}toast("Uzupełnij klienta i wybierz sprzęt.");return;}
+            try{String id=UUID.randomUUID().toString();JSONObject p=new JSONObject();p.put("id",id);p.put("number","RM-"+new SimpleDateFormat("yyyyMMdd-HHmmss",Locale.US).format(new Date()));p.put("client",client.getText());p.put("phone",phone.getText());p.put("reservation_id",reservationIds.get(reservationSpinner.getSelectedItemPosition()));p.put("equipment",equipment.getSelectedItem().toString());p.put("rental_date",date.getText());p.put("condition",condition.getText());p.put("accessories",accessories.getText());p.put("notes",notes.getText());p.put("status","wydany");JSONArray photos=new JSONArray();for(Bitmap photo:issuePhotos)photos.put(bitmapBase64(photo,1920,85));if(photos.length()>0)p.put("photos_base64",photos);if(signatureView!=null&&signatureView.hasInk())p.put("signature_base64",bitmapBase64(signatureView.image(),900,85));store.enqueue("create",p);toast("Protokół zapisany w telefonie. Gotowy do synchronizacji.");showProtocolDetail(p);}catch(Exception ex){toast("Błąd zapisu: "+ex.getMessage());}});
+        addButton("ANULUJ",()->protocolBackAction.run());
     }
-    private void protocolList(){root.removeAllViews();root.setOrientation(1);root.setPadding(20,20,20,20);root.setBackgroundColor(0xfff5f6fa);
-        TextView h=new TextView(this);h.setText("Twoje protokoły");h.setTextSize(25);h.setTypeface(null,1);h.setTextColor(0xff172235);root.addView(h);
-        TextView info=new TextView(this);info.setText("Wybierz dokument, aby zobaczyć jego szczegóły i zdjęcia.");info.setTextSize(13);info.setTextColor(0xff697386);info.setPadding(0,5,0,16);root.addView(info);
-        ScrollView sc=new ScrollView(this);LinearLayout items=new LinearLayout(this);items.setOrientation(1);sc.addView(items);root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));
+    private void protocolList(){
+        protocolPage("Twoje protokoły","Wybierz dokument, aby zobaczyć dane, podpisy i zdjęcia.");
+        LinearLayout items=root;
         JSONArray a=store.allProtocols();for(int i=0;i<a.length();i++){JSONObject p=a.optJSONObject(i);if(p==null)continue;
             LinearLayout card=new LinearLayout(this);card.setOrientation(1);card.setPadding(16,14,16,14);card.setBackground(roundBg(Color.WHITE,16));card.setElevation(2);
             TextView num=new TextView(this);num.setText(p.optString("number","Protokół"));num.setTextSize(16);num.setTypeface(null,1);num.setTextColor(0xff172b43);card.addView(num);
@@ -1713,18 +1752,24 @@ public class MainActivity extends Activity {
         if(a.length()==0){TextView empty=new TextView(this);empty.setText("Nie ma jeszcze zapisanych protokołów.");empty.setTextColor(0xff697386);items.addView(empty);}
         addButton("WRÓĆ",()->showHome());
     }
-    private void detailLine(LinearLayout box,String label,String value){if(value==null||value.trim().isEmpty())return;TextView t=new TextView(this);t.setText(label+"\\n"+value);t.setTextSize(14);t.setTextColor(0xff24364b);t.setPadding(0,7,0,9);box.addView(t);}
+    private void detailLine(LinearLayout box,String label,String value){
+        if(value==null||value.trim().isEmpty())return;
+        TextView caption=new TextView(this);caption.setText(label);caption.setTextSize(12);caption.setTextColor(0xff697386);caption.setPadding(0,dp(8),0,dp(3));box.addView(caption);
+        TextView text=new TextView(this);text.setText(value);text.setTextSize(16);text.setTextColor(0xff172235);text.setTextIsSelectable(true);text.setPadding(0,0,0,dp(8));box.addView(text);
+    }
     private void showProtocolDetail(JSONObject p){showProtocolDetail(p,()->protocolList());}
     private void showProtocolDetail(JSONObject p,Runnable backAction){
-        root.removeAllViews();root.setOrientation(1);root.setPadding(20,18,20,20);root.setBackgroundColor(0xfff5f6fa);
-        ScrollView sc=new ScrollView(this);LinearLayout content=new LinearLayout(this);content.setOrientation(1);sc.addView(content);root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));
-        TextView title=new TextView(this);title.setText(p.optString("number","Protokół"));title.setTextSize(23);title.setTypeface(null,1);title.setTextColor(0xff172235);content.addView(title);
-        TextView state=new TextView(this);state.setText("Status: "+p.optString("status"));state.setTextSize(13);state.setTextColor(0xff172235);state.setPadding(0,5,0,14);content.addView(state);
-        LinearLayout panel=new LinearLayout(this);panel.setOrientation(1);panel.setPadding(16,12,16,12);panel.setBackground(roundBg(Color.WHITE,16));content.addView(panel);
-        detailLine(panel,"Klient",p.optString("client"));detailLine(panel,"Telefon",p.optString("phone"));detailLine(panel,"Sprzęt",p.optString("equipment"));detailLine(panel,"Data wydania",p.optString("rental_date"));detailLine(panel,"Stan przy wydaniu",p.optString("condition"));detailLine(panel,"Akcesoria",p.optString("accessories"));detailLine(panel,"Uwagi",p.optString("notes"));
-        detailLine(panel,"Data zwrotu",p.optString("return_date"));detailLine(panel,"Stan przy zwrocie",p.optString("return_condition"));detailLine(panel,"Uwagi do zwrotu",p.optString("return_notes"));
+        protocolPage(p.optString("number","Protokół"),"Szczegóły dokumentu • zapisane dane wydania i zwrotu");
+        protocolBackAction=backAction;
+        LinearLayout content=root;
+        TextView state=new TextView(this);boolean returned="zwrócony".equals(p.optString("status"));state.setText(returned?"ZWRÓCONY":"WYDANY — sprzęt u klienta");state.setTextSize(13);state.setTypeface(null,1);state.setTextColor(returned?0xff166534:0xff92400e);state.setPadding(dp(12),dp(10),dp(12),dp(10));state.setBackground(roundBg(returned?0xffdcfce7:0xfffef3c7,10));LinearLayout.LayoutParams badge=new LinearLayout.LayoutParams(-1,-2);badge.bottomMargin=dp(12);root.addView(state,badge);
+        LinearLayout clientCard=protocolSection("Klient");detailLine(clientCard,"Imię i nazwisko / firma",p.optString("client"));detailLine(clientCard,"Telefon",p.optString("phone"));
+        LinearLayout panel=protocolSection("Wydanie sprzętu");detailLine(panel,"Sprzęt",p.optString("equipment"));detailLine(panel,"Data wydania",p.optString("rental_date"));detailLine(panel,"Stan przy wydaniu",p.optString("condition"));detailLine(panel,"Akcesoria",p.optString("accessories"));detailLine(panel,"Uwagi",p.optString("notes"));
+        if(returned||!p.optString("return_date").isEmpty()){LinearLayout returns=protocolSection("Zwrot sprzętu");detailLine(returns,"Data zwrotu",p.optString("return_date"));detailLine(returns,"Stan przy zwrocie",p.optString("return_condition"));detailLine(returns,"Uwagi do zwrotu",p.optString("return_notes"));}
+        LinearLayout signatures=protocolSection("Podpisy");protocolSignaturePreview(signatures,p,"signature_base64","Podpis przy wydaniu");if(returned)protocolSignaturePreview(signatures,p,"return_signature_base64","Podpis przy zwrocie");
         JSONArray photos=p.optJSONArray("photos_base64");if((photos==null||photos.length()==0)&&p.optBoolean("photos_expired",false)){TextView expired=new TextView(this);expired.setText("Zdjęcia zostały usunięte z serwera po upływie 90 dni. Kopie zapisane na pierwotnym telefonie pozostają bez zmian.");expired.setTextSize(13);expired.setTextColor(0xff8a5a16);expired.setPadding(0,16,0,8);content.addView(expired);}if(photos!=null&&photos.length()>0){TextView ph=new TextView(this);ph.setText("Zdjęcia ("+photos.length()+")");ph.setTextSize(17);ph.setTypeface(null,1);ph.setTextColor(0xff172235);ph.setPadding(0,18,0,8);content.addView(ph);for(int i=0;i<photos.length();i++){try{byte[] raw=Base64.decode(photos.optString(i),Base64.DEFAULT);Bitmap bm=BitmapFactory.decodeByteArray(raw,0,raw.length);if(bm!=null){final Bitmap photo=bm;final int photoIndex=i+1;final int photoTotal=photos.length();ImageView iv=new ImageView(this);iv.setImageBitmap(photo);iv.setAdjustViewBounds(true);iv.setScaleType(ImageView.ScaleType.FIT_CENTER);iv.setContentDescription("Dotknij, aby powiększyć zdjęcie "+photoIndex);iv.setOnClickListener(v->showZoomPhoto(photo,"Zdjęcie "+photoIndex+" z "+photoTotal));LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(-1,-2);ip.bottomMargin=10;content.addView(iv,ip);}}catch(Exception ignored){}}}
-        addButton("OTWÓRZ GOTOWY PROTOKÓŁ (PDF)",()->previewPdf(p));addButton("Zapisz / wygeneruj PDF",()->makePdf(p));
+        addButton("PODGLĄD DOKUMENTU PDF",()->previewPdf(p));addButton("ZAPISZ PDF W POBRANYCH",()->makePdf(p));
+        if("wydany".equals(p.optString("status")))addButton("ZAREJESTRUJ ZWROT",()->returnForm(p));
         if("admin".equals(getSharedPreferences("rentmor",0).getString("role",""))) addButton("🗑 USUŃ PROTOKÓŁ",()->confirmDelete(p));
         addButton("WRÓĆ",backAction);
     }
@@ -1740,6 +1785,7 @@ public class MainActivity extends Activity {
     private class ZoomImageView extends ImageView {
         private final Matrix matrix=new Matrix();private final ScaleGestureDetector detector;private float scale=1f,lastX,lastY;private int mode=0;
         ZoomImageView(Context context){super(context);setScaleType(ScaleType.MATRIX);setBackgroundColor(Color.BLACK);detector=new ScaleGestureDetector(context,new ScaleGestureDetector.SimpleOnScaleGestureListener(){@Override public boolean onScale(ScaleGestureDetector d){float next=scale*d.getScaleFactor();next=Math.max(1f,Math.min(6f,next));float factor=next/scale;matrix.postScale(factor,factor,d.getFocusX(),d.getFocusY());scale=next;setImageMatrix(matrix);return true;}});}
+        @Override protected void onSizeChanged(int w,int h,int oldw,int oldh){super.onSizeChanged(w,h,oldw,oldh);if(getDrawable()!=null&&w>0&&h>0){float iw=getDrawable().getIntrinsicWidth(),ih=getDrawable().getIntrinsicHeight();if(iw>0&&ih>0){float fit=Math.min(w/iw,h/ih);matrix.reset();matrix.postScale(fit,fit);matrix.postTranslate((w-iw*fit)/2,(h-ih*fit)/2);scale=1f;setImageMatrix(matrix);}}}
         @Override public boolean onTouchEvent(android.view.MotionEvent e){
             detector.onTouchEvent(e);
             switch(e.getActionMasked()){
@@ -1810,26 +1856,31 @@ public class MainActivity extends Activity {
         root.removeAllViews(); TextView h=new TextView(this); h.setText("PROTOKOŁY DO ZWROTU"); h.setTextSize(20); h.setTextColor(0xff172235); root.addView(h);
         JSONArray a=store.allProtocols(); int count=0;
         for(int i=0;i<a.length();i++){JSONObject p=a.optJSONObject(i); if(p==null||!"wydany".equals(p.optString("status")))continue; count++;
-            Button b=new Button(this); b.setAllCaps(false); b.setText(p.optString("number")+ " • "+p.optString("client")+" \\n"+p.optString("equipment")); b.setOnClickListener(v->returnForm(p)); root.addView(b);
+            Button b=new Button(this); b.setAllCaps(false); b.setText(p.optString("number")+ " • "+p.optString("client")+" \n"+p.optString("equipment")); b.setOnClickListener(v->returnForm(p)); root.addView(b);
         }
         if(count==0){TextView t=new TextView(this);t.setText("Brak wydanych protokołów.");root.addView(t);}
         addButton("WRÓĆ",()->showHome());
     }
     private void returnForm(JSONObject original){
         signatureView=null;
-        root.removeAllViews(); TextView h=new TextView(this);h.setText("ZWROT: "+original.optString("number"));h.setTextSize(20);h.setTextColor(0xff172235);root.addView(h);
-        EditText date=dateField("Data zwrotu",new SimpleDateFormat("dd.MM.yyyy",Locale.getDefault()).format(new Date()));
-        EditText condition=field("Stan sprzętu przy zwrocie");EditText notes=field("Uwagi do zwrotu");
-        signatureView=new SignatureView(this);root.addView(signatureView,new LinearLayout.LayoutParams(-1,180));
-        addButton("ZAPISZ ZWROT I PDF",()->{try{JSONObject p=new JSONObject(original.toString());p.put("status","zwrócony");p.put("return_date",date.getText().toString());p.put("return_condition",condition.getText().toString());p.put("return_notes",notes.getText().toString());if(signatureView!=null)p.put("return_signature_base64",bitmapBase64(signatureView.image(),900,85));store.enqueue("return",p);store.saveProtocol(p);makePdf(p);toast("Zwrot zapisany lokalnie.");showHome();}catch(Exception e){toast("Błąd zwrotu: "+e.getMessage());}});
-        addButton("WRÓĆ",()->returnList());
+        protocolPage("Zwrot sprzętu",original.optString("number")+" • "+original.optString("client"));
+        LinearLayout summary=protocolSection("Zwracany sprzęt");detailLine(summary,"Sprzęt",original.optString("equipment"));detailLine(summary,"Wydane akcesoria",original.optString("accessories"));
+        protocolBackAction=()->new AlertDialog.Builder(this).setTitle("Opuścić formularz zwrotu?").setMessage("Niezapisane dane zwrotu zostaną odrzucone.").setNegativeButton("Zostań",null).setPositiveButton("Opuść",(d,w)->showProtocolDetail(original)).show();
+        LinearLayout returnCard=protocolSection("Stan przy zwrocie");
+        EditText date=protocolField(returnCard,"Data zwrotu",false);date.setText(new SimpleDateFormat("dd.MM.yyyy",Locale.getDefault()).format(new Date()));date.setFocusable(false);date.setOnClickListener(v->showDatePicker(date));
+        EditText condition=protocolField(returnCard,"Stan sprzętu przy zwrocie",true);EditText notes=protocolField(returnCard,"Uwagi do zwrotu",true);
+        protocolSignature();
+        addButton("ZAPISZ ZWROT",()->{try{JSONObject p=new JSONObject(original.toString());p.put("status","zwrócony");p.put("return_date",date.getText().toString());p.put("return_condition",condition.getText().toString());p.put("return_notes",notes.getText().toString());if(signatureView!=null&&signatureView.hasInk())p.put("return_signature_base64",bitmapBase64(signatureView.image(),900,85));store.enqueue("return",p);store.saveProtocol(p);toast("Zwrot zapisany w telefonie. Gotowy do synchronizacji.");showProtocolDetail(p);}catch(Exception e){toast("Błąd zwrotu: "+e.getMessage());}});
+        addButton("ANULUJ",()->protocolBackAction.run());
     }
     private class SignatureView extends View {
-        private Bitmap bitmap; private Canvas canvas; private Paint pen=new Paint(3); private float lx,ly; private boolean drawing=false;
+        private Bitmap bitmap; private Canvas canvas; private Paint pen=new Paint(3); private float lx,ly; private boolean drawing=false,hasInk=false;
         SignatureView(Context c){super(c);setBackgroundColor(Color.WHITE);pen.setColor(Color.BLACK);pen.setStrokeWidth(4);pen.setStyle(Paint.Style.STROKE);}
         private void ensure(){if(bitmap==null){bitmap=Bitmap.createBitmap(Math.max(1,getWidth()),Math.max(1,getHeight()),Bitmap.Config.ARGB_8888);canvas=new Canvas(bitmap);canvas.drawColor(Color.WHITE);}}
         @Override protected void onDraw(Canvas c){super.onDraw(c);ensure();c.drawBitmap(bitmap,0,0,null);Paint p=new Paint(3);p.setColor(0xff888888);p.setTextSize(12);c.drawText("PODPIS KLIENTA – podpisz palcem",8,18,p);}
-        @Override public boolean onTouchEvent(android.view.MotionEvent e){ensure();float x=e.getX(),y=e.getY();if(e.getAction()==0){lx=x;ly=y;drawing=true;return true;}if(e.getAction()==2&&drawing){canvas.drawLine(lx,ly,x,y,pen);lx=x;ly=y;invalidate();return true;}if(e.getAction()==1){drawing=false;return true;}return true;}
+        @Override public boolean onTouchEvent(android.view.MotionEvent e){ensure();float x=e.getX(),y=e.getY();if(e.getAction()==0){getParent().requestDisallowInterceptTouchEvent(true);lx=x;ly=y;drawing=true;hasInk=true;canvas.drawPoint(x,y,pen);invalidate();return true;}if(e.getAction()==2&&drawing){canvas.drawLine(lx,ly,x,y,pen);lx=x;ly=y;invalidate();return true;}if(e.getAction()==1||e.getAction()==3){getParent().requestDisallowInterceptTouchEvent(false);drawing=false;return true;}return true;}
+        boolean hasInk(){return hasInk;}
+        void clear(){ensure();canvas.drawColor(Color.WHITE);hasInk=false;invalidate();}
         Bitmap image(){ensure();return bitmap;}
     }
 
@@ -1837,7 +1888,7 @@ public class MainActivity extends Activity {
     private Bitmap bitmapFrom(JSONObject p,String key){try{String s=p.optString(key,"");if(s.isEmpty())return null;byte[] bytes=Base64.decode(s,Base64.DEFAULT);return BitmapFactory.decodeByteArray(bytes,0,bytes.length);}catch(Exception e){return null;}}
     private File pdfFile(JSONObject p){File dir=new File(getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS),"");return new File(dir,p.optString("number","protokol").replaceAll("[^A-Za-z0-9_-]","_")+".pdf");}
     private void previewPdf(JSONObject p){
-        makePdf(p);
+        if(!makePdf(p,false))return;
         try{
             File f=pdfFile(p);if(!f.exists())throw new IOException("Nie znaleziono pliku PDF");
             ParcelFileDescriptor fd=ParcelFileDescriptor.open(f,ParcelFileDescriptor.MODE_READ_ONLY);
@@ -1847,24 +1898,57 @@ public class MainActivity extends Activity {
             TextView pageLabel=new TextView(this);pageLabel.setGravity(Gravity.CENTER);pageLabel.setTextColor(0xff172235);pageLabel.setTextSize(14);box.addView(pageLabel);
             ScrollView scroll=new ScrollView(this);ImageView image=new ImageView(this);image.setAdjustViewBounds(true);image.setScaleType(ImageView.ScaleType.FIT_CENTER);scroll.addView(image);box.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
             LinearLayout controls=new LinearLayout(this);controls.setGravity(Gravity.CENTER);Button prev=new Button(this);prev.setText("‹ Poprzednia");Button next=new Button(this);next.setText("Następna ›");controls.addView(prev);controls.addView(next);box.addView(controls);
-            final int[] current={0};
-            Runnable render=()->{try(PdfRenderer.Page page=renderer.openPage(current[0])){int w=page.getWidth()*2,h=page.getHeight()*2;Bitmap bmp=Bitmap.createBitmap(w,h,Bitmap.Config.ARGB_8888);page.render(bmp,null,null,PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);image.setImageBitmap(bmp);pageLabel.setText("Strona "+(current[0]+1)+" z "+renderer.getPageCount());prev.setEnabled(current[0]>0);next.setEnabled(current[0]<renderer.getPageCount()-1);}catch(Exception ex){toast("Błąd podglądu PDF: "+ex.getMessage());}};
+            final int[] current={0};final Bitmap[] displayed={null};
+            image.setContentDescription("Dotknij strony PDF, aby powiększyć");image.setOnClickListener(v->{if(displayed[0]!=null)showZoomPhoto(displayed[0],"Strona "+(current[0]+1));});
+            Runnable render=()->{try(PdfRenderer.Page page=renderer.openPage(current[0])){int w=page.getWidth()*2,h=page.getHeight()*2;Bitmap bmp=Bitmap.createBitmap(w,h,Bitmap.Config.ARGB_8888);bmp.eraseColor(Color.WHITE);page.render(bmp,null,null,PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);Bitmap old=displayed[0];displayed[0]=bmp;image.setImageBitmap(bmp);if(old!=null)old.recycle();pageLabel.setText("Strona "+(current[0]+1)+" z "+renderer.getPageCount());prev.setEnabled(current[0]>0);next.setEnabled(current[0]<renderer.getPageCount()-1);}catch(Exception ex){toast("Błąd podglądu PDF: "+ex.getMessage());}};
             prev.setOnClickListener(v->{if(current[0]>0){current[0]--;render.run();}});next.setOnClickListener(v->{if(current[0]<renderer.getPageCount()-1){current[0]++;render.run();}});
             AlertDialog dialog=new AlertDialog.Builder(this).setTitle(p.optString("number","Protokół PDF")).setView(box).setPositiveButton("Zamknij",null).create();
-            dialog.setOnDismissListener(v->{try{renderer.close();fd.close();}catch(Exception ignored){}});
+            dialog.setOnDismissListener(v->{image.setImageDrawable(null);if(displayed[0]!=null){displayed[0].recycle();displayed[0]=null;}try{renderer.close();fd.close();}catch(Exception ignored){}});
             render.run();dialog.show();dialog.getWindow().setLayout(-1,(int)(getResources().getDisplayMetrics().heightPixels*.88));
         }catch(Exception e){toast("Nie można otworzyć PDF: "+e.getMessage());}
     }
-    private void makePdf(JSONObject p){try{PdfDocument doc=new PdfDocument();PdfDocument.PageInfo info=new PdfDocument.PageInfo.Builder(595,842,1).create();PdfDocument.Page page=doc.startPage(info);Canvas c=page.getCanvas();Paint paint=new Paint(3);paint.setColor(Color.BLACK);paint.setTextSize(20);paint.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));c.drawText("RENTMOR – PROTOKÓŁ",40,55,paint);paint.setTextSize(13);paint.setTypeface(Typeface.DEFAULT);
+    private java.util.List<String> protocolPdfLines(String text,Paint paint,float width){
+        ArrayList<String> lines=new ArrayList<>();
+        for(String paragraph:text.split("\n",-1)){
+            String rest=paragraph.trim();if(rest.isEmpty()){lines.add("");continue;}
+            while(!rest.isEmpty()){
+                int count=paint.breakText(rest,true,width,null);count=Math.max(1,count);
+                if(count<rest.length()){int space=rest.lastIndexOf(' ',count);if(space>0)count=space;}
+                lines.add(rest.substring(0,count));rest=rest.substring(count).trim();
+            }
+        }
+        return lines;
+    }
+    private boolean makePdf(JSONObject p){return makePdf(p,true);}
+    private boolean makePdf(JSONObject p,boolean export){try{PdfDocument doc=new PdfDocument();PdfDocument.PageInfo info=new PdfDocument.PageInfo.Builder(595,842,1).create();PdfDocument.Page page=doc.startPage(info);Canvas c=page.getCanvas();Paint paint=new Paint(3);paint.setColor(Color.BLACK);paint.setTextSize(20);paint.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));c.drawText("RENTMOR – PROTOKÓŁ",40,55,paint);paint.setTextSize(13);paint.setTypeface(Typeface.DEFAULT);
         String[][] rows={{"Numer",p.optString("number")},{"Data wydania",p.optString("rental_date")},{"Klient",p.optString("client")},{"Telefon",p.optString("phone")},{"Sprzęt",p.optString("equipment")},{"Stan przy wydaniu",p.optString("condition")},{"Akcesoria",p.optString("accessories")},{"Uwagi",p.optString("notes")},{"Data zwrotu",p.optString("return_date")},{"Stan przy zwrocie",p.optString("return_condition")},{"Uwagi do zwrotu",p.optString("return_notes")}};
-        int y=95;for(String[] row:rows){String value=row[1].replace("\n"," ");if(!value.isEmpty()){c.drawText(row[0]+": "+value,40,y,paint);y+=25;}}Bitmap sign=bitmapFrom(p,(!p.optString("return_date","").isEmpty())?"return_signature_base64":"signature_base64");if(sign!=null){c.drawText("Podpis:",40,690,paint);c.drawBitmap(sign,null,new Rect(40,700,555,810),paint);sign.recycle();}else c.drawText("Podpis: ______________________________",40,730,paint);doc.finishPage(page);
+        int y=95;
+        for(String[] row:rows){
+            String value=row[1];if(value.trim().isEmpty())continue;
+            for(String line:protocolPdfLines(row[0]+": "+value,paint,515)){
+                if(y>780){doc.finishPage(page);page=doc.startPage(new PdfDocument.PageInfo.Builder(595,842,doc.getPages().size()+1).create());c=page.getCanvas();c.drawText("RENTMOR – "+p.optString("number"),40,45,paint);y=80;}
+                c.drawText(line,40,y,paint);y+=18;
+            }
+            y+=10;
+        }
+        String[][] signatureFields={{"signature_base64","Podpis przy wydaniu"},{"return_signature_base64","Podpis przy zwrocie"}};
+        for(String[] signature:signatureFields){
+            if(signature[0].equals("return_signature_base64")&&p.optString("return_date").isEmpty())continue;
+            if(y+140>800){doc.finishPage(page);page=doc.startPage(new PdfDocument.PageInfo.Builder(595,842,doc.getPages().size()+1).create());c=page.getCanvas();y=60;}
+            c.drawText(signature[1]+":",40,y,paint);Bitmap sign=bitmapFrom(p,signature[0]);
+            if(sign!=null){float scale=Math.min(515f/sign.getWidth(),100f/sign.getHeight());c.drawBitmap(sign,null,new RectF(40,y+10,40+sign.getWidth()*scale,y+10+sign.getHeight()*scale),paint);sign.recycle();}
+            else c.drawText("Brak zapisanego podpisu",40,y+30,paint);
+            y+=140;
+        }
+        doc.finishPage(page);
         JSONArray photos=p.optJSONArray("photos_base64");ArrayList<String> encoded=new ArrayList<>();if(photos!=null){for(int i=0;i<photos.length();i++)encoded.add(photos.optString(i));}else if(!p.optString("photo_base64","").isEmpty())encoded.add(p.optString("photo_base64"));
-        for(int start=0;start<encoded.size();start+=4){PdfDocument.PageInfo pi=new PdfDocument.PageInfo.Builder(595,842,doc.getPages().size()+1).create();PdfDocument.Page pp=doc.startPage(pi);Canvas pc=pp.getCanvas();Paint ph=new Paint(3);ph.setColor(Color.BLACK);ph.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));ph.setTextSize(19);pc.drawText("RENTMOR – ZDJĘCIA SPRZĘTU",40,48,ph);ph.setTypeface(Typeface.DEFAULT);ph.setTextSize(12);for(int j=0;j<4&&start+j<encoded.size();j++){try{byte[] raw=Base64.decode(encoded.get(start+j),Base64.DEFAULT);Bitmap bm=BitmapFactory.decodeByteArray(raw,0,raw.length);if(bm!=null){int col=j%2,row=j/2;int left=40+col*260,top=75+row*365;pc.drawText("Zdjęcie "+(start+j+1),left,top,ph);Rect dst=new Rect(left,top+12,left+235,top+330);pc.drawBitmap(bm,null,dst,ph);bm.recycle();}}catch(Exception ignored){}}doc.finishPage(pp);}
+        for(int start=0;start<encoded.size();start+=4){PdfDocument.PageInfo pi=new PdfDocument.PageInfo.Builder(595,842,doc.getPages().size()+1).create();PdfDocument.Page pp=doc.startPage(pi);Canvas pc=pp.getCanvas();Paint ph=new Paint(3);ph.setColor(Color.BLACK);ph.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));ph.setTextSize(19);pc.drawText("RENTMOR – ZDJĘCIA SPRZĘTU",40,48,ph);ph.setTypeface(Typeface.DEFAULT);ph.setTextSize(12);for(int j=0;j<4&&start+j<encoded.size();j++){try{byte[] raw=Base64.decode(encoded.get(start+j),Base64.DEFAULT);Bitmap bm=BitmapFactory.decodeByteArray(raw,0,raw.length);if(bm!=null){int col=j%2,row=j/2;int left=40+col*260,top=75+row*365;pc.drawText("Zdjęcie "+(start+j+1),left,top,ph);float scale=Math.min(235f/bm.getWidth(),318f/bm.getHeight());RectF dst=new RectF(left,top+12,left+bm.getWidth()*scale,top+12+bm.getHeight()*scale);pc.drawBitmap(bm,null,dst,ph);bm.recycle();}}catch(Exception ignored){}}doc.finishPage(pp);}
         File dir=new File(getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS),"");dir.mkdirs();File f=new File(dir,p.optString("number","protokol").replaceAll("[^A-Za-z0-9_-]","_")+".pdf");try(FileOutputStream out=new FileOutputStream(f)){doc.writeTo(out);}doc.close();
-        android.content.ContentValues v=new android.content.ContentValues();v.put(android.provider.MediaStore.Downloads.DISPLAY_NAME,f.getName());v.put(android.provider.MediaStore.Downloads.MIME_TYPE,"application/pdf");v.put(android.provider.MediaStore.Downloads.RELATIVE_PATH,Environment.DIRECTORY_DOWNLOADS+"/RentMor");android.net.Uri u=getContentResolver().insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,v);if(u!=null)try(InputStream in=new FileInputStream(f);OutputStream out=getContentResolver().openOutputStream(u)){byte[] b=new byte[8192];int n;while((n=in.read(b))>0)out.write(b,0,n);}
-        toast("PDF zapisany w Pobrane/RentMor.");
-    }catch(Exception e){toast("Nie udało się utworzyć PDF: "+e.getMessage());}}
+        if(!export)return true;
+        android.content.ContentValues v=new android.content.ContentValues();v.put(android.provider.MediaStore.Downloads.DISPLAY_NAME,f.getName());v.put(android.provider.MediaStore.Downloads.MIME_TYPE,"application/pdf");v.put(android.provider.MediaStore.Downloads.RELATIVE_PATH,Environment.DIRECTORY_DOWNLOADS+"/RentMor");android.net.Uri u=getContentResolver().insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,v);if(u==null)throw new IOException("Nie można zapisać PDF w Pobranych");try(InputStream in=new FileInputStream(f);OutputStream out=getContentResolver().openOutputStream(u)){byte[] b=new byte[8192];int n;while((n=in.read(b))>0)out.write(b,0,n);}
+        toast("PDF zapisany w Pobrane/RentMor.");return true;
+    }catch(Exception e){toast("Nie udało się utworzyć PDF: "+e.getMessage());return false;}}
     private void toast(String s){runOnUiThread(()->Toast.makeText(this,s,Toast.LENGTH_LONG).show());}
-    @Override public void onBackPressed(){if(showingApp)showHome();else super.onBackPressed();}
+    @Override public void onBackPressed(){if(protocolBackAction!=null)protocolBackAction.run();else if(showingApp)showHome();else super.onBackPressed();}
 }
 
