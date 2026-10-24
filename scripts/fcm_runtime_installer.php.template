@@ -1,0 +1,54 @@
+<?php
+// EPHEMERAL HTTPS installer. Never deploy permanently.
+// GitHub Actions substitutes a fresh SHA-256 token hash and removes the file.
+declare(strict_types=1);
+header('Cache-Control: no-store, private');
+header('Content-Type: application/json; charset=utf-8');
+$expected = '__AUTH_HASH__';
+$supplied = (string)($_SERVER['HTTP_X_RENTMOR_PROBE'] ?? '');
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST'
+    || !hash_equals($expected, hash('sha256', $supplied))) {
+    http_response_code(404);
+    exit;
+}
+function rm_fcm_finish(int $status, string $code): never {
+    http_response_code($status);
+    echo json_encode(['ok'=>$status===200,'result'=>$code], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+$raw = file_get_contents('php://input');
+if (!is_string($raw) || strlen($raw)<200 || strlen($raw)>20000) rm_fcm_finish(400,'invalid_size');
+$parsed = json_decode($raw, true);
+if (!is_array($parsed) || ($parsed['type'] ?? '')!=='service_account'
+    || ($parsed['project_id'] ?? '')!=='rentmor-c64bd'
+    || !is_string($parsed['private_key'] ?? null)
+    || !str_contains($parsed['private_key'], 'BEGIN PRIVATE KEY')
+    || !is_string($parsed['client_email'] ?? null)) rm_fcm_finish(400,'invalid_firebase_key');
+
+// Compute the private path inside the SAME PHP runtime as protocol_sync.php.
+$docroot=realpath(__DIR__);
+if($docroot===false)rm_fcm_finish(500,'missing_docroot');
+$root=dirname($docroot).'/rentmor-private';
+if(!is_dir($root) && !@mkdir($root,0700,true) && !is_dir($root))
+    rm_fcm_finish(500,'private_dir_not_writable');
+$actualRoot=realpath($root);
+if($actualRoot===false || str_starts_with($actualRoot.'/', $docroot.'/'))
+    rm_fcm_finish(500,'unsafe_private_dir');
+$destination=$actualRoot.'/fcm-service-account.json';
+$temp=$actualRoot.'/.fcm-'.bin2hex(random_bytes(12)).'.tmp';
+if(@file_put_contents($temp,$raw,LOCK_EX)!==strlen($raw)){
+    @unlink($temp);
+    rm_fcm_finish(500,'write_failed');
+}
+@chmod($temp,0600);
+if(!@rename($temp,$destination)){
+    @unlink($temp);
+    rm_fcm_finish(500,'rename_failed');
+}
+@chmod($destination,0600);
+clearstatcache(true,$destination);
+$verified=@file_get_contents($destination);
+if(!is_string($verified) || !hash_equals(hash('sha256',$raw),hash('sha256',$verified)))
+    rm_fcm_finish(500,'readback_failed');
+// No client identity, private key, server filesystem path or service-account email is echoed.
+rm_fcm_finish(200,'configured_and_readable');
