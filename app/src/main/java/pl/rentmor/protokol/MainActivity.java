@@ -321,6 +321,7 @@ public class MainActivity extends Activity {
     }
 
     private void sitePage() {
+        if(!isAdmin()){toast("Ofertą RentMor.pl może zarządzać tylko administrator.");showHome();return;}
         root.removeAllViews(); root.setPadding(18,16,18,18);
         TextView h=new TextView(this);h.setText("STRONA RENTMOR");h.setTextSize(25);h.setTypeface(null,1);h.setTextColor(0xff172235);root.addView(h);
         TextView sub=new TextView(this);sub.setText("Zarządzaj publiczną ofertą i sprawdzaj ruch na stronie.");sub.setTextColor(0xff697386);sub.setPadding(0,5,0,14);root.addView(sub);
@@ -330,10 +331,12 @@ public class MainActivity extends Activity {
         addButton("WRÓĆ DO MENU",()->showHome());
     }
     private JSONObject siteStats() {
+        if(!isAdmin())return new JSONObject();
         try { return new JSONObject(getSharedPreferences("rentmor",0).getString("site_stats","{}")); }
         catch(Exception e) { return new JSONObject(); }
     }
     private JSONArray siteProducts() {
+        if(!isAdmin())return new JSONArray();
         try { return new JSONArray(getSharedPreferences("rentmor",0).getString("site_products","[]")); }
         catch(Exception e) { return new JSONArray(); }
     }
@@ -344,6 +347,7 @@ public class MainActivity extends Activity {
     private Handler siteLiveHandler;
     private Runnable siteLiveRefresh;
     private void siteStatsPage() {
+        if(!isAdmin()){toast("Statystyki strony są dostępne tylko dla administratora.");showHome();return;}
         root.removeAllViews(); root.setPadding(14,14,14,18);
         TextView h=new TextView(this);h.setText("STATYSTYKI STRONY");h.setTextSize(23);h.setTypeface(null,1);h.setTextColor(0xff172235);root.addView(h);
         TextView info=new TextView(this);info.setText("Dane z licznika RentMor.pl");info.setTextColor(0xff697386);info.setPadding(0,4,0,10);root.addView(info);
@@ -527,6 +531,7 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=7;parent.addView(card,lp);
     }
     private void siteProductsPage() {
+        if(!isAdmin()){toast("Ofertą RentMor.pl może zarządzać tylko administrator.");showHome();return;}
         root.removeAllViews();TextView h=new TextView(this);h.setText("LISTA SPRZĘTU NA STRONIE");h.setTextSize(22);h.setTypeface(null,1);h.setTextColor(0xff172235);root.addView(h);
         LinearLayout list=new LinearLayout(this);list.setOrientation(1);root.addView(list);
         Runnable render=()->{list.removeAllViews();JSONArray a=siteProducts();for(int i=0;i<a.length();i++){JSONObject p=a.optJSONObject(i);if(p==null)continue;
@@ -534,12 +539,13 @@ public class MainActivity extends Activity {
             TextView name=new TextView(this);name.setText(p.optString("name"));name.setTextSize(16);name.setTypeface(null,1);name.setTextColor(0xff172235);row.addView(name);
             TextView price=new TextView(this);price.setText(p.optString("price","0")+" zł / doba   •   Kaucja: "+p.optString("deposit","0")+" zł");price.setTextColor(0xff697386);row.addView(price);
             LinearLayout actions=new LinearLayout(this);Button edit=new Button(this);edit.setText("EDYTUJ");brandButton(edit,false);Button del=new Button(this);del.setText("USUŃ");brandButton(del,false);actions.addView(edit,new LinearLayout.LayoutParams(0,-2,1));actions.addView(del,new LinearLayout.LayoutParams(0,-2,1));row.addView(actions);
-            edit.setOnClickListener(v->productForm(p));del.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("Usunąć ofertę?").setMessage("Produkt zniknie ze strony RentMor.pl.").setNegativeButton("Anuluj",null).setPositiveButton("Usuń",(d,w)->{try{JSONObject op=new JSONObject();op.put("product_id",p.optString("id"));store.enqueue("product_delete",op);if(isOnline())new Thread(()->{try{sync.sync();runOnUiThread(()->{toast("Oferta usunięta ze strony.");siteProductsPage();});}catch(Exception e){runOnUiThread(()->toast("Błąd usuwania: "+e.getMessage()));}}).start();else toast("Brak internetu — usuń ofertę po połączeniu.");}catch(Exception e){toast("Nie udało się przygotować usunięcia.");}}).show());
+            edit.setOnClickListener(v->productForm(p));del.setOnClickListener(v->{if(!isAdmin()){toast("Tylko administrator może usuwać oferty.");showHome();return;}new AlertDialog.Builder(this).setTitle("Usunąć ofertę?").setMessage("Produkt zniknie ze strony RentMor.pl.").setNegativeButton("Anuluj",null).setPositiveButton("Usuń",(d,w)->{if(!isAdmin()){toast("Tylko administrator może usuwać oferty.");showHome();return;}try{JSONObject op=new JSONObject();op.put("product_id",p.optString("id"));store.enqueue("product_delete",op);if(isOnline())new Thread(()->{try{sync.sync();runOnUiThread(()->{toast("Oferta usunięta ze strony.");siteProductsPage();});}catch(Exception e){runOnUiThread(()->toast("Błąd usuwania: "+e.getMessage()));}}).start();else toast("Brak internetu — usuń ofertę po połączeniu.");}catch(Exception e){toast("Nie udało się przygotować usunięcia.");}}).show();});
             LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=8;list.addView(row,lp);
         }if(a.length()==0){TextView empty=new TextView(this);empty.setText("Nie znaleziono ofert. Odśwież dane strony.");list.addView(empty);}};
         refreshSiteData(render);addButton("＋ DODAJ SPRZĘT",()->productForm(null));addButton("⟳ ODŚWIEŻ",()->refreshSiteData(render));addButton("WRÓĆ",()->sitePage());
     }
     private void productForm(JSONObject existing) {
+        if(!isAdmin()){toast("Tylko administrator może dodawać lub edytować oferty.");showHome();return;}
         productPhotoSession++;
         root.removeAllViews();root.setPadding(16,14,16,18);
         for(Bitmap old:productPhotos) if(old!=null&&!old.isRecycled())old.recycle();
@@ -585,6 +591,7 @@ public class MainActivity extends Activity {
         if(editing){name.setText(existing.optString("name"));desc.setText(existing.optString("desc"));price.setText(existing.optString("price"));deposit.setText(existing.optString("deposit"));seoTitle.setText(existing.optString("seo_title"));seoDesc.setText(existing.optString("seo_description"));olx.setText(existing.optString("olx"));for(int i=0;i<cats.length;i++)if(cats[i].equals(existing.optString("category")))category.setSelection(i);}
         TextView note=new TextView(this);note.setText("Po zapisaniu oferta zostanie opublikowana bezpośrednio na RentMor.pl.");note.setTextSize(12);note.setTextColor(0xff526174);note.setPadding(4,12,4,8);root.addView(note);
         addButton(editing?"ZAPISZ ZMIANY I OPUBLIKUJ":"OPUBLIKUJ NA RENTMOR.PL",()->{
+            if(!isAdmin()){toast("Tylko administrator może publikować oferty.");showHome();return;}
             if(productPhotosLoading){toast("Trwa wczytywanie zdjęć. Zapisz po ich dodaniu.");return;}
             if(!isOnline()){toast("Do publikacji produktu potrzebny jest internet.");return;}
             String n=name.getText().toString().trim(),pr=price.getText().toString().trim(),de=deposit.getText().toString().trim();if(n.isEmpty()||pr.isEmpty()){toast("Podaj nazwę i cenę za dobę.");return;}
@@ -605,6 +612,7 @@ public class MainActivity extends Activity {
     private void addProductLabel(LinearLayout parent,String label){TextView t=new TextView(this);t.setText(label);t.setTextSize(12);t.setTypeface(null,1);t.setTextColor(0xff526174);t.setPadding(0,7,0,2);parent.addView(t);}
     private EditText productField(LinearLayout parent,String hint){addProductLabel(parent,hint);EditText e=new EditText(this);e.setSingleLine(false);e.setTextSize(15);e.setPadding(10,8,10,8);e.setBackground(roundBg(0xfff5f6fa,9));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=6;parent.addView(e,lp);e.setHint(hint);return e;}
     private void pickProductPhotos(){
+        if(!isAdmin()){toast("Zdjęcia ofert może dodawać tylko administrator.");showHome();return;}
         if(productPhotosLoading){toast("Trwa wczytywanie zdjęć.");return;}
         int slots=6-existingProductPhotoCount-productPhotos.size();
         if(slots<=0){toast("Galeria ma już 6 zdjęć. Nie można dodać kolejnych.");return;}
