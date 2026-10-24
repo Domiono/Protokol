@@ -6,6 +6,7 @@ on:
       - 'server/rentmor-gallery.js'
       - 'server/rentmor-gallery.css'
       - 'scripts/patch_public_gallery.py'
+      - 'scripts/test_private_backup_workflows.py'
       - '.github/workflows/deploy-gallery.yml'
   workflow_dispatch:
 
@@ -29,6 +30,7 @@ jobs:
           set -eu
           node --check server/rentmor-gallery.js
           python3 -m py_compile scripts/patch_public_gallery.py
+          python3 scripts/test_private_backup_workflows.py
           test -s server/rentmor-gallery.css
 
       - name: Patch current homepage with private backup and verify the live result
