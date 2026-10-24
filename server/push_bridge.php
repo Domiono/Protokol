@@ -92,6 +92,29 @@ function rm_push_access_token(array $account): ?string {
     $data=json_decode($response,true);
     return is_array($data)&&is_string($data['access_token']??null)?$data['access_token']:null;
 }
+/** Build a private, system-delivered Android notification with no contact details. */
+function rm_push_message_payload(string $token, string $messageId): string|false {
+    // Notification + data: Android displays the notification itself in the
+    // background. Data is used only to open the authenticated inbox.
+    // Never include customer names, message text or phone numbers in FCM.
+    return json_encode(['message'=>[
+        'token'=>$token,
+        'notification'=>[
+            'title'=>'RentMor — nowa wiadomość',
+            'body'=>'Masz nowe zapytanie klienta. Otwórz aplikację RentMor.'
+        ],
+        'data'=>['type'=>'contact_message','message_id'=>$messageId],
+        'android'=>[
+            'priority'=>'high',
+            'ttl'=>'3600s',
+            'notification'=>[
+                'channel_id'=>'rentmor_contact_messages',
+                'tag'=>'rentmor_contact_message',
+                'visibility'=>'PRIVATE'
+            ]
+        ]
+    ]],JSON_UNESCAPED_SLASHES);
+}
 function rm_push_notify_new_message(string $messageId): void {
     if($messageId===''||strlen($messageId)>128)return;
     $account=rm_push_read_json(rm_push_private_dir().'/fcm-service-account.json');
@@ -113,26 +136,7 @@ function rm_push_notify_new_message(string $messageId): void {
     if($access===null)return;
     $url='https://fcm.googleapis.com/v1/projects/'.rawurlencode($project).'/messages:send';
     foreach(array_slice(array_unique($targets),0,10) as $token){
-        // Notification + data: Android displays the notification itself in the
-        // background. Data is used only to open the authenticated inbox.
-        // Never include customer names, message text or phone numbers in FCM.
-        $payload=json_encode(['message'=>[
-            'token'=>$token,
-            'notification'=>[
-                'title'=>'RentMor — nowa wiadomość',
-                'body'=>'Masz nowe zapytanie klienta. Otwórz aplikację RentMor.'
-            ],
-            'data'=>['type'=>'contact_message','message_id'=>$messageId],
-            'android'=>[
-                'priority'=>'high',
-                'ttl'=>'3600s',
-                'notification'=>[
-                    'channel_id'=>'rentmor_contact_messages',
-                    'tag'=>'rentmor_contact_message',
-                    'visibility'=>'PRIVATE'
-                ]
-            ]
-        ]],JSON_UNESCAPED_SLASHES);
+        $payload=rm_push_message_payload($token,$messageId);
         if($payload===false)continue;
         $ch=curl_init($url);
         curl_setopt_array($ch,[CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>$payload,CURLOPT_RETURNTRANSFER=>true,
