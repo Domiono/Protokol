@@ -26,7 +26,10 @@ public class MainActivity extends Activity {
     private WebView activation; private boolean showingApp=false; private final ArrayList<Bitmap> issuePhotos=new ArrayList<>(); private final ArrayList<Bitmap> productPhotos=new ArrayList<>(); private final ArrayList<String> productSelectedPhotoUris=new ArrayList<>(); private int existingProductPhotoCount=0; private int productPhotoSession=0; private boolean productPhotosLoading=false; private LinearLayout productExistingPhotoContainer,productNewPhotoContainer; private Button productPhotoPickButton; private TextView productPhotoCount; private TextView photoCount; private SignatureView signatureView; private final AtomicBoolean syncRunning=new AtomicBoolean(false); private ConnectivityManager.NetworkCallback networkCallback;
     @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(Color.rgb(20,29,45));getWindow().setNavigationBarColor(Color.rgb(20,29,45));store=new LocalStore(this);sync=new SyncManager(this,store);registerNetworkSync();
         String saved=getSharedPreferences("rentmor",0).getString("cookie","");
-        if(!saved.isEmpty()){showHome();openWidgetDestination();} else showActivation();
+        if(!saved.isEmpty()){showHome();
+            if(b!=null&&b.getString("protocol_camera_uri")!=null){pendingProtocolPhoto=android.net.Uri.parse(b.getString("protocol_camera_uri"));newIssue();}
+            else openWidgetDestination();
+        } else showActivation();
     }
     private void openWidgetDestination(){
         if(getIntent()!=null && getIntent().getBooleanExtra("open_reservations",false)){
@@ -43,6 +46,9 @@ public class MainActivity extends Activity {
         }});
         setContentView(activation); activation.loadUrl(HOME);
     }
+    private android.net.Uri pendingProtocolPhoto;
+    private LinearLayout issuePhotoThumbnails;
+    private Runnable issueDraftWriter;
     private Runnable protocolBackAction;
     private LinearLayout homeToolsList;
     private void showHome(){
@@ -1703,6 +1709,7 @@ public class MainActivity extends Activity {
     }
     private void newIssue(){
         issuePhotos.clear(); signatureView=null;
+        if(pendingProtocolPhoto==null)new File(getCacheDir(),"protocol-camera-draft.json").delete();
         protocolPage("Nowy protokół wydania","Uzupełnij dane, sprawdź stan sprzętu i dodaj podpis. Pola z * są wymagane.");
         protocolBackAction=()->new AlertDialog.Builder(this).setTitle("Opuścić formularz?").setMessage("Niezapisany protokół zostanie odrzucony.").setNegativeButton("Zostań",null).setPositiveButton("Opuść",(d,w)->showHome()).show();
         LinearLayout customerCard=protocolSection("1. Klient");
@@ -1733,10 +1740,26 @@ public class MainActivity extends Activity {
         EditText condition=protocolField(equipmentCard,"Stan sprzętu przy wydaniu",true);condition.setHint("Np. sprawny, rysy na obudowie…");
         EditText accessories=protocolField(equipmentCard,"Wydane akcesoria",true);accessories.setHint("Np. odkurzacz, wąż, przewód…");
         EditText notes=protocolField(equipmentCard,"Dodatkowe uwagi",true);
-        photoCount=new TextView(this);photoCount.setText("Nie dodano zdjęć.");photoCount.setTextColor(0xff526174);photoCount.setPadding(0,8,0,4);root.addView(photoCount);addButton("＋ Dodaj zdjęcia (można wybrać kilka)",()->pickPhoto());
+        LinearLayout photoCard=protocolSection("3. Zdjęcia sprzętu");
+        photoCount=new TextView(this);photoCount.setTextColor(0xff526174);photoCount.setTextSize(13);photoCard.addView(photoCount);
+        HorizontalScrollView photoScroll=new HorizontalScrollView(this);photoScroll.setHorizontalScrollBarEnabled(false);
+        issuePhotoThumbnails=new LinearLayout(this);issuePhotoThumbnails.setOrientation(0);photoScroll.addView(issuePhotoThumbnails);photoCard.addView(photoScroll);
+        Button camera=new Button(this);camera.setText("ZRÓB ZDJĘCIE APARATEM");brandButton(camera,true);camera.setOnClickListener(v->pickPhoto());photoCard.addView(camera);updateIssuePhotoThumbnails();
         protocolSignature();
         addButton("ZAPISZ PROTOKÓŁ W TELEFONIE",()->{if(client.getText().toString().trim().isEmpty()||equipment.getSelectedItem()==null||equipment.getSelectedItemPosition()==0){if(client.getText().toString().trim().isEmpty()){client.setError("Wpisz nazwę klienta");client.requestFocus();}toast("Uzupełnij klienta i wybierz sprzęt.");return;}
-            try{String id=UUID.randomUUID().toString();JSONObject p=new JSONObject();p.put("id",id);p.put("number","RM-"+new SimpleDateFormat("yyyyMMdd-HHmmss",Locale.US).format(new Date()));p.put("client",client.getText());p.put("phone",phone.getText());p.put("reservation_id",reservationIds.get(reservationSpinner.getSelectedItemPosition()));p.put("equipment",equipment.getSelectedItem().toString());p.put("rental_date",date.getText());p.put("condition",condition.getText());p.put("accessories",accessories.getText());p.put("notes",notes.getText());p.put("status","wydany");JSONArray photos=new JSONArray();for(Bitmap photo:issuePhotos)photos.put(bitmapBase64(photo,1920,85));if(photos.length()>0)p.put("photos_base64",photos);if(signatureView!=null&&signatureView.hasInk())p.put("signature_base64",bitmapBase64(signatureView.image(),900,85));store.enqueue("create",p);toast("Protokół zapisany w telefonie. Gotowy do synchronizacji.");showProtocolDetail(p);}catch(Exception ex){toast("Błąd zapisu: "+ex.getMessage());}});
+            try{String id=UUID.randomUUID().toString();JSONObject p=new JSONObject();p.put("id",id);p.put("number","RM-"+new SimpleDateFormat("yyyyMMdd-HHmmss",Locale.US).format(new Date()));p.put("client",client.getText());p.put("phone",phone.getText());p.put("reservation_id",reservationIds.get(reservationSpinner.getSelectedItemPosition()));p.put("equipment",equipment.getSelectedItem().toString());p.put("rental_date",date.getText());p.put("condition",condition.getText());p.put("accessories",accessories.getText());p.put("notes",notes.getText());p.put("status","wydany");JSONArray photos=new JSONArray();for(Bitmap photo:issuePhotos)photos.put(bitmapBase64(photo,1920,85));if(photos.length()>0)p.put("photos_base64",photos);if(signatureView!=null&&signatureView.hasInk())p.put("signature_base64",bitmapBase64(signatureView.image(),900,85));store.enqueue("create",p);new File(getCacheDir(),"protocol-camera-draft.json").delete();toast("Protokół zapisany w telefonie. Gotowy do synchronizacji.");showProtocolDetail(p);}catch(Exception ex){toast("Błąd zapisu: "+ex.getMessage());}});
+        issueDraftWriter=()->{try{
+            JSONObject draft=new JSONObject();draft.put("client",client.getText().toString());draft.put("phone",phone.getText().toString());draft.put("date",date.getText().toString());draft.put("condition",condition.getText().toString());draft.put("accessories",accessories.getText().toString());draft.put("notes",notes.getText().toString());draft.put("equipment",equipment.getSelectedItemPosition());draft.put("reservation",reservationSpinner.getSelectedItemPosition());
+            JSONArray images=new JSONArray();for(Bitmap image:issuePhotos)images.put(bitmapBase64(image,1920,85));draft.put("photos",images);if(signatureView!=null&&signatureView.hasInk())draft.put("signature",bitmapBase64(signatureView.image(),1200,90));
+            try(FileOutputStream out=new FileOutputStream(new File(getCacheDir(),"protocol-camera-draft.json"))){out.write(draft.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));}
+        }catch(Exception ex){throw new RuntimeException("Nie można zabezpieczyć formularza przed otwarciem aparatu",ex);}};
+        if(pendingProtocolPhoto!=null){try{
+            String raw=new String(java.nio.file.Files.readAllBytes(new File(getCacheDir(),"protocol-camera-draft.json").toPath()),java.nio.charset.StandardCharsets.UTF_8);JSONObject draft=new JSONObject(raw);
+            client.setText(draft.optString("client"));phone.setText(draft.optString("phone"));date.setText(draft.optString("date"));condition.setText(draft.optString("condition"));accessories.setText(draft.optString("accessories"));notes.setText(draft.optString("notes"));
+            int eq=draft.optInt("equipment");if(eq>=0&&eq<equipment.getCount())equipment.setSelection(eq);int rs=draft.optInt("reservation");if(rs>=0&&rs<reservationSpinner.getCount())reservationSpinner.setSelection(rs);
+            JSONArray images=draft.optJSONArray("photos");if(images!=null)for(int i=0;i<images.length();i++){byte[] bytes=Base64.decode(images.optString(i),Base64.DEFAULT);Bitmap image=BitmapFactory.decodeByteArray(bytes,0,bytes.length);if(image!=null)issuePhotos.add(image);}
+            Bitmap sign=bitmapFrom(draft,"signature");if(sign!=null){SignatureView target=signatureView;target.post(()->{target.restore(sign);sign.recycle();});}updateIssuePhotoThumbnails();
+        }catch(Exception ex){toast("Nie udało się odtworzyć formularza. Sprawdź dane przed zapisem.");}}
         addButton("ANULUJ",()->protocolBackAction.run());
     }
     private void protocolList(){
@@ -1799,8 +1822,39 @@ public class MainActivity extends Activity {
             }return true;
         }
     }
+    private void updateIssuePhotoThumbnails(){
+        if(issuePhotoThumbnails==null||photoCount==null)return;
+        photoCount.setText(issuePhotos.isEmpty()?"Brak zdjęć. Zrób pierwsze zdjęcie sprzętu.":"Zdjęcia: "+issuePhotos.size()+" • dotknij miniatury, aby powiększyć");
+        issuePhotoThumbnails.removeAllViews();
+        for(Bitmap photo:new ArrayList<>(issuePhotos)){
+            LinearLayout tile=new LinearLayout(this);tile.setOrientation(1);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(104),-2);lp.setMargins(0,dp(10),dp(8),dp(8));issuePhotoThumbnails.addView(tile,lp);
+            ImageView thumbnail=new ImageView(this);thumbnail.setImageBitmap(photo);thumbnail.setScaleType(ImageView.ScaleType.CENTER_CROP);thumbnail.setContentDescription("Zdjęcie sprzętu — powiększ");tile.addView(thumbnail,new LinearLayout.LayoutParams(-1,dp(96)));thumbnail.setOnClickListener(v->showZoomPhoto(photo,"Zdjęcie sprzętu"));
+            Button remove=new Button(this);remove.setText("Usuń");remove.setAllCaps(false);remove.setTextColor(0xffb91c1c);tile.addView(remove,new LinearLayout.LayoutParams(-1,dp(48)));remove.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("Usunąć to zdjęcie?").setNegativeButton("Zostaw",null).setPositiveButton("Usuń",(d,w)->{issuePhotos.remove(photo);updateIssuePhotoThumbnails();}).show());
+        }
+    }
     private void pickPhoto(){
-        Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("image/*");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);startActivityForResult(i,4101);
+        if(pendingProtocolPhoto!=null)return;
+        try{
+            if(issueDraftWriter!=null)issueDraftWriter.run();
+            android.content.ContentValues values=new android.content.ContentValues();values.put(android.provider.MediaStore.Images.Media.DISPLAY_NAME,"RentMor-"+UUID.randomUUID()+".jpg");values.put(android.provider.MediaStore.Images.Media.MIME_TYPE,"image/jpeg");values.put(android.provider.MediaStore.Images.Media.RELATIVE_PATH,Environment.DIRECTORY_PICTURES+"/RentMor");values.put(android.provider.MediaStore.Images.Media.IS_PENDING,1);
+            pendingProtocolPhoto=getContentResolver().insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values);
+            if(pendingProtocolPhoto==null)throw new IOException("Nie można przygotować miejsca na zdjęcie");
+            Intent intent=new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);intent.putExtra(android.provider.MediaStore.EXTRA_OUTPUT,pendingProtocolPhoto);intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);intent.setClipData(ClipData.newRawUri("Zdjęcie protokołu",pendingProtocolPhoto));startActivityForResult(intent,4101);
+        }catch(Exception ex){discardPendingProtocolPhoto();toast("Nie można otworzyć aparatu: "+ex.getMessage());}
+    }
+    private void discardPendingProtocolPhoto(){
+        if(pendingProtocolPhoto!=null){try{getContentResolver().delete(pendingProtocolPhoto,null,null);}catch(Exception ignored){}pendingProtocolPhoto=null;}
+    }
+    private Bitmap readProtocolCameraPhoto(android.net.Uri uri)throws IOException{
+        Bitmap image=readProductPhotoThumbnail(uri);int orientation=1;
+        try(InputStream input=getContentResolver().openInputStream(uri)){if(input!=null)orientation=new android.media.ExifInterface(input).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION,1);}
+        Matrix transform=new Matrix();
+        switch(orientation){case 2:transform.setScale(-1,1);break;case 3:transform.setRotate(180);break;case 4:transform.setScale(1,-1);break;case 5:transform.setRotate(90);transform.postScale(-1,1);break;case 6:transform.setRotate(90);break;case 7:transform.setRotate(-90);transform.postScale(-1,1);break;case 8:transform.setRotate(-90);break;default:return image;}
+        Bitmap rotated=Bitmap.createBitmap(image,0,0,image.getWidth(),image.getHeight(),transform,true);if(rotated!=image)image.recycle();return rotated;
+    }
+    @Override protected void onSaveInstanceState(Bundle out){
+        if(pendingProtocolPhoto!=null)out.putString("protocol_camera_uri",pendingProtocolPhoto.toString());
+        super.onSaveInstanceState(out);
     }
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
@@ -1844,13 +1898,13 @@ public class MainActivity extends Activity {
                 });
             }).start();
         }
-        if(requestCode==4101 && resultCode==RESULT_OK && data!=null) try {
-            int added=0;
-            if(data.getClipData()!=null){android.content.ClipData clip=data.getClipData();for(int n=0;n<clip.getItemCount();n++){android.net.Uri uri=clip.getItemAt(n).getUri();getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION);try(InputStream in=getContentResolver().openInputStream(uri)){Bitmap b=BitmapFactory.decodeStream(in);if(b!=null){issuePhotos.add(b);added++;}}}}
-            else if(data.getData()!=null){android.net.Uri uri=data.getData();getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION);try(InputStream in=getContentResolver().openInputStream(uri)){Bitmap b=BitmapFactory.decodeStream(in);if(b!=null){issuePhotos.add(b);added++;}}}
-            if(photoCount!=null)photoCount.setText("Dodane zdjęcia: "+issuePhotos.size());
-            toast(added>0?"Dodano "+added+" zdjęć.":"Nie udało się wczytać zdjęć.");
-        } catch(Exception e){toast("Błąd zdjęć: "+e.getMessage());}
+        if(requestCode==4101){
+            boolean added=false;
+            try{if(resultCode==RESULT_OK&&pendingProtocolPhoto!=null){Bitmap image=readProtocolCameraPhoto(pendingProtocolPhoto);issuePhotos.add(image);added=true;}}
+            catch(Exception ex){toast("Nie udało się odczytać zdjęcia. Spróbuj ponownie.");}
+            finally{discardPendingProtocolPhoto();updateIssuePhotoThumbnails();}
+            if(added)new AlertDialog.Builder(this).setTitle("Zdjęcie dodane ("+issuePhotos.size()+")").setMessage("Możesz zrobić kolejne zdjęcie lub wrócić do protokołu.").setPositiveButton("Zrób następne",(d,w)->pickPhoto()).setNegativeButton("Gotowe",null).show();
+        }
     }
     private void returnList(){
         root.removeAllViews(); TextView h=new TextView(this); h.setText("PROTOKOŁY DO ZWROTU"); h.setTextSize(20); h.setTextColor(0xff172235); root.addView(h);
@@ -1879,6 +1933,7 @@ public class MainActivity extends Activity {
         private void ensure(){if(bitmap==null){bitmap=Bitmap.createBitmap(Math.max(1,getWidth()),Math.max(1,getHeight()),Bitmap.Config.ARGB_8888);canvas=new Canvas(bitmap);canvas.drawColor(Color.WHITE);}}
         @Override protected void onDraw(Canvas c){super.onDraw(c);ensure();c.drawBitmap(bitmap,0,0,null);Paint p=new Paint(3);p.setColor(0xff888888);p.setTextSize(12);c.drawText("PODPIS KLIENTA – podpisz palcem",8,18,p);}
         @Override public boolean onTouchEvent(android.view.MotionEvent e){ensure();float x=e.getX(),y=e.getY();if(e.getAction()==0){getParent().requestDisallowInterceptTouchEvent(true);lx=x;ly=y;drawing=true;hasInk=true;canvas.drawPoint(x,y,pen);invalidate();return true;}if(e.getAction()==2&&drawing){canvas.drawLine(lx,ly,x,y,pen);lx=x;ly=y;invalidate();return true;}if(e.getAction()==1||e.getAction()==3){getParent().requestDisallowInterceptTouchEvent(false);drawing=false;return true;}return true;}
+        void restore(Bitmap source){ensure();canvas.drawBitmap(source,null,new Rect(0,0,bitmap.getWidth(),bitmap.getHeight()),null);hasInk=true;invalidate();}
         boolean hasInk(){return hasInk;}
         void clear(){ensure();canvas.drawColor(Color.WHITE);hasInk=false;invalidate();}
         Bitmap image(){ensure();return bitmap;}
