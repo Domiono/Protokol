@@ -113,10 +113,25 @@ function rm_push_notify_new_message(string $messageId): void {
     if($access===null)return;
     $url='https://fcm.googleapis.com/v1/projects/'.rawurlencode($project).'/messages:send';
     foreach(array_slice(array_unique($targets),0,10) as $token){
+        // Notification + data: Android displays the notification itself in the
+        // background. Data is used only to open the authenticated inbox.
+        // Never include customer names, message text or phone numbers in FCM.
         $payload=json_encode(['message'=>[
             'token'=>$token,
+            'notification'=>[
+                'title'=>'RentMor — nowa wiadomość',
+                'body'=>'Masz nowe zapytanie klienta. Otwórz aplikację RentMor.'
+            ],
             'data'=>['type'=>'contact_message','message_id'=>$messageId],
-            'android'=>['priority'=>'high','ttl'=>'3600s']
+            'android'=>[
+                'priority'=>'high',
+                'ttl'=>'3600s',
+                'notification'=>[
+                    'channel_id'=>'rentmor_contact_messages',
+                    'tag'=>'rentmor_contact_message',
+                    'visibility'=>'PRIVATE'
+                ]
+            ]
         ]],JSON_UNESCAPED_SLASHES);
         if($payload===false)continue;
         $ch=curl_init($url);
