@@ -25,7 +25,7 @@ class PrivateBackupWorkflowTests(unittest.TestCase):
                 readback = source.index("get rentmor-backups/$BACKUP_NAME", save)
                 comparison = source.index("cmp ", readback)
                 publish = re.search(
-                    r"put \\$[A-Z_]+/index\\.php -o public_html/index\\.php", source
+                    r"put \$[A-Z_]+/index\.php -o public_html/index\.php", source
                 )
                 self.assertIsNotNone(publish)
                 self.assertLess(save, readback)
