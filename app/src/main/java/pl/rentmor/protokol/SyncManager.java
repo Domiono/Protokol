@@ -31,6 +31,11 @@ public class SyncManager {
         JSONObject result=new JSONObject(raw); if(code<200||code>=300) throw new IOException(result.optString("error","Błąd serwera "+code));
         return result;
     }
+    public JSONObject updatePushToken(String token) throws Exception {
+        if(token==null)throw new IllegalArgumentException("Token is missing");
+        JSONObject data=new JSONObject();data.put("token",token);
+        return request(API+"?view=push_token","POST",data);
+    }
     public JSONArray fetchMessages() throws Exception {
         JSONObject response=request(API+"?view=messages","GET",null);
         if(!"admin".equals(response.optString("role")))
@@ -62,6 +67,7 @@ public class SyncManager {
         context.getSharedPreferences("rentmor",0).edit().putString("site_products",server.optJSONArray("site_products")==null?"[]":server.optJSONArray("site_products").toString()).putString("site_stats",server.optJSONObject("site_stats")==null?"{}":server.optJSONObject("site_stats").toString()).apply();
         context.getSharedPreferences("rentmor",0).edit().putString("role",server.optString("role")).apply();
         if(!"admin".equals(server.optString("role")))store.clearMessages();
+        PushRegistrar.refresh(context);
         return server;
     }
 }
