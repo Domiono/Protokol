@@ -31,9 +31,9 @@ public class SyncManager {
         JSONObject result=new JSONObject(raw); if(code<200||code>=300) throw new IOException(result.optString("error","Błąd serwera "+code));
         return result;
     }
-    public JSONObject updatePushToken(String token) throws Exception {
+    public JSONObject updatePushToken(String token,boolean enabled) throws Exception {
         if(token==null)throw new IllegalArgumentException("Token is missing");
-        JSONObject data=new JSONObject();data.put("token",token);
+        JSONObject data=new JSONObject();data.put("token",token);data.put("enabled",enabled);
         return request(API+"?view=push_token","POST",data);
     }
     public JSONArray fetchMessages() throws Exception {
