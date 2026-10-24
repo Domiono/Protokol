@@ -143,8 +143,9 @@ public class LocalStore extends SQLiteOpenHelper {
         v.put("type",e.optString("type","expense")); v.put("note",e.optString("note")); v.put("data",e.toString()); v.put("updated",System.currentTimeMillis());
         getWritableDatabase().insertWithOnConflict("expenses",null,v,SQLiteDatabase.CONFLICT_REPLACE);
     }
+    public synchronized JSONArray allExpenses() { return expenses(null); }
     public synchronized JSONArray expenses(String month) {
-        JSONArray a=new JSONArray(); Cursor c=getReadableDatabase().rawQuery("SELECT data,id,month,date,name,amount,type,note FROM expenses WHERE month=? ORDER BY date DESC,updated DESC",new String[]{month});
+        JSONArray a=new JSONArray(); Cursor c=getReadableDatabase().rawQuery("SELECT data,id,month,date,name,amount,type,note FROM expenses"+(month==null?"":" WHERE month=?")+" ORDER BY date DESC,updated DESC",month==null?null:new String[]{month});
         try { while(c.moveToNext()) { JSONObject x; try{x=c.isNull(0)?new JSONObject():new JSONObject(c.getString(0));}catch(Exception ex){x=new JSONObject();}
             if(!x.has("id"))x.put("id",c.getString(1)); if(!x.has("month"))x.put("month",c.getString(2));
             if(!x.has("date"))x.put("date",c.getString(3)); if(!x.has("name"))x.put("name",c.getString(4));

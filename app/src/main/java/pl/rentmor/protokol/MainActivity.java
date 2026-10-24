@@ -1059,6 +1059,12 @@ public class MainActivity extends Activity {
     }
 
     private void reservationStatsPage() {
+        if(!"admin".equals(getSharedPreferences("rentmor",0).getString("role",""))){toast("Statystyki finansowe są dostępne dla administratora.");return;}
+        protocolPage("Finanse RentMor","Przychody, koszty i wyniki Twojej wypożyczalni");
+        root.addView(new FinanceDashboard(this,store.allReservations(),store.allExpenses(),()->equipmentProfitabilityPage(),()->expensePage()).view());
+        addButton("WRÓĆ DO MENU",()->showHome());
+    }
+    private void legacyReservationStatsPage() {
         root.removeAllViews(); root.setOrientation(1); root.setPadding(dp(16),dp(16),dp(16),dp(12)); root.setBackgroundColor(0xfff5f6fa);
         TextView heading=new TextView(this); heading.setText("STATYSTYKI NAJMU"); heading.setTextSize(24); heading.setTypeface(null,1); heading.setTextColor(0xff172235); root.addView(heading);
         Button profitability=new Button(this); profitability.setText("RENTOWNOŚĆ SPRZĘTU"); brandButton(profitability,true); profitability.setOnClickListener(v->equipmentProfitabilityPage()); root.addView(profitability);
