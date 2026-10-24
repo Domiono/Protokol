@@ -55,8 +55,8 @@ with tempfile.TemporaryDirectory() as tmp:
     p=Path(tmp)/'test.php'; p.write_text(php)
     subprocess.run(['php', str(p), str(root/'server/traffic_filter.php')], check=True)
     # Exercise the actual migrated increments and save, including preserved old totals.
+    (Path(tmp)/'traffic_filter.php').write_text((root/'server/traffic_filter.php').read_text())
     source = '''<?php
-require $argv[1];
 $_SERVER=['REQUEST_METHOD'=>'GET','HTTP_USER_AGENT'=>$argv[2], 'REQUEST_URI'=>'/zyrafa/'];
 $_SESSION=[]; $_COOKIE=[];
 $stats_file='unused'; $today='2026-10-24';
