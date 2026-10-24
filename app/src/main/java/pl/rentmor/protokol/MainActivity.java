@@ -32,8 +32,12 @@ public class MainActivity extends Activity {
         } else showActivation();
     }
     private void openWidgetDestination(){
-        if(getIntent()!=null && getIntent().getBooleanExtra("open_messages",false)){
+        if(getIntent()!=null && (getIntent().getBooleanExtra("open_messages",false)
+                || ("contact_message".equals(getIntent().getStringExtra("type"))
+                    && getIntent().hasExtra("message_id")))){
             getIntent().removeExtra("open_messages");
+            getIntent().removeExtra("type");
+            getIntent().removeExtra("message_id");
             if(root!=null)root.postDelayed(()->messageInboxPage(),180);
             return;
         }
@@ -182,6 +186,7 @@ public class MainActivity extends Activity {
         addAdminDownloadCard();
         screen.addView(scroll,new LinearLayout.LayoutParams(-1,-1));
         setContentView(screen);
+        MessageMonitor.ensureChannel(this);
         if(isOnline())syncNow();
         if(isAdmin()){
             MessageMonitor.schedule(this);
