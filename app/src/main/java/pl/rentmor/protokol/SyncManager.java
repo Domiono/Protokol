@@ -11,7 +11,10 @@ public class SyncManager {
     public SyncManager(Context c, LocalStore s){context=c;store=s;}
     private String cookie(){return context.getSharedPreferences("rentmor",0).getString("cookie","");}
     private JSONObject request(String method, JSONObject body) throws Exception {
-        HttpURLConnection c=(HttpURLConnection)new URL(API).openConnection();
+        return request(API,method,body);
+    }
+    private JSONObject request(String endpoint,String method, JSONObject body) throws Exception {
+        HttpURLConnection c=(HttpURLConnection)new URL(endpoint).openConnection();
         c.setRequestMethod(method); c.setConnectTimeout(12000); c.setReadTimeout(20000);
         c.setRequestProperty("Accept","application/json");
         String ck=cookie(); if(ck.isEmpty()) throw new IOException("Brak aktywacji urządzenia. Otwórz aktywację online.");
@@ -27,6 +30,14 @@ public class SyncManager {
         String raw=out.toString("UTF-8"); c.disconnect();
         JSONObject result=new JSONObject(raw); if(code<200||code>=300) throw new IOException(result.optString("error","Błąd serwera "+code));
         return result;
+    }
+    public JSONArray fetchMessages() throws Exception {
+        JSONObject response=request(API+"?view=messages","GET",null);
+        if(!"admin".equals(response.optString("role")))
+            throw new SecurityException("Brak uprawnień do odczytu wiadomości.");
+        JSONArray items=response.optJSONArray("messages");
+        if(items==null)throw new IOException("Brak poprawnej listy wiadomości.");
+        return items;
     }
     public JSONObject sync() throws Exception {
         JSONArray pending=store.queued();
@@ -50,6 +61,7 @@ public class SyncManager {
         store.setEquipment(server.optJSONArray("equipment")==null?new JSONArray():server.optJSONArray("equipment"));
         context.getSharedPreferences("rentmor",0).edit().putString("site_products",server.optJSONArray("site_products")==null?"[]":server.optJSONArray("site_products").toString()).putString("site_stats",server.optJSONObject("site_stats")==null?"{}":server.optJSONObject("site_stats").toString()).apply();
         context.getSharedPreferences("rentmor",0).edit().putString("role",server.optString("role")).apply();
+        if(!"admin".equals(server.optString("role")))store.clearMessages();
         return server;
     }
 }
