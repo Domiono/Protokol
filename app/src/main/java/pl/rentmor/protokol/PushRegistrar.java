@@ -13,6 +13,16 @@ public final class PushRegistrar {
     private static final String LAST="registered_fcm_token";
     private static final String ROLE="registered_fcm_role";
     private static final String TIME="registered_fcm_time";
+    private static final String STATUS="fcm_registration_status";
+    public static String status(Context context) {
+        if(!configured(context))return "Firebase nie jest skonfigurowany w tej wersji aplikacji.";
+        return context.getSharedPreferences("rentmor",0)
+            .getString(STATUS,"Trwa sprawdzanie rejestracji Firebase.");
+    }
+    public static void retry(Context context) {
+        context.getSharedPreferences("rentmor",0).edit().remove(TIME).apply();
+        refresh(context);
+    }
     private static final long REFRESH_MS=24L*60L*60L*1000L;
 
     public static boolean configured(Context context) {
@@ -22,7 +32,10 @@ public final class PushRegistrar {
     /** Call after a successful server sync (never rely on client role alone for security). */
     public static void refresh(Context input) {
         Context context=input.getApplicationContext();
-        if(!configured(context))return;
+        if(!configured(context)){
+            context.getSharedPreferences("rentmor",0).edit().putString(STATUS,"Brak konfiguracji Firebase w APK.").apply();
+            return;
+        }
         SharedPreferences p=context.getSharedPreferences("rentmor",0);
         String cookie=p.getString("cookie","");
         if(cookie.isEmpty())return;
@@ -35,8 +48,15 @@ public final class PushRegistrar {
         try {
             FirebaseMessaging.getInstance().getToken().addOnSuccessListener(token->{
                 if(token!=null&&!token.isEmpty())send(context,token,true);
-            }).addOnFailureListener(e->Log.w(TAG,"Firebase token not available; polling fallback active."));
-        }catch(Exception ex){Log.w(TAG,"Firebase not ready; polling fallback active.");}
+                else p.edit().putString(STATUS,"Firebase nie zwrócił identyfikatora telefonu.").apply();
+            }).addOnFailureListener(e->{
+                p.edit().putString(STATUS,"Nie udało się uzyskać identyfikatora Firebase.").apply();
+                Log.w(TAG,"Firebase token not available; polling fallback active.");
+            });
+        }catch(Exception ex){
+            p.edit().putString(STATUS,"Firebase nie jest gotowy w telefonie.").apply();
+            Log.w(TAG,"Firebase not ready; polling fallback active.");
+        }
     }
     public static void refreshedToken(Context context,String token){
         if(token!=null&&!token.isEmpty())send(context.getApplicationContext(),token,true);
@@ -50,8 +70,12 @@ public final class PushRegistrar {
         String old=p.getString(LAST,"");
         if(enable && !admin)enable=false;
         if(enable && admin && token.equals(old) && "admin".equals(p.getString(ROLE,""))
-            && System.currentTimeMillis()-p.getLong(TIME,0)<REFRESH_MS)return;
+            && System.currentTimeMillis()-p.getLong(TIME,0)<REFRESH_MS){
+            p.edit().putString(STATUS,"Telefon został zarejestrowany w Firebase.").apply();
+            return;
+        }
         final boolean active=enable;
+        p.edit().putString(STATUS,"Łączenie telefonu z Firebase…").apply();
         new Thread(()->{
             try {
                 SyncManager sync=new SyncManager(context,new LocalStore(context));
@@ -59,10 +83,15 @@ public final class PushRegistrar {
                 // Server is authoritative about which devices are admins.
                 if(result.ok){
                     if(active && result.enabled) p.edit().putString(LAST,token).putString(ROLE,"admin")
-                        .putLong(TIME,System.currentTimeMillis()).apply();
-                    else p.edit().remove(LAST).remove(ROLE).remove(TIME).apply();
-                }
-            }catch(Exception ex){Log.w(TAG,"Could not register push token; polling fallback active.");}
+                        .putLong(TIME,System.currentTimeMillis())
+                        .putString(STATUS,"Telefon został zarejestrowany w Firebase.").apply();
+                    else p.edit().remove(LAST).remove(ROLE).remove(TIME)
+                        .putString(STATUS,"Rejestracja push nie jest aktywna dla tego urządzenia.").apply();
+                }else p.edit().putString(STATUS,"Serwer nie zaakceptował rejestracji Firebase.").apply();
+            }catch(Exception ex){
+                p.edit().putString(STATUS,"Błąd rejestracji w serwerze. Sprawdź połączenie lub uprawnienia.").apply();
+                Log.w(TAG,"Could not register push token; polling fallback active.");
+            }
         },"rentmor-fcm-register").start();
     }
     private static final class JSONObjectResult {
