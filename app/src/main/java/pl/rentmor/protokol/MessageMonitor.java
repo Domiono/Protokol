@@ -17,6 +17,17 @@ public final class MessageMonitor {
     private static final Object POLL_LOCK=new Object();
     private MessageMonitor(){}
 
+    /** A channel must exist before Google Play services posts background notifications. */
+    public static void ensureChannel(Context context) {
+        if(Build.VERSION.SDK_INT<26)return;
+        NotificationManager manager=(NotificationManager)context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if(manager==null)return;
+        NotificationChannel channel=new NotificationChannel(CHANNEL,"Wiadomości ze strony RentMor",NotificationManager.IMPORTANCE_HIGH);
+        channel.setDescription("Nowe zapytania klientów wysłane przez formularz kontaktowy.");
+        channel.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
+        manager.createNotificationChannel(channel);
+    }
+
     public static void schedule(Context context) {
         if(!"admin".equals(context.getSharedPreferences("rentmor",0).getString("role","")))return;
         JobScheduler scheduler=(JobScheduler)context.getSystemService(Context.JOB_SCHEDULER_SERVICE);
@@ -69,11 +80,7 @@ public final class MessageMonitor {
         if(manager==null)return;
         if(Build.VERSION.SDK_INT>=33 && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)return;
         if(!manager.areNotificationsEnabled())return;
-        if(Build.VERSION.SDK_INT>=26) {
-            NotificationChannel ch=new NotificationChannel(CHANNEL,"Wiadomości ze strony RentMor",NotificationManager.IMPORTANCE_HIGH);
-            ch.setDescription("Nowe zapytania klientów wysłane przez formularz kontaktowy.");
-            manager.createNotificationChannel(ch);
-        }
+        ensureChannel(context);
         int count=fresh.length();
         JSONObject newest=fresh.optJSONObject(count-1);
         String sender=newest==null?"klienta":newest.optString("client","klienta").trim();
