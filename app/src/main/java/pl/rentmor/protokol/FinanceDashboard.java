@@ -49,7 +49,7 @@ public final class FinanceDashboard {
         LinearLayout chartCard=card();text(chartCard,"Jak zmieniają się wyniki",19,0xff172b43,true);LinearLayout grains=row(chartCard);String[] names={"Dni","Tygodnie","Miesiące"};for(int i=0;i<3;i++){final int g=i;button(grains,names[i],grain==i,()->{grain=g;render();});}
         LinearLayout legend=row(chartCard);String[] series={"Przychód","Koszty","Wynik"};for(int i=0;i<3;i++){final int n=i;Button b=button(legend,series[i],visible[i],()->{int active=0;for(boolean show:visible)if(show)active++;if(visible[n]&&active==1)return;visible[n]=!visible[n];render();});b.setTextColor(visible[i]?Color.WHITE:colors[i]);if(visible[i])b.setBackground(bg(colors[i]));}
         TextView selected=text(chartCard,"Dotknij punktu wykresu, aby zobaczyć kwoty.",12,0xff64748b,false);
-        HorizontalScrollView scroll=new HorizontalScrollView(context);scroll.setHorizontalScrollBarEnabled(true);LineChart chart=new LineChart(report,selected);int width=Math.max(dp(280),Math.min(dp(12000),dp(64+report.buckets.size()*42)));scroll.addView(chart,new android.widget.FrameLayout.LayoutParams(width,dp(255)));chartCard.addView(scroll);text(chartCard,"Przesuń wykres w bok • tygodnie od poniedziałku",11,0xff64748b,false);
+        HorizontalScrollView scroll=new HorizontalScrollView(context);scroll.setHorizontalScrollBarEnabled(true);scroll.setFillViewport(true);LineChart chart=new LineChart(report,selected);int width=Math.max(dp(280),Math.min(dp(12000),dp(64+report.buckets.size()*42)));scroll.addView(chart,new android.widget.FrameLayout.LayoutParams(width,dp(255)));chartCard.addView(scroll,new LinearLayout.LayoutParams(-1,dp(255)));text(chartCard,"Przesuń wykres w bok • tygodnie od poniedziałku",11,0xff64748b,false);
         if(report.rentals==0&&report.costs()==0)text(chartCard,"Brak zapisanych rozliczeń i kosztów w tym okresie. Wykres nie uwzględnia nieuzupełnionych danych.",13,0xff64748b,false);
         LinearLayout costs=card();text(costs,"Z czego składają się koszty",19,0xff172b43,true);costRow(costs,"Straty przy rozliczeniu najmu",report.loss,report.costs(),0xffef4444);costRow(costs,"Koszty bieżące",report.cost,report.costs(),0xfff59e0b);costRow(costs,"Zakupy sprzętu / inwestycje",report.investment,report.costs(),0xff8b5cf6);
         LinearLayout ranking=card();text(ranking,"Sprzęt według przychodu",19,0xff172b43,true);List<Map.Entry<String,long[]>> sorted=new ArrayList<>(report.equipment.entrySet());sorted.sort((a,b)->Long.compare(b.getValue()[0],a.getValue()[0]));
@@ -68,6 +68,13 @@ public final class FinanceDashboard {
     private class LineChart extends View {
         final FinanceAnalytics.Report report;final TextView selection;final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);int selected=-1;float downX,downY;
         LineChart(FinanceAnalytics.Report r,TextView t){super(context);report=r;selection=t;setContentDescription("Wykres przychodów, kosztów i wyniku. Kwoty dostępne również w zestawieniu okresów.");}
+        @Override protected void onMeasure(int widthSpec,int heightSpec){
+            // HorizontalScrollView measures its child with UNSPECIFIED width.
+            // A plain View otherwise reports zero, even when LayoutParams has a width.
+            int requested=getLayoutParams()!=null?getLayoutParams().width:0;
+            int desiredWidth=Math.max(dp(280),requested);
+            setMeasuredDimension(resolveSize(desiredWidth,widthSpec),resolveSize(dp(255),heightSpec));
+        }
         private long value(FinanceAnalytics.Bucket b,int s){return s==0?b.income:s==1?b.costs():b.result();}
         private float x(int i){return dp(55)+(getWidth()-dp(75))*(report.buckets.size()==1?.5f:(float)i/(report.buckets.size()-1));}
         @Override protected void onDraw(Canvas c){super.onDraw(c);double min=0,max=0;for(FinanceAnalytics.Bucket b:report.buckets)for(int s=0;s<3;s++)if(visible[s]){min=Math.min(min,value(b,s));max=Math.max(max,value(b,s));}if(max==min)max=min+100;double pad=(max-min)*.12;max+=pad;if(min<0)min-=pad;float top=dp(16),bottom=getHeight()-dp(35);
