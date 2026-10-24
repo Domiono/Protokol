@@ -114,7 +114,7 @@ public final class MessageMonitor {
         if(messageId==null||messageId.isEmpty())return;
         if(!acknowledgePush(context,messageId))return;
         p.edit().putString("last_fcm_message_id",messageId).apply();
-        notifyNew(context,new JSONArray().put(new JSONObject().put("id",messageId)));
+        notifyNew(context,new JSONArray().put(new JSONObject()));
     }
     private static void notifyNew(Context context,JSONArray fresh) {
         NotificationManager manager=(NotificationManager)context.getSystemService(Context.NOTIFICATION_SERVICE);
