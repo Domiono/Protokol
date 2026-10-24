@@ -1124,61 +1124,13 @@ public class MainActivity extends Activity {
         addButton("WRÓĆ",()->showHome()); render.run();
     }
     private void equipmentProfitabilityPage() {
-        root.removeAllViews(); root.setOrientation(1); root.setPadding(dp(16),dp(16),dp(16),dp(12)); root.setBackgroundColor(0xfff5f6fa);
-        TextView h=new TextView(this); h.setText("RENTOWNOŚĆ SPRZĘTU"); h.setTextSize(22); h.setTypeface(null,1); h.setTextColor(0xff172235); root.addView(h);
-        TextView hint=new TextView(this); hint.setText("Zestawienie łączy wszystkie sztuki tego samego modelu. Uwzględnia rozliczone rezerwacje."); hint.setTextColor(0xff526174); hint.setTextSize(14); hint.setPadding(0,dp(8),0,dp(12)); root.addView(hint);
-        Spinner years=new Spinner(this); ArrayList<String> opts=new ArrayList<>(); opts.add("Od początku"); int y=Calendar.getInstance().get(Calendar.YEAR); for(int n=y;n>=2020;n--)opts.add(String.valueOf(n));
-        ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,opts); adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item); years.setAdapter(adapter); years.setBackground(roundBg(Color.WHITE,10)); years.setMinimumHeight(dp(48)); root.addView(years);
-        ScrollView sv=new ScrollView(this); LinearLayout list=new LinearLayout(this); list.setOrientation(1); list.setPadding(0,dp(12),0,dp(16)); sv.addView(list); root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
-        final Runnable[] draw={null}; draw[0]=()->{
-            list.removeAllViews(); int yr=years.getSelectedItemPosition()==0?0:Integer.parseInt(String.valueOf(years.getSelectedItem()));
-            LinkedHashMap<String,String> names=new LinkedHashMap<>(); LinkedHashMap<String,double[]> totals=new LinkedHashMap<>();
-            Calendar cur=Calendar.getInstance(); cur.set(2015,0,1); Calendar today=Calendar.getInstance(); double all=0;
-            while(!cur.after(today)){
-                if(yr==0||cur.get(Calendar.YEAR)==yr){
-                    String month=new SimpleDateFormat("yyyy-MM",Locale.US).format(cur.getTime()); JSONArray rows=store.reservations(month);
-                    for(int k=0;k<rows.length();k++){JSONObject r=rows.optJSONObject(k);if(r==null||!r.optBoolean("settled"))continue;
-                        String name=reservationEquipment(r);if(name.isEmpty())name="Pozostałe";String key=name.toLowerCase(new Locale("pl","PL")).replaceAll("\\s+"," ").trim();
-                        names.putIfAbsent(key,name);double[] v=totals.get(key);if(v==null){v=new double[4];totals.put(key,v);}
-                        v[0]++;v[2]+=r.optDouble("income");v[3]+=r.optDouble("loss");
-                        try{SimpleDateFormat df=new SimpleDateFormat("yyyy-MM-dd",Locale.US);Date a=df.parse(r.optString("start_date")),b=df.parse(r.optString("end_date"));v[1]+=a!=null&&b!=null?Math.max(1,(b.getTime()-a.getTime())/86400000L+1):1;}catch(Exception ex){v[1]++;}
-                        all+=r.optDouble("income");
-                    }
-                } cur.add(Calendar.MONTH,1);
-            }
-            HashMap<String,double[]> costs=new HashMap<>();
-            cur=Calendar.getInstance();cur.set(2015,0,1);
-            while(!cur.after(today)){
-                if(yr==0||cur.get(Calendar.YEAR)==yr){
-                    JSONArray expenses=store.expenses(new SimpleDateFormat("yyyy-MM",Locale.US).format(cur.getTime()));
-                    for(int j=0;j<expenses.length();j++){JSONObject e=expenses.optJSONObject(j);if(e==null)continue;String equipment=e.optString("equipment_name","").trim();if(equipment.isEmpty())continue;
-                        String key=equipment.toLowerCase(new Locale("pl","PL")).replaceAll("\\s+"," ").trim();double[] v=costs.get(key);if(v==null){v=new double[2];costs.put(key,v);}String note=e.optString("note","").toLowerCase(new Locale("pl","PL"));
-                        if(note.contains("zakup"))v[0]+=e.optDouble("amount");else v[1]+=e.optDouble("amount");names.putIfAbsent(key,equipment);totals.putIfAbsent(key,new double[4]);
-                    }
-                }cur.add(Calendar.MONTH,1);
-            }
-            addFinanceSummary(list,"PRZYCHÓD ŁĄCZNIE",financeMoney(all),0xff172b43);
-            TextView title=new TextView(this);title.setText("WYNIKI WEDŁUG MODELU");title.setTextSize(16);title.setTypeface(null,1);title.setTextColor(0xff172235);title.setPadding(0,dp(16),0,dp(12));list.addView(title);
-            ArrayList<String> keys=new ArrayList<>(names.keySet());Collections.sort(keys,(a,b)->Double.compare(totals.get(b)[2],totals.get(a)[2]));
-            if(keys.isEmpty()){TextView empty=new TextView(this);empty.setText("Brak rozliczonych wynajmów w tym okresie.");list.addView(empty);}
-            for(String key:keys){
-                double[] v=totals.get(key); LinearLayout card=financeCard(list);
-                financeText(card,names.get(key),17,0xff172235,true);
-                financeText(card,"Wynajmy: "+(int)v[0]+"   •   Dni: "+(int)v[1],14,0xff526174,false);
-                double[] costData=costs.containsKey(key)?costs.get(key):new double[2];
-                double result=v[2]-v[3]-costData[0]-costData[1];
-                financeAmount(card,"Wynik po kosztach",result);
-                financeText(card,"Przychód: "+financeMoney(v[2]),14,0xff526174,false);
-                LinearLayout details=new LinearLayout(this);details.setOrientation(1);
-                financeText(details,"Straty z najmu: "+financeMoney(v[3])+"\nZakup sprzętu: "+financeMoney(costData[0])+"\nNaprawy / serwis: "+financeMoney(costData[1]),14,0xff526174,false);
-                financeDisclosure(card,details,"Szczegóły kosztów");
-                Button cost=new Button(this);cost.setText("＋ Dodaj koszt");statsButton(cost);
-                cost.setOnClickListener(vw->addEquipmentCost(names.get(key),()->draw[0].run()));
-                LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.topMargin=dp(8);card.addView(cost,cp);
-            }
-        };
-        years.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onItemSelected(android.widget.AdapterView<?> a,View v,int p,long id){draw[0].run();}public void onNothingSelected(android.widget.AdapterView<?> a){}});
-        Button back=new Button(this);back.setText("← WRÓĆ DO STATYSTYK");brandButton(back,false);statsButton(back);back.setOnClickListener(v->reservationStatsPage());LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(-1,-2);bp.topMargin=6;root.addView(back,bp); draw[0].run();
+        if(!"admin".equals(getSharedPreferences("rentmor",0).getString("role",""))) {
+            toast("Statystyki są dostępne dla administratora.");return;
+        }
+        protocolPage("Rentowność sprzętu","Przychody, wynajmy i przypisane koszty każdego modelu");
+        root.addView(new EquipmentDashboard(this,store.allReservations(),store.allExpenses(),
+            name->addEquipmentCost(name,()->equipmentProfitabilityPage())).view());
+        addButton("← WRÓĆ DO STATYSTYK",()->reservationStatsPage());
     }
     private void addEquipmentCost(String equipment,Runnable refresh) {
         LinearLayout box=new LinearLayout(this);box.setOrientation(1);Spinner kind=new Spinner(this);kind.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,new String[]{"Zakup sprzętu","Naprawa / serwis"}));box.addView(kind);
