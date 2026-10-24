@@ -4,6 +4,9 @@ on:
     branches: [ main ]
     paths:
       - 'server/protocol_sync.php'
+      - 'server/push_bridge.php'
+      - 'scripts/patch_contact_push.py'
+      - 'scripts/test_push_hook.py'
       - 'server/admin.php'
       - 'server/online.php'
       - 'server/traffic_filter.php'
@@ -63,6 +66,9 @@ jobs:
           php -l server/traffic_filter.php
           php -l server/admin.php
           php -l server/online.php
+          php -l server/protocol_sync.php
+          php -l server/push_bridge.php
+          python3 scripts/test_push_hook.py
           python3 scripts/test_statistics_filter.py
           php -l server/poradnik-jaki-papier-scierny-do-zyrafy.php
           python3 -m py_compile scripts/inject_guide_link.py
@@ -105,6 +111,7 @@ jobs:
           python3 scripts/inject_online_tracker.py "$TEMP_DIR/index.php"
           python3 scripts/patch_public_product_layout.py "$TEMP_DIR/index.php"
           python3 scripts/inject_guide_link.py "$TEMP_DIR/index.php"
+          python3 scripts/patch_contact_push.py "$TEMP_DIR/index.php"
           php -l "$TEMP_DIR/index.php"
 
       - name: Upload validated RentMor files over SFTP
@@ -122,13 +129,39 @@ jobs:
           # Pass credentials as process arguments, not by interpolating them
           # into lftp's command language. This avoids quote/shell parsing issues.
           source scripts/secure_sftp_connection.sh
-          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/traffic_filter.php -o public_html/traffic_filter.php; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/online.php -o public_html/online.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/poradnik-jaki-papier-scierny-do-zyrafy.php -o public_html/poradnik-jaki-papier-scierny-do-zyrafy.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
+          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/traffic_filter.php -o public_html/traffic_filter.php; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/push_bridge.php -o public_html/push_bridge.php; put server/online.php -o public_html/online.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/poradnik-jaki-papier-scierny-do-zyrafy.php -o public_html/poradnik-jaki-papier-scierny-do-zyrafy.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
           if [ -f server/admin.php ]; then
             LFTP_COMMAND="$LFTP_COMMAND; put server/admin.php -o public_html/admin.php"
           else
             echo "server/admin.php not present in repository; admin.php upload skipped"
           fi
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$LFTP_COMMAND; bye"
+
+      - name: Install Firebase sender key above web root (if configured)
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FCM_SERVICE_ACCOUNT_JSON: ${{ secrets.RENTMOR_FCM_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -eu
+          if [ -z "$FCM_SERVICE_ACCOUNT_JSON" ]; then
+            echo "No Firebase sender key configured. Push send remains disabled; polling fallback works."
+            exit 0
+          fi
+          KEY_FILE="$RUNNER_TEMP/rentmor-fcm-service-account.json"
+          printf '%s' "$FCM_SERVICE_ACCOUNT_JSON" > "$KEY_FILE"
+          chmod 600 "$KEY_FILE"
+          php -r '
+          $account=json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR);
+          if(!is_array($account)||empty($account["client_email"])||empty($account["private_key"])||empty($account["project_id"])) exit(1);
+          echo "Firebase service account format validated.\\n";
+          ' "$KEY_FILE"
+          source scripts/secure_sftp_connection.sh
+          # Deliberately store ABOVE public_html: never put a private JSON key in the web root.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; mkdir -p rentmor-private; set cmd:fail-exit yes; put $KEY_FILE -o rentmor-private/fcm-service-account.json; chmod 600 rentmor-private/fcm-service-account.json; bye"
+          rm -f "$KEY_FILE"
 
       - name: Publish prepared homepage with backup
         if: steps.config.outputs.enabled == 'true'
