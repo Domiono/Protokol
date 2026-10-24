@@ -9,6 +9,7 @@ on:
       - 'server/traffic_filter.php'
       - 'scripts/patch_statistics_filter.py'
       - 'scripts/test_statistics_filter.py'
+      - 'scripts/test_private_backup_workflows.py'
       - 'server/online.js'
       - 'server/sitemap.php'
       - 'server/poradnik-jaki-papier-scierny-do-zyrafy.php'
@@ -64,6 +65,7 @@ jobs:
           php -l server/admin.php
           php -l server/online.php
           python3 scripts/test_statistics_filter.py
+          python3 scripts/test_private_backup_workflows.py
           php -l server/poradnik-jaki-papier-scierny-do-zyrafy.php
           python3 -m py_compile scripts/inject_guide_link.py
           php -l server/sitemap.php
