@@ -39,6 +39,8 @@ if (isset($_GET['logout'])) {
 }
 
 $is_logged = !empty($_SESSION['logged_in']);
+require_once __DIR__ . '/traffic_filter.php';
+if ($is_logged) rm_stats_remember_owner();
 
 // Rozliczanie rezerwacji – dane współdzielone z aplikacją Android.
 if ($is_logged && empty($_SESSION['reservation_csrf'])) $_SESSION['reservation_csrf'] = bin2hex(random_bytes(32));

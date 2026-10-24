@@ -6,6 +6,9 @@ on:
       - 'server/protocol_sync.php'
       - 'server/admin.php'
       - 'server/online.php'
+      - 'server/traffic_filter.php'
+      - 'scripts/patch_statistics_filter.py'
+      - 'scripts/test_statistics_filter.py'
       - 'server/online.js'
       - 'server/sitemap.php'
       - 'server/poradnik-jaki-papier-scierny-do-zyrafy.php'
@@ -57,6 +60,10 @@ jobs:
         run: |
           set -eu
           python3 scripts/test_public_seo.py
+          php -l server/traffic_filter.php
+          php -l server/admin.php
+          php -l server/online.php
+          python3 scripts/test_statistics_filter.py
           php -l server/poradnik-jaki-papier-scierny-do-zyrafy.php
           python3 -m py_compile scripts/inject_guide_link.py
           php -l server/sitemap.php
@@ -94,6 +101,7 @@ jobs:
           # Download the ACTUAL live index.php so recent site changes are preserved.
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/index.php -o $TEMP_DIR/index.php; bye"
           cp "$TEMP_DIR/index.php" "$TEMP_DIR/original.php"
+          python3 scripts/patch_statistics_filter.py "$TEMP_DIR/index.php"
           python3 scripts/inject_online_tracker.py "$TEMP_DIR/index.php"
           python3 scripts/patch_public_product_layout.py "$TEMP_DIR/index.php"
           python3 scripts/inject_guide_link.py "$TEMP_DIR/index.php"
@@ -114,7 +122,7 @@ jobs:
           # Pass credentials as process arguments, not by interpolating them
           # into lftp's command language. This avoids quote/shell parsing issues.
           source scripts/secure_sftp_connection.sh
-          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/online.php -o public_html/online.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/poradnik-jaki-papier-scierny-do-zyrafy.php -o public_html/poradnik-jaki-papier-scierny-do-zyrafy.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
+          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/traffic_filter.php -o public_html/traffic_filter.php; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/online.php -o public_html/online.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/poradnik-jaki-papier-scierny-do-zyrafy.php -o public_html/poradnik-jaki-papier-scierny-do-zyrafy.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
           if [ -f server/admin.php ]; then
             LFTP_COMMAND="$LFTP_COMMAND; put server/admin.php -o public_html/admin.php"
           else
