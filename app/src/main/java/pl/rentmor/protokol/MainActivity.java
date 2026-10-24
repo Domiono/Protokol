@@ -25,11 +25,19 @@ public class MainActivity extends Activity {
     private LocalStore store; private SyncManager sync; private LinearLayout root; private LinearLayout homePage; private boolean adminDownloadAdded=false; private TextView status;
     private WebView activation; private boolean showingApp=false; private final ArrayList<Bitmap> issuePhotos=new ArrayList<>(); private final ArrayList<Bitmap> productPhotos=new ArrayList<>(); private final ArrayList<String> productSelectedPhotoUris=new ArrayList<>(); private int existingProductPhotoCount=0; private int productPhotoSession=0; private boolean productPhotosLoading=false; private LinearLayout productExistingPhotoContainer,productNewPhotoContainer; private Button productPhotoPickButton; private TextView productPhotoCount; private TextView photoCount; private SignatureView signatureView; private final AtomicBoolean syncRunning=new AtomicBoolean(false); private ConnectivityManager.NetworkCallback networkCallback;
     @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(Color.rgb(20,29,45));getWindow().setNavigationBarColor(Color.rgb(20,29,45));store=new LocalStore(this);sync=new SyncManager(this,store);registerNetworkSync();
+        recordOpenedContactNotification(getIntent());
         String saved=getSharedPreferences("rentmor",0).getString("cookie","");
         if(!saved.isEmpty()){showHome();
             if(new ProtocolCameraStore(this).pending()!=null){pendingProtocolPhoto=new ProtocolCameraStore(this).pending();newIssue();}
             else openWidgetDestination();
         } else showActivation();
+    }
+    private void recordOpenedContactNotification(Intent intent) {
+        if(intent==null)return;
+        String id=intent.getStringExtra("message_id");
+        if(id!=null && !id.isEmpty() && (intent.getBooleanExtra("open_messages",false)
+            || "contact_message".equals(intent.getStringExtra("type"))))
+            MessageMonitor.acknowledgePush(this,id);
     }
     private void openWidgetDestination(){
         if(getIntent()!=null && (getIntent().getBooleanExtra("open_messages",false)
@@ -48,6 +56,7 @@ public class MainActivity extends Activity {
     }
     @Override protected void onNewIntent(Intent intent){
         super.onNewIntent(intent);
+        recordOpenedContactNotification(intent);
         setIntent(intent);
         if(showingApp)openWidgetDestination();
     }
