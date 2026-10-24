@@ -178,7 +178,8 @@ jobs:
           chmod 700 "$PRIVATE_DIR"
           trap 'rm -rf "$PRIVATE_DIR"' EXIT
           # Snapshot the protected files into ephemeral CI storage; never log contents.
-          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; get public_html/protocol_devices.json -o $PRIVATE_DIR/devices.json; get rentmor-private/fcm-tokens.json -o $PRIVATE_DIR/tokens.json; bye"
+          # A missing registry is expected before the first admin device registration.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; get public_html/protocol_devices.json -o $PRIVATE_DIR/devices.json; get rentmor-private/fcm-tokens.json -o $PRIVATE_DIR/tokens.json; bye" || true
           python3 scripts/diagnose_push_registry.py "$PRIVATE_DIR/devices.json" "$PRIVATE_DIR/tokens.json"
 
       - name: Publish prepared homepage with backup
