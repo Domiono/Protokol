@@ -19,19 +19,23 @@ jobs:
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
-          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
           set -eu
           : "${FTP_SERVER:?Missing FTP_SERVER}"
           : "${FTP_USERNAME:?Missing FTP_USERNAME}"
-          : "${FTP_PASSWORD:?Missing FTP_PASSWORD}"
+          source scripts/secure_sftp_connection.sh
           TMP_DIR="$(mktemp -d)"
           trap 'rm -rf "$TMP_DIR"' EXIT
-          printf '%s\n' "Fetching only selected publicly served files over FTP..."
-          COMMAND="set cmd:fail-exit no; set net:timeout 25; set ftp:passive-mode yes"
-          for filename in index.php zasady.php .htaccess robots.txt sitemap.xml sitemap.php sitemap_index.xml style.css styles.css main.css; do
-            COMMAND="$COMMAND; get public_html/$filename -o $TMP_DIR/$filename"
-          done
-          lftp -u "${FTP_USERNAME},${FTP_PASSWORD}" "ftp://${FTP_SERVER}" -e "$COMMAND; bye" >/dev/null 2>&1 || true
-          lftp -u "${FTP_USERNAME},${FTP_PASSWORD}" "ftp://${FTP_SERVER}" -e "set cmd:fail-exit no; set ftp:passive-mode yes; cls -1 public_html; bye" > "$TMP_DIR/file-list.txt" 2>/dev/null || true
-          python3 scripts/audit_live_site.py "$TMP_DIR"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/index.php -o $TMP_DIR/index.php; bye"
+          python3 - "$TMP_DIR/index.php" <<'PY'
+          import re, sys
+          lines=open(sys.argv[1]).read().splitlines()
+          selected=set()
+          for i,line in enumerate(lines):
+              if re.search(r"stats|total_views|unique_visitors|visitor_id",line,re.I):
+                  selected.update(range(max(0,i-8),min(len(lines),i+16)))
+          for i in sorted(selected):
+              if not re.search(r"token|password|secret|chat_id|hasz_hasla|telegram",lines[i],re.I):
+                  print(f"{i+1}: {lines[i]}")
+          PY
