@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "379669369844",
+    "project_id": "rentmor-c64bd",
+    "storage_bucket": "rentmor-c64bd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:379669369844:android:bf41e8d48e10cd0d27dfa1",
+        "android_client_info": {
+          "package_name": "pl.rentmor.protokol"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEXj9dgZFVFWwFSBbGW-N4r5UHHDFFEUw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
