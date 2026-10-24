@@ -818,11 +818,14 @@ public class MainActivity extends Activity {
             ArrayAdapter<String> ad=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,names);ad.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);equipment.setAdapter(ad);
         };
         fillEquipment.run();
+        // Assistants may select existing models for reservations, not create website entries.
+        if(isAdmin()) {
         addButton("＋ Dodaj nowy sprzęt do wspólnej listy",()->{
             if(!"admin".equals(getSharedPreferences("rentmor",0).getString("role",""))){toast("Nowy sprzęt może dodawać tylko administrator.");return;}
             EditText name=new EditText(this);name.setSingleLine(true);name.setHint("Nazwa sprzętu");
             new AlertDialog.Builder(this).setTitle("Dodaj sprzęt").setMessage("Po zapisaniu pojawi się na wspólnej liście RentMor.").setView(name)
                 .setNegativeButton("Anuluj",null).setPositiveButton("Dodaj",(d,w)->{
+                    if(!isAdmin()){toast("Nowy sprzęt może dodawać tylko administrator.");showHome();return;}
                     String value=name.getText().toString().trim().replaceAll("\\s+"," ");
                     if(value.isEmpty()){toast("Wpisz nazwę sprzętu.");return;}
                     try{JSONObject op=new JSONObject();op.put("id",UUID.randomUUID().toString());op.put("name",value);store.enqueue("equipment_add",op);
@@ -834,6 +837,7 @@ public class MainActivity extends Activity {
         View addEquipmentAction=root.getChildAt(root.getChildCount()-1);
         root.removeView(addEquipmentAction);
         form.addView(addEquipmentAction,new LinearLayout.LayoutParams(-1,dp(46)));
+        }
         reservationFormLabel(form,"GODZINA ODBIORU");
         EditText time=new EditText(this);time.setSingleLine(true);time.setHint("Wybierz godzinę odbioru");
         time.setTextSize(15);time.setPadding(dp(12),dp(10),dp(12),dp(10));
