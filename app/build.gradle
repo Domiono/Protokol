@@ -20,7 +20,10 @@ android {
         }
     }
 
-    testOptions { unitTests.includeAndroidResources = true }
+    testOptions {
+        unitTests.includeAndroidResources = true
+        unitTests.all { testLogging { exceptionFormat = 'full'; events 'failed', 'passed' } }
+    }
 
     buildTypes {
         release {
