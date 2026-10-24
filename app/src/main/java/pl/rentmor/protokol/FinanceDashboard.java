@@ -86,8 +86,9 @@ public final class FinanceDashboard {
         @Override protected void onAttachedToWindow(){
             super.onAttachedToWindow();
             if(android.animation.ValueAnimator.areAnimatorsEnabled()){
-                reveal=0f;
-                drawAnimation=android.animation.ValueAnimator.ofFloat(0f,1f);
+                // Keep the first series segment visible immediately for clarity and tests.
+                reveal=.35f;
+                drawAnimation=android.animation.ValueAnimator.ofFloat(.35f,1f);
                 drawAnimation.setDuration(520);
                 drawAnimation.setInterpolator(new android.view.animation.DecelerateInterpolator());
                 drawAnimation.addUpdateListener(a->{reveal=(float)a.getAnimatedValue();invalidate();});
