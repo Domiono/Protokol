@@ -19,7 +19,7 @@ public final class MessageInbox {
     private final Activity activity;
     private final LocalStore store;
     private final LinearLayout root, list;
-    private TextView counter,status;
+    private TextView counter,status,pushStatus;
     private int visibleCount=30;
     private static final int NAVY=0xff172b43;
     private static final int MUTED=0xff64748b;
@@ -42,9 +42,51 @@ public final class MessageInbox {
                 i.setData(Uri.parse("package:"+activity.getPackageName()));activity.startActivity(i);
             });
         }
+        LinearLayout push=card(root,Color.WHITE);
+        text(push,"POWIADOMIENIA PUSH",12,NAVY,true);
+        pushStatus=text(push,"Sprawdzanie Firebase…",12,MUTED,false);
+        Button checkPush=button(push,"Sprawdź i ponów połączenie Firebase",0xffedf2f7);
+        checkPush.setOnClickListener(v->checkPushConnection(true));
         list=column();root.addView(list);
         render();
         refresh();
+        checkPushConnection(false);
+    }
+    private void checkPushConnection(boolean retry){
+        android.app.NotificationManager nm=(android.app.NotificationManager)activity.getSystemService(Context.NOTIFICATION_SERVICE);
+        if(nm!=null&&!nm.areNotificationsEnabled()){
+            pushStatus.setText("Powiadomienia Androida są wyłączone. Włącz je w ustawieniach aplikacji.");
+            return;
+        }
+        if(!PushRegistrar.configured(activity)){
+            pushStatus.setText("Brak aktywnej konfiguracji Firebase w APK. Zainstaluj najnowszą wersję RentMor.");
+            return;
+        }
+        if(retry)PushRegistrar.retry(activity);
+        pushStatus.setText("Sprawdzanie połączenia telefonu z serwerem Firebase…");
+        new Thread(()->{
+            try {
+                // Token registration happens on a separate short-lived thread.
+                if(retry)Thread.sleep(1700);
+                JSONObject remote=new SyncManager(activity,new LocalStore(activity)).fetchPushStatus();
+                String message;
+                if(!remote.optBoolean("server_configured"))
+                    message="Serwer nie ma jeszcze klucza Firebase.";
+                else if(!remote.optBoolean("storage_writable"))
+                    message="Serwer nie może zapisać tokenu. Wymaga poprawy uprawnień hostingu.";
+                else if(remote.optBoolean("registered"))
+                    message="Połączono! Ten telefon jest zarejestrowany do powiadomień push.";
+                else
+                    message="Telefon nie jest jeszcze zarejestrowany. "+PushRegistrar.status(activity)
+                        +" Naciśnij przycisk ponownie.";
+                activity.runOnUiThread(()->{if(!activity.isFinishing())pushStatus.setText(message);});
+            }catch(Exception ex){
+                activity.runOnUiThread(()->{
+                    if(!activity.isFinishing())pushStatus.setText(
+                        "Nie udało się sprawdzić serwera: "+PushRegistrar.status(activity));
+                });
+            }
+        },"rentmor-push-diagnostic").start();
     }
     public View view(){return root;}
     private int dp(float n){return Math.round(n*activity.getResources().getDisplayMetrics().density);}
