@@ -14,6 +14,14 @@ public final class PushRegistrar {
     private static final String ROLE="registered_fcm_role";
     private static final String TIME="registered_fcm_time";
     private static final String STATUS="fcm_registration_status";
+    /** Polling still refreshes inbox data; Firebase owns alerts for registered devices. */
+    public static boolean hasRegisteredToken(Context context) {
+        SharedPreferences p=context.getSharedPreferences("rentmor",0);
+        return "admin".equals(p.getString("role",""))
+            && "admin".equals(p.getString(ROLE,""))
+            && !p.getString(LAST,"").isEmpty()
+            && System.currentTimeMillis()-p.getLong(TIME,0)<90L*24L*60L*60L*1000L;
+    }
     public static String status(Context context) {
         if(!configured(context))return "Firebase nie jest skonfigurowany w tej wersji aplikacji.";
         return context.getSharedPreferences("rentmor",0)
