@@ -1,0 +1,72 @@
+name: Diagnose Firebase PHP access
+on:
+  push:
+    branches: [ main ]
+    paths: [ '.github/workflows/check-fcm-php.yml' ]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Diagnose PHP access without exposing secrets
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          source scripts/secure_sftp_connection.sh
+          WORK="$RUNNER_TEMP/fcm-private-check"
+          mkdir -m 700 -p "$WORK"
+          PROBE="rm-fcm-check-$(openssl rand -hex 12).php"
+          TOKEN="$(openssl rand -hex 32)"
+          export TOKEN
+          cat > "$WORK/probe.php" <<'PHP'
+          <?php
+          declare(strict_types=1);
+          header('Cache-Control: no-store');
+          if (!hash_equals((string)(getenv('RENTMOR_PROBE_TOKEN') ?: ''), (string)($_SERVER['HTTP_X_RENTMOR_PROBE'] ?? ''))) {
+              http_response_code(404);
+              exit;
+          }
+          $items=[];
+          for ($i=1;$i<=5;$i++){
+              $candidate=dirname(__DIR__,$i).'/rentmor-private/fcm-service-account.json';
+              $exists=is_file($candidate);
+              $readable=$exists && is_readable($candidate);
+              $data=$readable?json_decode((string)file_get_contents($candidate),true):null;
+              $items[]=['level'=>$i,'exists'=>$exists,'readable'=>$readable,
+                  'configured'=>is_array($data)&&isset($data['client_email'],$data['private_key'],$data['project_id'])];
+          }
+          echo json_encode(['ancestors'=>$items,'open_basedir_enabled'=>ini_get('open_basedir')!=='',
+              'php_file_is_docroot'=>realpath(__DIR__)===realpath((string)($_SERVER['DOCUMENT_ROOT']??''))],
+              JSON_UNESCAPED_SLASHES);
+          PHP
+          # Place a random header secret directly in the temporary PHP file; never log it.
+          sed -i 's/getenv('\''RENTMOR_PROBE_TOKEN'\'')/getenv('\''RENTMOR_PROBE_TOKEN'\'')/' "$WORK/probe.php"
+          # PHP receives the header only, and verifies its hash.
+          HASH="$(printf '%s' "$TOKEN" | sha256sum | awk '{print $1}')"
+          python3 - "$WORK/probe.php" "$HASH" <<'PY'
+          import pathlib,sys
+          p=pathlib.Path(sys.argv[1])
+          s=p.read_text()
+          s=s.replace("(string)(getenv('RENTMOR_PROBE_TOKEN') ?: '')",
+            "hash('sha256', (string)($_SERVER['HTTP_X_RENTMOR_PROBE'] ?? ''))")
+          # Replace duplicate expression with a fixed runner-computed hash.
+          s=s.replace("hash_equals(hash('sha256', (string)($_SERVER['HTTP_X_RENTMOR_PROBE'] ?? '')), (string)($_SERVER['HTTP_X_RENTMOR_PROBE'] ?? ''))",
+            "hash_equals('"+sys.argv[2]+"', hash('sha256',(string)($_SERVER['HTTP_X_RENTMOR_PROBE']??'')))")
+          p.write_text(s)
+          PY
+          php -l "$WORK/probe.php"
+          cleanup() {
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; rm public_html/$PROBE; bye" || true
+            rm -rf "$WORK"
+          }
+          trap cleanup EXIT
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $WORK/probe.php -o public_html/$PROBE; bye"
+          echo "PHP runtime credential access by ancestor depth (no paths, secrets or tokens):"
+          curl --fail --silent --show-error --max-time 20 --header "X-RentMor-Probe: $TOKEN" "https://rentmor.pl/$PROBE"
+          printf '\n'
