@@ -50,7 +50,7 @@ public class MainActivity extends Activity {
     private final Handler messagePollHandler=new Handler(Looper.getMainLooper());
     private final Runnable messagePollTask=new Runnable(){
         @Override public void run(){
-            if(showingApp&&isAdmin()){
+            if(showingApp&&isAdmin()&&isOnline()){
                 new Thread(()->{try{MessageMonitor.poll(getApplicationContext());}catch(Exception ignored){}},
                     "rentmor-foreground-messages").start();
             }
@@ -185,7 +185,7 @@ public class MainActivity extends Activity {
         if(isOnline())syncNow();
         if(isAdmin()){
             MessageMonitor.schedule(this);
-            new Thread(()->{try{MessageMonitor.poll(getApplicationContext());}catch(Exception ignored){}},
+            if(isOnline())new Thread(()->{try{MessageMonitor.poll(getApplicationContext());}catch(Exception ignored){}},
                 "rentmor-check-on-open").start();
             if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED
                 &&!getSharedPreferences("rentmor",0).getBoolean("asked_contact_notifications",false)){
