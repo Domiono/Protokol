@@ -23,6 +23,9 @@ jobs:
       - run: php scripts/test_admin_rental_stats.php
       - run: php scripts/test_rental_rules.php
       - run: python3 scripts/test_rental_api.py
+      - name: Diagnose live API response format without device credentials
+        continue-on-error: true
+        run: python3 scripts/diagnose_live_sync_http.py
       - run: gradle --no-daemon testDebugUnitTest assembleDebug
       - uses: actions/upload-artifact@v4
         with:
