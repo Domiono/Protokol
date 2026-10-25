@@ -82,6 +82,27 @@ public class FinanceAnalyticsTest {
         assertEquals(1500,r.addonUnclassified);assertEquals(0,r.addonPowder);
         assertEquals(10000,r.income);assertEquals(1,r.rentals);
     }
+    private android.view.View findText(android.view.View root,String text){
+        if(root instanceof android.widget.TextView && ((android.widget.TextView)root).getText().toString().contains(text))return root;
+        if(root instanceof android.view.ViewGroup){
+            android.view.ViewGroup parent=(android.view.ViewGroup)root;
+            for(int i=0;i<parent.getChildCount();i++){
+                android.view.View found=findText(parent.getChildAt(i),text);
+                if(found!=null)return found;
+            }
+        }
+        return null;
+    }
+    @Test public void addonsAreSimpleCollapsedDisclosure()throws Exception{
+        android.app.Activity a=org.robolectric.Robolectric.buildActivity(android.app.Activity.class).setup().get();
+        FinanceDashboard dash=new FinanceDashboard(a,new JSONArray(),new JSONArray(),()->{},()->{});
+        android.view.View detail=findText(dash.view(),"Proszek / chemia piorąca:");
+        android.view.View toggle=findText(dash.view(),"Pokaż szczegóły dodatków");
+        assertNotNull(detail);assertNotNull(toggle);
+        assertEquals(android.view.View.GONE,((android.view.View)detail.getParent()).getVisibility());
+        assertTrue(toggle.performClick());
+        assertEquals(android.view.View.VISIBLE,((android.view.View)detail.getParent()).getVisibility());
+    }
     @Test public void dashboardHandlesEmptyAndNegativeData() throws Exception {
         android.content.Context context=org.robolectric.Robolectric.buildActivity(android.app.Activity.class).setup().get();
         FinanceDashboard dashboard=new FinanceDashboard(context,new JSONArray(),new JSONArray(),()->{},()->{});
