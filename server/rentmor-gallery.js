@@ -102,7 +102,7 @@
     function render(n) {
       index = (n + slides.length) % slides.length;
       var slideImage = slides[index].querySelector("img");
-      image.src = slideImage.currentSrc || slideImage.src;
+      image.src = slideImage.src; // Open the original full-resolution photo; srcset is only for previews.
       image.alt = slideImage.alt;
       caption.textContent = (index + 1) + " / " + slides.length;
       onChange(index);
