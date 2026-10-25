@@ -1,3 +1,20 @@
+# RentMor SEO continuation — deployed and verified (2026-10-25)
+
+**Final status: COMPLETED.** Previous notes below are a historical handoff written before deployment.
+
+- Pull request: https://github.com/Domiono/Protokol/pull/24 (squash merged to main)
+- Production commit: `1b0bde7bc0b74d4ebb654a2e880665c8b9cd3835`
+- Deploy workflow run: https://github.com/Domiono/Protokol/actions/runs/40222871330 — completed, success.
+- Public verification workflow: https://github.com/Domiono/Protokol/actions/runs/40223015548 — completed, success.
+- Production deploy logs confirm homepage upload/readback, SEO titles JSON upload/readback, canonical HTTP/www redirect checks and end-to-end schema, titles, guides and product detail checks. No rollback was needed.
+- Unit tests and PHP syntax checks passed on PR #24, as did the existing rental operations / Android build checks.
+- Deferred: performance-specific refactor (static Tailwind CSS and responsive images). This was not included because the current dynamic hosting template/gallery requires a separate asset inventory and regression tests. Do not assume speed/CLS improvements from this change.
+- GSC ranking/indexation statistics and Google Business Profile verification were not available; no ranking gain is claimed.
+
+---
+
+## Pre-deployment handoff (historical reference)
+
 # RentMor SEO continuation — paused by user
 User authorized implementing SEO improvements, then requested continuing in a new chat due to data/usage limit. No changes in this branch have been deployed. These are UNTESTED drafts, not production-ready.
 
