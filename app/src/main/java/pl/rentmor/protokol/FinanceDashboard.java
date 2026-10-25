@@ -65,6 +65,28 @@ public final class FinanceDashboard {
         LinearLayout second=row(summary);kpi(second,"ŚREDNIO ZA NAJEM",report.rentals==0?0:Math.round((double)report.income/report.rentals),0xff172b43);kpi(second,"WYNIK OPERACYJNY",report.income-report.loss-report.cost,colors[2]);
         text(summary,"Rozliczone najmy: "+report.rentals+"   •   Nierozliczone rezerwacje: "+report.pending,13,0xff475569,false);
         if(!allHistory)text(summary,previous.income>0?String.format(PL,"Przychód: %+.1f%% względem poprzedniego okresu",100.0*(report.income-previous.income)/previous.income):"Zmiana % przychodu: brak dodatniej wartości porównawczej",12,0xff64748b,false);
+        // One compact disclosure, not another tab or an additional chart.
+        LinearLayout addons=card();
+        text(addons,"Dodatki do najmu",18,0xff172b43,true);
+        text(addons,money(report.addonTotal()),24,0xff047857,true);
+        text(addons,"Proszek, papier, zużycie tarczy i pozostałe dopłaty. To część przychodu powyżej, przed rabatami — nie doliczamy jej drugi raz.",12,0xff64748b,false);
+        LinearLayout addonDetails=column();addonDetails.setVisibility(View.GONE);
+        addons.addView(addonDetails,new LinearLayout.LayoutParams(-1,-2));
+        text(addonDetails,"Proszek / chemia piorąca: "+money(report.addonPowder),13,0xff334155,false);
+        text(addonDetails,"Papier ścierny: "+money(report.addonPaper),13,0xff334155,false);
+        text(addonDetails,"Zużycie tarczy: "+money(report.addonDisc),13,0xff334155,false);
+        text(addonDetails,"Pozostałe dodatki: "+money(report.addonOther),13,0xff334155,false);
+        if(report.addonUnclassified>0)text(addonDetails,"Starsze dopłaty bez podziału: "+money(report.addonUnclassified),13,0xff925400,false);
+        if(report.addonsUnknown>0)text(addonDetails,"Przy "+report.addonsUnknown+" rozliczeniach brak zapisanego podziału dodatków. Nie da się odtworzyć ich kwot z samego przychodu.",12,0xff925400,false);
+        Button addonToggle=new Button(context);addonToggle.setText("Pokaż szczegóły dodatków");
+        addonToggle.setAllCaps(false);addonToggle.setTextSize(13);addonToggle.setTextColor(0xff172b43);
+        addonToggle.setBackground(bg(0xffeef2f7));addonToggle.setMinHeight(dp(45));
+        LinearLayout.LayoutParams addonToggleParams=new LinearLayout.LayoutParams(-1,dp(45));
+        addonToggleParams.topMargin=dp(8);addons.addView(addonToggle,addonToggleParams);
+        addonToggle.setOnClickListener(v->{boolean open=addonDetails.getVisibility()!=View.VISIBLE;
+            addonDetails.setVisibility(open?View.VISIBLE:View.GONE);
+            addonToggle.setText(open?"Ukryj szczegóły dodatków":"Pokaż szczegóły dodatków");
+        });
         LinearLayout chartCard=card();text(chartCard,"Jak zmieniają się wyniki",19,0xff172b43,true);LinearLayout grains=row(chartCard);String[] names={"Dni","Tygodnie","Miesiące"};for(int i=0;i<3;i++){final int g=i;button(grains,names[i],grain==i,()->{grain=g;render();});}
         LinearLayout legend=row(chartCard);String[] series={"Przychód","Koszty","Wynik"};for(int i=0;i<3;i++){final int n=i;Button b=button(legend,series[i],visible[i],()->{int active=0;for(boolean show:visible)if(show)active++;if(visible[n]&&active==1)return;visible[n]=!visible[n];render();});b.setTextColor(visible[i]?Color.WHITE:colors[i]);if(visible[i])b.setBackground(bg(colors[i]));}
         TextView selected=text(chartCard,"Dotknij punktu wykresu, aby zobaczyć kwoty.",12,0xff64748b,false);
