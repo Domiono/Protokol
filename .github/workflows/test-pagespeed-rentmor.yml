@@ -1,0 +1,66 @@
+name: PageSpeed performance audit for RentMor
+on:
+  push:
+    branches: [codex/pagespeed-audit-2026-10-25]
+    paths:
+      - '.github/workflows/test-pagespeed-rentmor.yml'
+      - 'scripts/read_pagespeed_result.py'
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [mobile, desktop]
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Google PageSpeed Insights v5 audit
+        id: psi
+        env:
+          DEVICE: ${{ matrix.device }}
+        run: |
+          set -euo pipefail
+          echo "Running public PageSpeed Insights API for $DEVICE, https://rentmor.pl/"
+          CODE=$(curl --silent --show-error --location --get \
+            --max-time 210 --connect-timeout 20 \
+            --data-urlencode "url=https://rentmor.pl/" \
+            --data-urlencode "strategy=$DEVICE" \
+            --data-urlencode "category=performance" \
+            --data-urlencode "category=accessibility" \
+            --data-urlencode "category=best-practices" \
+            --data-urlencode "category=seo" \
+            -w "%{http_code}" \
+            -o "$RUNNER_TEMP/psi-$DEVICE.json" \
+            https://www.googleapis.com/pagespeedonline/v5/runPagespeed) || CODE="000"
+          echo "Google PageSpeed API HTTP status: $CODE"
+          if [ "$CODE" = "200" ] && python3 scripts/read_pagespeed_result.py "$RUNNER_TEMP/psi-$DEVICE.json" "Google PageSpeed Insights" "$DEVICE"; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            if [ -f "$RUNNER_TEMP/psi-$DEVICE.json" ]; then
+              python3 - "$RUNNER_TEMP/psi-$DEVICE.json" <<'PY'
+          import sys,json
+          try:
+              p=json.load(open(sys.argv[1]))
+              print("PageSpeed API limitation:",str(p.get("error",{}).get("message",p.get("message","No details")))[:240])
+          except Exception as e:print("PageSpeed returned an unreadable response:",type(e).__name__)
+          PY
+            fi
+          fi
+      - name: Fallback independent Lighthouse lab audit (only if API inaccessible)
+        if: steps.psi.outputs.available != 'true'
+        env:
+          DEVICE: ${{ matrix.device }}
+        run: |
+          set -euo pipefail
+          echo "Google PageSpeed API unavailable; measuring with standalone Lighthouse (NOT the Google PSI score)."
+          if [ "$DEVICE" = desktop ]; then PRESET="--preset=desktop"; else PRESET=""; fi
+          npx --yes lighthouse@12.8.2 https://rentmor.pl/ \
+            --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" \
+            --only-categories=performance,accessibility,best-practices,seo \
+            --output=json --output-path="$RUNNER_TEMP/lighthouse-$DEVICE.json" \
+            --max-wait-for-load=60000 --quiet $PRESET
+          python3 scripts/read_pagespeed_result.py "$RUNNER_TEMP/lighthouse-$DEVICE.json" \
+            "Standalone Lighthouse on GitHub Actions (not PSI)" "$DEVICE"
