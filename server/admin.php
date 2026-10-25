@@ -1018,10 +1018,11 @@ if (isset($_GET['edit_id'])) {
                 $equipment_stats = [];
                 foreach ($history_reservations as $r) {
                     $equipment_name=rm_admin_equipment_name($r);
-                    if (!isset($equipment_stats[$equipment_name])) $equipment_stats[$equipment_name] = ['count'=>0,'income'=>0,'loss'=>0];
-                    $equipment_stats[$equipment_name]['count']++;
-                    $equipment_stats[$equipment_name]['income'] += (float)($r['income'] ?? 0);
-                    $equipment_stats[$equipment_name]['loss'] += (float)($r['loss'] ?? 0);
+                    $model_key=function_exists('mb_strtolower')?mb_strtolower($equipment_name,'UTF-8'):strtolower($equipment_name);
+                    if(!isset($equipment_stats[$model_key]))$equipment_stats[$model_key]=['name'=>$equipment_name,'count'=>0,'income'=>0,'loss'=>0];
+                    $equipment_stats[$model_key]['count']++;
+                    $equipment_stats[$model_key]['income']+=(float)($r['income']??0);
+                    $equipment_stats[$model_key]['loss']+=(float)($r['loss']??0);
                 }
                 uasort($equipment_stats, function($a,$b){ return ($b['income']-$b['loss']) <=> ($a['income']-$a['loss']); });
                 usort($active_reservations, function($a,$b){ return strcmp((string)($a['text'] ?? ''),(string)($b['text'] ?? '')); });
@@ -1053,7 +1054,7 @@ if (isset($_GET['edit_id'])) {
                 <section class="bg-white rounded-3xl p-5 sm:p-7 shadow-sm"><h3 class="text-xl font-black mb-4">Wynik według sprzętu</h3>
                     <?php if (!$equipment_stats): ?><p class="text-sm text-gray-500">Statystyki sprzętu pojawią się po pierwszych rozliczeniach.</p><?php else: ?>
                     <div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left border-b"><th class="p-2">Sprzęt</th><th class="p-2">Najmy</th><th class="p-2">Przychód</th><th class="p-2">Straty</th><th class="p-2">Wynik</th></tr></thead><tbody>
-                    <?php foreach ($equipment_stats as $name=>$st): $net=$st['income']-$st['loss']; ?><tr class="border-b"><td class="p-2 font-semibold"><?php echo e_admin($name); ?></td><td class="p-2"><?php echo (int)$st['count']; ?></td><td class="p-2"><?php echo number_format($st['income'],2,',',' '); ?> zł</td><td class="p-2 text-red-600"><?php echo number_format($st['loss'],2,',',' '); ?> zł</td><td class="p-2 font-black <?php echo $net<0?'text-red-600':'text-green-700'; ?>"><?php echo number_format($net,2,',',' '); ?> zł</td></tr><?php endforeach; ?>
+                    <?php foreach ($equipment_stats as $name=>$st): $net=$st['income']-$st['loss']; ?><tr class="border-b"><td class="p-2 font-semibold"><?php echo e_admin($st['name']); ?></td><td class="p-2"><?php echo (int)$st['count']; ?></td><td class="p-2"><?php echo number_format($st['income'],2,',',' '); ?> zł</td><td class="p-2 text-red-600"><?php echo number_format($st['loss'],2,',',' '); ?> zł</td><td class="p-2 font-black <?php echo $net<0?'text-red-600':'text-green-700'; ?>"><?php echo number_format($net,2,',',' '); ?> zł</td></tr><?php endforeach; ?>
                     </tbody></table></div><?php endif; ?>
                 </section>
                 <section class="bg-white rounded-3xl p-5 sm:p-7 shadow-sm"><h3 class="text-xl font-black mb-4">Rezerwacje / do rozliczenia <span class="text-sm text-gray-400">(<?php echo count($active_reservations); ?>)</span></h3>
