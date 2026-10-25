@@ -63,7 +63,7 @@ with tempfile.TemporaryDirectory() as td:
   assert stored['settled'] and len(stored['settlement']['add_custom'])==2
   assert stored['settlement']['add_custom'][0]['name']=='Worek do odkurzacza'
   assert stored['settlement']['add_custom'][1]['amount']==15
-  assert stored['settlement']['extra']==45
+  assert float(stored['settlement']['extra'])==45
   # Three physical giraffes and three industrial vacuums are one common inventory,
   # regardless of whether the offer is a set, standalone Bosch, or standalone Metabo.
   for i in range(1,4):
