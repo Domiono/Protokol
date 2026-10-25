@@ -31,3 +31,5 @@ for key in ("mainthread-work-breakdown","bootup-time","long-tasks","third-party-
                 safe["url"]=urlparse(safe["url"]).netloc+urlparse(safe["url"]).path[:90]
             print("DETAIL",json.dumps(safe))
     else:print("DETAIL_KEYS",list(details))
+
+# Post-deployment measurement 2026-10-25: compare against baseline run 40229497971.
