@@ -165,7 +165,7 @@ public final class RentalOperations {
         CheckBox withVacuum=new CheckBox(activity);
         withVacuum.setText("Zestaw z odkurzaczem przemysłowym");
         withVacuum.setChecked(RentalRules.needsVacuum(old));
-        if(old.optBoolean("done"))withVacuum.setEnabled(false);
+        if(old.optBoolean("done")||RentalRules.bundleOffer(old.optString("equipment")))withVacuum.setEnabled(false);
         if(giraffe)page.addView(withVacuum);
         LinearLayout vacBox=new LinearLayout(activity);vacBox.setOrientation(1);
         text(vacBox,"Odkurzacz do zestawu",14,0xff17263e);
