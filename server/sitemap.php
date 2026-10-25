@@ -20,6 +20,7 @@ $staticPublicPages = [
     'zasady.php' => null,
     // Update only when the article content meaningfully changes, not on upload.
     'poradnik-jaki-papier-scierny-do-zyrafy.php' => '2026-10-24',
+    'poradnik-pranie-tapicerki-karcher-puzzi.php' => '2026-10-25',
 ];
 foreach ($staticPublicPages as $filename => $lastModified) {
     $file = __DIR__ . '/' . $filename;
