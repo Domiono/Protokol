@@ -1,3 +1,27 @@
+## Follow-up PageSpeed transfer reduction, 2026-10-25
+
+**Successfully deployed** homepage/gallery changes: https://github.com/Domiono/Protokol/pull/28
+Production deploy and live gallery/favicon smoke test: https://github.com/Domiono/Protokol/actions/runs/40230206475
+
+Source analysis: https://github.com/Domiono/Protokol/actions/runs/40229497971
+Post-change analysis: https://github.com/Domiono/Protokol/actions/runs/40230435196
+
+### Actual Lighthouse network comparison (one run each, uncached lab requests)
+
+| Profile | Before transfer | After transfer | Reduction | Before image requests | After image requests |
+|---|---:|---:|---:|---:|---:|
+| Mobile | 5,419,427 B | 1,415,581 B | 73.9% | 21 | 9 |
+| Desktop | 4,468,192 B | 1,995,808 B | 55.3% | 52 | 27 |
+
+- Large existing favicon was 1,510,876 B. The new 64×64 versioned PNG is 7,208 B, without deleting or rewriting the original.
+- PHP avoids outputting initial `src` / `srcset` on inactive gallery slides. Gallery JS v3 loads the selected slide lazily; the public end-to-end verification confirmed 24 immediately addressable active images and 35 deferred inactive images, plus intact full-resolution zoom.
+- Production gallery and SEO verification succeeded. This change **does not** modify rental terms, price/deposit, reservations, inventory, or source photos.
+- Single-run performance scores **fluctuate** with network and lab environment: diagnostic mobile before 93 and after 81, desktop before 87 and after 92; the earlier initial Lighthouse test had scored 80 on both. Do **not** present these as a stable point improvement; the byte/request reductions are the stronger directly validated result.
+- Further issue: image `6a7895410c663.png` still transfers ~762 KB; Pillow previously could not decode it, so it was left as-is. Inspect its actual format/source safely before any reupload, not blindly changing its bytes.
+- Font Awesome CSS and fonts.gstatic/Google Fonts still exist as render-blocking or third-party dependencies; optimization would require visual review to preserve icon and typography appearance.
+
+---
+
 ## Tailwind CDN replaced (2026-10-25)
 
 **Public site: production deployment verified.** The public homepage and product detail pages no longer load `https://cdn.tailwindcss.com`. The static CSS is `/assets/rentmor-tailwind-4a9b40916c35.css` (22,838 bytes), built with pinned Tailwind CLI v3.4.17 from the actual live PHP source and public rendered HTML. Its path includes a content digest for immutable browser caching. The existing public galleries and all original images remain intact.
