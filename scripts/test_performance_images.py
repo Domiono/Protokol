@@ -22,6 +22,12 @@ class TestImageOptimization(unittest.TestCase):
         self.assertIn("performance_images.php", result)
         with self.assertRaises(ValueError): patch("<?php foo(); ?></html>")
 
+    def test_fullscreen_gallery_uses_original_source(self):
+        gallery=(ROOT/"server/rentmor-gallery.js").read_text()
+        self.assertIn("image.src = slideImage.src;", gallery)
+        self.assertNotIn("image.src = slideImage.currentSrc", gallery)
+        self.assertIn("/rentmor-gallery.js?v=2", patch('<?php foo(); ?>\\n<!DOCTYPE html><script src="/rentmor-gallery.js?v=1"></script>'))
+
     def test_manifest_and_webp_variants(self):
         try:
             from PIL import Image
