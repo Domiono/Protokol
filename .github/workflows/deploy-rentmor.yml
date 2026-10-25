@@ -33,6 +33,10 @@ on:
       - 'server/rental_offer_details.php'
       - 'server/performance_images.php'
       - 'scripts/patch_performance_template.py'
+      - 'scripts/build_public_tailwind.py'
+      - 'scripts/patch_static_tailwind.py'
+      - 'scripts/test_static_tailwind.py'
+      - 'scripts/verify_static_tailwind.py'
       - 'scripts/patch_image_cache.py'
       - 'server/rentmor-gallery.js'
       - 'server/rentmor-gallery.css'
@@ -67,12 +71,14 @@ jobs:
         run: |
           set -eu
           python3 scripts/test_seo_improvements.py
+          python3 scripts/test_static_tailwind.py
           python3 scripts/test_performance_images.py
           php -l server/performance_images.php
           python3 -m py_compile scripts/patch_performance_template.py scripts/patch_image_cache.py
           python3 -m venv "$RUNNER_TEMP/rentmor-perf-tests"
           "$RUNNER_TEMP/rentmor-perf-tests/bin/pip" -q install 'Pillow==11.3.0'
           "$RUNNER_TEMP/rentmor-perf-tests/bin/python" scripts/test_performance_images.py
+          python3 -m py_compile scripts/build_public_tailwind.py scripts/patch_static_tailwind.py scripts/verify_static_tailwind.py
           python3 -m py_compile scripts/patch_seo_template.py scripts/patch_seo_titles.py scripts/patch_canonical_host.py scripts/verify_seo_improvements.py
           php -l server/rental_offer_details.php
 
@@ -111,6 +117,7 @@ jobs:
           set -eu
           python3 scripts/test_public_seo.py
           python3 scripts/test_seo_improvements.py
+          python3 scripts/test_static_tailwind.py
           python3 scripts/test_performance_images.py
           php -l server/performance_images.php
           php -l server/rental_offer_details.php
@@ -183,6 +190,20 @@ jobs:
           python3 scripts/patch_performance_template.py "$TEMP_DIR/index.php"
           php -l "$TEMP_DIR/index.php"
 
+      - name: Compile public Tailwind v3 CSS from live PHP and rendered pages
+        if: steps.config.outputs.enabled == 'true'
+        run: |
+          set -euo pipefail
+          TEMP_DIR="$RUNNER_TEMP/rentmor-prepared"
+          npm install --prefix "$RUNNER_TEMP/rentmor-tailwind-tools" --no-save --no-audit --no-fund tailwindcss@3.4.17
+          python3 scripts/build_public_tailwind.py \
+            "$TEMP_DIR/index.php" "$GITHUB_WORKSPACE" "$TEMP_DIR/css" \
+            "$RUNNER_TEMP/rentmor-tailwind-tools/node_modules/.bin/tailwindcss"
+          CSS="$(find "$TEMP_DIR/css" -maxdepth 1 -name 'rentmor-tailwind-*.css' -type f -print -quit)"
+          test -s "$CSS"
+          python3 scripts/patch_static_tailwind.py "$TEMP_DIR/index.php" "/assets/$(basename "$CSS")"
+          php -l "$TEMP_DIR/index.php"
+
       - name: Upload validated RentMor files over SFTP
         if: steps.config.outputs.enabled == 'true'
         env:
@@ -205,6 +226,27 @@ jobs:
             echo "server/admin.php not present in repository; admin.php upload skipped"
           fi
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$LFTP_COMMAND; bye"
+
+      - name: Publish and verify static CSS before switching production PHP
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          TEMP_DIR="$RUNNER_TEMP/rentmor-prepared"
+          CSS="$(find "$TEMP_DIR/css" -maxdepth 1 -name 'rentmor-tailwind-*.css' -type f -print -quit)"
+          test -s "$CSS"
+          NAME="$(basename "$CSS")"
+          source scripts/secure_sftp_connection.sh
+          # Only mkdir may fail if already present; uploaded CSS/readback must succeed.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; mkdir -p public_html/assets; set cmd:fail-exit yes; put $CSS -o public_html/assets/$NAME; get public_html/assets/$NAME -o $TEMP_DIR/css-readback.css; bye"
+          cmp "$CSS" "$TEMP_DIR/css-readback.css"
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 --max-time 45 \
+            "https://rentmor.pl/assets/$NAME" -o "$TEMP_DIR/css-public.css"
+          cmp "$CSS" "$TEMP_DIR/css-public.css"
+          echo "Static CSS served publicly and verified byte-for-byte before PHP change."
 
       - name: Install Firebase key into PHP runtime private directory (HTTPS)
         if: steps.config.outputs.enabled == 'true'
@@ -300,6 +342,14 @@ jobs:
             lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/index.php -o $TEMP_DIR/deployed.php; bye"
             cmp "$TEMP_DIR/index.php" "$TEMP_DIR/deployed.php"
             echo "Public homepage uploaded and verified."
+          fi
+          # Immediately recover the original homepage if the stylesheet or
+          # public product rendering fails the smoke tests.
+          if ! python3 scripts/verify_static_tailwind.py; then
+            echo "Static CSS smoke test failed; restoring original homepage."
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $TEMP_DIR/original.php -o public_html/index.php; get public_html/index.php -o $TEMP_DIR/restored.php; bye"
+            cmp "$TEMP_DIR/original.php" "$TEMP_DIR/restored.php"
+            exit 1
           fi
 
 
