@@ -16,10 +16,23 @@
       var zoom = gallery.querySelector("[data-rm-zoom]");
       var index = 0, timer = null, hovering = false, touching = false, visible = true, xStart = 0, moved = false;
       var link = gallery.querySelector("a.rm-gallery-stage");
+      function hydrateSlide(slide) {
+        var img = slide.querySelector("img[data-rm-src]");
+        if (!img) return;
+        // Set sizes and srcset before src, so the browser selects a small WebP.
+        ["sizes", "srcset"].forEach(function (attribute) {
+          var value = img.getAttribute("data-rm-" + attribute);
+          if (value) img.setAttribute(attribute, value);
+          img.removeAttribute("data-rm-" + attribute);
+        });
+        img.setAttribute("src", img.getAttribute("data-rm-src"));
+        img.removeAttribute("data-rm-src");
+      }
       function show(n) {
         index = (n + slides.length) % slides.length;
         slides.forEach(function (slide, i) {
           var active = i === index;
+          if (active) hydrateSlide(slide);
           slide.classList.toggle("rm-active", active);
           slide.setAttribute("aria-hidden", active ? "false" : "true");
         });

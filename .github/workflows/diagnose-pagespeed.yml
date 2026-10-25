@@ -1,0 +1,44 @@
+name: Diagnose RentMor Lighthouse bottlenecks
+on:
+  push:
+    branches: [codex/pagespeed-fixes-2026-10-25]
+    paths:
+      - 'scripts/diagnose_pagespeed.py'
+      - '.github/workflows/diagnose-pagespeed.yml'
+  workflow_dispatch:
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [mobile, desktop]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect public html head and resource hints
+        run: |
+          python3 - <<'PY'
+          from urllib.request import Request,urlopen
+          from html.parser import HTMLParser
+          class Inspect(HTMLParser):
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if tag in ('link','script'):
+                      if tag=='script' and not a.get('src'): return
+                      print('HEAD_RESOURCE',tag,{k:a[k] for k in ('href','src','rel','defer','async','media','crossorigin') if k in a})
+          req=Request('https://rentmor.pl/',headers={'User-Agent':'RentMorPerformanceDiagnosis/1.0'})
+          with urlopen(req,timeout=25) as r:html=r.read(200000).decode('utf-8','replace')
+          parser=Inspect();parser.feed(html.split('</head>')[0])
+          PY
+      - name: Lighthouse network, main thread and blocking resources audit
+        env:
+          DEVICE: ${{ matrix.device }}
+        run: |
+          set -euo pipefail
+          if [ "$DEVICE" = "desktop" ]; then PRESET="--preset=desktop"; else PRESET=""; fi
+          npx --yes lighthouse@12.8.2 https://rentmor.pl/ \
+            --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" \
+            --only-categories=performance --output=json --output-path="$RUNNER_TEMP/lh-$DEVICE.json" \
+            --max-wait-for-load=55000 --quiet $PRESET
+          python3 scripts/diagnose_pagespeed.py "$RUNNER_TEMP/lh-$DEVICE.json"

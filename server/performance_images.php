@@ -57,7 +57,29 @@ function rentmor_optimize_public_html(string $html): string {
     foreach ($parts as $index => $part) {
         if ($index % 2 === 0) $parts[$index] = $rewrite($part);
     }
-    return implode('', $parts);
+    $html = implode('', $parts);
+    // Loading="lazy" alone does not stop hidden carousel slides being fetched:
+    // the browser may download every hidden slide in each visible card.
+    // Keep real src/srcset only on the first active slide. The existing
+    // gallery JS hydrates each other slide on demand, preserving zoom originals.
+    return (string)preg_replace_callback(
+        '~(<div\b(?=[^>]*\bclass\s*=\s*["\'][^"\']*\brm-gallery-slide\b)[^>]*>)(.*?)(</div>)~is',
+        static function (array $slide): string {
+            if (preg_match('~\brm-active\b~', $slide[1])) return $slide[0];
+            $inside = (string)preg_replace_callback('~<img\b[^>]*>~is', static function (array $image): string {
+                return (string)preg_replace_callback(
+                    '~\s+(src|srcset|sizes)\s*=\s*(["\'])(.*?)\2~is',
+                    static function (array $attribute): string {
+                        return ' data-rm-' . strtolower($attribute[1]) . '='
+                             . $attribute[2] . $attribute[3] . $attribute[2];
+                    },
+                    $image[0]
+                );
+            }, $slide[2]);
+            return $slide[1] . $inside . $slide[3];
+        },
+        $html
+    );
 }
 
 function rentmor_start_image_optimizer(): void {

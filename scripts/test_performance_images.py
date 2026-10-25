@@ -26,7 +26,41 @@ class TestImageOptimization(unittest.TestCase):
         gallery=(ROOT/"server/rentmor-gallery.js").read_text()
         self.assertIn("image.src = slideImage.src;", gallery)
         self.assertNotIn("image.src = slideImage.currentSrc", gallery)
-        self.assertIn("/rentmor-gallery.js?v=2", patch('<?php foo(); ?>\\n<!DOCTYPE html><script src="/rentmor-gallery.js?v=1"></script>'))
+        self.assertIn("/rentmor-gallery.js?v=3", patch('<?php foo(); ?>\\n<!DOCTYPE html><script src="/rentmor-gallery.js?v=1"></script>'))
+
+    def test_inactive_gallery_slides_hold_sources_until_selected(self):
+        if not shutil.which("php"): self.skipTest("PHP not installed")
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            shutil.copy(ROOT/"server/performance_images.php", root/"performance_images.php")
+            (root/"rentmor-image-manifest.json").write_text(json.dumps({
+                "photo.jpg":{"width":1600,"height":900,
+                     "card":{"url":"/uploads/rentmor-webp/photo-123-card.webp","width":640},
+                     "detail":{"url":"/uploads/rentmor-webp/photo-123-detail.webp","width":1440}}
+            }))
+            markup=(
+                '<div class="rm-gallery-slide rm-active" data-rm-slide>'
+                '<img src="/uploads/photo.jpg" alt="first" loading="lazy"></div>'
+                '<div class="rm-gallery-slide " data-rm-slide aria-hidden="true">'
+                '<img src="/uploads/photo.jpg" alt="second" loading="lazy"></div>'
+            )
+            code="require " + json.dumps(str(root/"performance_images.php")) + ";" + (
+                "$html=" + json.dumps(markup) + ";"
+                "echo rentmor_optimize_public_html($html);"
+            )
+            p=subprocess.run(["php","-r",code],capture_output=True,text=True,check=True)
+            first,second=p.stdout.split('</div>',1)
+            self.assertIn('src="/uploads/photo.jpg"',first)
+            self.assertIn('srcset=',first)
+            self.assertNotIn(' src="/uploads/photo.jpg"',second)
+            self.assertNotIn(' srcset=',second)
+            self.assertIn('data-rm-src="/uploads/photo.jpg"',second)
+            self.assertIn('data-rm-srcset=',second)
+            self.assertIn('data-rm-sizes=',second)
+            gallery=(ROOT/"server/rentmor-gallery.js").read_text()
+            self.assertIn('if (active) hydrateSlide(slide);',gallery)
+            self.assertIn('img.setAttribute("src", img.getAttribute("data-rm-src"))',gallery)
+            self.assertIn('image.src = slideImage.src;',gallery)
 
     def test_manifest_and_webp_variants(self):
         try:

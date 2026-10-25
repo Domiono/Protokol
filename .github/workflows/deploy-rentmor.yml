@@ -32,6 +32,9 @@ on:
       - 'scripts/patch_wt20i_offer.py'
       - 'server/rental_offer_details.php'
       - 'server/performance_images.php'
+      - 'scripts/optimize_favicon.py'
+      - 'scripts/test_optimize_favicon.py'
+      - 'scripts/verify_fast_gallery.py'
       - 'scripts/patch_performance_template.py'
       - 'scripts/build_public_tailwind.py'
       - 'scripts/patch_static_tailwind.py'
@@ -79,6 +82,7 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/rentmor-perf-tests"
           "$RUNNER_TEMP/rentmor-perf-tests/bin/pip" -q install 'Pillow==11.3.0'
           "$RUNNER_TEMP/rentmor-perf-tests/bin/python" scripts/test_performance_images.py
+          "$RUNNER_TEMP/rentmor-perf-tests/bin/python" scripts/test_optimize_favicon.py
           python3 -m py_compile scripts/build_public_tailwind.py scripts/patch_static_tailwind.py scripts/verify_static_tailwind.py scripts/patch_static_css_cache.py
           python3 -m py_compile scripts/patch_seo_template.py scripts/patch_seo_titles.py scripts/patch_canonical_host.py scripts/verify_seo_improvements.py
           php -l server/rental_offer_details.php
@@ -121,6 +125,8 @@ jobs:
           python3 scripts/test_static_tailwind.py
           python3 scripts/test_performance_images.py
           php -l server/performance_images.php
+          node --check server/rentmor-gallery.js
+          python3 -m py_compile scripts/optimize_favicon.py scripts/verify_fast_gallery.py
           php -l server/rental_offer_details.php
           python3 scripts/test_inject_local_seo.py
           python3 scripts/test_inject_airless_guide_link.py
@@ -175,6 +181,8 @@ jobs:
           # Download the ACTUAL live index.php so recent site changes are preserved.
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/index.php -o $TEMP_DIR/index.php; bye"
           cp "$TEMP_DIR/index.php" "$TEMP_DIR/original.php"
+          # Keep the original 1.5 MB icon untouched; build a tiny hashed replacement.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/rentmor-kask-favicon.png -o $TEMP_DIR/favicon-original.png; bye"
           # Always start with the actual hosting rewrite file, never a repository guess.
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/.htaccess -o $TEMP_DIR/.htaccess; bye"
           cp "$TEMP_DIR/.htaccess" "$TEMP_DIR/original.htaccess"
@@ -204,6 +212,10 @@ jobs:
           CSS="$(find "$TEMP_DIR/css" -maxdepth 1 -name 'rentmor-tailwind-*.css' -type f -print -quit)"
           test -s "$CSS"
           python3 scripts/patch_static_tailwind.py "$TEMP_DIR/index.php" "/assets/$(basename "$CSS")"
+          python3 -m venv "$RUNNER_TEMP/rentmor-favicon-venv"
+          "$RUNNER_TEMP/rentmor-favicon-venv/bin/pip" -q install 'Pillow==11.3.0'
+          "$RUNNER_TEMP/rentmor-favicon-venv/bin/python" scripts/test_optimize_favicon.py
+          "$RUNNER_TEMP/rentmor-favicon-venv/bin/python" scripts/optimize_favicon.py "$TEMP_DIR/favicon-original.png" "$TEMP_DIR/index.php" "$TEMP_DIR/icons"
           php -l "$TEMP_DIR/index.php"
 
       - name: Upload validated RentMor files over SFTP
@@ -221,7 +233,7 @@ jobs:
           # Pass credentials as process arguments, not by interpolating them
           # into lftp's command language. This avoids quote/shell parsing issues.
           source scripts/secure_sftp_connection.sh
-          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/rental_offer_details.php -o public_html/rental_offer_details.php; put server/performance_images.php -o public_html/performance_images.php; put server/traffic_filter.php -o public_html/traffic_filter.php; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/push_bridge.php -o public_html/push_bridge.php; put server/online.php -o public_html/online.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/poradnik-jaki-papier-scierny-do-zyrafy.php -o public_html/poradnik-jaki-papier-scierny-do-zyrafy.php; put server/poradnik-pranie-tapicerki-karcher-puzzi.php -o public_html/poradnik-pranie-tapicerki-karcher-puzzi.php; put server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php -o public_html/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
+          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/rental_offer_details.php -o public_html/rental_offer_details.php; put server/rentmor-gallery.js -o public_html/rentmor-gallery.js; put server/performance_images.php -o public_html/performance_images.php; put server/traffic_filter.php -o public_html/traffic_filter.php; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/push_bridge.php -o public_html/push_bridge.php; put server/online.php -o public_html/online.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/poradnik-jaki-papier-scierny-do-zyrafy.php -o public_html/poradnik-jaki-papier-scierny-do-zyrafy.php; put server/poradnik-pranie-tapicerki-karcher-puzzi.php -o public_html/poradnik-pranie-tapicerki-karcher-puzzi.php; put server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php -o public_html/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
           if [ -f server/admin.php ]; then
             LFTP_COMMAND="$LFTP_COMMAND; put server/admin.php -o public_html/admin.php"
           else
@@ -241,14 +253,20 @@ jobs:
           CSS="$(find "$TEMP_DIR/css" -maxdepth 1 -name 'rentmor-tailwind-*.css' -type f -print -quit)"
           test -s "$CSS"
           NAME="$(basename "$CSS")"
+          ICON="$(find "$TEMP_DIR/icons" -maxdepth 1 -name 'rentmor-favicon-*.png' -type f -print -quit)"
+          test -s "$ICON"
+          ICON_NAME="$(basename "$ICON")"
           source scripts/secure_sftp_connection.sh
           # Only mkdir may fail if already present; uploaded CSS/readback must succeed.
-          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; mkdir -p public_html/assets; set cmd:fail-exit yes; put $CSS -o public_html/assets/$NAME; get public_html/assets/$NAME -o $TEMP_DIR/css-readback.css; bye"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; mkdir -p public_html/assets; set cmd:fail-exit yes; put $CSS -o public_html/assets/$NAME; get public_html/assets/$NAME -o $TEMP_DIR/css-readback.css; put $ICON -o public_html/assets/$ICON_NAME; get public_html/assets/$ICON_NAME -o $TEMP_DIR/favicon-readback.png; bye"
           cmp "$CSS" "$TEMP_DIR/css-readback.css"
+          cmp "$ICON" "$TEMP_DIR/favicon-readback.png"
           curl --fail --silent --show-error --retry 3 --retry-delay 2 --max-time 45 \
             "https://rentmor.pl/assets/$NAME" -o "$TEMP_DIR/css-public.css"
           cmp "$CSS" "$TEMP_DIR/css-public.css"
-          echo "Static CSS served publicly and verified byte-for-byte before PHP change."
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 --max-time 45             "https://rentmor.pl/assets/$ICON_NAME" -o "$TEMP_DIR/favicon-public.png"
+          cmp "$ICON" "$TEMP_DIR/favicon-public.png"
+          echo "Static CSS and tiny favicon published and verified before PHP change."
 
       - name: Install Firebase key into PHP runtime private directory (HTTPS)
         if: steps.config.outputs.enabled == 'true'
@@ -347,7 +365,7 @@ jobs:
           fi
           # Immediately recover the original homepage if the stylesheet or
           # public product rendering fails the smoke tests.
-          if ! python3 scripts/verify_static_tailwind.py; then
+          if ! python3 scripts/verify_static_tailwind.py || ! python3 scripts/verify_fast_gallery.py; then
             echo "Static CSS smoke test failed; restoring original homepage."
             lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $TEMP_DIR/original.php -o public_html/index.php; get public_html/index.php -o $TEMP_DIR/restored.php; bye"
             cmp "$TEMP_DIR/original.php" "$TEMP_DIR/restored.php"
