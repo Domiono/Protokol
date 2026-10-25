@@ -1,3 +1,19 @@
+## Follow-up FCP/LCP: remove render-blocking external font styles, 2026-10-25
+
+Following the owner's Google PageSpeed Insights mobile screenshot (FCP 3.3 s, LCP 3.6 s, TBT 0 ms, CLS 0, Speed Index 6.5 s), reduced nonessential render-blocking public stylesheets.
+
+- PR: https://github.com/Domiono/Protokol/pull/29
+- Production success: https://github.com/Domiono/Protokol/actions/runs/40231924827
+- Independent before/after Lighthouse diagnostics: https://github.com/Domiono/Protokol/actions/runs/40230435196 and https://github.com/Domiono/Protokol/actions/runs/40232149029
+- Optional Font Awesome 6.4.0 and Google Fonts Roboto CSS changed to `media="print"` with `onload="this.media='all'"`, preconnect for both origins and fonts.gstatic.com, and full `<noscript>` CSS fallback. **Core Tailwind is still a normal blocking stylesheet** to prevent unstyled page flashes. Admin remains untouched.
+- Production smoke test confirmed this markup on both homepage and Puzzi offer. Galleries, responsive image deferral, favicon, SEO passed.
+- In new Lighthouse lab both external stylesheets disappeared from render-blocking audit (only local Tailwind remained). Audit estimated 0 ms remaining render-blocking savings in both profiles (not guaranteed).
+- Single-run Lighthouse performance points varied (mobile 81 before -> 84 after; desktop 92 before -> 87 after). These are noisy lab runs and are **not** proof of an overall performance-score improvement. Network transfer was unchanged, as expected: resources still load, just non-blocking.
+- The user's Google PageSpeed screenshot is a separate device/emulated connection. FCP/LCP must be remeasured from the same tool and conditions to validate an actual improvement. The official PageSpeed API previously returned HTTP 429.
+- Maintenance: `scripts/check_public_image_markup.py` now recognizes original and deferred WebP image attributes; an earlier audit falsely failed after the gallery deferral even though the site worked. The corrected audit passed on main at https://github.com/Domiono/Protokol/actions/runs/40231924847.
+
+---
+
 ## Follow-up PageSpeed transfer reduction, 2026-10-25
 
 **Successfully deployed** homepage/gallery changes: https://github.com/Domiono/Protokol/pull/28
