@@ -33,3 +33,5 @@ for key in ("mainthread-work-breakdown","bootup-time","long-tasks","third-party-
     else:print("DETAIL_KEYS",list(details))
 
 # Post-deployment measurement 2026-10-25: compare against baseline run 40229497971.
+
+# After 2026-10-25 async font stylesheet migration (PR 29): independent lab comparison.
