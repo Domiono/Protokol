@@ -19,6 +19,8 @@ jobs:
         with:
           gradle-version: '8.9'
       - run: php -l server/protocol_sync.php
+      - run: php -l server/admin.php
+      - run: php scripts/test_admin_rental_stats.php
       - run: php scripts/test_rental_rules.php
       - run: python3 scripts/test_rental_api.py
       - run: gradle --no-daemon testDebugUnitTest assembleDebug
