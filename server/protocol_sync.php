@@ -85,7 +85,7 @@ function rm_write_assets(array $assets): bool {
     if(!$ok&&is_file($tmp))unlink($tmp);return $ok;
 }
 function rm_equipment_kind(string $name): string {
-    $name=strtr(mb_strtolower($name,'UTF-8'),['ą'=>'a','ć'=>'c','ę'=>'e','ł'=>'l','ń'=>'n','ó'=>'o','ś'=>'s','ź'=>'z','ż'=>'z']);
+    $name=strtr((function_exists('mb_strtolower')?mb_strtolower($name,'UTF-8'):strtolower($name)),['ą'=>'a','ć'=>'c','ę'=>'e','ł'=>'l','ń'=>'n','ó'=>'o','ś'=>'s','ź'=>'z','ż'=>'z']);
     if(str_contains($name,'zyrafa'))return 'giraffe';
     if(str_contains($name,'odkurzacz')&&!str_contains($name,'puzzi')&&!str_contains($name,'piorac')&&!str_contains($name,'ekstrakcyj'))return 'vacuum';
     return 'standard';
@@ -97,7 +97,7 @@ function rm_asset_kind(array $asset): string {
 function rm_needs_vacuum(array $r): bool {
     if(rm_equipment_kind((string)($r['equipment']??''))!=='giraffe')return false;
     if(array_key_exists('needs_vacuum',$r))return !empty($r['needs_vacuum']);
-    return str_contains(strtr(mb_strtolower((string)($r['equipment']??''),'UTF-8'),['ą'=>'a','ć'=>'c','ę'=>'e','ł'=>'l','ń'=>'n','ó'=>'o','ś'=>'s','ź'=>'z','ż'=>'z']),'odkurzacz');
+    return str_contains(strtr((function_exists('mb_strtolower')?mb_strtolower((string)($r['equipment']??''),'UTF-8'):strtolower((string)($r['equipment']??''))),['ą'=>'a','ć'=>'c','ę'=>'e','ł'=>'l','ń'=>'n','ó'=>'o','ś'=>'s','ź'=>'z','ż'=>'z']),'odkurzacz');
 }
 function rm_reservation_covers(array $r,string $role): bool {
     if($role==='vacuum')return rm_equipment_kind((string)($r['equipment']??''))==='vacuum'||rm_needs_vacuum($r);
