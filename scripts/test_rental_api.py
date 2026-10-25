@@ -31,9 +31,16 @@ with tempfile.TemporaryDirectory() as td:
   assert not call(asset,role='assistant')['results'][0]['ok']
   assert call(dict(asset,in_service=True))['results'][0]['ok']
   assert not call(dict(r,id='r3',start_date='2030-11-01',end_date='2030-11-02'))['results'][0]['ok']
-  assert call({'action':'reservation_settle','id':'r1','income':'160','loss':'0','settlement':{'days':2,'deposit_refund':'200'},'actual_return':'2030-10-27'})['results'][0]['ok']
-  assert call()['reservations'][0]['returned']
+  breakdown={'days':2,'extra':'30','add_powder':'10','add_paper':'5','add_disc':'12','add_other':'3','deposit_refund':'200'}
+  bad=dict(breakdown,add_disc='14')
+  assert not call({'action':'reservation_settle','id':'r1','income':'190','loss':'0','settlement':bad,'actual_return':'2030-10-27'})['results'][0]['ok']
+  assert not next(x for x in call()['reservations'] if x['id']=='r1').get('settled',False)
+  assert call({'action':'reservation_settle','id':'r1','income':'190','loss':'0','settlement':breakdown,'actual_return':'2030-10-27'})['results'][0]['ok']
+  saved=next(x for x in call()['reservations'] if x['id']=='r1')
+  assert saved['returned'] and saved['settlement']['add_powder']==10 and saved['settlement']['add_disc']==12
+  assert call({'action':'reservation_settle','id':'r2','income':'80','loss':'0','settlement':{'days':1,'extra':'10'},'actual_return':'2030-10-29'})['results'][0]['ok']
+  assert next(x for x in call()['reservations'] if x['id']=='r2')['settlement']['extra']=='10'
   try:urllib.request.urlopen('http://127.0.0.1:18723/rental_assets.php');raise AssertionError('asset storage publicly readable')
   except urllib.error.HTTPError as e:assert e.code==404
-  print('11 API integration checks passed (isolated test data)')
+  print('Addon breakdown and legacy settlement API integration checks passed (isolated test data)')
  finally:server.terminate();server.wait()
