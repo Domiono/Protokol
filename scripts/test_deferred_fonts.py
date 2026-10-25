@@ -14,7 +14,7 @@ class DeferredFontsTests(unittest.TestCase):
         p=patch(PAGE)
         self.assertEqual(p.count('media="print"'),2)
         self.assertEqual(p.count("<noscript>"),2)
-        self.assertEqual(p.count('onload="this.media=\\'all\\'"'),2)
+        self.assertEqual(p.count("onload=" + chr(34) + "this.media=" + chr(39) + "all" + chr(39) + chr(34)), 2)
         self.assertIn(TAILWIND,p)
         self.assertIn("font-awesome/6.4.0",p)
         self.assertIn("Roboto",p)
