@@ -10,7 +10,8 @@ function rentmor_optimize_public_html(string $html): string {
     if (!is_file($file)) return $html;
     $manifest = json_decode((string)file_get_contents($file), true);
     if (!is_array($manifest)) return $html;
-    return (string)preg_replace_callback('~<img\b[^>]*>~i', static function (array $m) use ($manifest): string {
+    $rewrite = static function (string $fragment) use ($manifest): string {
+        return (string)preg_replace_callback('~<img\b[^>]*>~i', static function (array $m) use ($manifest): string {
         $tag = $m[0];
         if (preg_match('~\bsrcset\s*=~i', $tag)) return $tag;
         if (!preg_match('~\bsrc\s*=\s*(["\'])(.*?)\1~is', $tag, $match)) return $tag;
@@ -48,7 +49,15 @@ function rentmor_optimize_public_html(string $html): string {
             $attr .= ' data-rentmor-optimized="1"';
         }
         return substr_replace($tag, $attr, -1, 0);
-    }, $html);
+        }, $fragment);
+    };
+    // Do not rewrite image-like strings inside JavaScript, including gallery templates.
+    $parts = preg_split('~(<script\b[^>]*>.*?</script>)~is', $html, -1, PREG_SPLIT_DELIM_CAPTURE);
+    if (!is_array($parts)) return $html;
+    foreach ($parts as $index => $part) {
+        if ($index % 2 === 0) $parts[$index] = $rewrite($part);
+    }
+    return implode('', $parts);
 }
 
 function rentmor_start_image_optimizer(): void {
