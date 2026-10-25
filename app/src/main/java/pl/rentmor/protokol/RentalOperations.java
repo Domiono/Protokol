@@ -137,13 +137,39 @@ public final class RentalOperations {
             }
         }
         String message="Egzemplarz nie będzie przydzielany do nowych rezerwacji aż do ponownego włączenia.";
-        if(future>0)message+="\\n\\nUwaga: ma "+future+" aktywnych lub nadchodzących rezerwacji. Nie zostaną automatycznie anulowane — sprawdź klientów i terminy.";
+        if(future>0)message+="\n\nUwaga: ma "+future+" aktywnych lub nadchodzących rezerwacji. Nie zostaną automatycznie anulowane — sprawdź klientów i terminy.";
         new AlertDialog.Builder(activity)
             .setTitle("Wyłączyć "+asset.optString("label")+"?")
             .setMessage(message)
             .setNegativeButton("Anuluj",null)
             .setPositiveButton("Wyłącz z wynajmu",(dialog,which)->setServiceStatus(asset,true,weekStart))
             .show();
+    }
+    void confirmAssetDelete(JSONObject asset,LocalDate weekStart){
+        if(!admin)return;
+        String reason=RentalRules.deletionBlocker(asset,store.allReservations(),store.allProtocols());
+        if(!reason.isEmpty()){
+            AlertDialog.Builder info=new AlertDialog.Builder(activity)
+                .setTitle("Nie można usunąć: "+asset.optString("label"))
+                .setMessage(reason+"\n\nAby zachować historię wypożyczeń i napraw, możesz wyłączyć ten egzemplarz z wynajmu.")
+                .setNegativeButton("Zamknij",null);
+            if(!asset.optBoolean("in_service"))info.setPositiveButton("Wyłącz z wynajmu",
+                (d,w)->confirmServiceChange(asset,weekStart));
+            info.show();
+            return;
+        }
+        new AlertDialog.Builder(activity)
+            .setTitle("Usunąć egzemplarz?")
+            .setMessage(asset.optString("label")+"\n\nTo trwałe usunięcie z listy sprzętu. Nie będzie można cofnąć tej operacji.")
+            .setNegativeButton("Anuluj",null)
+            .setPositiveButton("Usuń", (d,w)->{
+                try{
+                    store.deleteUnusedAsset(asset);
+                    host.sync();
+                    calendar(weekStart);
+                    Toast.makeText(activity,"Egzemplarz usunięty z listy. Synchronizacja potwierdzi usunięcie.",Toast.LENGTH_LONG).show();
+                }catch(Exception e){error(e);}
+            }).show();
     }
     public void calendar(LocalDate start){
         screen("Dostępność egzemplarzy");
@@ -172,9 +198,9 @@ public final class RentalOperations {
                 pair(c,"Edytuj",()->assetForm(a),
                     disabled?"Przywróć do wynajmu":"Awaria / wyłącz",
                     ()->confirmServiceChange(a,start),false);
-                // The status action has a stronger cue but retains the app's existing rounded style.
-            }
-            button(c,"Historia i serwis  ›",()->assetDetails(a));
+                pair(c,"Historia i serwis",()->assetDetails(a),
+                    "Usuń egzemplarz",()->confirmAssetDelete(a,start),false);
+            }else button(c,"Historia i serwis  ›",()->assetDetails(a));
         }
     }
     long rentalsCount(JSONObject a){long count=0;JSONArray rs=store.allReservations();for(int i=0;i<rs.length();i++){JSONObject r=rs.optJSONObject(i);if(r!=null&&(a.optString("id").equals(r.optString("asset_id"))||a.optString("id").equals(r.optString("vacuum_asset_id")))&&(r.optBoolean("done")||r.optBoolean("settled")))count++;}return count;}
