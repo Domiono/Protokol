@@ -14,7 +14,7 @@ import java.util.*;
 
 public final class FinanceDashboard {
     private final Context context;private final JSONArray rentals,expenses;private final LinearLayout root;
-    private LocalDate from=LocalDate.now().minusDays(29),to=LocalDate.now();private int grain=0;
+    private LocalDate from=LocalDate.now().minusDays(29),to=LocalDate.now();private int grain=0;private boolean allHistory=false;
     private final boolean[] visible={true,true,true};private final int[] colors={0xff2563eb,0xffe4a000,0xff059669};
     private static final Locale PL=new Locale("pl","PL");private final Runnable equipmentAction,costAction;
     public FinanceDashboard(Context context,JSONArray rentals,JSONArray expenses,Runnable equipment,Runnable costs){this.context=context;this.rentals=rentals;this.expenses=expenses;equipmentAction=equipment;costAction=costs;root=column();render();}
@@ -29,23 +29,42 @@ public final class FinanceDashboard {
     public static String money(long n){return String.format(PL,"%,.2f zł",n/100.0);}
     private String date(LocalDate d){return d.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));}
     private String shortDate(LocalDate d){return d.format(DateTimeFormatter.ofPattern("dd.MM"));}
-    private void chooseDate(boolean start){LocalDate d=start?from:to;new DatePickerDialog(context,(v,y,m,day)->{LocalDate chosen=LocalDate.of(y,m+1,day);LocalDate a=start?chosen:from,b=start?to:chosen;if(b.isBefore(a)||ChronoUnit.DAYS.between(a,b)>3660){Toast.makeText(context,"Wybierz prawidłowy okres (maks. 10 lat).",Toast.LENGTH_LONG).show();return;}from=a;to=b;render();},d.getYear(),d.getMonthValue()-1,d.getDayOfMonth()).show();}
-    private void shift(int direction){long days=ChronoUnit.DAYS.between(from,to)+1;from=from.plusDays(direction*days);to=to.plusDays(direction*days);render();}
+    private void chooseDate(boolean start){LocalDate d=start?from:to;new DatePickerDialog(context,(v,y,m,day)->{LocalDate chosen=LocalDate.of(y,m+1,day);LocalDate a=start?chosen:from,b=start?to:chosen;if(b.isBefore(a)||ChronoUnit.DAYS.between(a,b)>3660){Toast.makeText(context,"Wybierz prawidłowy okres (maks. 10 lat).",Toast.LENGTH_LONG).show();return;}from=a;to=b;allHistory=false;render();},d.getYear(),d.getMonthValue()-1,d.getDayOfMonth()).show();}
+    private void shift(int direction){long days=ChronoUnit.DAYS.between(from,to)+1;from=from.plusDays(direction*days);to=to.plusDays(direction*days);allHistory=false;render();}
+    private void showAllHistory(){
+        LocalDate today=LocalDate.now(),first=null;
+        for(int i=0;i<rentals.length();i++){
+            JSONObject r=rentals.optJSONObject(i);
+            if(r==null||!r.optBoolean("settled"))continue;
+            LocalDate d=FinanceAnalytics.date(r.optString("settled_at"));
+            if(d!=null&&!d.isAfter(today)&&(first==null||d.isBefore(first)))first=d;
+        }
+        for(int i=0;i<expenses.length();i++){
+            JSONObject e=expenses.optJSONObject(i);
+            LocalDate d=e==null?null:FinanceAnalytics.date(e.optString("date"));
+            if(d!=null&&!d.isAfter(today)&&(first==null||d.isBefore(first)))first=d;
+        }
+        to=today;
+        from=first==null?today.minusDays(29):first.isBefore(today.minusDays(3660))?today.minusDays(3660):first;
+        grain=2;allHistory=true;render();
+    }
     private void kpi(LinearLayout row,String title,long amount,int color){LinearLayout box=column();box.setPadding(dp(10),dp(10),dp(8),dp(10));box.setBackground(bg(0xfff4f6fa));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-2,1);p.setMargins(dp(3),dp(4),dp(3),dp(4));row.addView(box,p);text(box,title,11,0xff64748b,true);TextView value=text(box,money(amount),18,color,true);value.setMaxLines(1);value.setAutoSizeTextTypeUniformWithConfiguration(11,18,1,TextView.AUTO_SIZE_TEXT_TYPE_UNIFORM);}
     private void render(){
         root.removeAllViews();FinanceAnalytics.Report report=FinanceAnalytics.calculate(rentals,expenses,from,to,grain);long span=ChronoUnit.DAYS.between(from,to)+1;
         FinanceAnalytics.Report previous=FinanceAnalytics.calculate(rentals,expenses,from.minusDays(span),from.minusDays(1),grain);
         LinearLayout controls=card();text(controls,"OKRES ANALIZY",11,0xff64748b,true);LinearLayout presets=row(controls);
-        button(presets,"30 dni",false,()->{to=LocalDate.now();from=to.minusDays(29);grain=0;render();});button(presets,"90 dni",false,()->{to=LocalDate.now();from=to.minusDays(89);grain=1;render();});button(presets,"12 mies.",false,()->{to=LocalDate.now();from=to.withDayOfMonth(1).minusMonths(11);grain=2;render();});
+        button(presets,"30 dni",false,()->{to=LocalDate.now();from=to.minusDays(29);grain=0;allHistory=false;render();});button(presets,"90 dni",false,()->{to=LocalDate.now();from=to.minusDays(89);grain=1;allHistory=false;render();});button(presets,"12 mies.",false,()->{to=LocalDate.now();from=to.withDayOfMonth(1).minusMonths(11);grain=2;allHistory=false;render();});button(presets,"Całość",allHistory,this::showAllHistory);
         LinearLayout dates=row(controls);button(dates,"Od: "+date(from),false,()->chooseDate(true));button(dates,"Do: "+date(to),false,()->chooseDate(false));
         LinearLayout navigation=row(controls);button(navigation,"‹ Poprzedni okres",false,()->shift(-1));button(navigation,"Następny okres ›",false,()->shift(1));
         LinearLayout hero=card();hero.setBackground(bg(0xff172b43));text(hero,"WYNIK PO ZAPISANYCH KOSZTACH",11,0xffb8c7da,true);text(hero,money(report.result()),32,report.result()<0?0xfffda4af:0xfffacc15,true);
-        long diff=report.result()-previous.result();text(hero,(diff>=0?"+":"")+money(diff)+" względem poprzedniego okresu",13,Color.WHITE,false);text(hero,date(previous.start)+" – "+date(previous.end),11,0xffb8c7da,false);
+        long diff=report.result()-previous.result();
+        if(allHistory)text(hero,"Cała zapisana historia • "+date(from)+" – "+date(to),13,Color.WHITE,false);
+        else{ text(hero,(diff>=0?"+":"")+money(diff)+" względem poprzedniego okresu",13,Color.WHITE,false);text(hero,date(previous.start)+" – "+date(previous.end),11,0xffb8c7da,false); }
         text(hero,"Przychód − straty − koszty bieżące − zakupy sprzętu",11,0xffb8c7da,false);
         LinearLayout summary=card();LinearLayout first=row(summary);kpi(first,"PRZYCHÓD",report.income,colors[0]);kpi(first,"ŁĄCZNE KOSZTY",report.costs(),colors[1]);
         LinearLayout second=row(summary);kpi(second,"ŚREDNIO ZA NAJEM",report.rentals==0?0:Math.round((double)report.income/report.rentals),0xff172b43);kpi(second,"WYNIK OPERACYJNY",report.income-report.loss-report.cost,colors[2]);
         text(summary,"Rozliczone najmy: "+report.rentals+"   •   Nierozliczone rezerwacje: "+report.pending,13,0xff475569,false);
-        text(summary,previous.income>0?String.format(PL,"Przychód: %+.1f%% względem poprzedniego okresu",100.0*(report.income-previous.income)/previous.income):"Zmiana % przychodu: brak dodatniej wartości porównawczej",12,0xff64748b,false);
+        if(!allHistory)text(summary,previous.income>0?String.format(PL,"Przychód: %+.1f%% względem poprzedniego okresu",100.0*(report.income-previous.income)/previous.income):"Zmiana % przychodu: brak dodatniej wartości porównawczej",12,0xff64748b,false);
         LinearLayout chartCard=card();text(chartCard,"Jak zmieniają się wyniki",19,0xff172b43,true);LinearLayout grains=row(chartCard);String[] names={"Dni","Tygodnie","Miesiące"};for(int i=0;i<3;i++){final int g=i;button(grains,names[i],grain==i,()->{grain=g;render();});}
         LinearLayout legend=row(chartCard);String[] series={"Przychód","Koszty","Wynik"};for(int i=0;i<3;i++){final int n=i;Button b=button(legend,series[i],visible[i],()->{int active=0;for(boolean show:visible)if(show)active++;if(visible[n]&&active==1)return;visible[n]=!visible[n];render();});b.setTextColor(visible[i]?Color.WHITE:colors[i]);if(visible[i])b.setBackground(bg(colors[i]));}
         TextView selected=text(chartCard,"Dotknij punktu wykresu, aby zobaczyć kwoty.",12,0xff64748b,false);
