@@ -479,9 +479,35 @@ foreach ($operations as $op) {
                 flock($reservationLock, LOCK_UN); fclose($reservationLock);
                 $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nieprawidłowe kwoty rozliczenia.']; continue;
             }
+            // New APKs submit an all-or-nothing category breakdown. Older versions
+            // still submit settlements without these keys and remain supported.
+            $addonKeys=['add_powder','add_paper','add_disc','add_other'];
+            $details=(isset($op['settlement'])&&is_array($op['settlement']))?$op['settlement']:null;
+            if($details!==null){
+                $provided=0;foreach($addonKeys as $key)if(array_key_exists($key,$details))$provided++;
+                if($provided>0){
+                    $valid=$provided===count($addonKeys);
+                    $gross=0;
+                    foreach($addonKeys as $key){
+                        if(!$valid)break;
+                        $raw=$details[$key]??null;
+                        $v=is_scalar($raw)?filter_var(str_replace(',','.',(string)$raw),FILTER_VALIDATE_FLOAT):false;
+                        if($v===false||!is_finite((float)$v)||$v<0||$v>10000000){$valid=false;break;}
+                        $details[$key]=round((float)$v,2);$gross+=(int)round($v*100);
+                    }
+                    $extraRaw=$details['extra']??null;
+                    $extra=is_scalar($extraRaw)?filter_var(str_replace(',','.',(string)$extraRaw),FILTER_VALIDATE_FLOAT):false;
+                    if($extra===false||!is_finite((float)$extra)||$extra<0||$extra>10000000||$gross!==(int)round($extra*100))$valid=false;
+                    if(!$valid){
+                        flock($reservationLock,LOCK_UN);fclose($reservationLock);
+                        $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Sprawdź kwoty dodatków. Suma musi zgadzać się z dopłatami.'];continue;
+                    }
+                    $op['settlement']=$details;
+                }
+            }
             foreach ($reservations as &$saved) if ((string)($saved['id'] ?? '') === $id) {
                 $saved['settled']=true; $saved['income']=round((float)$income,2); $saved['loss']=round((float)$loss,2);
-                if(isset($op['settlement'])&&is_array($op['settlement'])){$saved['settlement']=array_intersect_key($op['settlement'],array_flip(['days','rate','extra','discount','paid','deposit','retained','due','deposit_refund']));$saved['returned']=true;$saved['actual_return']=rm_text($op,'actual_return',10);}
+                if(isset($op['settlement'])&&is_array($op['settlement'])){$saved['settlement']=array_intersect_key($op['settlement'],array_flip(['days','rate','extra','discount','paid','deposit','retained','due','deposit_refund','add_powder','add_paper','add_disc','add_other']));$saved['returned']=true;$saved['actual_return']=rm_text($op,'actual_return',10);}
                 $saved['loss_note']=rm_text($op,'loss_note',300); $saved['settled_at']=date('Y-m-d H:i:s'); $found=true; break;
             }
             unset($saved);

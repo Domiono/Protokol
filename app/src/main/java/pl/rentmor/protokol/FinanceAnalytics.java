@@ -15,7 +15,9 @@ public final class FinanceAnalytics {
         public long result(){return income-costs();}
     }
     public static class Report extends Bucket {
-        public int undated,invalid,pending;public List<Bucket> buckets=new ArrayList<>();
+        public int undated,invalid,pending,addonsUnknown;public long addonPowder,addonPaper,addonDisc,addonOther,addonUnclassified;
+        public long addonTotal(){return addonPowder+addonPaper+addonDisc+addonOther+addonUnclassified;}
+        public List<Bucket> buckets=new ArrayList<>();
         public List<JSONObject> records=new ArrayList<>();
         public Map<String,long[]> equipment=new LinkedHashMap<>();
         Report(LocalDate start,LocalDate end){super(start,end);}
@@ -23,6 +25,30 @@ public final class FinanceAnalytics {
     public static LocalDate date(String s){try{return LocalDate.parse(s.length()>10?s.substring(0,10):s);}catch(Exception e){return null;}}
     static Long amount(JSONObject o,String key){
         try{if(!o.has(key)||o.isNull(key))return null;BigDecimal n=new BigDecimal(o.getString(key).replace(',','.'));if(n.signum()<0)return null;return n.movePointRight(2).setScale(0,RoundingMode.HALF_UP).longValueExact();}catch(Exception e){return null;}
+    }
+    /** Addons are already part of settled income. Never add them to revenue again. */
+    private static void countAddons(Report r,JSONObject rental){
+        JSONObject details=rental.optJSONObject("settlement");
+        if(details==null){r.addonsUnknown++;return;}
+        Long extra=amount(details,"extra");
+        if(extra==null){r.addonsUnknown++;return;}
+        String[] keys={"add_powder","add_paper","add_disc","add_other"};
+        long[] values=new long[keys.length];
+        boolean classified=true;
+        long check=0;
+        for(int i=0;i<keys.length;i++){
+            Long value=amount(details,keys[i]);
+            if(value==null){classified=false;break;}
+            values[i]=value;
+            if(check>Long.MAX_VALUE-value){classified=false;break;}
+            check+=value;
+        }
+        if(classified&&check==extra){
+            r.addonPowder+=values[0];r.addonPaper+=values[1];
+            r.addonDisc+=values[2];r.addonOther+=values[3];
+        }else{
+            r.addonUnclassified+=extra;
+        }
     }
     public static LocalDate bucketStart(LocalDate d,int grain){return grain==1?d.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)):grain==2?d.withDayOfMonth(1):d;}
     public static Report calculate(JSONArray rentals,JSONArray expenses,LocalDate from,LocalDate to,int grain){
@@ -34,7 +60,7 @@ public final class FinanceAnalytics {
             if(!o.optBoolean("settled")){LocalDate planned=date(o.optString("start_date"));if(planned!=null&&!planned.isBefore(from)&&!planned.isAfter(to))r.pending++;continue;}
             LocalDate d=date(o.optString("settled_at"));if(d==null){r.undated++;continue;}if(d.isBefore(from)||d.isAfter(to))continue;
             Long inc=amount(o,"income"),loss=amount(o,"loss");if(inc==null||loss==null){r.invalid++;continue;}
-            r.records.add(o);Bucket b=map.get(bucketStart(d,grain));r.income+=inc;r.loss+=loss;r.rentals++;b.income+=inc;b.loss+=loss;b.rentals++;
+            r.records.add(o);Bucket b=map.get(bucketStart(d,grain));r.income+=inc;r.loss+=loss;r.rentals++;b.income+=inc;b.loss+=loss;b.rentals++;countAddons(r,o);
             String name=o.optString("equipment").trim();if(name.isEmpty())name="Nieprzypisany sprzęt";long[] sums=r.equipment.get(name);if(sums==null){sums=new long[3];r.equipment.put(name,sums);}sums[0]+=inc;sums[1]+=loss;sums[2]++;
         }
         for(int i=0;i<expenses.length();i++){
