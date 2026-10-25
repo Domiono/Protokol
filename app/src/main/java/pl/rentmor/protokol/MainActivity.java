@@ -1000,6 +1000,12 @@ public class MainActivity extends Activity {
                 LinearLayout.LayoutParams dateLp=new LinearLayout.LayoutParams(-1,-2);
                 dateLp.topMargin=dp(11);row.addView(dateRangeLabel,dateLp);
                 TextView equipmentTitle=new TextView(this);equipmentTitle.setText(reservationEquipment(item));equipmentTitle.setTextSize(17);equipmentTitle.setTypeface(null,1);equipmentTitle.setTextColor(0xff172235);equipmentTitle.setPadding(0,dp(12),0,dp(8));row.addView(equipmentTitle);
+                TextView copyText=new TextView(this);
+                boolean assigned=!item.optString("asset_id").isEmpty();
+                copyText.setText(assigned?"EGZEMPLARZ:  "+item.optString("asset_label",item.optString("asset_id")):"EGZEMPLARZ:  DO PRZYPISANIA");
+                copyText.setTextSize(12);copyText.setTypeface(null,1);
+                copyText.setTextColor(assigned?0xff16654e:0xff925400);
+                copyText.setPadding(0,0,0,dp(8));row.addView(copyText);
                 String cardCustomerName=item.optString("customer_name",item.optString("client","")).trim();
                 if(!cardCustomerName.isEmpty()){TextView customerText=new TextView(this);customerText.setText("KLIENT:  "+cardCustomerName);customerText.setTextSize(13);customerText.setTextColor(0xff526174);customerText.setPadding(0,0,0,4);row.addView(customerText);}
                 LinearLayout details=new LinearLayout(this);details.setGravity(Gravity.CENTER_VERTICAL);details.setPadding(0,0,0,5);
@@ -1106,12 +1112,17 @@ public class MainActivity extends Activity {
             String eq=String.valueOf(equipment.getSelectedItem());String shortTime=tm.isEmpty()?"":(tm.contains(":")?tm:tm+":00");
             SimpleDateFormat iso=new SimpleDateFormat("yyyy-MM-dd",Locale.US);String from=iso.format(reservationStart[0].getTime()),to=iso.format(reservationEnd[0].getTime());
             String value=from+" – "+to+(shortTime.isEmpty()?"":" "+shortTime)+" • "+eq+(ph.isEmpty()?"":" • "+ph);
-            try{JSONObject item=new JSONObject();item.put("id",UUID.randomUUID().toString());item.put("month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationStart[0].getTime()));item.put("text",value);item.put("equipment",eq);item.put("day",reservationStart[0].get(Calendar.DAY_OF_MONTH));item.put("start_date",from);item.put("end_date",to);item.put("end_day",reservationEnd[0].get(Calendar.DAY_OF_MONTH));item.put("end_month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationEnd[0].getTime()));item.put("time",shortTime);item.put("phone",ph);item.put("customer_name",customerName.getText().toString().trim());item.put("done",false);String availability=RentalRules.conflict(item,store.allReservations(),store.assets());if(!availability.isEmpty())throw new IllegalArgumentException(availability);store.saveRentalOperation(item,"reservation_save");ReservationsWidgetProvider.refresh(this);
+            try{JSONObject item=new JSONObject();item.put("id",UUID.randomUUID().toString());item.put("month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationStart[0].getTime()));item.put("text",value);item.put("equipment",eq);item.put("day",reservationStart[0].get(Calendar.DAY_OF_MONTH));item.put("start_date",from);item.put("end_date",to);item.put("end_day",reservationEnd[0].get(Calendar.DAY_OF_MONTH));item.put("end_month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationEnd[0].getTime()));item.put("time",shortTime);item.put("phone",ph);item.put("customer_name",customerName.getText().toString().trim());item.put("done",false);item.put("auto_assign",true);
+                String availability=RentalRules.autoAssign(item,store.allReservations(),store.assets());
+                if(!availability.isEmpty())throw new IllegalArgumentException(availability);
+                store.saveRentalOperation(item,"reservation_save");ReservationsWidgetProvider.refresh(this);
                 phone.setText("");time.setText("");customerName.setText("");
                 month[0]=item.optString("month",month[0]);form.setVisibility(View.GONE);
                 toggleForm.setText("＋ NOWA REZERWACJA");
-                render[0].run();toast("Rezerwacja została dodana.");if(isOnline())syncNow();}
-            catch(Exception ex){toast("Nie udało się dodać rezerwacji.");}
+                render[0].run();
+                toast(item.optString("asset_id").isEmpty()?"Rezerwacja dodana. Egzemplarz do przypisania.":"Rezerwacja dodana: "+item.optString("asset_label")+". Synchronizacja potwierdzi przydział.");
+                if(isOnline())syncNow();}
+            catch(Exception ex){toast("Nie udało się dodać rezerwacji: "+ex.getMessage());}
         });
         View submitReservation=root.getChildAt(root.getChildCount()-1);
         root.removeView(submitReservation);
