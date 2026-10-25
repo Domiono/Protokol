@@ -133,7 +133,7 @@ function rm_copy_conflict(array $item,array $asset,string $role,array $reservati
     foreach($reservations as $r){
         if(!is_array($r)||($r['id']??'')===($item['id']??'')||!empty($r['settled'])||!empty($r['returned']))continue;
         $reserved=$id!==''&&(($r['asset_id']??'')===$id||($r['vacuum_asset_id']??'')===$id);
-        $ambiguous=false;
+        $ambiguous=$role==='standard'&&($r['equipment']??'')===($item['equipment']??'')&&empty($r['asset_id']);
         if($role!=='standard'&&rm_reservation_covers($r,$role)){
             $ambiguous=$role==='giraffe'?empty($r['asset_id']):
                 (empty($r['vacuum_asset_id'])&&(rm_equipment_kind((string)($r['equipment']??''))!=='vacuum'||empty($r['asset_id'])));
