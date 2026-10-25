@@ -62,6 +62,9 @@ jobs:
           python3 scripts/test_performance_images.py
           php -l server/performance_images.php
           python3 -m py_compile scripts/patch_performance_template.py
+          python3 -m venv "$RUNNER_TEMP/rentmor-perf-tests"
+          "$RUNNER_TEMP/rentmor-perf-tests/bin/pip" -q install 'Pillow==11.3.0'
+          "$RUNNER_TEMP/rentmor-perf-tests/bin/python" scripts/test_performance_images.py
           python3 -m py_compile scripts/patch_seo_template.py scripts/patch_seo_titles.py scripts/patch_canonical_host.py scripts/verify_seo_improvements.py
           php -l server/rental_offer_details.php
 
