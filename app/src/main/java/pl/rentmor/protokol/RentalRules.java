@@ -37,12 +37,15 @@ public final class RentalRules {
         String type=a.optString("asset_kind");
         return ("standard".equals(type)||"giraffe".equals(type)||"vacuum".equals(type))?type:kind(a.optString("equipment"));
     }
+    public static boolean bundleOffer(String equipment){
+        if(!"giraffe".equals(kind(equipment)))return false;
+        String name=java.text.Normalizer.normalize(equipment,java.text.Normalizer.Form.NFD)
+            .replaceAll("\\p{M}+","").toLowerCase(java.util.Locale.ROOT);
+        return name.contains("odkurzacz")||name.contains("zestaw");
+    }
     public static boolean needsVacuum(JSONObject r){
-        if(!"giraffe".equals(kind(r.optString("equipment"))))return false;
-        if(r.has("needs_vacuum"))return r.optBoolean("needs_vacuum");
-        return kind(r.optString("equipment")).equals("giraffe")&&
-            java.text.Normalizer.normalize(r.optString("equipment"),java.text.Normalizer.Form.NFD)
-                .replaceAll("\\p{M}+","").toLowerCase(java.util.Locale.ROOT).contains("odkurzacz");
+        return "giraffe".equals(kind(r.optString("equipment")))&&
+            (bundleOffer(r.optString("equipment"))||r.optBoolean("needs_vacuum"));
     }
     public static boolean covers(JSONObject r,String role){
         if("vacuum".equals(role))return "vacuum".equals(kind(r.optString("equipment")))||needsVacuum(r);
