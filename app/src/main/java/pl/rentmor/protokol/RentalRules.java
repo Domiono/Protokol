@@ -134,7 +134,7 @@ public final class RentalRules {
         String id=candidate.optString("asset_id");
         String role=kind(candidate.optString("equipment"));
         boolean needs=needsVacuum(candidate);
-        if(id.isEmpty())return needs?"Przypisz żyrafę oraz odkurzacz do zestawu.":"";
+        if(id.isEmpty())return needs?"Przypisz żyrafę oraz odkurzacz do zestawu.":("standard".equals(role)?"":"Przypisz konkretny egzemplarz przed zapisaniem rezerwacji.");
         try{overlaps(candidate.optString("start_date"),candidate.optString("end_date"),candidate.optString("start_date"),candidate.optString("end_date"));}
         catch(Exception e){return "Sprawdź daty rezerwacji.";}
         String main=checkCopy(candidate,byId(assets,id),role,reservations);
