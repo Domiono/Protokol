@@ -1,12 +1,9 @@
 name: Optimize RentMor product photos
 on:
-  push:
+  workflow_run:
+    workflows: ['Deploy RentMor galleries']
+    types: [completed]
     branches: [main]
-    paths:
-      - 'scripts/prepare_rentmor_images.py'
-      - 'scripts/test_performance_images.py'
-      - 'server/performance_images.php'
-      - '.github/workflows/deploy-rentmor-images.yml'
   workflow_dispatch:
   schedule:
     - cron: '15 3 * * 0'
@@ -17,6 +14,7 @@ concurrency:
 
 jobs:
   optimize:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
