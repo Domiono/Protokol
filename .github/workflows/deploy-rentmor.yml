@@ -33,6 +33,7 @@ on:
       - 'server/rental_offer_details.php'
       - 'server/performance_images.php'
       - 'scripts/patch_performance_template.py'
+      - 'scripts/patch_image_cache.py'
       - 'scripts/test_performance_images.py'
       - 'scripts/patch_seo_template.py'
       - 'scripts/patch_seo_titles.py'
@@ -61,7 +62,7 @@ jobs:
           python3 scripts/test_seo_improvements.py
           python3 scripts/test_performance_images.py
           php -l server/performance_images.php
-          python3 -m py_compile scripts/patch_performance_template.py
+          python3 -m py_compile scripts/patch_performance_template.py scripts/patch_image_cache.py
           python3 -m venv "$RUNNER_TEMP/rentmor-perf-tests"
           "$RUNNER_TEMP/rentmor-perf-tests/bin/pip" -q install 'Pillow==11.3.0'
           "$RUNNER_TEMP/rentmor-perf-tests/bin/python" scripts/test_performance_images.py
@@ -163,6 +164,7 @@ jobs:
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/.htaccess -o $TEMP_DIR/.htaccess; bye"
           cp "$TEMP_DIR/.htaccess" "$TEMP_DIR/original.htaccess"
           python3 scripts/patch_canonical_host.py "$TEMP_DIR/.htaccess"
+          python3 scripts/patch_image_cache.py "$TEMP_DIR/.htaccess"
           python3 scripts/patch_statistics_filter.py "$TEMP_DIR/index.php"
           python3 scripts/inject_online_tracker.py "$TEMP_DIR/index.php"
           python3 scripts/patch_public_product_layout.py "$TEMP_DIR/index.php"
