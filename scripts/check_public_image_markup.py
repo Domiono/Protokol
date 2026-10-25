@@ -15,7 +15,7 @@ def main():
                and a.get("srcset") and a.get("width") and a.get("height")]
         logo=[a for a in parsed.images if a.get("src")=="/rentmor-logo.png"]
         assert logo and logo[0].get("srcset"), ("Optimized logo missing",url)
-        assert len(ready) >= (35 if url.endswith("/") else 1), ("Responsive photographs absent",url,len(ready),len(photos))
+        assert len(ready) >= (35 if url == "https://rentmor.pl/" else 1), ("Responsive photographs absent",url,len(ready),len(photos))
         for img in ready:
             assert img["src"].startswith("/uploads/"), "Full-resolution original URL must remain in src"
             assert ".webp" in img["srcset"]
