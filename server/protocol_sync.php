@@ -100,10 +100,14 @@ function rm_asset_kind(array $asset): string {
     $kind=(string)($asset['asset_kind']??'');
     return in_array($kind,['standard','giraffe','vacuum'],true)?$kind:rm_equipment_kind((string)($asset['equipment']??''));
 }
+function rm_bundle_offer(string $equipment): bool {
+    if(rm_equipment_kind($equipment)!=='giraffe')return false;
+    $name=rm_inventory_normalize($equipment);
+    return str_contains($name,'odkurzacz')||str_contains($name,'zestaw');
+}
 function rm_needs_vacuum(array $r): bool {
     if(rm_equipment_kind((string)($r['equipment']??''))!=='giraffe')return false;
-    if(array_key_exists('needs_vacuum',$r))return !empty($r['needs_vacuum']);
-    return str_contains(rm_inventory_normalize((string)($r['equipment']??'')),'odkurzacz');
+    return rm_bundle_offer((string)($r['equipment']??''))||!empty($r['needs_vacuum']);
 }
 function rm_reservation_covers(array $r,string $role): bool {
     if($role==='vacuum')return rm_equipment_kind((string)($r['equipment']??''))==='vacuum'||rm_needs_vacuum($r);
@@ -505,7 +509,7 @@ foreach ($operations as $op) {
             if(!array_key_exists('needs_vacuum',$item))$item['needs_vacuum']=rm_needs_vacuum($item);
             $assets=rm_read_assets();
             $autoError='';
-            if(!$bad&&!empty($op['auto_assign'])&&empty($item['done'])&&empty($item['returned'])){
+            if(!$bad&&$existing===null&&!empty($op['auto_assign'])&&empty($item['done'])&&empty($item['returned'])){
                 // Always re-evaluate on the server; another phone may have booked the locally selected copy.
                 $chosen=rm_auto_pick_asset($item,$reservations,$assets);
                 $autoError=$chosen['error'];
