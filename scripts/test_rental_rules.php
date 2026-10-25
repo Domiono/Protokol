@@ -48,7 +48,7 @@ check((rm_auto_pick_asset($soloG,[$vac,$set1,$set2],$shared)['asset']['id']??'')
 $vac['returned']=true;
 check((rm_auto_pick_asset($set3,[$vac,$set1,$set2],$shared)['vacuum']['id']??'')==='v1','returned vacuum can be reused');
 $legacy=['id'=>'old','equipment'=>'Żyrafa + odkurzacz','asset_id'=>'g1','start_date'=>'2030-10-25','end_date'=>'2030-10-27'];
-check(rm_auto_pick_asset($soloG,[$legacy],$shared)['error']!=='','unassigned old giraffe blocked');
+check((rm_auto_pick_asset($soloG,[$legacy],$shared)['asset']['id']??'')==='g2','known giraffe assignment preserves other giraffes');
 $vacSolo=['id'=>'vac2','equipment'=>'Odkurzacz przemysłowy','start_date'=>'2030-10-26','end_date'=>'2030-10-27'];
 check(rm_auto_pick_asset($vacSolo,[$legacy],$shared)['error']!=='','old bundle without vacuum blocked');
 $legacy['vacuum_asset_id']='v1';
