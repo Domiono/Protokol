@@ -1,3 +1,17 @@
+## Tailwind CDN replaced (2026-10-25)
+
+**Public site: production deployment verified.** The public homepage and product detail pages no longer load `https://cdn.tailwindcss.com`. The static CSS is `/assets/rentmor-tailwind-4a9b40916c35.css` (22,838 bytes), built with pinned Tailwind CLI v3.4.17 from the actual live PHP source and public rendered HTML. Its path includes a content digest for immutable browser caching. The existing public galleries and all original images remain intact.
+
+- PR: https://github.com/Domiono/Protokol/pull/27
+- Successful production workflow: https://github.com/Domiono/Protokol/actions/runs/40228335825
+- Verified: 4 public pages use identical stylesheet, no runtime CDN script, HTTPS CSS fetched byte-for-byte, MIME/hash and essential selectors, gallery assets, PHP lint, SEO smoke tests.
+- Tested 25 public pages and observed 207 classes; CSS built reproducibly at 22,838 bytes.
+- Existing live `index.php` is downloaded, patched, backed up and compared before upload; a failed public CSS smoke test restores the previous homepage.
+- **Admin is intentionally unchanged**: `server/admin.php` still uses Tailwind CDN and should be handled as a separate migration because it hosts operational workflows. All current public tutorials have their own CSS.
+- **No measured Lighthouse/PageSpeed score** has been established from this change. Use field data and PageSpeed Insights later to assess LCP/INP/CLS effects.
+
+---
+
 # RentMor — image and loading performance, 2026-10-25
 
 ## Production status: deployed and verified
@@ -28,7 +42,7 @@
 
 ## Remaining opportunity
 
-**Tailwind still loads from `https://cdn.tailwindcss.com` on public pages.** Do not claim CSS startup improvements yet. Next phase: build static Tailwind stylesheet from actual live PHP templates, gallery JS/CSS and all dynamically generated class names, then visually regression-test homepage, product detail, filter buttons, responsive layout and modals before removing the CDN. Font Awesome/Google Fonts are external too.
+Tailwind CDN removal from public pages has since been completed; see the status section above. Do not claim measured CSS startup improvements yet. Next phase: build static Tailwind stylesheet from actual live PHP templates, gallery JS/CSS and all dynamically generated class names, then visually regression-test homepage, product detail, filter buttons, responsive layout and modals before removing the CDN. Font Awesome/Google Fonts are external too.
 
 An image source named `6a7895410c663.png` failed decoding; inspect original separately before replacing it. Do not delete automatically.
 
