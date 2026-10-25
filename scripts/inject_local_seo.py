@@ -46,7 +46,7 @@ def patch(html):
         return html
     if '<?php' not in html or 'stats.json' not in html:
         raise ValueError('Unknown homepage template; refusing to patch')
-    footers = list(re.finditer(r'<footer\\b', html, re.I))
+    footers = list(re.finditer(r'<footer\b', html, re.I))
     if len(footers) != 1:
         raise ValueError(f'Expected exactly one footer, found {len(footers)}')
     if '<h1' not in html.lower():
