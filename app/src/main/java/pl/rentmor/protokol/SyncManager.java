@@ -48,7 +48,7 @@ public class SyncManager {
         if(items==null)throw new IOException("Brak poprawnej listy wiadomości.");
         return items;
     }
-    public JSONObject sync() throws Exception {
+    public synchronized JSONObject sync() throws Exception {
         JSONArray pending=store.queued();
         if(pending.length()>0){
             JSONObject body=new JSONObject(); JSONArray ops=new JSONArray();
@@ -66,6 +66,7 @@ public class SyncManager {
         store.replaceServerCustomers(server.optJSONArray("customers")==null?new JSONArray():server.optJSONArray("customers"));
         store.replaceServerReservations(server.optJSONArray("reservations")==null?new JSONArray():server.optJSONArray("reservations"));
         store.replaceServerExpenses(server.optJSONArray("expenses")==null?new JSONArray():server.optJSONArray("expenses"));
+        if(server.has("assets"))store.replaceAssets(server.getJSONArray("assets"));
         ReservationsWidgetProvider.refresh(context);
         store.setEquipment(server.optJSONArray("equipment")==null?new JSONArray():server.optJSONArray("equipment"));
         context.getSharedPreferences("rentmor",0).edit().putString("site_products",server.optJSONArray("site_products")==null?"[]":server.optJSONArray("site_products").toString()).putString("site_stats",server.optJSONObject("site_stats")==null?"{}":server.optJSONObject("site_stats").toString()).apply();
