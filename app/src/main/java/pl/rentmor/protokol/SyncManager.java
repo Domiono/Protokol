@@ -13,23 +13,46 @@ public class SyncManager {
     private JSONObject request(String method, JSONObject body) throws Exception {
         return request(API,method,body);
     }
-    private JSONObject request(String endpoint,String method, JSONObject body) throws Exception {
+    // Package-private for local HTTP integration tests; never expose the session cookie.
+    JSONObject request(String endpoint,String method,JSONObject body) throws Exception {
         HttpURLConnection c=(HttpURLConnection)new URL(endpoint).openConnection();
-        c.setRequestMethod(method); c.setConnectTimeout(12000); c.setReadTimeout(20000);
+        c.setInstanceFollowRedirects(false);
+        c.setRequestMethod(method);c.setConnectTimeout(12000);c.setReadTimeout(20000);
         c.setRequestProperty("Accept","application/json");
-        String ck=cookie(); if(ck.isEmpty()) throw new IOException("Brak aktywacji urządzenia. Otwórz aktywację online.");
-        c.setRequestProperty("Cookie",ck);
-        if(body!=null){
-            c.setDoOutput(true);
-            c.setRequestProperty("Content-Type","application/json; charset=utf-8");
-            c.setRequestProperty("X-RentMor-Sync","1");
-            try(OutputStream o=c.getOutputStream()){o.write(body.toString().getBytes("UTF-8"));}
-        }
-        int code=c.getResponseCode(); InputStream in=code>=200&&code<300?c.getInputStream():c.getErrorStream();
-        ByteArrayOutputStream out=new ByteArrayOutputStream(); byte[] b=new byte[8192]; int n; while((n=in.read(b))>0)out.write(b,0,n);
-        String raw=out.toString("UTF-8"); c.disconnect();
-        JSONObject result=new JSONObject(raw); if(code<200||code>=300) throw new IOException(result.optString("error","Błąd serwera "+code));
-        return result;
+        String ck=cookie();if(ck.isEmpty())throw new IOException("Brak aktywacji urządzenia. Otwórz aktywację online.");
+        try{
+            c.setRequestProperty("Cookie",ck);
+            if(body!=null){
+                c.setDoOutput(true);
+                c.setRequestProperty("Content-Type","application/json; charset=utf-8");
+                c.setRequestProperty("X-RentMor-Sync","1");
+                try(OutputStream o=c.getOutputStream()){o.write(body.toString().getBytes("UTF-8"));}
+            }
+            int code=c.getResponseCode();
+            if(code>=300&&code<400)
+                throw new IOException("Serwer przekierował synchronizację (HTTP "+code+"). Sprawdź połączenie z RentMor.pl i ponów synchronizację.");
+            InputStream in=code>=200&&code<300?c.getInputStream():c.getErrorStream();
+            if(in==null)throw new IOException("Serwer RentMor.pl nie zwrócił danych (HTTP "+code+").");
+            ByteArrayOutputStream out=new ByteArrayOutputStream();
+            try(InputStream stream=in){
+                byte[] bytes=new byte[8192];int count;
+                while((count=stream.read(bytes))!=-1)out.write(bytes,0,count);
+            }
+            String raw=out.toString("UTF-8").trim();
+            if(raw.isEmpty())throw new IOException("Serwer RentMor.pl zwrócił pustą odpowiedź (HTTP "+code+").");
+            JSONObject result;
+            try{result=new JSONObject(raw);}
+            catch(JSONException wrongFormat){
+                String type=c.getContentType();
+                boolean html=raw.startsWith("<")||(type!=null&&type.toLowerCase(java.util.Locale.ROOT).contains("text/html"));
+                throw new IOException(html?
+                    "Serwer RentMor.pl zwrócił stronę HTML zamiast danych synchronizacji (HTTP "+code+"). Zmiany oczekujące w telefonie nie zostaną skasowane. Spróbuj ponownie; jeśli błąd wraca, sprawdź dostęp do strony lub hosting.":
+                    "Serwer RentMor.pl zwrócił nieprawidłowe dane (HTTP "+code+"). Spróbuj ponownie.",wrongFormat);
+            }
+            if(code<200||code>=300)throw new IOException(result.optString("error","Błąd serwera "+code));
+            if(!result.optBoolean("ok",false))throw new IOException(result.optString("error","Serwer nie potwierdził synchronizacji."));
+            return result;
+        }finally{c.disconnect();}
     }
     /** Only the logged-in administrator can view their own Firebase registration health. */
     public JSONObject fetchPushStatus() throws Exception {
@@ -54,8 +77,9 @@ public class SyncManager {
             JSONObject body=new JSONObject(); JSONArray ops=new JSONArray();
             for(int i=0;i<pending.length();i++) ops.put(pending.getJSONObject(i));
             body.put("operations",ops);
-            JSONObject response=request("POST",body); JSONArray results=response.optJSONArray("results");
-            if(results!=null) for(int i=0;i<results.length();i++){
+            JSONObject response=request("POST",body);JSONArray results=response.optJSONArray("results");
+            if(results==null)throw new IOException("Serwer nie potwierdził zapisania operacji. Ponów synchronizację.");
+            for(int i=0;i<results.length();i++){
                 JSONObject r=results.getJSONObject(i);
                 if(r.optBoolean("ok")) store.clearQueueItem(r.optString("op_id"));
                 else throw new IOException(r.optString("error","Nie udało się zsynchronizować operacji"));
