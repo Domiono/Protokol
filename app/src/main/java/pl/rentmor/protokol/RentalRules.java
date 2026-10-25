@@ -75,10 +75,12 @@ public final class RentalRules {
             if(r==null||candidate.optString("id").equals(r.optString("id"))||!active(r))continue;
             String rid=copy.optString("id");
             // Old bundles missing their vacuum are treated as unresolved inventory, not as a free copy.
-            boolean ambiguous=!"standard".equals(role)&&covers(r,role)&&
-                ("vacuum".equals(role)?r.optString("vacuum_asset_id").isEmpty()&&
-                    (!"vacuum".equals(kind(r.optString("equipment")))||r.optString("asset_id").isEmpty())
-                  :r.optString("asset_id").isEmpty());
+            boolean ambiguous="standard".equals(role)?
+                candidate.optString("equipment").equals(r.optString("equipment"))&&r.optString("asset_id").isEmpty():
+                covers(r,role)&&("vacuum".equals(role)?
+                    r.optString("vacuum_asset_id").isEmpty()&&
+                        (!"vacuum".equals(kind(r.optString("equipment")))||r.optString("asset_id").isEmpty()):
+                    r.optString("asset_id").isEmpty());
             try {
                 if((reserved(r,rid)||ambiguous)&&busy(candidate,r))
                     return ambiguous?"Wcześniejsza rezerwacja tej grupy nie ma przypisanego egzemplarza. Uzupełnij ją najpierw.":
