@@ -28,7 +28,7 @@ public class MainActivity extends Activity {
         recordOpenedContactNotification(getIntent());
         String saved=getSharedPreferences("rentmor",0).getString("cookie","");
         if(!saved.isEmpty()){showHome();
-            if(new ProtocolCameraStore(this).pending()!=null){pendingProtocolPhoto=new ProtocolCameraStore(this).pending();newIssue();}
+            if(new ProtocolCameraStore(this).pending()!=null){pendingProtocolPhoto=new ProtocolCameraStore(this).pending();restoreCameraForm();}
             else openWidgetDestination();
         } else showActivation();
     }
@@ -93,6 +93,14 @@ public class MainActivity extends Activity {
     private Runnable issueDraftWriter;
     private Runnable protocolBackAction;
     private LinearLayout homeToolsList;
+    private JSONObject issueReservation;
+    private RentalOperations operations(){return new RentalOperations(this,store,new RentalOperations.Host(){
+        public void home(){showHome();}
+        public void issue(JSONObject r){issueReservation=r;newIssue();}
+        public void protocol(JSONObject p){showProtocolDetail(p);}
+        public void inbox(){messageInboxPage();}
+        public void sync(){if(isOnline())syncNow();}
+    },isAdmin());}
     private void showHome(){
         protocolBackAction=null;
         if(siteLiveHandler!=null && siteLiveRefresh!=null)siteLiveHandler.removeCallbacks(siteLiveRefresh);
@@ -147,6 +155,10 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams statusParams=new LinearLayout.LayoutParams(-1,-2);
         statusParams.bottomMargin=dp(8);page.addView(statusCard,statusParams);
 
+        homeSectionTitle(page,"DZISIAJ","Wydania, zwroty i dostępność sprzętu");
+        LinearLayout operational=homeQuickRow(page);
+        homeQuickCard(operational,android.R.drawable.ic_menu_today,"Dzisiaj","Plan dnia i zaległe zwroty",0xffffe8a2,()->operations().today());
+        homeQuickCard(operational,android.R.drawable.ic_menu_my_calendar,"Dostępność","Egzemplarze i serwis",0xffe4efff,()->operations().calendar(java.time.LocalDate.now()));
         homeSectionTitle(page,"SZYBKI DOSTĘP","Najczęściej używane funkcje");
         LinearLayout quickRow1=homeQuickRow(page);
         homeQuickCard(quickRow1,android.R.drawable.ic_menu_my_calendar,"Rezerwacje","Wydania i rozliczenia",
@@ -972,7 +984,7 @@ public class MainActivity extends Activity {
                 statusAction.setOnClickListener(v->{
                     try{
                         boolean nextDone=!item.optBoolean("done");item.put("done",nextDone);
-                        store.saveReservation(item);store.enqueue("reservation_save",item);
+                        String availability=RentalRules.conflict(item,store.allReservations(),store.assets());if(!availability.isEmpty())throw new IllegalArgumentException(availability);store.saveRentalOperation(item,"reservation_save");
                         ReservationsWidgetProvider.refresh(this);
                         toast(nextDone?"Oznaczono jako wydane.":"Przywrócono status DO WYDANIA.");
                         if(isOnline())syncNow();render[0].run();
@@ -1075,16 +1087,12 @@ public class MainActivity extends Activity {
                             item.put("start_date",from);item.put("end_date",to);item.put("end_day",editEnd[0].get(Calendar.DAY_OF_MONTH));
                             item.put("end_month",new SimpleDateFormat("yyyy-MM",Locale.US).format(editEnd[0].getTime()));item.put("time",normalizedTime);item.put("phone",phoneValue);
                             item.put("customer_name",customerNameValue);item.put("client",customerNameValue);
-                            store.saveReservation(item);store.enqueue("reservation_save",item);month[0]=monthValue;ReservationsWidgetProvider.refresh(this);render[0].run();if(isOnline())syncNow();
+                            String availability=RentalRules.conflict(item,store.allReservations(),store.assets());if(!availability.isEmpty())throw new IllegalArgumentException(availability);store.saveRentalOperation(item,"reservation_save");month[0]=monthValue;ReservationsWidgetProvider.refresh(this);render[0].run();if(isOnline())syncNow();
                             toast("Zaktualizowano rezerwację i dane klienta.");
                         }catch(Exception ex){toast("Nie udało się zapisać rezerwacji: "+ex.getMessage());}
                     }).show();
                 });
-                settle.setOnClickListener(v->{
-                    EditText income=new EditText(this);income.setHint("Zarobek z najmu (zł)");income.setInputType(8194);EditText loss=new EditText(this);loss.setHint("Strata / koszt (zł, np. 0)");loss.setInputType(8194);EditText note=new EditText(this);note.setHint("Za co strata? (opcjonalnie)");
-                    LinearLayout settlementForm=new LinearLayout(this);settlementForm.setOrientation(1);settlementForm.setPadding(dp(12),dp(6),dp(12),dp(6));settlementForm.addView(income);settlementForm.addView(loss);settlementForm.addView(note);
-                    new AlertDialog.Builder(this).setTitle("Rozlicz najem").setMessage(item.optString("text")).setView(settlementForm).setNegativeButton("Anuluj",null).setPositiveButton("Zapisz rozliczenie",(d,w)->{try{String iv=income.getText().toString().trim().replace(',','.');String lv=loss.getText().toString().trim().replace(',','.');double earned=iv.isEmpty()?0:Double.parseDouble(iv),cost=lv.isEmpty()?0:Double.parseDouble(lv);if(earned<0||cost<0){toast("Kwoty nie mogą być ujemne.");return;}item.put("settled",true);item.put("income",earned);item.put("loss",cost);item.put("loss_note",note.getText().toString().trim());item.put("settled_at",new SimpleDateFormat("yyyy-MM-dd HH:mm:ss",Locale.US).format(new Date()));store.saveReservation(item);store.enqueue("reservation_settle",item);ReservationsWidgetProvider.refresh(this);render[0].run();if(isOnline())syncNow();}catch(Exception ex){toast("Wpisz prawidłowe kwoty.");}}).show();
-                });
+                settle.setOnClickListener(v->operations().settlement(item));
             }
             if(shown==0){TextView empty=new TextView(this);empty.setText("Brak aktywnych rezerwacji w wybranym miesiącu.");empty.setTextSize(14);empty.setTextColor(0xff718096);empty.setPadding(dp(14),dp(20),dp(14),dp(20));empty.setBackground(roundBg(Color.WHITE,12));list.addView(empty);}
         };
@@ -1098,7 +1106,7 @@ public class MainActivity extends Activity {
             String eq=String.valueOf(equipment.getSelectedItem());String shortTime=tm.isEmpty()?"":(tm.contains(":")?tm:tm+":00");
             SimpleDateFormat iso=new SimpleDateFormat("yyyy-MM-dd",Locale.US);String from=iso.format(reservationStart[0].getTime()),to=iso.format(reservationEnd[0].getTime());
             String value=from+" – "+to+(shortTime.isEmpty()?"":" "+shortTime)+" • "+eq+(ph.isEmpty()?"":" • "+ph);
-            try{JSONObject item=new JSONObject();item.put("id",UUID.randomUUID().toString());item.put("month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationStart[0].getTime()));item.put("text",value);item.put("equipment",eq);item.put("day",reservationStart[0].get(Calendar.DAY_OF_MONTH));item.put("start_date",from);item.put("end_date",to);item.put("end_day",reservationEnd[0].get(Calendar.DAY_OF_MONTH));item.put("end_month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationEnd[0].getTime()));item.put("time",shortTime);item.put("phone",ph);item.put("customer_name",customerName.getText().toString().trim());item.put("done",false);store.saveReservation(item);store.enqueue("reservation_save",item);ReservationsWidgetProvider.refresh(this);
+            try{JSONObject item=new JSONObject();item.put("id",UUID.randomUUID().toString());item.put("month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationStart[0].getTime()));item.put("text",value);item.put("equipment",eq);item.put("day",reservationStart[0].get(Calendar.DAY_OF_MONTH));item.put("start_date",from);item.put("end_date",to);item.put("end_day",reservationEnd[0].get(Calendar.DAY_OF_MONTH));item.put("end_month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationEnd[0].getTime()));item.put("time",shortTime);item.put("phone",ph);item.put("customer_name",customerName.getText().toString().trim());item.put("done",false);String availability=RentalRules.conflict(item,store.allReservations(),store.assets());if(!availability.isEmpty())throw new IllegalArgumentException(availability);store.saveRentalOperation(item,"reservation_save");ReservationsWidgetProvider.refresh(this);
                 phone.setText("");time.setText("");customerName.setText("");
                 month[0]=item.optString("month",month[0]);form.setVisibility(View.GONE);
                 toggleForm.setText("＋ NOWA REZERWACJA");
@@ -1807,6 +1815,12 @@ public class MainActivity extends Activity {
         TextView equipmentLabel=new TextView(this);equipmentLabel.setText("Sprzęt z aktualnej listy RentMor");equipmentLabel.setTextColor(0xff526174);equipmentLabel.setPadding(0,10,0,2);root.addView(equipmentLabel);
         Spinner equipment=new Spinner(this);populateEquipment(equipment);root.addView(equipment,new LinearLayout.LayoutParams(-1,-2));
         addButton("⟳ Odśwież listę sprzętów",()->refreshEquipment(equipment));
+        if(issueReservation!=null){JSONObject selected=issueReservation;issueReservation=null;
+            client.setText(selected.optString("customer_name",selected.optString("client")));phone.setText(selected.optString("phone"));
+            int position=reservationIds.indexOf(selected.optString("id"));if(position>=0)reservationSpinner.setSelection(position);
+            for(int i=1;i<equipment.getCount();i++)if(selected.optString("equipment").equals(equipment.getItemAtPosition(i).toString()))equipment.setSelection(i);
+        }
+
         LinearLayout equipmentCard=protocolSection("2. Wydanie i stan sprzętu");
         EditText date=protocolField(equipmentCard,"Data wydania *",false);date.setText(new SimpleDateFormat("dd.MM.yyyy",Locale.getDefault()).format(new Date()));date.setFocusable(false);date.setOnClickListener(v->showDatePicker(date));
         EditText condition=protocolField(equipmentCard,"Stan sprzętu przy wydaniu",true);condition.setHint("Np. sprawny, rysy na obudowie…");
@@ -1819,7 +1833,9 @@ public class MainActivity extends Activity {
         Button camera=new Button(this);camera.setText("ZRÓB ZDJĘCIE APARATEM");brandButton(camera,true);camera.setOnClickListener(v->pickPhoto());photoCard.addView(camera);updateIssuePhotoThumbnails();
         protocolSignature();
         addButton("ZAPISZ PROTOKÓŁ W TELEFONIE",()->{if(client.getText().toString().trim().isEmpty()||equipment.getSelectedItem()==null||equipment.getSelectedItemPosition()==0){if(client.getText().toString().trim().isEmpty()){client.setError("Wpisz nazwę klienta");client.requestFocus();}toast("Uzupełnij klienta i wybierz sprzęt.");return;}
-            try{String id=UUID.randomUUID().toString();JSONObject p=new JSONObject();p.put("id",id);p.put("number","RM-"+new SimpleDateFormat("yyyyMMdd-HHmmss",Locale.US).format(new Date()));p.put("client",client.getText());p.put("phone",phone.getText());p.put("reservation_id",reservationIds.get(reservationSpinner.getSelectedItemPosition()));p.put("equipment",equipment.getSelectedItem().toString());p.put("rental_date",date.getText());p.put("condition",condition.getText());p.put("accessories",accessories.getText());p.put("notes",notes.getText());p.put("status","wydany");JSONArray photos=new JSONArray();for(Bitmap photo:issuePhotos)photos.put(bitmapBase64(photo,1920,85));if(photos.length()>0)p.put("photos_base64",photos);if(signatureView!=null&&signatureView.hasInk())p.put("signature_base64",bitmapBase64(signatureView.image(),900,85));store.enqueue("create",p);new File(getCacheDir(),"protocol-camera-draft.json").delete();toast("Protokół zapisany w telefonie. Gotowy do synchronizacji.");showProtocolDetail(p);}catch(Exception ex){toast("Błąd zapisu: "+ex.getMessage());}});
+            try{String id=UUID.randomUUID().toString();JSONObject p=new JSONObject();p.put("id",id);p.put("number","RM-"+new SimpleDateFormat("yyyyMMdd-HHmmss",Locale.US).format(new Date()));p.put("client",client.getText());p.put("phone",phone.getText());p.put("reservation_id",reservationIds.get(reservationSpinner.getSelectedItemPosition()));p.put("equipment",equipment.getSelectedItem().toString());p.put("rental_date",date.getText());p.put("condition",condition.getText());p.put("accessories",accessories.getText());p.put("notes",notes.getText());p.put("status","wydany");JSONObject linked=findReservation(store.allReservations(),p.optString("reservation_id"));
+                if(linked!=null){if(!linked.optString("equipment").equals(p.optString("equipment")))throw new IllegalArgumentException("Sprzęt nie zgadza się z rezerwacją");if(linked.optBoolean("settled")||linked.optBoolean("returned"))throw new IllegalArgumentException("Ten najem jest zakończony");String conflict=RentalRules.conflict(linked,store.allReservations(),store.assets());if(!conflict.isEmpty())throw new IllegalArgumentException(conflict);p.put("asset_id",linked.optString("asset_id"));p.put("asset_label",linked.optString("asset_label"));}
+                JSONArray photos=new JSONArray();for(Bitmap photo:issuePhotos)photos.put(bitmapBase64(photo,1920,85));if(photos.length()>0)p.put("photos_base64",photos);if(signatureView!=null&&signatureView.hasInk())p.put("signature_base64",bitmapBase64(signatureView.image(),900,85));store.enqueue("create",p);if(linked!=null){linked.put("done",true);store.saveRentalOperation(linked,"reservation_save");}new File(getCacheDir(),"protocol-camera-draft.json").delete();toast("Protokół zapisany w telefonie. Gotowy do synchronizacji.");showProtocolDetail(p);}catch(Exception ex){toast("Błąd zapisu: "+ex.getMessage());}});
         issueDraftWriter=()->{try{
             JSONObject draft=new JSONObject();draft.put("client",client.getText().toString());draft.put("phone",phone.getText().toString());draft.put("date",date.getText().toString());draft.put("condition",condition.getText().toString());draft.put("accessories",accessories.getText().toString());draft.put("notes",notes.getText().toString());draft.put("equipment",equipment.getSelectedItemPosition());draft.put("reservation",reservationSpinner.getSelectedItemPosition());
             JSONArray images=new JSONArray();for(Bitmap image:issuePhotos)images.put(bitmapBase64(image,1920,85));draft.put("photos",images);if(signatureView!=null&&signatureView.hasInk())draft.put("signature",bitmapBase64(signatureView.image(),1200,90));
@@ -1859,10 +1875,13 @@ public class MainActivity extends Activity {
         LinearLayout content=root;
         TextView state=new TextView(this);boolean returned="zwrócony".equals(p.optString("status"));state.setText(returned?"ZWRÓCONY":"WYDANY — sprzęt u klienta");state.setTextSize(13);state.setTypeface(null,1);state.setTextColor(returned?0xff166534:0xff92400e);state.setPadding(dp(12),dp(10),dp(12),dp(10));state.setBackground(roundBg(returned?0xffdcfce7:0xfffef3c7,10));LinearLayout.LayoutParams badge=new LinearLayout.LayoutParams(-1,-2);badge.bottomMargin=dp(12);root.addView(state,badge);
         LinearLayout clientCard=protocolSection("Klient");detailLine(clientCard,"Imię i nazwisko / firma",p.optString("client"));detailLine(clientCard,"Telefon",p.optString("phone"));
-        LinearLayout panel=protocolSection("Wydanie sprzętu");detailLine(panel,"Sprzęt",p.optString("equipment"));detailLine(panel,"Data wydania",p.optString("rental_date"));detailLine(panel,"Stan przy wydaniu",p.optString("condition"));detailLine(panel,"Akcesoria",p.optString("accessories"));detailLine(panel,"Uwagi",p.optString("notes"));
+        LinearLayout panel=protocolSection("Wydanie sprzętu");detailLine(panel,"Sprzęt",p.optString("equipment"));detailLine(panel,"Egzemplarz",p.optString("asset_label","Nie przypisano"));detailLine(panel,"Data wydania",p.optString("rental_date"));detailLine(panel,"Stan przy wydaniu",p.optString("condition"));detailLine(panel,"Akcesoria",p.optString("accessories"));detailLine(panel,"Uwagi",p.optString("notes"));
         if(returned||!p.optString("return_date").isEmpty()){LinearLayout returns=protocolSection("Zwrot sprzętu");detailLine(returns,"Data zwrotu",p.optString("return_date"));detailLine(returns,"Stan przy zwrocie",p.optString("return_condition"));detailLine(returns,"Uwagi do zwrotu",p.optString("return_notes"));}
+        if(returned)comparisonPhotos(p,p.optJSONArray("return_photos_base64"));
         LinearLayout signatures=protocolSection("Podpisy");protocolSignaturePreview(signatures,p,"signature_base64","Podpis przy wydaniu");if(returned)protocolSignaturePreview(signatures,p,"return_signature_base64","Podpis przy zwrocie");
         JSONArray photos=p.optJSONArray("photos_base64");if((photos==null||photos.length()==0)&&p.optBoolean("photos_expired",false)){TextView expired=new TextView(this);expired.setText("Zdjęcia zostały usunięte z serwera po upływie 90 dni. Kopie zapisane na pierwotnym telefonie pozostają bez zmian.");expired.setTextSize(13);expired.setTextColor(0xff8a5a16);expired.setPadding(0,16,0,8);content.addView(expired);}if(photos!=null&&photos.length()>0){TextView ph=new TextView(this);ph.setText("Zdjęcia ("+photos.length()+")");ph.setTextSize(17);ph.setTypeface(null,1);ph.setTextColor(0xff172235);ph.setPadding(0,18,0,8);content.addView(ph);for(int i=0;i<photos.length();i++){try{byte[] raw=Base64.decode(photos.optString(i),Base64.DEFAULT);Bitmap bm=BitmapFactory.decodeByteArray(raw,0,raw.length);if(bm!=null){final Bitmap photo=bm;final int photoIndex=i+1;final int photoTotal=photos.length();ImageView iv=new ImageView(this);iv.setImageBitmap(photo);iv.setAdjustViewBounds(true);iv.setScaleType(ImageView.ScaleType.FIT_CENTER);iv.setContentDescription("Dotknij, aby powiększyć zdjęcie "+photoIndex);iv.setOnClickListener(v->showZoomPhoto(photo,"Zdjęcie "+photoIndex+" z "+photoTotal));LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(-1,-2);ip.bottomMargin=10;content.addView(iv,ip);}}catch(Exception ignored){}}}
+        JSONObject rental=findReservation(store.allReservations(),p.optString("reservation_id"));
+        if(rental!=null&&isAdmin()&&!rental.optBoolean("settled"))addButton("ROZLICZ NAJEM",()->operations().settlement(rental));
         addButton("PODGLĄD DOKUMENTU PDF",()->previewPdf(p));addButton("ZAPISZ PDF W POBRANYCH",()->makePdf(p));
         if("wydany".equals(p.optString("status")))addButton("ZAREJESTRUJ ZWROT",()->returnForm(p));
         if("admin".equals(getSharedPreferences("rentmor",0).getString("role",""))) addButton("🗑 USUŃ PROTOKÓŁ",()->confirmDelete(p));
@@ -1905,6 +1924,7 @@ public class MainActivity extends Activity {
         }
     }
     private void pickPhoto(){
+        if(issuePhotos.size()>=12){toast("Maksymalnie 12 zdjęć w protokole.");return;}
         if(pendingProtocolPhoto!=null)return;
         try{
             if(issueDraftWriter!=null)issueDraftWriter.run();
@@ -2002,16 +2022,35 @@ public class MainActivity extends Activity {
         if(count==0){TextView t=new TextView(this);t.setText("Brak wydanych protokołów.");root.addView(t);}
         addButton("WRÓĆ",()->showHome());
     }
+    private void restoreCameraForm(){
+        try{JSONObject draft=new JSONObject(new String(java.nio.file.Files.readAllBytes(new File(getCacheDir(),"protocol-camera-draft.json").toPath()),java.nio.charset.StandardCharsets.UTF_8));
+            if("return".equals(draft.optString("kind"))){JSONObject original=draft.getJSONObject("original");returnForm(original);return;}
+        }catch(Exception ignored){}newIssue();
+    }
+    private void comparisonPhotos(JSONObject original,JSONArray returned){
+        LinearLayout card=protocolSection("Zdjęcia: wydanie / zwrot");JSONArray issued=original.optJSONArray("photos_base64");if(issued==null)issued=new JSONArray();if(returned==null)returned=new JSONArray();
+        for(int i=0;i<Math.max(issued.length(),returned.length());i++){LinearLayout row=new LinearLayout(this);card.addView(row);String[] values={issued.optString(i),returned.optString(i)};for(int side=0;side<2;side++){LinearLayout cell=new LinearLayout(this);cell.setOrientation(1);row.addView(cell,new LinearLayout.LayoutParams(0,-2,1));TextView label=new TextView(this);label.setText(side==0?"Wydanie":"Zwrot");cell.addView(label);try{byte[] bytes=Base64.decode(values[side],Base64.DEFAULT);Bitmap bm=BitmapFactory.decodeByteArray(bytes,0,bytes.length);if(bm!=null){ImageView iv=new ImageView(this);iv.setImageBitmap(bm);iv.setScaleType(ImageView.ScaleType.CENTER_CROP);cell.addView(iv,new LinearLayout.LayoutParams(-1,dp(140)));iv.setOnClickListener(v->showZoomPhoto(bm,"Stan sprzętu"));}}catch(Exception ignored){}}}
+    }
     private void returnForm(JSONObject original){
-        signatureView=null;
+        issuePhotos.clear();signatureView=null;issueDraftWriter=null;
         protocolPage("Zwrot sprzętu",original.optString("number")+" • "+original.optString("client"));
         LinearLayout summary=protocolSection("Zwracany sprzęt");detailLine(summary,"Sprzęt",original.optString("equipment"));detailLine(summary,"Wydane akcesoria",original.optString("accessories"));
         protocolBackAction=()->new AlertDialog.Builder(this).setTitle("Opuścić formularz zwrotu?").setMessage("Niezapisane dane zwrotu zostaną odrzucone.").setNegativeButton("Zostań",null).setPositiveButton("Opuść",(d,w)->showProtocolDetail(original)).show();
         LinearLayout returnCard=protocolSection("Stan przy zwrocie");
         EditText date=protocolField(returnCard,"Data zwrotu",false);date.setText(new SimpleDateFormat("dd.MM.yyyy",Locale.getDefault()).format(new Date()));date.setFocusable(false);date.setOnClickListener(v->showDatePicker(date));
         EditText condition=protocolField(returnCard,"Stan sprzętu przy zwrocie",true);EditText notes=protocolField(returnCard,"Uwagi do zwrotu",true);
+        LinearLayout checkCard=protocolSection("Sprawdź akcesoria i stan");
+        final ArrayList<CheckBox> checks=new ArrayList<>();
+        for(String accessory:original.optString("accessories").split("[,;\\n]+")){if(accessory.trim().isEmpty())continue;CheckBox check=new CheckBox(this);check.setText(accessory.trim());checkCard.addView(check);checks.add(check);}
+        TextView checkHint=new TextView(this);checkHint.setText("Zaznacz zwrócone akcesoria. Braki zostaną zapisane w protokole.");checkCard.addView(checkHint);
+        comparisonPhotos(original,original.optJSONArray("return_photos_base64"));
+        LinearLayout photosCard=protocolSection("Zdjęcia przy zwrocie");photoCount=new TextView(this);photosCard.addView(photoCount);HorizontalScrollView photoScroll=new HorizontalScrollView(this);issuePhotoThumbnails=new LinearLayout(this);photoScroll.addView(issuePhotoThumbnails);photosCard.addView(photoScroll);
+        Button camera=new Button(this);camera.setText("ZRÓB ZDJĘCIA ZWROTU");camera.setOnClickListener(v->pickPhoto());photosCard.addView(camera);
         protocolSignature();
-        addButton("ZAPISZ ZWROT",()->{try{JSONObject p=new JSONObject(original.toString());p.put("status","zwrócony");p.put("return_date",date.getText().toString());p.put("return_condition",condition.getText().toString());p.put("return_notes",notes.getText().toString());if(signatureView!=null&&signatureView.hasInk())p.put("return_signature_base64",bitmapBase64(signatureView.image(),900,85));store.enqueue("return",p);store.saveProtocol(p);toast("Zwrot zapisany w telefonie. Gotowy do synchronizacji.");showProtocolDetail(p);}catch(Exception e){toast("Błąd zwrotu: "+e.getMessage());}});
+        try{JSONObject draft=new JSONObject(new String(java.nio.file.Files.readAllBytes(new File(getCacheDir(),"protocol-camera-draft.json").toPath()),java.nio.charset.StandardCharsets.UTF_8));if("return".equals(draft.optString("kind"))&&original.optString("id").equals(draft.getJSONObject("original").optString("id"))){date.setText(draft.optString("date"));condition.setText(draft.optString("condition"));notes.setText(draft.optString("notes"));JSONArray images=draft.optJSONArray("photos");if(images!=null)for(int i=0;i<images.length();i++){byte[] raw=Base64.decode(images.optString(i),Base64.DEFAULT);Bitmap bm=BitmapFactory.decodeByteArray(raw,0,raw.length);if(bm!=null)issuePhotos.add(bm);}Bitmap savedSignature=bitmapFrom(draft,"return_signature_base64");if(savedSignature!=null)signatureView.post(()->signatureView.restore(savedSignature));JSONArray states=draft.optJSONArray("checks");if(states!=null)for(int i=0;i<checks.size();i++)checks.get(i).setChecked(states.optBoolean(i));}}catch(Exception ignored){}
+        updateIssuePhotoThumbnails();
+        issueDraftWriter=()->{try{JSONObject draft=new JSONObject();draft.put("kind","return");if(signatureView!=null&&signatureView.hasInk())draft.put("return_signature_base64",bitmapBase64(signatureView.image(),900,85));draft.put("original",original);draft.put("date",date.getText().toString());draft.put("condition",condition.getText().toString());draft.put("notes",notes.getText().toString());JSONArray images=new JSONArray();for(Bitmap bm:issuePhotos)images.put(bitmapBase64(bm,1920,85));draft.put("photos",images);JSONArray states=new JSONArray();for(CheckBox check:checks)states.put(check.isChecked());draft.put("checks",states);java.nio.file.Files.write(new File(getCacheDir(),"protocol-camera-draft.json").toPath(),draft.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));}catch(Exception e){throw new RuntimeException(e);}};
+        addButton("ZAPISZ ZWROT",()->{try{JSONObject p=new JSONObject(original.toString());p.put("status","zwrócony");p.put("return_date",date.getText().toString());p.put("return_condition",condition.getText().toString());p.put("return_notes",notes.getText().toString());JSONArray checklist=new JSONArray();StringBuilder missing=new StringBuilder();for(CheckBox check:checks){JSONObject entry=new JSONObject();entry.put("name",check.getText().toString());entry.put("returned",check.isChecked());checklist.put(entry);if(!check.isChecked())missing.append(check.getText()).append("; ");}p.put("return_checklist",checklist);if(missing.length()>0)p.put("return_notes",notes.getText().toString()+"\nNiepotwierdzony zwrot akcesoriów: "+missing);if(signatureView!=null&&signatureView.hasInk())p.put("return_signature_base64",bitmapBase64(signatureView.image(),900,85));JSONArray returnPhotos=new JSONArray();for(Bitmap bm:issuePhotos)returnPhotos.put(bitmapBase64(bm,1920,85));p.put("return_photos_base64",returnPhotos);store.enqueue("return",p);store.saveProtocol(p);new File(getCacheDir(),"protocol-camera-draft.json").delete();issueDraftWriter=null;JSONObject linked=findReservation(store.allReservations(),p.optString("reservation_id"));if(linked!=null){linked.put("returned",true);linked.put("actual_return",new SimpleDateFormat("yyyy-MM-dd",Locale.US).format(new SimpleDateFormat("dd.MM.yyyy",Locale.US).parse(date.getText().toString())));store.saveRentalOperation(linked,"reservation_save");}toast("Zwrot zapisany w telefonie. Gotowy do synchronizacji.");showProtocolDetail(p);}catch(Exception e){toast("Błąd zwrotu: "+e.getMessage());}});
         addButton("ANULUJ",()->protocolBackAction.run());
     }
     private class SignatureView extends View {

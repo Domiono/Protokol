@@ -72,6 +72,43 @@ function rm_expire_protocol_photos(string $file): void {
     fclose($lock);
 }
 
+// A copy occupies both boundary dates; the calendar flags legacy unassigned bookings.
+function rm_read_assets(): array {
+    $path=__DIR__.'/rental_assets.php';if(!is_file($path))return [];
+    $raw=file_get_contents($path);$data=json_decode(substr((string)$raw,strpos((string)$raw,"\n")+1),true);return is_array($data)?$data:[];
+}
+function rm_write_assets(array $assets): bool {
+    $path=__DIR__.'/rental_assets.php';$tmp=$path.'.'.bin2hex(random_bytes(6)).'.php';
+    $data=json_encode(array_values($assets),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+    if($data===false)return false;
+    $ok=file_put_contents($tmp,"<?php http_response_code(404); exit; ?>\n".$data,LOCK_EX)!==false&&rename($tmp,$path);
+    if(!$ok&&is_file($tmp))unlink($tmp);return $ok;
+}
+function rm_rental_conflict(array $item, array $reservations, array $assets): string {
+    $id=(string)($item['asset_id']??'');
+    if ($id==='' || !empty($item['returned']) || !empty($item['settled'])) return '';
+    $asset=null;foreach($assets as $a)if(($a['id']??'')===$id)$asset=$a;
+    if(!$asset)return 'Nie znaleziono egzemplarza.';
+    if(($asset['equipment']??'')!==($item['equipment']??''))return 'Egzemplarz należy do innego modelu.';
+    if(!empty($asset['in_service']))return 'Egzemplarz jest w serwisie.';
+    $start=(string)($item['start_date']??'');$end=(string)($item['end_date']??'');
+    foreach([$start,$end] as $date){$d=DateTimeImmutable::createFromFormat('!Y-m-d',$date);if(!$d||$d->format('Y-m-d')!==$date)return 'Nieprawidłowy termin.';}
+    if($end<$start)return 'Zwrot przed wydaniem.';
+    foreach($reservations as $r){
+        if(($r['id']??'')===($item['id']??'')||!empty($r['settled'])||!empty($r['returned']))continue;
+        $same=($r['asset_id']??'')===$id;
+        if(!$same)continue;
+        if(empty($r['start_date'])||empty($r['end_date']))return 'Sprawdź daty starszej rezerwacji tego modelu.';
+        if(($start<=$r['end_date']&&$end>=$r['start_date'])||(!empty($r['done'])&&$r['end_date']<date('Y-m-d')))
+            return empty($r['asset_id'])?'Najpierw przypisz egzemplarz do pozostałych rezerwacji tego modelu.':'Egzemplarz jest zajęty lub po terminie zwrotu.';
+    }
+    return '';
+}
+function rm_hide_rental_finance(array $r): array {
+    foreach(['income','loss','loss_note','settled_at','daily_rate','paid','deposit','settlement'] as $key)unset($r[$key]);
+    return $r;
+}
+
 $role = rm_device_role(__DIR__ . '/protocol_devices.json');
 if ($role === '') rm_json_response(401, ['ok'=>false, 'error'=>'Urządzenie nieaktywne. Połącz się z internetem i aktywuj je ponownie.']);
 
@@ -184,7 +221,7 @@ if ($method === 'GET') {
     if ($role !== 'admin') {
         foreach ($customers as &$customer) {
             foreach ($customer['reservations'] as &$reservation) {
-                unset($reservation['income'], $reservation['loss'], $reservation['loss_note'], $reservation['settled_at']);
+                $reservation=rm_hide_rental_finance($reservation);
             }
             unset($reservation);
         }
@@ -208,7 +245,8 @@ if ($method === 'GET') {
     }
     rm_json_response(200, [
         'ok'=>true, 'role'=>$role, 'server_time'=>date(DATE_ATOM),
-        'protocols'=>array_values($protocols), 'customers'=>array_values($customers), 'expenses'=>($role === 'admin' ? array_values(rm_read_json_file(__DIR__ . '/costs.json', [])) : []), 'reservations'=>array_values(array_map(function($r) use ($role) { if ($role !== 'admin') { unset($r['income'],$r['loss'],$r['loss_note'],$r['settled_at']); } return $r; }, rm_read_json_file(__DIR__ . '/reservations.json', []))), 'equipment'=>array_keys($equipment), 'site_stats'=>($role === 'admin' ? $siteStats : []), 'site_products'=>($role === 'admin' ? array_values($inventory) : [])
+        'assets'=>array_map(function($a)use($role){if($role!=='admin')foreach(($a['repairs']??[]) as $i=>$r)unset($a['repairs'][$i]['cost']);return $a;},rm_read_assets()),
+        'protocols'=>array_values($protocols), 'customers'=>array_values($customers), 'expenses'=>($role === 'admin' ? array_values(rm_read_json_file(__DIR__ . '/costs.json', [])) : []), 'reservations'=>array_values(array_map(function($r) use ($role) { if ($role !== 'admin') { $r=rm_hide_rental_finance($r); } return $r; }, rm_read_json_file(__DIR__ . '/reservations.json', []))), 'equipment'=>array_keys($equipment), 'site_stats'=>($role === 'admin' ? $siteStats : []), 'site_products'=>($role === 'admin' ? array_values($inventory) : [])
     ]);
 }
 if ($method !== 'POST') rm_json_response(405, ['ok'=>false, 'error'=>'Niedozwolona metoda.']);
@@ -236,6 +274,21 @@ foreach ($operations as $op) {
 
 
 
+    if ($action === 'asset_save') {
+        if($role!=='admin'){$results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Tylko administrator może zmieniać egzemplarze.'];continue;}
+        $id=preg_replace('/[^a-zA-Z0-9_-]/','',(string)($op['id']??''));$label=rm_text($op,'label',100);$equipment=rm_text($op,'equipment',200);
+        if($id===''||$label===''||$equipment===''){$results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Uzupełnij egzemplarz.'];continue;}
+        $assets=rm_read_assets();$invalid=false;$index=null;
+        foreach($assets as $i=>$a){if(($a['id']??'')===$id){$index=$i;if(($a['equipment']??'')!==$equipment)$invalid=true;}elseif(($a['label']??'')===$label)$invalid=true;}
+        $next=rm_text($op,'next_service',10);$date=$next===''?null:DateTimeImmutable::createFromFormat('!Y-m-d',$next);
+        if($invalid||($next!==''&&(!$date||$date->format('Y-m-d')!==$next))){$results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nazwa egzemplarza jest zajęta, zmieniono model lub data przeglądu jest błędna.'];continue;}
+        $asset=['id'=>$id,'label'=>$label,'equipment'=>$equipment,'in_service'=>!empty($op['in_service']),'next_service'=>$next,'service_every'=>max(0,min(10000,(int)($op['service_every']??0))),'service_at_count'=>max(0,(int)($op['service_at_count']??0))];
+        // Merge immutable repair entries by ID so another device cannot erase service history.
+        $repairs=[];foreach(($index===null?[]:($assets[$index]['repairs']??[])) as $r)$repairs[$r['id']]=$r;
+        foreach(($op['repairs']??[]) as $r){if(!is_array($r))continue;$rid=preg_replace('/[^a-zA-Z0-9_-]/','',(string)($r['id']??''));$cost=filter_var($r['cost']??null,FILTER_VALIDATE_FLOAT);if($rid===''||$cost===false||!is_finite($cost)||$cost<0||$cost>10000000)continue;if(!isset($repairs[$rid]))$repairs[$rid]=['id'=>$rid,'date'=>rm_text($r,'date',10),'note'=>rm_text($r,'note',1000),'cost'=>round($cost,2)];}
+        $asset['repairs']=array_values($repairs);if($index===null)$assets[]=$asset;else $assets[$index]=$asset;
+        $ok=rm_write_assets($assets);$results[]=['op_id'=>$opId,'ok'=>$ok,'error'=>$ok?'':'Nie udało się zapisać egzemplarza.'];continue;
+    }
     if ($action === 'expense_save' || $action === 'expense_delete') {
         if ($role !== 'admin') { $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Koszty są dostępne tylko dla administratora.']; continue; }
         $costFile=__DIR__.'/costs.json'; $costLock=fopen($costFile.'.lock','c+');
@@ -362,12 +415,23 @@ foreach ($operations as $op) {
                 $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nieprawidłowa rezerwacja.']; continue;
             }
             $item=['id'=>$id,'month'=>$month,'text'=>$text,'done'=>!empty($op['done'])];
-            foreach (['equipment','day','start_date','end_date','end_day','end_month','time','phone','client','customer_name'] as $field) {
+            foreach (['equipment','day','start_date','end_date','end_day','end_month','time','phone','client','customer_name','asset_id','asset_label','actual_return'] as $field) {
                 if (array_key_exists($field,$op)) $item[$field] = rm_text($op,$field,($field==='text'?500:200));
             }
+            $existing=null;foreach($reservations as $saved)if(($saved['id']??'')===$id)$existing=$saved;
+            // Preserve new metadata when an older APK edits a reservation.
+            foreach(['asset_id','asset_label','actual_return','returned','daily_rate','paid','deposit'] as $key){if($existing!==null&&array_key_exists($key,$existing)&&!array_key_exists($key,$op))$item[$key]=$existing[$key];}
+            if(array_key_exists('returned',$op))$item['returned']=!empty($op['returned']);
+            $bad=false;
+            foreach(['daily_rate','paid','deposit'] as $key){
+                if($role!=='admin'){if($existing!==null&&array_key_exists($key,$existing))$item[$key]=$existing[$key];continue;}
+                if(array_key_exists($key,$op)){$value=filter_var($op[$key],FILTER_VALIDATE_FLOAT);if($value===false||!is_finite($value)||$value<0||$value>10000000){$bad=true;break;}$item[$key]=round($value,2);}
+            }
+            $conflict=$bad?'Nieprawidłowa kwota.':rm_rental_conflict($item,$reservations,rm_read_assets());
+            if($conflict!==''){flock($reservationLock,LOCK_UN);fclose($reservationLock);$results[]=['op_id'=>$opId,'ok'=>false,'error'=>$conflict];continue;}
             $found=false;
             foreach ($reservations as &$saved) { if (($saved['id'] ?? '') === $id) {
-                foreach (['settled','income','loss','loss_note','settled_at'] as $field) if (array_key_exists($field,$saved)) $item[$field]=$saved[$field];
+                foreach (['settled','income','loss','loss_note','settled_at','settlement'] as $field) if (array_key_exists($field,$saved)) $item[$field]=$saved[$field];
                 $saved=$item; $found=true; break;
             } }
             unset($saved);
@@ -376,12 +440,13 @@ foreach ($operations as $op) {
             $income = filter_var($op['income'] ?? null, FILTER_VALIDATE_FLOAT);
             $loss = filter_var($op['loss'] ?? null, FILTER_VALIDATE_FLOAT);
             $found = false;
-            if ($income === false || $loss === false || $income < 0 || $loss < 0) {
+            if ($income === false || $loss === false || $income < 0 || $loss < 0 || !is_finite($income) || !is_finite($loss) || $income>10000000 || $loss>10000000) {
                 flock($reservationLock, LOCK_UN); fclose($reservationLock);
                 $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nieprawidłowe kwoty rozliczenia.']; continue;
             }
             foreach ($reservations as &$saved) if ((string)($saved['id'] ?? '') === $id) {
                 $saved['settled']=true; $saved['income']=round((float)$income,2); $saved['loss']=round((float)$loss,2);
+                if(isset($op['settlement'])&&is_array($op['settlement'])){$saved['settlement']=array_intersect_key($op['settlement'],array_flip(['days','rate','extra','discount','paid','deposit','retained','due','deposit_refund']));$saved['returned']=true;$saved['actual_return']=rm_text($op,'actual_return',10);}
                 $saved['loss_note']=rm_text($op,'loss_note',300); $saved['settled_at']=date('Y-m-d H:i:s'); $found=true; break;
             }
             unset($saved);
@@ -426,6 +491,7 @@ foreach ($operations as $op) {
         if ($number === '') $number = 'RM-' . date('Ymd') . '-' . strtoupper(substr($id, 0, 4));
         $protocols[] = [
             'id'=>$id, 'number'=>$number, 'status'=>'wydany', 'created_at'=>date('Y-m-d H:i:s'),
+            'asset_id'=>rm_text($op,'asset_id',80),'asset_label'=>rm_text($op,'asset_label',100),
             'client'=>$client, 'phone'=>rm_text($op,'phone',50), 'equipment'=>$equipment, 'reservation_id'=>preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($op['reservation_id'] ?? '')),
             'rental_date'=>rm_text($op,'rental_date',40), 'condition'=>rm_text($op,'condition',2000),
             'accessories'=>rm_text($op,'accessories',2000), 'notes'=>rm_text($op,'notes',2000),
@@ -457,6 +523,8 @@ foreach ($operations as $op) {
             $item['return_notes'] = rm_text($op,'return_notes',2000);
             if (!empty($op['return_signature_base64']) && is_string($op['return_signature_base64']) && strlen($op['return_signature_base64']) <= 1500000)
                 $item['return_signature_base64'] = $op['return_signature_base64'];
+            if(isset($op['return_checklist'])&&is_array($op['return_checklist']))$item['return_checklist']=array_slice($op['return_checklist'],0,100);
+            if(isset($op['return_photos_base64'])&&is_array($op['return_photos_base64'])){$item['return_photos_base64']=array_slice(array_values(array_filter($op['return_photos_base64'],fn($photo)=>is_string($photo)&&strlen($photo)<=2500000)),0,12);$item['return_photos_uploaded_at']=date('Y-m-d H:i:s');}
             $item['return_sync_op_id'] = $opId;
             break;
         }
