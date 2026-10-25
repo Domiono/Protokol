@@ -142,58 +142,55 @@ public final class RentalOperations {
         screen("Egzemplarze i warunki najmu");
         JSONArray assets=store.assets();
         String role=RentalRules.kind(old.optString("equipment"));
-        boolean paired=RentalRules.needsVacuum(old);
-        ArrayList<JSONObject> primary=new ArrayList<>();ArrayList<String> names=new ArrayList<>();
-        primary.add(null);names.add("Bez przypisania");
-        int selected=0;
+        ArrayList<JSONObject> primary=new ArrayList<>(),vacuums=new ArrayList<>();
+        ArrayList<String> primaryNames=new ArrayList<>(),vacNames=new ArrayList<>();
+        primary.add(null);primaryNames.add("Bez przypisania");
+        vacuums.add(null);vacNames.add("Bez przypisania");
+        int selected=0,vacSelected=0;
         for(int i=0;i<assets.length();i++){
             JSONObject a=assets.optJSONObject(i);if(a==null)continue;
-            boolean eligible="standard".equals(role)?old.optString("equipment").equals(a.optString("equipment")):role.equals(RentalRules.assetKind(a));
-            if(eligible){primary.add(a);names.add(a.optString("label")+(a.optBoolean("in_service")?" • serwis":""));if(a.optString("id").equals(old.optString("asset_id")))selected=primary.size()-1;}
+            String kind=RentalRules.assetKind(a);
+            boolean eligible="standard".equals(role)?old.optString("equipment").equals(a.optString("equipment")):role.equals(kind);
+            if(eligible){primary.add(a);primaryNames.add(a.optString("label")+(a.optBoolean("in_service")?" • serwis":""));
+                if(a.optString("id").equals(old.optString("asset_id")))selected=primary.size()-1;}
+            if("vacuum".equals(kind)){vacuums.add(a);vacNames.add(a.optString("label")+(a.optBoolean("in_service")?" • serwis":""));
+                if(a.optString("id").equals(old.optString("vacuum_asset_id")))vacSelected=vacuums.size()-1;}
         }
         text(page,"Egzemplarz główny",14,0xff17263e);
-        Spinner pick=new Spinner(activity);pick.setAdapter(new ArrayAdapter<>(activity,android.R.layout.simple_spinner_dropdown_item,names));pick.setSelection(selected);
-        if(old.optBoolean("done")&&!old.optString("asset_id").isEmpty())pick.setEnabled(false);
+        Spinner pick=new Spinner(activity);
+        pick.setAdapter(new ArrayAdapter<>(activity,android.R.layout.simple_spinner_dropdown_item,primaryNames));
+        pick.setSelection(selected);if(old.optBoolean("done")&&!old.optString("asset_id").isEmpty())pick.setEnabled(false);
         page.addView(pick);
-        ArrayList<JSONObject> vacuums=new ArrayList<>();ArrayList<String> vacLabels=new ArrayList<>();
-        vacuums.add(null);vacLabels.add("Bez przypisania");
-        int vacSelected=0;
-        for(int i=0;i<assets.length();i++){
-            JSONObject a=assets.optJSONObject(i);
-            if(a!=null&&"vacuum".equals(RentalRules.assetKind(a))){
-                vacuums.add(a);vacLabels.add(a.optString("label")+(a.optBoolean("in_service")?" • serwis":""));
-                if(a.optString("id").equals(old.optString("vacuum_asset_id")))vacSelected=vacuums.size()-1;
-            }
-        }
-        if(paired){
-            text(page,"Odkurzacz przemysłowy do zestawu",14,0xff17263e);
-            Spinner vacuumPick=new Spinner(activity);vacuumPick.setAdapter(new ArrayAdapter<>(activity,android.R.layout.simple_spinner_dropdown_item,vacLabels));
-            vacuumPick.setSelection(vacSelected);
-            if(old.optBoolean("done")&&!old.optString("vacuum_asset_id").isEmpty())vacuumPick.setEnabled(false);
-            page.addView(vacuumPick);
-            button(page,"Zapisz przydział zestawu",()->{try{
-                JSONObject r=copy(old),a=primary.get(pick.getSelectedItemPosition()),vac=vacuums.get(vacuumPick.getSelectedItemPosition());
-                if(a==null||vac==null)throw new IllegalArgumentException("Wybierz żyrafę i odkurzacz do zestawu.");
-                r.put("asset_id",a.optString("id"));r.put("asset_label",a.optString("label"));
-                r.put("vacuum_asset_id",vac.optString("id"));r.put("vacuum_asset_label",vac.optString("label"));
-                r.put("needs_vacuum",true);r.put("auto_assign",false);
-                save(r);active();
-            }catch(Exception e){error(e);}});
-        }
-        if(!paired)text(page,"Rezerwacje zestawów korzystają z tej samej puli żyraf i odkurzaczy.",13,0xff526174);
+        boolean giraffe="giraffe".equals(role);
+        CheckBox withVacuum=new CheckBox(activity);
+        withVacuum.setText("Zestaw z odkurzaczem przemysłowym");
+        withVacuum.setChecked(RentalRules.needsVacuum(old));
+        if(old.optBoolean("done"))withVacuum.setEnabled(false);
+        if(giraffe)page.addView(withVacuum);
+        LinearLayout vacBox=new LinearLayout(activity);vacBox.setOrientation(1);
+        text(vacBox,"Odkurzacz do zestawu",14,0xff17263e);
+        Spinner vacuumPick=new Spinner(activity);
+        vacuumPick.setAdapter(new ArrayAdapter<>(activity,android.R.layout.simple_spinner_dropdown_item,vacNames));
+        vacuumPick.setSelection(vacSelected);
+        if(old.optBoolean("done")&&!old.optString("vacuum_asset_id").isEmpty())vacuumPick.setEnabled(false);
+        vacBox.addView(vacuumPick);page.addView(vacBox);
+        vacBox.setVisibility(giraffe&&withVacuum.isChecked()?View.VISIBLE:View.GONE);
+        withVacuum.setOnCheckedChangeListener((b,checked)->vacBox.setVisibility(checked?View.VISIBLE:View.GONE));
+        text(page,"Wybranie zestawu zajmie dwie konkretne sztuki. Rezerwacja osobnego odkurzacza widzi te same zajętości.",13,0xff526174);
         EditText rate=field(page,"Stawka za dobę (zł)",old.optString("daily_rate","0"),true),
             paid=field(page,"Wpłata na poczet najmu (bez kaucji)",old.optString("paid","0"),true),
             deposit=field(page,"Pobrana kaucja (zł)",old.optString("deposit","0"),true);
         rate.setEnabled(admin);paid.setEnabled(admin);deposit.setEnabled(admin);
-        button(page,"Zapisz warunki i egzemplarze",()->{try{
+        button(page,"Zapisz egzemplarze i warunki",()->{try{
             JSONObject r=copy(old),a=primary.get(pick.getSelectedItemPosition());
+            boolean set=giraffe&&withVacuum.isChecked();
+            if(set&&a==null)throw new IllegalArgumentException("Wybierz konkretną żyrafę do zestawu.");
             r.put("asset_id",a==null?"":a.optString("id"));r.put("asset_label",a==null?"":a.optString("label"));
-            r.put("auto_assign",false);
-            if(!paired){r.put("vacuum_asset_id","");r.put("vacuum_asset_label","");}
-            if(paired){
-                // To avoid two separate save steps, the extra vacuum must be selected below.
-                throw new IllegalArgumentException("Dla zestawu użyj przycisku Zapisz przydział zestawu.");
-            }
+            r.put("needs_vacuum",set);r.put("auto_assign",false);
+            JSONObject vac=set?vacuums.get(vacuumPick.getSelectedItemPosition()):null;
+            if(set&&vac==null)throw new IllegalArgumentException("Wybierz odkurzacz do zestawu.");
+            r.put("vacuum_asset_id",vac==null?"":vac.optString("id"));
+            r.put("vacuum_asset_label",vac==null?"":vac.optString("label"));
             if(admin){r.put("daily_rate",RentalRules.money(rate.getText().toString()).toPlainString());
                 r.put("paid",RentalRules.money(paid.getText().toString()).toPlainString());
                 r.put("deposit",RentalRules.money(deposit.getText().toString()).toPlainString());}
