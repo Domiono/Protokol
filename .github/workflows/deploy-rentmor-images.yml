@@ -29,9 +29,9 @@ jobs:
       - name: Verify encrypted SFTP configuration
         id: config
         env:
-          FTP_SERVER: \${{ secrets.FTP_SERVER }}
-          FTP_USERNAME: \${{ secrets.FTP_USERNAME }}
-          LFTP_PASSWORD: \${{ secrets.FTP_PASSWORD }}
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
           if [ -z "$FTP_SERVER" ] || [ -z "$FTP_USERNAME" ] || [ -z "$LFTP_PASSWORD" ]; then
             echo "::error::SFTP secrets unavailable; image optimization cannot be deployed."
@@ -49,9 +49,9 @@ jobs:
 
       - name: Read latest product image references and previous manifest
         env:
-          FTP_SERVER: \${{ secrets.FTP_SERVER }}
-          FTP_USERNAME: \${{ secrets.FTP_USERNAME }}
-          LFTP_PASSWORD: \${{ secrets.FTP_PASSWORD }}
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
           set -euo pipefail
           DIR="$RUNNER_TEMP/rentmor-photos"
@@ -74,9 +74,9 @@ jobs:
 
       - name: Upload only derivatives and versioned manifest, never original images
         env:
-          FTP_SERVER: \${{ secrets.FTP_SERVER }}
-          FTP_USERNAME: \${{ secrets.FTP_USERNAME }}
-          LFTP_PASSWORD: \${{ secrets.FTP_PASSWORD }}
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
           set -euo pipefail
           DIR="$RUNNER_TEMP/rentmor-photos"
