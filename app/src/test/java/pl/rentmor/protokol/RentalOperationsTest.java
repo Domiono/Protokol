@@ -43,7 +43,7 @@ public class RentalOperationsTest {
   assertNotNull(findText(activity.findViewById(android.R.id.content),"Usuń egzemplarz"));
   ops.confirmServiceChange(asset,week);
   android.app.AlertDialog dialog=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
-  assertNotNull(dialog);assertTrue(dialog.getMessage().toString().contains("1 aktywnych"));
+  assertNotNull(dialog);assertTrue(((android.widget.TextView)dialog.findViewById(android.R.id.message)).getText().toString().contains("1 aktywnych"));
   assertFalse(store.assets().getJSONObject(0).optBoolean("in_service"));
   dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
   JSONObject disabled=store.assets().getJSONObject(0);
@@ -69,7 +69,7 @@ public class RentalOperationsTest {
   ops.calendar(LocalDate.now());
   ops.confirmAssetDelete(unused,LocalDate.now());
   android.app.AlertDialog dlg=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
-  assertNotNull(dlg);assertTrue(dlg.getMessage().toString().contains("trwałe usunięcie"));
+  assertNotNull(dlg);assertTrue(((android.widget.TextView)dlg.findViewById(android.R.id.message)).getText().toString().contains("trwałe usunięcie"));
   assertEquals(1,store.assets().length());
   dlg.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
   assertEquals(0,store.assets().length());assertEquals(1,store.pendingCount());assertEquals(1,sync[0]);
@@ -88,7 +88,7 @@ public class RentalOperationsTest {
   RentalOperations ops=new RentalOperations(activity,store,host(new int[1]),true);
   ops.confirmAssetDelete(asset,LocalDate.now());
   android.app.AlertDialog dlg=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
-  assertNotNull(dlg);assertTrue(dlg.getMessage().toString().contains("historię"));
+  assertNotNull(dlg);assertTrue(((android.widget.TextView)dlg.findViewById(android.R.id.message)).getText().toString().contains("historię"));
   assertEquals(1,store.assets().length());
   assertEquals(0,store.pendingCount());
   JSONObject fresh=new JSONObject().put("id","protocol-unit").put("equipment","Puzzi");
