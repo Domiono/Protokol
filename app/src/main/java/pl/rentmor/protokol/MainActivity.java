@@ -891,6 +891,23 @@ public class MainActivity extends Activity {
             ArrayAdapter<String> ad=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,names);ad.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);equipment.setAdapter(ad);
         };
         fillEquipment.run();
+        // One option, only when a giraffe is selected. No separate bundle product required.
+        CheckBox withVacuum=new CheckBox(this);
+        withVacuum.setText("Zestaw z odkurzaczem przemysłowym");
+        withVacuum.setTextSize(14);withVacuum.setTextColor(0xff172b43);
+        withVacuum.setPadding(dp(8),dp(6),dp(8),dp(6));
+        form.addView(withVacuum);withVacuum.setVisibility(View.GONE);
+        equipment.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            @Override public void onItemSelected(android.widget.AdapterView<?> parent,View view,int position,long id){
+                String name=position<=0?"":String.valueOf(equipment.getSelectedItem());
+                boolean giraffe="giraffe".equals(RentalRules.kind(name));
+                withVacuum.setVisibility(giraffe?View.VISIBLE:View.GONE);
+                JSONObject probe=new JSONObject();
+                try{probe.put("equipment",name);}catch(Exception ignored){}
+                withVacuum.setChecked(giraffe&&RentalRules.needsVacuum(probe));withVacuum.setEnabled(!RentalRules.bundleOffer(name));
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent){withVacuum.setVisibility(View.GONE);}
+        });
         // Assistants may select existing models for reservations, not create website entries.
         if(isAdmin()) {
         addButton("＋ Dodaj nowy sprzęt do wspólnej listy",()->{
@@ -1003,6 +1020,7 @@ public class MainActivity extends Activity {
                 TextView copyText=new TextView(this);
                 boolean assigned=!item.optString("asset_id").isEmpty();
                 copyText.setText(assigned?"EGZEMPLARZ:  "+item.optString("asset_label",item.optString("asset_id")):"EGZEMPLARZ:  DO PRZYPISANIA");
+                if(RentalRules.needsVacuum(item))copyText.setText(copyText.getText()+"\nODKURZACZ:  "+(item.optString("vacuum_asset_id").isEmpty()?"DO PRZYPISANIA":item.optString("vacuum_asset_label")));
                 copyText.setTextSize(12);copyText.setTypeface(null,1);
                 copyText.setTextColor(assigned?0xff16654e:0xff925400);
                 copyText.setPadding(0,0,0,dp(8));row.addView(copyText);
@@ -1112,7 +1130,7 @@ public class MainActivity extends Activity {
             String eq=String.valueOf(equipment.getSelectedItem());String shortTime=tm.isEmpty()?"":(tm.contains(":")?tm:tm+":00");
             SimpleDateFormat iso=new SimpleDateFormat("yyyy-MM-dd",Locale.US);String from=iso.format(reservationStart[0].getTime()),to=iso.format(reservationEnd[0].getTime());
             String value=from+" – "+to+(shortTime.isEmpty()?"":" "+shortTime)+" • "+eq+(ph.isEmpty()?"":" • "+ph);
-            try{JSONObject item=new JSONObject();item.put("id",UUID.randomUUID().toString());item.put("month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationStart[0].getTime()));item.put("text",value);item.put("equipment",eq);item.put("day",reservationStart[0].get(Calendar.DAY_OF_MONTH));item.put("start_date",from);item.put("end_date",to);item.put("end_day",reservationEnd[0].get(Calendar.DAY_OF_MONTH));item.put("end_month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationEnd[0].getTime()));item.put("time",shortTime);item.put("phone",ph);item.put("customer_name",customerName.getText().toString().trim());item.put("done",false);item.put("auto_assign",true);
+            try{JSONObject item=new JSONObject();item.put("id",UUID.randomUUID().toString());item.put("month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationStart[0].getTime()));item.put("text",value);item.put("equipment",eq);item.put("day",reservationStart[0].get(Calendar.DAY_OF_MONTH));item.put("start_date",from);item.put("end_date",to);item.put("end_day",reservationEnd[0].get(Calendar.DAY_OF_MONTH));item.put("end_month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationEnd[0].getTime()));item.put("time",shortTime);item.put("phone",ph);item.put("customer_name",customerName.getText().toString().trim());item.put("done",false);item.put("auto_assign",true);item.put("needs_vacuum",withVacuum.getVisibility()==View.VISIBLE&&withVacuum.isChecked());
                 String availability=RentalRules.autoAssign(item,store.allReservations(),store.assets());
                 if(!availability.isEmpty())throw new IllegalArgumentException(availability);
                 store.saveRentalOperation(item,"reservation_save");ReservationsWidgetProvider.refresh(this);
@@ -1120,7 +1138,7 @@ public class MainActivity extends Activity {
                 month[0]=item.optString("month",month[0]);form.setVisibility(View.GONE);
                 toggleForm.setText("＋ NOWA REZERWACJA");
                 render[0].run();
-                toast(item.optString("asset_id").isEmpty()?"Rezerwacja dodana. Egzemplarz do przypisania.":"Rezerwacja dodana: "+item.optString("asset_label")+". Synchronizacja potwierdzi przydział.");
+                toast(item.optString("asset_id").isEmpty()?"Rezerwacja dodana. Egzemplarz do przypisania.":"Rezerwacja dodana: "+item.optString("asset_label")+(RentalRules.needsVacuum(item)?" + "+item.optString("vacuum_asset_label"):"")+". Synchronizacja potwierdzi przydział.");
                 if(isOnline())syncNow();}
             catch(Exception ex){toast("Nie udało się dodać rezerwacji: "+ex.getMessage());}
         });
@@ -1845,7 +1863,7 @@ public class MainActivity extends Activity {
         protocolSignature();
         addButton("ZAPISZ PROTOKÓŁ W TELEFONIE",()->{if(client.getText().toString().trim().isEmpty()||equipment.getSelectedItem()==null||equipment.getSelectedItemPosition()==0){if(client.getText().toString().trim().isEmpty()){client.setError("Wpisz nazwę klienta");client.requestFocus();}toast("Uzupełnij klienta i wybierz sprzęt.");return;}
             try{String id=UUID.randomUUID().toString();JSONObject p=new JSONObject();p.put("id",id);p.put("number","RM-"+new SimpleDateFormat("yyyyMMdd-HHmmss",Locale.US).format(new Date()));p.put("client",client.getText());p.put("phone",phone.getText());p.put("reservation_id",reservationIds.get(reservationSpinner.getSelectedItemPosition()));p.put("equipment",equipment.getSelectedItem().toString());p.put("rental_date",date.getText());p.put("condition",condition.getText());p.put("accessories",accessories.getText());p.put("notes",notes.getText());p.put("status","wydany");JSONObject linked=findReservation(store.allReservations(),p.optString("reservation_id"));
-                if(linked!=null){if(!linked.optString("equipment").equals(p.optString("equipment")))throw new IllegalArgumentException("Sprzęt nie zgadza się z rezerwacją");if(linked.optBoolean("settled")||linked.optBoolean("returned"))throw new IllegalArgumentException("Ten najem jest zakończony");String conflict=RentalRules.conflict(linked,store.allReservations(),store.assets());if(!conflict.isEmpty())throw new IllegalArgumentException(conflict);p.put("asset_id",linked.optString("asset_id"));p.put("asset_label",linked.optString("asset_label"));}
+                if(linked!=null){if(!linked.optString("equipment").equals(p.optString("equipment")))throw new IllegalArgumentException("Sprzęt nie zgadza się z rezerwacją");if(linked.optBoolean("settled")||linked.optBoolean("returned"))throw new IllegalArgumentException("Ten najem jest zakończony");String conflict=RentalRules.conflict(linked,store.allReservations(),store.assets());if(!conflict.isEmpty())throw new IllegalArgumentException(conflict);p.put("asset_id",linked.optString("asset_id"));p.put("asset_label",linked.optString("asset_label"));if(RentalRules.needsVacuum(linked)){p.put("vacuum_asset_id",linked.optString("vacuum_asset_id"));p.put("vacuum_asset_label",linked.optString("vacuum_asset_label"));}}
                 JSONArray photos=new JSONArray();for(Bitmap photo:issuePhotos)photos.put(bitmapBase64(photo,1920,85));if(photos.length()>0)p.put("photos_base64",photos);if(signatureView!=null&&signatureView.hasInk())p.put("signature_base64",bitmapBase64(signatureView.image(),900,85));store.enqueue("create",p);if(linked!=null){linked.put("done",true);store.saveRentalOperation(linked,"reservation_save");}new File(getCacheDir(),"protocol-camera-draft.json").delete();toast("Protokół zapisany w telefonie. Gotowy do synchronizacji.");showProtocolDetail(p);}catch(Exception ex){toast("Błąd zapisu: "+ex.getMessage());}});
         issueDraftWriter=()->{try{
             JSONObject draft=new JSONObject();draft.put("client",client.getText().toString());draft.put("phone",phone.getText().toString());draft.put("date",date.getText().toString());draft.put("condition",condition.getText().toString());draft.put("accessories",accessories.getText().toString());draft.put("notes",notes.getText().toString());draft.put("equipment",equipment.getSelectedItemPosition());draft.put("reservation",reservationSpinner.getSelectedItemPosition());
@@ -1886,7 +1904,7 @@ public class MainActivity extends Activity {
         LinearLayout content=root;
         TextView state=new TextView(this);boolean returned="zwrócony".equals(p.optString("status"));state.setText(returned?"ZWRÓCONY":"WYDANY — sprzęt u klienta");state.setTextSize(13);state.setTypeface(null,1);state.setTextColor(returned?0xff166534:0xff92400e);state.setPadding(dp(12),dp(10),dp(12),dp(10));state.setBackground(roundBg(returned?0xffdcfce7:0xfffef3c7,10));LinearLayout.LayoutParams badge=new LinearLayout.LayoutParams(-1,-2);badge.bottomMargin=dp(12);root.addView(state,badge);
         LinearLayout clientCard=protocolSection("Klient");detailLine(clientCard,"Imię i nazwisko / firma",p.optString("client"));detailLine(clientCard,"Telefon",p.optString("phone"));
-        LinearLayout panel=protocolSection("Wydanie sprzętu");detailLine(panel,"Sprzęt",p.optString("equipment"));detailLine(panel,"Egzemplarz",p.optString("asset_label","Nie przypisano"));detailLine(panel,"Data wydania",p.optString("rental_date"));detailLine(panel,"Stan przy wydaniu",p.optString("condition"));detailLine(panel,"Akcesoria",p.optString("accessories"));detailLine(panel,"Uwagi",p.optString("notes"));
+        LinearLayout panel=protocolSection("Wydanie sprzętu");detailLine(panel,"Sprzęt",p.optString("equipment"));detailLine(panel,"Egzemplarz",p.optString("asset_label","Nie przypisano"));if(!p.optString("vacuum_asset_id").isEmpty())detailLine(panel,"Odkurzacz do zestawu",p.optString("vacuum_asset_label"));detailLine(panel,"Data wydania",p.optString("rental_date"));detailLine(panel,"Stan przy wydaniu",p.optString("condition"));detailLine(panel,"Akcesoria",p.optString("accessories"));detailLine(panel,"Uwagi",p.optString("notes"));
         if(returned||!p.optString("return_date").isEmpty()){LinearLayout returns=protocolSection("Zwrot sprzętu");detailLine(returns,"Data zwrotu",p.optString("return_date"));detailLine(returns,"Stan przy zwrocie",p.optString("return_condition"));detailLine(returns,"Uwagi do zwrotu",p.optString("return_notes"));}
         if(returned)comparisonPhotos(p,p.optJSONArray("return_photos_base64"));
         LinearLayout signatures=protocolSection("Podpisy");protocolSignaturePreview(signatures,p,"signature_base64","Podpis przy wydaniu");if(returned)protocolSignaturePreview(signatures,p,"return_signature_base64","Podpis przy zwrocie");

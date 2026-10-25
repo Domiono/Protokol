@@ -40,7 +40,43 @@ with tempfile.TemporaryDirectory() as td:
   assert saved['returned'] and saved['settlement']['add_powder']==10 and saved['settlement']['add_disc']==12
   assert call({'action':'reservation_settle','id':'r2','income':'80','loss':'0','settlement':{'days':1,'extra':'10'},'actual_return':'2030-10-29'})['results'][0]['ok']
   assert next(x for x in call()['reservations'] if x['id']=='r2')['settlement']['extra']=='10'
+  # Three physical giraffes and three industrial vacuums are one common inventory,
+  # regardless of whether the offer is a set, standalone Bosch, or standalone Metabo.
+  for i in range(1,4):
+   assert call({'action':'asset_save','id':'g'+str(i),'equipment':'Szlifierka żyrafa Stanley',
+      'label':'Żyrafa '+str(i),'asset_kind':'giraffe'})['results'][0]['ok']
+   assert call({'action':'asset_save','id':'v'+str(i),'equipment':'Odkurzacz przemysłowy Bosch',
+      'label':'Odkurzacz '+str(i),'asset_kind':'vacuum'})['results'][0]['ok']
+  def booking(id,eq,needs=None):
+   op={'action':'reservation_save','auto_assign':True,'id':id,'month':'2030-12',
+       'text':'test '+id,'equipment':eq,'start_date':'2030-12-01','end_date':'2030-12-03'}
+   if needs is not None:op['needs_vacuum']=needs
+   return op
+  assert call(booking('vac-alone','Odkurzacz przemysłowy Metabo'))['results'][0]['ok']
+  solo=next(x for x in call()['reservations'] if x['id']=='vac-alone')
+  assert solo['asset_id']=='v1'
+  assert call(booking('combo-one','Żyrafa + odkurzacz'))['results'][0]['ok']
+  combo=next(x for x in call()['reservations'] if x['id']=='combo-one')
+  assert combo['asset_id']=='g1' and combo['vacuum_asset_id']=='v2'
+  assert call(booking('combo-two','Żyrafa Stanley',True))['results'][0]['ok']
+  combo2=next(x for x in call()['reservations'] if x['id']=='combo-two')
+  assert combo2['asset_id']=='g2' and combo2['vacuum_asset_id']=='v3'
+  assert not call(booking('combo-three','Żyrafa + odkurzacz'))['results'][0]['ok']
+  assert call(booking('giraffe-alone','Żyrafa Stanley',False))['results'][0]['ok']
+  alone=next(x for x in call()['reservations'] if x['id']=='giraffe-alone')
+  assert alone['asset_id']=='g3' and not alone.get('vacuum_asset_id')
+  # Explicit false does not bypass an offer actually named as a kit.
+  assert not call(booking('bypass','Żyrafa + odkurzacz',False))['results'][0]['ok']
+  assert not call(dict(booking('giraffe-direct','Żyrafa Stanley'),asset_id='g1',auto_assign=False))['results'][0]['ok']
+  assert call({'action':'reservation_settle','id':'vac-alone','income':80,'loss':0,
+     'settlement':{'days':2},'actual_return':'2030-12-03'})['results'][0]['ok']
+  assert call({'action':'reservation_settle','id':'giraffe-alone','income':80,'loss':0,
+     'settlement':{'days':2},'actual_return':'2030-12-03'})['results'][0]['ok']
+  assert call(booking('combo-three','Żyrafa + odkurzacz'))['results'][0]['ok']
+  third=next(x for x in call()['reservations'] if x['id']=='combo-three')
+  assert third['vacuum_asset_id']=='v1'
+  assert not call(dict(booking('vac-busy','Odkurzacz przemysłowy Bosch'),asset_id='v2',auto_assign=False))['results'][0]['ok']
   try:urllib.request.urlopen('http://127.0.0.1:18723/rental_assets.php');raise AssertionError('asset storage publicly readable')
   except urllib.error.HTTPError as e:assert e.code==404
-  print('Addon breakdown and legacy settlement API integration checks passed (isolated test data)')
+  print('Rental API bundle and standalone shared-stock checks passed (isolated test data)')
  finally:server.terminate();server.wait()

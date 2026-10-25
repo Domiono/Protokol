@@ -84,51 +84,103 @@ function rm_write_assets(array $assets): bool {
     $ok=file_put_contents($tmp,"<?php http_response_code(404); exit; ?>\n".$data,LOCK_EX)!==false&&rename($tmp,$path);
     if(!$ok&&is_file($tmp))unlink($tmp);return $ok;
 }
-function rm_rental_conflict(array $item, array $reservations, array $assets): string {
-    $id=(string)($item['asset_id']??'');
-    if ($id==='' || !empty($item['returned']) || !empty($item['settled'])) return '';
-    $asset=null;foreach($assets as $a)if(($a['id']??'')===$id)$asset=$a;
-    if(!$asset)return 'Nie znaleziono egzemplarza.';
-    if(($asset['equipment']??'')!==($item['equipment']??''))return 'Egzemplarz należy do innego modelu.';
-    if(!empty($asset['in_service']))return 'Egzemplarz jest w serwisie.';
+function rm_inventory_normalize(string $name): string {
+    // Transliterate before strtolower so this works without PHP mbstring (php -n tests).
+    $map=['Ą'=>'a','Ć'=>'c','Ę'=>'e','Ł'=>'l','Ń'=>'n','Ó'=>'o','Ś'=>'s','Ź'=>'z','Ż'=>'z',
+          'ą'=>'a','ć'=>'c','ę'=>'e','ł'=>'l','ń'=>'n','ó'=>'o','ś'=>'s','ź'=>'z','ż'=>'z'];
+    return strtolower(strtr($name,$map));
+}
+function rm_equipment_kind(string $name): string {
+    $name=rm_inventory_normalize($name);
+    if(str_contains($name,'zyrafa'))return 'giraffe';
+    if(str_contains($name,'odkurzacz')&&!str_contains($name,'puzzi')&&!str_contains($name,'piorac')&&!str_contains($name,'ekstrakcyj'))return 'vacuum';
+    return 'standard';
+}
+function rm_asset_kind(array $asset): string {
+    $kind=(string)($asset['asset_kind']??'');
+    return in_array($kind,['standard','giraffe','vacuum'],true)?$kind:rm_equipment_kind((string)($asset['equipment']??''));
+}
+function rm_bundle_offer(string $equipment): bool {
+    if(rm_equipment_kind($equipment)!=='giraffe')return false;
+    $name=rm_inventory_normalize($equipment);
+    return str_contains($name,'odkurzacz')||str_contains($name,'zestaw');
+}
+function rm_needs_vacuum(array $r): bool {
+    if(rm_equipment_kind((string)($r['equipment']??''))!=='giraffe')return false;
+    return rm_bundle_offer((string)($r['equipment']??''))||!empty($r['needs_vacuum']);
+}
+function rm_reservation_covers(array $r,string $role): bool {
+    if($role==='vacuum')return rm_equipment_kind((string)($r['equipment']??''))==='vacuum'||rm_needs_vacuum($r);
+    return $role==='giraffe'&&rm_equipment_kind((string)($r['equipment']??''))==='giraffe';
+}
+function rm_matching_assets(array $item,array $assets,string $role): array {
+    $list=array_values(array_filter($assets,function($a)use($item,$role){
+        return $role!=='standard'?rm_asset_kind($a)===$role:(string)($a['equipment']??'')===(string)($item['equipment']??'');
+    }));
+    usort($list,fn($a,$b)=>strcasecmp((string)($a['label']??''),(string)($b['label']??'')));
+    return $list;
+}
+function rm_valid_reservation_dates(array $item): bool {
     $start=(string)($item['start_date']??'');$end=(string)($item['end_date']??'');
-    foreach([$start,$end] as $date){$d=DateTimeImmutable::createFromFormat('!Y-m-d',$date);if(!$d||$d->format('Y-m-d')!==$date)return 'Nieprawidłowy termin.';}
-    if($end<$start)return 'Zwrot przed wydaniem.';
+    foreach([$start,$end] as $day){$d=DateTimeImmutable::createFromFormat('!Y-m-d',$day);if(!$d||$d->format('Y-m-d')!==$day)return false;}
+    return $end>=$start;
+}
+function rm_copy_conflict(array $item,array $asset,string $role,array $reservations): string {
+    if($role==='standard'?(($asset['equipment']??'')!==($item['equipment']??'')):rm_asset_kind($asset)!==$role)
+        return 'Egzemplarz należy do innej grupy sprzętu.';
+    if(!empty($asset['in_service']))return 'Egzemplarz jest w serwisie.';
+    $id=(string)($asset['id']??'');$start=(string)($item['start_date']??'');$end=(string)($item['end_date']??'');
     foreach($reservations as $r){
-        if(($r['id']??'')===($item['id']??'')||!empty($r['settled'])||!empty($r['returned']))continue;
-        $same=($r['asset_id']??'')===$id;
-        if(!$same)continue;
-        if(empty($r['start_date'])||empty($r['end_date']))return 'Sprawdź daty starszej rezerwacji tego modelu.';
-        if(($start<=$r['end_date']&&$end>=$r['start_date'])||(!empty($r['done'])&&$r['end_date']<date('Y-m-d')))
-            return empty($r['asset_id'])?'Najpierw przypisz egzemplarz do pozostałych rezerwacji tego modelu.':'Egzemplarz jest zajęty lub po terminie zwrotu.';
+        if(!is_array($r)||($r['id']??'')===($item['id']??'')||!empty($r['settled'])||!empty($r['returned']))continue;
+        $reserved=$id!==''&&(($r['asset_id']??'')===$id||($r['vacuum_asset_id']??'')===$id);
+        $ambiguous=$role==='standard'&&($r['equipment']??'')===($item['equipment']??'')&&empty($r['asset_id']);
+        if($role!=='standard'&&rm_reservation_covers($r,$role)){
+            $ambiguous=$role==='giraffe'?empty($r['asset_id']):
+                (empty($r['vacuum_asset_id'])&&(rm_equipment_kind((string)($r['equipment']??''))!=='vacuum'||empty($r['asset_id'])));
+        }
+        if(!$reserved&&!$ambiguous)continue;
+        $rs=(string)($r['start_date']??'');$re=(string)($r['end_date']??'');
+        if(!rm_valid_reservation_dates($r))return 'Sprawdź daty starszej rezerwacji sprzętu.';
+        if(($start<=$re&&$end>=$rs)||(!empty($r['done'])&&$re<date('Y-m-d')))
+            return $ambiguous?'Wcześniejsza rezerwacja tej grupy nie ma przypisanego egzemplarza. Uzupełnij ją najpierw.':
+                'Egzemplarz jest już zajęty w tym terminie lub po terminie zwrotu.';
     }
     return '';
 }
-/**
- * Pick a physical copy while holding the reservations.json lock.
- * Overlapping legacy bookings with no copy assigned are not safe to guess.
- */
-function rm_auto_pick_asset(array $item, array $reservations, array $assets): array {
-    $equipment=(string)($item['equipment']??'');
-    $copies=array_values(array_filter($assets,fn($a)=>($a['equipment']??'')===$equipment));
-    if(!$copies)return ['asset'=>null,'error'=>''];
-    $start=(string)($item['start_date']??'');$end=(string)($item['end_date']??'');
-    foreach([$start,$end] as $day){$d=DateTimeImmutable::createFromFormat('!Y-m-d',$day);if(!$d||$d->format('Y-m-d')!==$day)return ['asset'=>null,'error'=>'Sprawdź daty rezerwacji.'];}
-    if($end<$start)return ['asset'=>null,'error'=>'Zwrot przed wydaniem.'];
-    foreach($reservations as $r){
-        if(($r['id']??'')===($item['id']??'')||!empty($r['settled'])||!empty($r['returned'])||($r['equipment']??'')!==$equipment||!empty($r['asset_id']))continue;
-        $rStart=(string)($r['start_date']??'');$rEnd=(string)($r['end_date']??'');
-        foreach([$rStart,$rEnd] as $day){$d=DateTimeImmutable::createFromFormat('!Y-m-d',$day);if(!$d||$d->format('Y-m-d')!==$day)return ['asset'=>null,'error'=>'Sprawdź wcześniejszą rezerwację bez przypisanego egzemplarza.'];}
-        if(($start<=$rEnd&&$end>=$rStart)||(!empty($r['done'])&&$rEnd<date('Y-m-d')))
-            return ['asset'=>null,'error'=>'Najpierw przypisz egzemplarz do wcześniejszej rezerwacji tego sprzętu.'];
+function rm_rental_conflict(array $item,array $reservations,array $assets): string {
+    if(!empty($item['returned'])||!empty($item['settled']))return '';
+    $role=rm_equipment_kind((string)($item['equipment']??''));
+    $needs=rm_needs_vacuum($item);$id=(string)($item['asset_id']??'');
+    if($id==='')return $needs?'Przypisz żyrafę oraz odkurzacz do zestawu.':($role==='standard'?'':'Przypisz konkretny egzemplarz przed zapisaniem rezerwacji.');
+    if(!rm_valid_reservation_dates($item))return 'Nieprawidłowy termin.';
+    $primary=null;foreach($assets as $a)if(($a['id']??'')===$id)$primary=$a;
+    if(!$primary)return 'Nie znaleziono egzemplarza.';
+    $reason=rm_copy_conflict($item,$primary,$role,$reservations);if($reason!=='')return $reason;
+    $second=(string)($item['vacuum_asset_id']??'');
+    if(!$needs)return $second===''?'':'Rezerwacja bez zestawu nie może blokować dodatkowego odkurzacza.';
+    if($second==='')return 'Przypisz odkurzacz przemysłowy do zestawu.';
+    if($second===$id)return 'Zestaw wymaga dwóch różnych urządzeń.';
+    $secondary=null;foreach($assets as $a)if(($a['id']??'')===$second)$secondary=$a;
+    if(!$secondary)return 'Nie znaleziono odkurzacza do zestawu.';
+    return rm_copy_conflict($item,$secondary,'vacuum',$reservations);
+}
+/** Choose both devices under the reservations.json lock (the inventory file is read inside it). */
+function rm_auto_pick_asset(array $item,array $reservations,array $assets): array {
+    if(!rm_valid_reservation_dates($item))return ['asset'=>null,'vacuum'=>null,'error'=>'Sprawdź daty rezerwacji.'];
+    $role=rm_equipment_kind((string)($item['equipment']??''));$needs=rm_needs_vacuum($item);
+    $mains=rm_matching_assets($item,$assets,$role);
+    if(!$mains)return ['asset'=>null,'vacuum'=>null,'error'=>$role==='standard'&&!$needs?'':'Dodaj egzemplarze żyraf i odkurzaczy w Dostępność przed rezerwacją.'];
+    $primary=null;
+    foreach($mains as $a)if(rm_copy_conflict($item,$a,$role,$reservations)===''){$primary=$a;break;}
+    if($primary===null)return ['asset'=>null,'vacuum'=>null,'error'=>'Brak wolnego egzemplarza sprzętu w wybranym terminie.'];
+    $secondary=null;
+    if($needs){
+        foreach(rm_matching_assets($item,$assets,'vacuum') as $a){
+            if(($a['id']??'')!==($primary['id']??'')&&rm_copy_conflict($item,$a,'vacuum',$reservations)===''){$secondary=$a;break;}
+        }
+        if($secondary===null)return ['asset'=>null,'vacuum'=>null,'error'=>'Brak wolnego odkurzacza przemysłowego do zestawu. Sprawdź wcześniejsze rezerwacje i przypisania.'];
     }
-    usort($copies,fn($a,$b)=>strcasecmp((string)($a['label']??''),(string)($b['label']??'')));
-    foreach($copies as $copy){
-        $probe=$item;$probe['asset_id']=$copy['id'];
-        if(rm_rental_conflict($probe,$reservations,$assets)==='')
-            return ['asset'=>$copy,'error'=>''];
-    }
-    return ['asset'=>null,'error'=>'Brak wolnego egzemplarza w wybranym terminie. Zmień daty.'];
+    return ['asset'=>$primary,'vacuum'=>$secondary,'error'=>''];
 }
 function rm_hide_rental_finance(array $r): array {
     foreach(['income','loss','loss_note','settled_at','daily_rate','paid','deposit','settlement'] as $key)unset($r[$key]);
@@ -308,7 +360,7 @@ foreach ($operations as $op) {
         foreach($assets as $i=>$a){if(($a['id']??'')===$id){$index=$i;if(($a['equipment']??'')!==$equipment)$invalid=true;}elseif(($a['label']??'')===$label)$invalid=true;}
         $next=rm_text($op,'next_service',10);$date=$next===''?null:DateTimeImmutable::createFromFormat('!Y-m-d',$next);
         if($invalid||($next!==''&&(!$date||$date->format('Y-m-d')!==$next))){$results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nazwa egzemplarza jest zajęta, zmieniono model lub data przeglądu jest błędna.'];continue;}
-        $asset=['id'=>$id,'label'=>$label,'equipment'=>$equipment,'in_service'=>!empty($op['in_service']),'next_service'=>$next,'service_every'=>max(0,min(10000,(int)($op['service_every']??0))),'service_at_count'=>max(0,(int)($op['service_at_count']??0))];
+        $asset=['id'=>$id,'label'=>$label,'equipment'=>$equipment,'in_service'=>!empty($op['in_service']),'next_service'=>$next,'service_every'=>max(0,min(10000,(int)($op['service_every']??0))),'service_at_count'=>max(0,(int)($op['service_at_count']??0)),'asset_kind'=>(in_array(($op['asset_kind']??''),['standard','giraffe','vacuum'],true)?$op['asset_kind']:(($index!==null&&isset($assets[$index]['asset_kind']))?$assets[$index]['asset_kind']:rm_equipment_kind($equipment)))];
         // Merge immutable repair entries by ID so another device cannot erase service history.
         $repairs=[];foreach(($index===null?[]:($assets[$index]['repairs']??[])) as $r)$repairs[$r['id']]=$r;
         foreach(($op['repairs']??[]) as $r){if(!is_array($r))continue;$rid=preg_replace('/[^a-zA-Z0-9_-]/','',(string)($r['id']??''));$cost=filter_var($r['cost']??null,FILTER_VALIDATE_FLOAT);if($rid===''||$cost===false||!is_finite($cost)||$cost<0||$cost>10000000)continue;if(!isset($repairs[$rid]))$repairs[$rid]=['id'=>$rid,'date'=>rm_text($r,'date',10),'note'=>rm_text($r,'note',1000),'cost'=>round($cost,2)];}
@@ -441,26 +493,30 @@ foreach ($operations as $op) {
                 $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nieprawidłowa rezerwacja.']; continue;
             }
             $item=['id'=>$id,'month'=>$month,'text'=>$text,'done'=>!empty($op['done'])];
-            foreach (['equipment','day','start_date','end_date','end_day','end_month','time','phone','client','customer_name','asset_id','asset_label','actual_return'] as $field) {
+            foreach (['equipment','day','start_date','end_date','end_day','end_month','time','phone','client','customer_name','asset_id','asset_label','vacuum_asset_id','vacuum_asset_label','actual_return'] as $field) {
                 if (array_key_exists($field,$op)) $item[$field] = rm_text($op,$field,($field==='text'?500:200));
             }
             $existing=null;foreach($reservations as $saved)if(($saved['id']??'')===$id)$existing=$saved;
             // Preserve new metadata when an older APK edits a reservation.
-            foreach(['asset_id','asset_label','actual_return','returned','daily_rate','paid','deposit'] as $key){if($existing!==null&&array_key_exists($key,$existing)&&!array_key_exists($key,$op))$item[$key]=$existing[$key];}
+            foreach(['asset_id','asset_label','vacuum_asset_id','vacuum_asset_label','needs_vacuum','actual_return','returned','daily_rate','paid','deposit'] as $key){if($existing!==null&&array_key_exists($key,$existing)&&!array_key_exists($key,$op))$item[$key]=$existing[$key];}
             if(array_key_exists('returned',$op))$item['returned']=!empty($op['returned']);
             $bad=false;
             foreach(['daily_rate','paid','deposit'] as $key){
                 if($role!=='admin'){if($existing!==null&&array_key_exists($key,$existing))$item[$key]=$existing[$key];continue;}
                 if(array_key_exists($key,$op)){$value=filter_var($op[$key],FILTER_VALIDATE_FLOAT);if($value===false||!is_finite($value)||$value<0||$value>10000000){$bad=true;break;}$item[$key]=round($value,2);}
             }
+            if(array_key_exists('needs_vacuum',$op))$item['needs_vacuum']=!empty($op['needs_vacuum']);
+            if(!array_key_exists('needs_vacuum',$item))$item['needs_vacuum']=rm_needs_vacuum($item);
             $assets=rm_read_assets();
             $autoError='';
-            if(!$bad&&!empty($op['auto_assign'])&&empty($item['done'])&&empty($item['returned'])){
+            if(!$bad&&$existing===null&&!empty($op['auto_assign'])&&empty($item['done'])&&empty($item['returned'])){
                 // Always re-evaluate on the server; another phone may have booked the locally selected copy.
                 $chosen=rm_auto_pick_asset($item,$reservations,$assets);
                 $autoError=$chosen['error'];
                 $item['asset_id']=$chosen['asset']['id']??'';
                 $item['asset_label']=$chosen['asset']['label']??'';
+                $item['vacuum_asset_id']=$chosen['vacuum']['id']??'';
+                $item['vacuum_asset_label']=$chosen['vacuum']['label']??'';
             }
             $conflict=$bad?'Nieprawidłowa kwota.':($autoError!==''?$autoError:rm_rental_conflict($item,$reservations,$assets));
             if($conflict!==''){flock($reservationLock,LOCK_UN);fclose($reservationLock);$results[]=['op_id'=>$opId,'ok'=>false,'error'=>$conflict];continue;}

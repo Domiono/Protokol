@@ -30,3 +30,17 @@ Nowe pozycje panelu: **Dzisiaj** i **Dostępność**. Widok Dzisiaj pokazuje wyd
 - PHP: poprawna składnia, testy czystych reguł oraz 11 kontroli API na odizolowanych danych (role, terminy, serwis, rozliczenie, blokada HTTP pliku egzemplarzy).
 - Workflow `Test rental operations` uruchamia testy PHP, Robolectric i budowę debug APK.
 - Pełny build Gradle/Robolectric, instalacja na urządzeniu i ocena interfejsu nie zostały jeszcze wykonane. Przed wydaniem konieczny jest test aparatu, podpisu, przejścia między ekranami i aktualizacji istniejącej bazy na urządzeniu.
+
+## Wspólne magazyny: żyrafy i odkurzacze przemysłowe (1.7.5)
+
+Zestaw to **dwa fizyczne egzemplarze**, a nie samodzielna trzecia pula. Nie twórz dodatkowych sztucznych egzemplarzy „zestaw” (to podwoiłoby stan).
+
+1. W **Dostępność → Dodaj egzemplarz** wpisz każdą rzeczywistą żyrafę i każdy odkurzacz przemysłowy (np. Żyrafa 01/02/03, Odkurzacz 01/02/03). Ustaw odpowiednio grupę **Żyrafa** albo **Odkurzacz przemysłowy**. Zaktualizuj grupę już dodanych egzemplarzy, jeżeli trzeba. Odkurzacze piorące Puzzi nie są odkurzaczami przemysłowymi w tym magazynie.
+2. Dodaj zwykłą rezerwację żyrafy i zaznacz **Zestaw z odkurzaczem przemysłowym** albo wybierz ofertę zawierającą „żyrafa + odkurzacz” lub „żyrafa zestaw”. Aplikacja przydzieli pierwsze wolne urządzenie z każdej puli. Wybór przydziału jest weryfikowany jeszcze raz na serwerze w tej samej blokadzie zapisu.
+3. Wynajem samej żyrafy blokuje tylko żyrafę; wynajem osobnego odkurzacza przemysłowego blokuje tę samą pulę odkurzaczy co zestawy. Grupy mogą obejmować różne nazwy handlowe modelu (np. Bosch/Metabo), jeśli jest to rzeczywiście ten sam stan magazynowy.
+4. **Starsze rezerwacje zestawów bez wskazanego odkurzacza wymagają jednorazowego uzupełnienia:** Aktywne najmy → Więcej opcji → Egzemplarze i warunki najmu. Do tego czasu system konserwatywnie nie potwierdza nowych kolidujących przydziałów odkurzaczy. Podobnie dla starych rezerwacji pojedynczych sztuk bez ich numerów.
+5. Rezerwacji z grupy żyraf lub odkurzaczy przemysłowych bez przypisanego egzemplarza nie można już zaakceptować przez API. Pozostałe modele nadal zachowują dotychczasowe zachowanie bez zarejestrowanych egzemplarzy.
+6. Data odbioru i data zwrotu nadal blokują obie doby w kalendarzu; zestaw jest zwalniany po zwrocie lub rozliczeniu obu urządzeń. Protokół wydania zapisuje etykiety obu sztuk.
+7. Starszy panel admin.php WWW wprowadza rezerwacje bez wyboru fizycznych sztuk. Przy żyrafach, przemysłowych odkurzaczach i zestawach korzystaj z formularza rezerwacji w Androidzie; stare zapisy z WWW trzeba pojedynczo przypisać w aplikacji. Nie omijaj komunikatu o brakującym przydziale.
+
+**Uwaga o starszych danych:** aplikacja nie wie, który konkretnie odkurzacz wydano w dawnym zestawie, dlatego nie przypisuje takiej sztuki na podstawie samej liczby rezerwacji.

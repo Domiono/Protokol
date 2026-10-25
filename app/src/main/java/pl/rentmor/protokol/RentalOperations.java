@@ -57,7 +57,7 @@ public final class RentalOperations {
         screen("Dzisiaj");String today=LocalDate.now().toString();JSONArray all=store.allReservations();
         int issue=0,returns=0,late=0,missing=0;
         for(int i=0;i<all.length();i++){JSONObject r=all.optJSONObject(i);if(r==null||r.optBoolean("settled")||r.optBoolean("returned"))continue;
-            if(r.optString("asset_id").isEmpty())missing++;
+            if(r.optString("asset_id").isEmpty()||(RentalRules.needsVacuum(r)&&r.optString("vacuum_asset_id").isEmpty()))missing++;
             if(!r.optBoolean("done")&&today.equals(r.optString("start_date")))issue++;
             if(r.optBoolean("done")&&today.equals(r.optString("end_date")))returns++;
             if(r.optBoolean("done")&&!r.optString("end_date").isEmpty()&&r.optString("end_date").compareTo(today)<0)late++;
@@ -86,6 +86,7 @@ public final class RentalOperations {
         String name=r.optString("customer_name",r.optString("client")).trim(),phone=r.optString("phone").trim();
         if(!name.isEmpty()||!phone.isEmpty())text(c,name+(name.isEmpty()||phone.isEmpty()?"":"  •  ")+phone,14,0xff607086);
         text(c,r.optString("asset_id").isEmpty()?"Egzemplarz: do przypisania":"Egzemplarz: "+r.optString("asset_label"),13,r.optString("asset_id").isEmpty()?0xff925400:0xff607086);
+        if(RentalRules.needsVacuum(r))text(c,"Odkurzacz w zestawie: "+(r.optString("vacuum_asset_id").isEmpty()?"DO PRZYPISANIA":r.optString("vacuum_asset_label")),13,r.optString("vacuum_asset_id").isEmpty()?0xff925400:0xff607086);
         boolean canCall=phone.matches("[+0-9 ()-]{7,}");
         if(returned&&admin)pair(c,"Rozlicz najem",()->settlement(r),"Więcej opcji",()->rentalMenu(r),true);
         else pair(c,issued?"Protokół / zwrot":"Protokół wydania",()->open(r),canCall?"Zadzwoń":"Więcej opcji",()->{if(canCall){try{activity.startActivity(new Intent(Intent.ACTION_DIAL,Uri.fromParts("tel",phone.replaceAll("[^+0-9]",""),null)));}catch(Exception e){error(e);}}else rentalMenu(r);},true);
@@ -103,21 +104,33 @@ public final class RentalOperations {
         if(admin)button(page,"＋ Dodaj egzemplarz",()->assetForm(null));
         JSONArray assets=store.assets(),rentals=store.allReservations();if(assets.length()==0)text(page,"Dodaj rzeczywiste egzemplarze, np. Puzzi 01, Puzzi 02. Następnie przypisz je do aktywnych rezerwacji.",16,0xff526174);
         for(int i=0;i<assets.length();i++){JSONObject a=assets.optJSONObject(i);if(a==null)continue;LinearLayout c=card(page,a.optString("label")+" • "+a.optString("equipment"));
-            for(int d=0;d<7;d++){String day=start.plusDays(d).toString();JSONObject probe=new JSONObject();try{probe.put("asset_id",a.optString("id"));probe.put("equipment",a.optString("equipment"));probe.put("start_date",day);probe.put("end_date",day);}catch(Exception ignored){}String reason=RentalRules.conflict(probe,rentals,assets);if(reason.isEmpty())for(int j=0;j<rentals.length();j++){JSONObject legacy=rentals.optJSONObject(j);if(legacy!=null&&!legacy.optBoolean("settled")&&!legacy.optBoolean("returned")&&legacy.optString("asset_id").isEmpty()&&a.optString("equipment").equals(legacy.optString("equipment"))){try{if(RentalRules.overlaps(day,day,legacy.optString("start_date"),legacy.optString("end_date")))reason="Sprawdź — rezerwacja modelu bez przypisanej sztuki";}catch(Exception e){reason="Sprawdź starsze rezerwacje tego modelu";}}}text(c,day+"  •  "+(reason.isEmpty()?"Wolny":reason),13,reason.isEmpty()?0xff166534:0xff925400);}
+            for(int d=0;d<7;d++){String day=start.plusDays(d).toString();JSONObject probe=new JSONObject();try{probe.put("asset_id",a.optString("id"));probe.put("equipment",a.optString("equipment"));probe.put("start_date",day);probe.put("end_date",day);probe.put("needs_vacuum",false);}catch(Exception ignored){}String reason=RentalRules.conflict(probe,rentals,assets);if(reason.isEmpty())for(int j=0;j<rentals.length();j++){JSONObject legacy=rentals.optJSONObject(j);if(legacy!=null&&!legacy.optBoolean("settled")&&!legacy.optBoolean("returned")&&legacy.optString("asset_id").isEmpty()&&a.optString("equipment").equals(legacy.optString("equipment"))){try{if(RentalRules.overlaps(day,day,legacy.optString("start_date"),legacy.optString("end_date")))reason="Sprawdź — rezerwacja modelu bez przypisanej sztuki";}catch(Exception e){reason="Sprawdź starsze rezerwacje tego modelu";}}}text(c,day+"  •  "+(reason.isEmpty()?"Wolny":reason),13,reason.isEmpty()?0xff166534:0xff925400);}
             button(c,"Historia i serwis",()->assetDetails(a));
         }
     }
-    long rentalsCount(JSONObject a){long count=0;JSONArray rs=store.allReservations();for(int i=0;i<rs.length();i++){JSONObject r=rs.optJSONObject(i);if(r!=null&&a.optString("id").equals(r.optString("asset_id"))&&(r.optBoolean("done")||r.optBoolean("settled")))count++;}return count;}
+    long rentalsCount(JSONObject a){long count=0;JSONArray rs=store.allReservations();for(int i=0;i<rs.length();i++){JSONObject r=rs.optJSONObject(i);if(r!=null&&(a.optString("id").equals(r.optString("asset_id"))||a.optString("id").equals(r.optString("vacuum_asset_id")))&&(r.optBoolean("done")||r.optBoolean("settled")))count++;}return count;}
     boolean serviceDue(JSONObject a){String day=a.optString("next_service");return (!day.isEmpty()&&day.compareTo(LocalDate.now().toString())<=0)||(a.optLong("service_every")>0&&rentalsCount(a)-a.optLong("service_at_count")>=a.optLong("service_every"));}
     void assetDetails(JSONObject a){screen(a.optString("label"));text(page,a.optString("equipment")+(a.optBoolean("in_service")?" • W SERWISIE":" • gotowy do najmu"),16,0xff245b91);text(page,"Wynajmy: "+rentalsCount(a)+(serviceDue(a)?" • PRZEGLĄD DO WYKONANIA":""),16,0xff925400);
-        BigDecimal income=BigDecimal.ZERO;JSONArray rs=store.allReservations();for(int i=0;i<rs.length();i++){JSONObject r=rs.optJSONObject(i);if(r!=null&&a.optString("id").equals(r.optString("asset_id"))){if(r.optBoolean("settled"))income=income.add(RentalRules.money(r.optString("income","0")));text(page,r.optString("start_date")+" → "+r.optString("end_date")+" • "+r.optString("customer_name"),14,0xff526174);}}
-        if(admin){text(page,"Przychód rozliczony: "+income+" zł",18,0xff166534);button(page,"Edytuj / ustaw serwis",()->assetForm(a));button(page,"Dodaj wykonaną naprawę / przegląd",()->repair(a));}
+        BigDecimal income=BigDecimal.ZERO;JSONArray rs=store.allReservations();for(int i=0;i<rs.length();i++){JSONObject r=rs.optJSONObject(i);if(r!=null&&(a.optString("id").equals(r.optString("asset_id"))||a.optString("id").equals(r.optString("vacuum_asset_id")))){if(r.optBoolean("settled")&&a.optString("id").equals(r.optString("asset_id")))income=income.add(RentalRules.money(r.optString("income","0")));text(page,r.optString("start_date")+" → "+r.optString("end_date")+" • "+r.optString("customer_name"),14,0xff526174);}}
+        if(admin){text(page,"Przychód rozliczony (bez podwójnego liczenia kwoty zestawu): "+income+" zł",16,0xff166534);button(page,"Edytuj / ustaw serwis",()->assetForm(a));button(page,"Dodaj wykonaną naprawę / przegląd",()->repair(a));}
         JSONArray repairs=a.optJSONArray("repairs");if(repairs!=null)for(int i=0;i<repairs.length();i++){JSONObject r=repairs.optJSONObject(i);if(r!=null)text(page,r.optString("date")+" • "+r.optString("note")+(admin?" • "+r.optString("cost")+" zł":""),14,0xff526174);}
     }
     void assetForm(JSONObject old){if(!admin)return;screen(old==null?"Nowy egzemplarz":"Ustawienia egzemplarza");JSONArray eq=store.equipment();ArrayList<String> names=new ArrayList<>();for(int i=0;i<eq.length();i++)names.add(eq.optString(i));if(names.isEmpty()){text(page,"Najpierw odśwież listę sprzętu.",16,0xff925400);return;}Spinner model=new Spinner(activity);model.setAdapter(new ArrayAdapter<>(activity,android.R.layout.simple_spinner_dropdown_item,names));page.addView(model);if(old!=null){model.setSelection(Math.max(0,names.indexOf(old.optString("equipment"))));model.setEnabled(false);}
+        text(page,"Pula fizycznych egzemplarzy – wybierz właściwą grupę, aby wynajem osobno i w zestawie korzystał z tych samych sztuk.",13,0xff526174);
+        String[] groups={"Pozostały sprzęt","Żyrafa","Odkurzacz przemysłowy"};
+        Spinner group=new Spinner(activity);group.setAdapter(new ArrayAdapter<>(activity,android.R.layout.simple_spinner_dropdown_item,groups));
+        String initialKind=old==null?RentalRules.kind(names.get(0)):RentalRules.assetKind(old);
+        group.setSelection("giraffe".equals(initialKind)?1:"vacuum".equals(initialKind)?2:0);
+        if(old==null)model.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            @Override public void onItemSelected(android.widget.AdapterView<?> parent,View view,int position,long id){
+                String value=RentalRules.kind(names.get(position));group.setSelection("giraffe".equals(value)?1:"vacuum".equals(value)?2:0);
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent){}
+        });
+        page.addView(group);
         EditText label=field(page,"Numer / nazwa egzemplarza",old==null?"":old.optString("label"),false);CheckBox service=new CheckBox(activity);service.setText("Wyłącz z wynajmu — w serwisie");service.setChecked(old!=null&&old.optBoolean("in_service"));page.addView(service);
         EditText next=field(page,"Następny przegląd (opcjonalnie)",old==null?"":old.optString("next_service"),false);date(next);button(page,"Wyczyść datę przeglądu",()->next.setText(""));EditText every=field(page,"Przegląd co ile wynajmów (0 = wyłączony)",old==null?"0":old.optString("service_every","0"),true);
-        button(page,"Zapisz egzemplarz",()->{try{String name=label.getText().toString().trim();if(name.isEmpty())throw new IllegalArgumentException("Wpisz numer egzemplarza");JSONObject a=old==null?new JSONObject():copy(old);a.put("id",old==null?UUID.randomUUID().toString():old.optString("id"));a.put("equipment",model.getSelectedItem().toString());a.put("label",name);a.put("in_service",service.isChecked());a.put("next_service",next.getText().toString());int n=Integer.parseInt(every.getText().toString());if(n<0||n>10000)throw new IllegalArgumentException("Nieprawidłowy interwał");a.put("service_every",n);store.enqueue("asset_save",a);store.saveAsset(a);host.sync();assetDetails(a);}catch(Exception e){error(e);}});
+        button(page,"Zapisz egzemplarz",()->{try{String name=label.getText().toString().trim();if(name.isEmpty())throw new IllegalArgumentException("Wpisz numer egzemplarza");JSONObject a=old==null?new JSONObject():copy(old);a.put("id",old==null?UUID.randomUUID().toString():old.optString("id"));a.put("equipment",model.getSelectedItem().toString());a.put("asset_kind",group.getSelectedItemPosition()==1?"giraffe":group.getSelectedItemPosition()==2?"vacuum":"standard");a.put("label",name);a.put("in_service",service.isChecked());a.put("next_service",next.getText().toString());int n=Integer.parseInt(every.getText().toString());if(n<0||n>10000)throw new IllegalArgumentException("Nieprawidłowy interwał");a.put("service_every",n);store.enqueue("asset_save",a);store.saveAsset(a);host.sync();assetDetails(a);}catch(Exception e){error(e);}});
     }
     void repair(JSONObject old){screen("Wykonany serwis • "+old.optString("label"));EditText note=field(page,"Co wykonano?","",false),cost=field(page,"Koszt naprawy (zł)","0",true),next=field(page,"Następny przegląd (opcjonalnie)","",false);date(next);text(page,"Koszt jest zapisywany również w pozostałych kosztach. Nie dodawaj go drugi raz ręcznie.",13,0xff526174);
         button(page,"Zapisz naprawę",()->{try{if(note.getText().toString().trim().isEmpty())throw new IllegalArgumentException("Opisz wykonane prace");JSONObject a=copy(old),r=new JSONObject();String id=UUID.randomUUID().toString();r.put("id",id);r.put("date",LocalDate.now().toString());r.put("note",note.getText().toString());r.put("cost",RentalRules.money(cost.getText().toString()).toPlainString());JSONArray repairs=a.optJSONArray("repairs");if(repairs==null)repairs=new JSONArray();repairs.put(r);a.put("repairs",repairs);a.put("service_at_count",rentalsCount(a));a.put("next_service",next.getText().toString());a.put("in_service",false);store.enqueue("asset_save",a);store.saveAsset(a);
@@ -125,14 +138,67 @@ public final class RentalOperations {
              // The API accepts only positive costs. A free service remains in maintenance history.
              if(RentalRules.money(r.getString("cost")).signum()>0){store.enqueue("expense_save",expense);store.saveExpense(expense);}host.sync();assetDetails(a);}catch(Exception e){error(e);}});
     }
-    void rentalForm(JSONObject old){screen("Egzemplarz i warunki najmu");ArrayList<JSONObject> items=new ArrayList<>();ArrayList<String> labels=new ArrayList<>();labels.add("Bez przypisania");items.add(null);JSONArray assets=store.assets();int selected=0;for(int i=0;i<assets.length();i++){JSONObject a=assets.optJSONObject(i);if(a!=null&&a.optString("equipment").equals(old.optString("equipment"))){items.add(a);labels.add(a.optString("label")+(a.optBoolean("in_service")?" • serwis":""));if(a.optString("id").equals(old.optString("asset_id")))selected=items.size()-1;}}
-        text(page,"Przypisz także pozostałe rezerwacje tego modelu. Terminy bez numeru egzemplarza wymagają ręcznego sprawdzenia.",13,0xff925400);
-        Spinner pick=new Spinner(activity);pick.setAdapter(new ArrayAdapter<>(activity,android.R.layout.simple_spinner_dropdown_item,labels));pick.setSelection(selected);if(old.optBoolean("done")&&!old.optString("asset_id").isEmpty())pick.setEnabled(false);page.addView(pick);
-        EditText rate=field(page,"Stawka za dobę (zł)",old.optString("daily_rate","0"),true),paid=field(page,"Wpłata na poczet najmu (bez kaucji)",old.optString("paid","0"),true),deposit=field(page,"Pobrana kaucja (zł)",old.optString("deposit","0"),true);rate.setEnabled(admin);paid.setEnabled(admin);deposit.setEnabled(admin);
-        button(page,"Zapisz",()->{try{JSONObject r=copy(old),a=items.get(pick.getSelectedItemPosition());r.put("asset_id",a==null?"":a.optString("id"));r.put("asset_label",a==null?"nieprzypisany":a.optString("label"));if(admin){r.put("daily_rate",RentalRules.money(rate.getText().toString()).toPlainString());r.put("paid",RentalRules.money(paid.getText().toString()).toPlainString());r.put("deposit",RentalRules.money(deposit.getText().toString()).toPlainString());}save(r);active();}catch(Exception e){error(e);}});
+    void rentalForm(JSONObject old){
+        screen("Egzemplarze i warunki najmu");
+        JSONArray assets=store.assets();
+        String role=RentalRules.kind(old.optString("equipment"));
+        ArrayList<JSONObject> primary=new ArrayList<>(),vacuums=new ArrayList<>();
+        ArrayList<String> primaryNames=new ArrayList<>(),vacNames=new ArrayList<>();
+        primary.add(null);primaryNames.add("Bez przypisania");
+        vacuums.add(null);vacNames.add("Bez przypisania");
+        int selected=0,vacSelected=0;
+        for(int i=0;i<assets.length();i++){
+            JSONObject a=assets.optJSONObject(i);if(a==null)continue;
+            String kind=RentalRules.assetKind(a);
+            boolean eligible="standard".equals(role)?old.optString("equipment").equals(a.optString("equipment")):role.equals(kind);
+            if(eligible){primary.add(a);primaryNames.add(a.optString("label")+(a.optBoolean("in_service")?" • serwis":""));
+                if(a.optString("id").equals(old.optString("asset_id")))selected=primary.size()-1;}
+            if("vacuum".equals(kind)){vacuums.add(a);vacNames.add(a.optString("label")+(a.optBoolean("in_service")?" • serwis":""));
+                if(a.optString("id").equals(old.optString("vacuum_asset_id")))vacSelected=vacuums.size()-1;}
+        }
+        text(page,"Egzemplarz główny",14,0xff17263e);
+        Spinner pick=new Spinner(activity);
+        pick.setAdapter(new ArrayAdapter<>(activity,android.R.layout.simple_spinner_dropdown_item,primaryNames));
+        pick.setSelection(selected);if(old.optBoolean("done")&&!old.optString("asset_id").isEmpty())pick.setEnabled(false);
+        page.addView(pick);
+        boolean giraffe="giraffe".equals(role);
+        CheckBox withVacuum=new CheckBox(activity);
+        withVacuum.setText("Zestaw z odkurzaczem przemysłowym");
+        withVacuum.setChecked(RentalRules.needsVacuum(old));
+        if(old.optBoolean("done")||RentalRules.bundleOffer(old.optString("equipment")))withVacuum.setEnabled(false);
+        if(giraffe)page.addView(withVacuum);
+        LinearLayout vacBox=new LinearLayout(activity);vacBox.setOrientation(1);
+        text(vacBox,"Odkurzacz do zestawu",14,0xff17263e);
+        Spinner vacuumPick=new Spinner(activity);
+        vacuumPick.setAdapter(new ArrayAdapter<>(activity,android.R.layout.simple_spinner_dropdown_item,vacNames));
+        vacuumPick.setSelection(vacSelected);
+        if(old.optBoolean("done")&&!old.optString("vacuum_asset_id").isEmpty())vacuumPick.setEnabled(false);
+        vacBox.addView(vacuumPick);page.addView(vacBox);
+        vacBox.setVisibility(giraffe&&withVacuum.isChecked()?View.VISIBLE:View.GONE);
+        withVacuum.setOnCheckedChangeListener((b,checked)->vacBox.setVisibility(checked?View.VISIBLE:View.GONE));
+        text(page,"Wybranie zestawu zajmie dwie konkretne sztuki. Rezerwacja osobnego odkurzacza widzi te same zajętości.",13,0xff526174);
+        EditText rate=field(page,"Stawka za dobę (zł)",old.optString("daily_rate","0"),true),
+            paid=field(page,"Wpłata na poczet najmu (bez kaucji)",old.optString("paid","0"),true),
+            deposit=field(page,"Pobrana kaucja (zł)",old.optString("deposit","0"),true);
+        rate.setEnabled(admin);paid.setEnabled(admin);deposit.setEnabled(admin);
+        button(page,"Zapisz egzemplarze i warunki",()->{try{
+            JSONObject r=copy(old),a=primary.get(pick.getSelectedItemPosition());
+            boolean set=giraffe&&withVacuum.isChecked();
+            if(set&&a==null)throw new IllegalArgumentException("Wybierz konkretną żyrafę do zestawu.");
+            r.put("asset_id",a==null?"":a.optString("id"));r.put("asset_label",a==null?"":a.optString("label"));
+            r.put("needs_vacuum",set);r.put("auto_assign",false);
+            JSONObject vac=set?vacuums.get(vacuumPick.getSelectedItemPosition()):null;
+            if(set&&vac==null)throw new IllegalArgumentException("Wybierz odkurzacz do zestawu.");
+            r.put("vacuum_asset_id",vac==null?"":vac.optString("id"));
+            r.put("vacuum_asset_label",vac==null?"":vac.optString("label"));
+            if(admin){r.put("daily_rate",RentalRules.money(rate.getText().toString()).toPlainString());
+                r.put("paid",RentalRules.money(paid.getText().toString()).toPlainString());
+                r.put("deposit",RentalRules.money(deposit.getText().toString()).toPlainString());}
+            save(r);active();
+        }catch(Exception e){error(e);}});
     }
     void extend(JSONObject old){screen("Przedłuż najem");text(page,old.optString("equipment")+" • obecny zwrot: "+old.optString("end_date"),16,0xff526174);EditText end=field(page,"Nowy termin zwrotu",old.optString("end_date"),false);date(end);
-        button(page,"Sprawdź termin i przedłuż",()->{try{LocalDate to=LocalDate.parse(end.getText());if(!to.isAfter(LocalDate.parse(old.optString("end_date"))))throw new IllegalArgumentException("Wybierz późniejszy termin");JSONObject r=copy(old);r.put("end_date",to.toString());r.put("end_month",to.toString().substring(0,7));r.put("end_day",to.getDayOfMonth());r.put("text",r.optString("start_date")+" – "+to+" • "+r.optString("equipment")+" • "+r.optString("phone"));if(r.optString("asset_id").isEmpty())throw new IllegalArgumentException("Najpierw przypisz egzemplarz, aby sprawdzić dostępność");String conflict=RentalRules.conflict(r,store.allReservations(),store.assets());if(!conflict.isEmpty())throw new IllegalArgumentException(conflict);BigDecimal total=RentalRules.money(r.optString("daily_rate","0")).multiply(BigDecimal.valueOf(RentalRules.days(r.optString("start_date"),to.toString())));new AlertDialog.Builder(activity).setTitle("Potwierdź przedłużenie").setMessage("Nowy zwrot: "+to+(admin?"\nSzacowany najem: "+total+" zł (bez materiałów i rabatów)":"")+"\nTermin zostanie potwierdzony podczas synchronizacji.").setNegativeButton("Anuluj",null).setPositiveButton("Przedłuż",(d,w)->{try{save(r);active();}catch(Exception e){error(e);}}).show();}catch(Exception e){error(e);}});
+        button(page,"Sprawdź termin i przedłuż",()->{try{LocalDate to=LocalDate.parse(end.getText());if(!to.isAfter(LocalDate.parse(old.optString("end_date"))))throw new IllegalArgumentException("Wybierz późniejszy termin");JSONObject r=copy(old);r.put("end_date",to.toString());r.put("end_month",to.toString().substring(0,7));r.put("end_day",to.getDayOfMonth());r.put("auto_assign",false);r.put("text",r.optString("start_date")+" – "+to+" • "+r.optString("equipment")+" • "+r.optString("phone"));if(r.optString("asset_id").isEmpty())throw new IllegalArgumentException("Najpierw przypisz egzemplarz, aby sprawdzić dostępność");String conflict=RentalRules.conflict(r,store.allReservations(),store.assets());if(!conflict.isEmpty())throw new IllegalArgumentException(conflict);BigDecimal total=RentalRules.money(r.optString("daily_rate","0")).multiply(BigDecimal.valueOf(RentalRules.days(r.optString("start_date"),to.toString())));new AlertDialog.Builder(activity).setTitle("Potwierdź przedłużenie").setMessage("Nowy zwrot: "+to+(admin?"\nSzacowany najem: "+total+" zł (bez materiałów i rabatów)":"")+"\nTermin zostanie potwierdzony podczas synchronizacji.").setNegativeButton("Anuluj",null).setPositiveButton("Przedłuż",(d,w)->{try{save(r);active();}catch(Exception e){error(e);}}).show();}catch(Exception e){error(e);}});
     }
     public void settlement(JSONObject old){if(!admin)return;screen("Rozliczenie najmu");EditText end=field(page,"Faktyczna data zwrotu",old.optString("actual_return",LocalDate.now().toString()),false);date(end);text(page,"Doby: różnica dat, minimum 1. Sprawdź ustalenia godzinowe; liczbę dób możesz skorygować przed zatwierdzeniem.",13,0xff526174);
         String suggested="1";try{suggested=""+RentalRules.days(old.optString("start_date"),end.getText().toString());}catch(Exception ignored){}
