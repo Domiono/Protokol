@@ -76,7 +76,7 @@ jobs:
           cmp -s "$TMP_DIR/original.php" "$TMP_DIR/check.php" || { echo "Index changed on host; refusing overwrite"; exit 1; }
 
           # Backups OUTSIDE public_html prevent accidental source disclosure.
-          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_SETUP; mkdir -p rentmor-backups; put $TMP_DIR/original.php -o rentmor-backups/index-before-gallery-$GITHUB_RUN_ID.php; bye"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_SETUP; set cmd:fail-exit no; mkdir -p rentmor-backups; set cmd:fail-exit yes; put $TMP_DIR/original.php -o rentmor-backups/index-before-gallery-$GITHUB_RUN_ID.php; bye"
           echo "Private backup stored: rentmor-backups/index-before-gallery-$GITHUB_RUN_ID.php"
 
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_SETUP; put server/rentmor-gallery.css -o public_html/rentmor-gallery.css; put server/rentmor-gallery.js -o public_html/rentmor-gallery.js; put $TMP_DIR/index.php -o public_html/index.php; bye"
