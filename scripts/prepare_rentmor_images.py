@@ -97,6 +97,8 @@ def convert(data, oldmanifest, source, output, manifestfile, uploadfile):
                 if name == "rentmor-logo.png": selections = [("card", 260, 82), ("detail", 520, 83)]
                 for kind, max_width, quality in selections:
                     dest_width = min(width, max_width)
+                    if kind == "detail" and info.get("card", {}).get("width") == dest_width:
+                        continue
                     target = im.copy()
                     if target.width > dest_width:
                         dest_height = max(1, round(target.height*dest_width/target.width))
