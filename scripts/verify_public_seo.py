@@ -81,7 +81,9 @@ def main():
     assert any(node.get('@type') == 'Article' and node.get('mainEntityOfPage') == BASE + AIRLESS_GUIDE
                for schema in spray.schemas for node in (schema.get('@graph',[]) if '@graph' in schema else [schema]))
     assert AIRLESS_OFFER in spray.links, ('Missing commercial WT20i link',AIRLESS_OFFER)
-    assert 'youtube-nocookie.com/embed/exN_5Wl5EPY' in spray_html
+    assert 'youtube-nocookie.com/embed/-GtS3HWavo8' in spray_html
+    assert 'youtube-nocookie.com/embed/exN_5Wl5EPY' not in spray_html
+    assert 'wabrotech.pl/poradnik/jak-przygotowac-agregat-malarski-do-pracy' in spray_html
     assert 'youtube-nocookie.com/embed/8OgLnaFO1Jk' in spray_html
     offer_html, offer_headers = fetch(AIRLESS_OFFER)
     validate(offer_html,offer_headers,BASE + AIRLESS_OFFER)
