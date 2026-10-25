@@ -70,6 +70,8 @@ with tempfile.TemporaryDirectory() as td:
   assert not call(dict(booking('giraffe-direct','Żyrafa Stanley'),asset_id='g1',auto_assign=False))['results'][0]['ok']
   assert call({'action':'reservation_settle','id':'vac-alone','income':80,'loss':0,
      'settlement':{'days':2},'actual_return':'2030-12-03'})['results'][0]['ok']
+  assert call({'action':'reservation_settle','id':'giraffe-alone','income':80,'loss':0,
+     'settlement':{'days':2},'actual_return':'2030-12-03'})['results'][0]['ok']
   assert call(booking('combo-three','Żyrafa + odkurzacz'))['results'][0]['ok']
   third=next(x for x in call()['reservations'] if x['id']=='combo-three')
   assert third['vacuum_asset_id']=='v1'
