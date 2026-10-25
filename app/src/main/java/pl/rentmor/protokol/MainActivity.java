@@ -388,7 +388,12 @@ public class MainActivity extends Activity {
                     addAdminDownloadCard();
                 });
             }catch(Exception e){
-                runOnUiThread(()->{if(status!=null)status.setText("Nie wysłano: "+e.getMessage()+" • Dane zapisane lokalnie.");toast("Nie wysłano zmian: "+e.getMessage()+". Dane pozostają w telefonie.");});
+                runOnUiThread(()->{
+                    int pending=store.pendingCount();
+                    String details=e.getMessage()==null?"Nieznany problem z serwerem.":e.getMessage();
+                    if(status!=null)status.setText("Synchronizacja nieudana: "+details+"\nOczekujące operacje: "+pending+".");
+                    toast("Synchronizacja nieudana. "+(pending>0?"W telefonie oczekuje "+pending+" operacji.":"Sprawdź połączenie z RentMor.pl.")+" Szczegóły są w panelu głównym.");
+                });
             }finally{syncRunning.set(false);}
         }).start();
     }

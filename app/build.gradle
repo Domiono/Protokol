@@ -13,8 +13,8 @@ android {
         applicationId 'pl.rentmor.protokol'
         minSdk 29
         targetSdk 35
-        versionCode 22
-        versionName '1.7.7'
+        versionCode 23
+        versionName '1.7.8'
     }
 
     signingConfigs {
