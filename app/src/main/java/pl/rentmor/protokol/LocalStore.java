@@ -192,6 +192,11 @@ public class LocalStore extends SQLiteOpenHelper {
             for(String id:pendingDelete)db.delete("expenses","id=?",new String[]{id});
             Cursor rows=db.rawQuery("SELECT id FROM expenses",null);
             try { while(rows.moveToNext()){String id=rows.getString(0);if(!keep.contains(id))db.delete("expenses","id=?",new String[]{id});} } finally { rows.close(); }
+            // Preserve pending offline changes when the server snapshot is older.
+            for(int i=0;i<pending.length();i++){
+                JSONObject op=pending.optJSONObject(i);
+                if(op!=null&&"expense_save".equals(op.optString("action")))saveExpense(op);
+            }
             db.setTransactionSuccessful();
         } finally { db.endTransaction(); }
     }

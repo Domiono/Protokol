@@ -13,6 +13,30 @@ function e_admin($value) {
     return htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
 }
 
+// Revenue is attributed to settlement date, consistently with Android reports.
+function rm_admin_settlement_month(array $r): string {
+    if (empty($r['settled'])) return '';
+    $day=substr((string)($r['settled_at']??''),0,10);
+    $date=DateTimeImmutable::createFromFormat('!Y-m-d',$day);
+    return $date && $date->format('Y-m-d')===$day ? substr($day,0,7) : '';
+}
+function rm_admin_equipment_name(array $r): string {
+    $name=trim((string)($r['equipment']??''));
+    if($name===''){
+        $raw=(string)($r['text']??'');
+        $parts=explode('•',$raw);
+        if(count($parts)>=2)$name=trim($parts[1]);
+        else {
+            $name=preg_replace('/^\\s*\\d{1,2}\\s+/u','',trim($raw));
+            $name=preg_replace('/\\s+\\d{1,2}\\s*\\/.*$/u','',$name);
+        }
+    }
+    $name=preg_replace('/\\s+-\\s+wynajem.*$/iu','',$name);
+    $name=preg_replace('/\\s+\\|.*$/u','',$name);
+    $name=trim(preg_replace('/\\s+/u',' ',$name));
+    return $name===''?'Nieprzypisany sprzęt':$name;
+}
+
 function rm_admin_phone_key($value) {
     $value = trim((string)$value);
     if ($value === '' || !preg_match('/^[+0-9() .\\-]+$/', $value)) return '';
@@ -82,7 +106,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['act
                     $text = $legacyText !== '' && $equipment === '' ? $legacyText : $start . ' – ' . $finish . ($time !== '' ? ' '.$time : '') . ' • ' . $equipment . ($phone !== '' ? ' • '.$phone : '');
                     $item = ['id'=>($action==='reservation_update'?$id:bin2hex(random_bytes(12))),'month'=>$month,'text'=>$text,'equipment'=>$equipment,'day'=>(int)substr($start,8,2),'start_date'=>$start,'end_date'=>$finish,'end_day'=>(int)substr($finish,8,2),'end_month'=>substr($finish,0,7),'time'=>$time,'phone'=>$phone,'customer_name'=>$customerName,'done'=>!empty($_POST['reservation_done']),'settled'=>false];
                     if ($action === 'reservation_update') {
-                        foreach ($items as &$saved) if ((string)($saved['id'] ?? '') === $id) { foreach (['settled','income','loss','loss_note','settled_at','created_at'] as $field) if (array_key_exists($field,$saved)) $item[$field]=$saved[$field]; $saved=$item; $found=true; break; }
+                        foreach ($items as &$saved) if ((string)($saved['id'] ?? '') === $id) { foreach (['settled','income','loss','loss_note','settled_at','created_at'] as $field) if (array_key_exists($field,$saved)) $item[$field]=$saved[$field]; $item=array_merge($saved,$item); if(($saved['equipment']??'')!==$equipment){$item['asset_id']='';$item['asset_label']='';} $saved=$item; $found=true; break; }
                         unset($saved);
                         if (!$found) $_SESSION['reservation_flash']='Nie znaleziono rezerwacji do edycji.';
                     } else { $item['created_at']=date('Y-m-d H:i:s'); $items[]=$item; $found=true; }
@@ -183,6 +207,12 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['act
                 if ($name !== '' && strlen($name) <= 160 && $dt && $dt->format('Y-m-d') === $date && $amount !== false && $amount > 0 && $amount <= 100000000) {
                     if ($id === '') $id = bin2hex(random_bytes(12));
                     $equipmentName = trim((string)($_POST['equipment_name'] ?? ''));
+                    // Editing a model's repair in the general costs tab must not erase its attribution.
+                    if (!array_key_exists('equipment_name', $_POST)) {
+                        foreach ($items as $previous) if ((string)($previous['id']??'')===$id) {
+                            $equipmentName=trim((string)($previous['equipment_name']??''));break;
+                        }
+                    }
                     $item = ['id'=>$id, 'date'=>$date, 'month'=>substr($date,0,7), 'name'=>function_exists('mb_substr')?mb_substr($name,0,160,'UTF-8'):substr($name,0,160), 'amount'=>round((float)$amount,2), 'type'=>$type, 'equipment_name'=>function_exists('mb_substr')?mb_substr($equipmentName,0,160,'UTF-8'):substr($equipmentName,0,160), 'note'=>function_exists('mb_substr')?mb_substr($note,0,1000,'UTF-8'):substr($note,0,1000)];
                     $found = false;
                     foreach ($items as &$saved) { if ((string)($saved['id'] ?? '') === $id) { $saved = $item; $found = true; break; } }
@@ -982,19 +1012,17 @@ if (isset($_GET['edit_id'])) {
                 if (!is_array($reservation_items)) $reservation_items = [];
                 $reservation_month = preg_match('/^\d{4}-\d{2}$/', (string)($_GET['month'] ?? '')) ? (string)$_GET['month'] : date('Y-m');
                 $active_reservations = array_values(array_filter($reservation_items, function($r) use ($reservation_month) { return ($r['month'] ?? '') === $reservation_month && empty($r['settled']); }));
-                $history_reservations = array_values(array_filter($reservation_items, function($r) use ($reservation_month) { return ($r['month'] ?? '') === $reservation_month && !empty($r['settled']); }));
+                $history_reservations = array_values(array_filter($reservation_items, function($r) use ($reservation_month) { return rm_admin_settlement_month($r) === $reservation_month; }));
                 $sum_income = 0; $sum_loss = 0;
                 foreach ($history_reservations as $r) { $sum_income += (float)($r['income'] ?? 0); $sum_loss += (float)($r['loss'] ?? 0); }
                 $equipment_stats = [];
                 foreach ($history_reservations as $r) {
-                    $txt = trim((string)($r['text'] ?? ''));
-                    $equipment_name = preg_replace('/^\d{1,2}\s+/', '', $txt);
-                    $equipment_name = preg_replace('/\s+\d{1,2}(?:\s*\/.*)?$/u', '', $equipment_name);
-                    if ($equipment_name === '') $equipment_name = 'Pozostałe / nierozpoznane';
-                    if (!isset($equipment_stats[$equipment_name])) $equipment_stats[$equipment_name] = ['count'=>0,'income'=>0,'loss'=>0];
-                    $equipment_stats[$equipment_name]['count']++;
-                    $equipment_stats[$equipment_name]['income'] += (float)($r['income'] ?? 0);
-                    $equipment_stats[$equipment_name]['loss'] += (float)($r['loss'] ?? 0);
+                    $equipment_name=rm_admin_equipment_name($r);
+                    $model_key=function_exists('mb_strtolower')?mb_strtolower($equipment_name,'UTF-8'):strtolower($equipment_name);
+                    if(!isset($equipment_stats[$model_key]))$equipment_stats[$model_key]=['name'=>$equipment_name,'count'=>0,'income'=>0,'loss'=>0];
+                    $equipment_stats[$model_key]['count']++;
+                    $equipment_stats[$model_key]['income']+=(float)($r['income']??0);
+                    $equipment_stats[$model_key]['loss']+=(float)($r['loss']??0);
                 }
                 uasort($equipment_stats, function($a,$b){ return ($b['income']-$b['loss']) <=> ($a['income']-$a['loss']); });
                 usort($active_reservations, function($a,$b){ return strcmp((string)($a['text'] ?? ''),(string)($b['text'] ?? '')); });
@@ -1026,7 +1054,7 @@ if (isset($_GET['edit_id'])) {
                 <section class="bg-white rounded-3xl p-5 sm:p-7 shadow-sm"><h3 class="text-xl font-black mb-4">Wynik według sprzętu</h3>
                     <?php if (!$equipment_stats): ?><p class="text-sm text-gray-500">Statystyki sprzętu pojawią się po pierwszych rozliczeniach.</p><?php else: ?>
                     <div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left border-b"><th class="p-2">Sprzęt</th><th class="p-2">Najmy</th><th class="p-2">Przychód</th><th class="p-2">Straty</th><th class="p-2">Wynik</th></tr></thead><tbody>
-                    <?php foreach ($equipment_stats as $name=>$st): $net=$st['income']-$st['loss']; ?><tr class="border-b"><td class="p-2 font-semibold"><?php echo e_admin($name); ?></td><td class="p-2"><?php echo (int)$st['count']; ?></td><td class="p-2"><?php echo number_format($st['income'],2,',',' '); ?> zł</td><td class="p-2 text-red-600"><?php echo number_format($st['loss'],2,',',' '); ?> zł</td><td class="p-2 font-black <?php echo $net<0?'text-red-600':'text-green-700'; ?>"><?php echo number_format($net,2,',',' '); ?> zł</td></tr><?php endforeach; ?>
+                    <?php foreach ($equipment_stats as $name=>$st): $net=$st['income']-$st['loss']; ?><tr class="border-b"><td class="p-2 font-semibold"><?php echo e_admin($st['name']); ?></td><td class="p-2"><?php echo (int)$st['count']; ?></td><td class="p-2"><?php echo number_format($st['income'],2,',',' '); ?> zł</td><td class="p-2 text-red-600"><?php echo number_format($st['loss'],2,',',' '); ?> zł</td><td class="p-2 font-black <?php echo $net<0?'text-red-600':'text-green-700'; ?>"><?php echo number_format($net,2,',',' '); ?> zł</td></tr><?php endforeach; ?>
                     </tbody></table></div><?php endif; ?>
                 </section>
                 <section class="bg-white rounded-3xl p-5 sm:p-7 shadow-sm"><h3 class="text-xl font-black mb-4">Rezerwacje / do rozliczenia <span class="text-sm text-gray-400">(<?php echo count($active_reservations); ?>)</span></h3>
@@ -1081,7 +1109,7 @@ if (isset($_GET['edit_id'])) {
                 $reservation_data_for_costs = is_file($reservation_file_for_costs) ? json_decode((string)file_get_contents($reservation_file_for_costs), true) : [];
                 if (!is_array($reservation_data_for_costs)) $reservation_data_for_costs = [];
                 $rental_income = 0; $rental_losses = 0;
-                foreach ($reservation_data_for_costs as $r) if (($r['month'] ?? '') === $cost_month && !empty($r['settled'])) { $rental_income += (float)($r['income'] ?? 0); $rental_losses += (float)($r['loss'] ?? 0); }
+                foreach ($reservation_data_for_costs as $r) if (rm_admin_settlement_month($r) === $cost_month) { $rental_income += (float)($r['income'] ?? 0); $rental_losses += (float)($r['loss'] ?? 0); }
                 $final_result = $rental_income - $rental_losses - $sum_expense - $sum_investment;
             ?>
             <div class="max-w-6xl mx-auto space-y-6">
@@ -1131,16 +1159,15 @@ if (isset($_GET['edit_id'])) {
                 $profit = []; $known=[];
                 foreach ($profit_res as $r) {
                     if (empty($r['settled'])) continue;
-                    $date = (string)($r['start_date'] ?? $r['date'] ?? '');
-                    if ($profit_year !== 'all' && substr($date,0,4) !== $profit_year) continue;
-                    $name = trim((string)($r['equipment'] ?? ''));
-                    if ($name === '') { $raw=trim((string)($r['text'] ?? '')); $name=preg_replace('/^\s*\d{1,2}\s+/u','',$raw); $name=preg_replace('/\s+\d{1,2}\s*\/.*$/u','',$name); }
-                    if ($name === '') $name='Pozostałe / nierozpoznane';
+                    $settledMonth=rm_admin_settlement_month($r);
+                    if ($settledMonth==='' || ($profit_year!=='all' && substr($settledMonth,0,4)!==$profit_year)) continue;
+                    $name=rm_admin_equipment_name($r);
                     $normalizedName=preg_replace('/\s+/u',' ',$name); $key=function_exists('mb_strtolower')?mb_strtolower($normalizedName,'UTF-8'):strtolower($normalizedName); $known[$key]=$name;
                     if (!isset($profit[$key])) $profit[$key]=['name'=>$name,'rentals'=>0,'days'=>0,'income'=>0.0,'loss'=>0.0,'purchase'=>0.0,'repairs'=>0.0];
                     $profit[$key]['rentals']++; $profit[$key]['income']+=(float)($r['income']??0); $profit[$key]['loss']+=(float)($r['loss']??0);
                     $a=DateTime::createFromFormat('!Y-m-d',(string)($r['start_date']??'')); $b=DateTime::createFromFormat('!Y-m-d',(string)($r['end_date']??''));
-                    $profit[$key]['days'] += ($a && $b && $b >= $a) ? ((int)$a->diff($b)->days+1) : 1;
+                    $settlementDays=(int)($r['settlement']['days']??0);
+                    $profit[$key]['days'] += $settlementDays>0 ? $settlementDays : (($a && $b && $b >= $a) ? max(1,(int)$a->diff($b)->days) : 0);
                 }
                 foreach ($profit_costs as $cost) {
                     $name=trim((string)($cost['equipment_name']??'')); if($name==='') continue;

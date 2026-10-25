@@ -17,7 +17,7 @@ public class EquipmentAnalyticsTest {
         EquipmentAnalytics.Snapshot s=EquipmentAnalytics.calculate(rentals,costs,LocalDate.of(2026,1,1),LocalDate.of(2026,1,31));
         assertEquals(1,s.models.size());
         EquipmentAnalytics.Model m=s.sorted(0).get(0);
-        assertEquals(2,m.rentals);assertEquals(4,m.knownDays);
+        assertEquals(2,m.rentals);assertEquals(3,m.knownDays);
         assertEquals(15010,m.income);assertEquals(505,m.losses);
         assertEquals(2000,m.runningCosts);assertEquals(5000,m.investments);
         assertEquals(7505,m.result());assertEquals(12505,m.operatingResult());
@@ -26,6 +26,12 @@ public class EquipmentAnalyticsTest {
         FinanceAnalytics.Report report=FinanceAnalytics.calculate(rentals,costs,LocalDate.of(2026,1,1),LocalDate.of(2026,1,31),2);
         assertEquals(report.income,m.income);
         assertEquals(report.result()+s.unassignedCost,m.result());
+    }
+    @Test public void usesApprovedBillingDaysAndActualReturnDate() throws Exception {
+        JSONArray a=new JSONArray("[{\"settled\":true,\"settled_at\":\"2026-10-25\",\"equipment\":\"Puzzi\",\"income\":300,\"loss\":0,\"start_date\":\"2026-10-01\",\"end_date\":\"2026-10-10\",\"actual_return\":\"2026-10-04\",\"settlement\":{\"days\":2}}]");
+        EquipmentAnalytics.Snapshot s=EquipmentAnalytics.calculate(a,new JSONArray(),null,null);
+        assertEquals(2,s.sorted(0).get(0).knownDays);
+        assertEquals(1,s.settledRentals);
     }
     @Test public void excludesPendingAndOutOfRangeSettlementsWithoutEstimatingDays() throws Exception {
         JSONArray rentals=new JSONArray("[{\"settled\":false,\"settled_at\":\"2026-01-07\",\"equipment\":\"Puzzi\",\"income\":999,\"loss\":0},{\"settled\":true,\"settled_at\":\"2025-12-30\",\"equipment\":\"Puzzi\",\"income\":50,\"loss\":0},{\"settled\":true,\"settled_at\":\"2026-01-09\",\"equipment\":\"Puzzi\",\"income\":20,\"loss\":0}]");

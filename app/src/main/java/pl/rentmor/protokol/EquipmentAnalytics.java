@@ -87,10 +87,14 @@ public final class EquipmentAnalytics {
             Model m=model(result,name(r));
             m.income+=income; m.losses+=loss; m.rentals++;
             m.history.add(r); m.month(date)[0]+=income; m.month(date)[1]+=loss;
+            // Prefer billed days approved during return settlement; planned dates are only a fallback.
+            JSONObject settlement=r.optJSONObject("settlement");
+            int billed=settlement==null?0:settlement.optInt("days",0);
             LocalDate start=FinanceAnalytics.date(r.optString("start_date"));
-            LocalDate end=FinanceAnalytics.date(r.optString("end_date"));
-            if(start!=null&&end!=null&&!end.isBefore(start)&&ChronoUnit.DAYS.between(start,end)<3660)
-                m.knownDays+=(int)ChronoUnit.DAYS.between(start,end)+1;
+            LocalDate end=FinanceAnalytics.date(r.optString("actual_return",r.optString("end_date")));
+            if(billed>0&&billed<=10000)m.knownDays+=billed;
+            else if(start!=null&&end!=null&&!end.isBefore(start)&&ChronoUnit.DAYS.between(start,end)<3660)
+                m.knownDays+=(int)Math.max(1,ChronoUnit.DAYS.between(start,end));
             else m.missingDays++;
             result.settledRentals++;result.income+=income;
         }
