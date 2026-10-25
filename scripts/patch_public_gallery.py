@@ -23,7 +23,7 @@ if not all(x in source for x in (
 
 if 'data-rm-gallery' in source:
     if ('/rentmor-gallery.css?v=1' not in source or
-        '/rentmor-gallery.js?v=1' not in source or
+        not any(version in source for version in ('/rentmor-gallery.js?v=1', '/rentmor-gallery.js?v=2')) or
         'rm-detail-gallery' not in source):
         raise SystemExit("Incomplete previous gallery integration; refusing to apply a second patch.")
     print("RentMor galleries already installed; no changes.")
