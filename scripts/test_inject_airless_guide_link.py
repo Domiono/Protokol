@@ -28,7 +28,8 @@ class WT20LinkTests(unittest.TestCase):
         from pathlib import Path
         article=Path('server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php').read_text(encoding='utf-8')
         for term in ['511','517','521','WABROTECH WT20i','ciśnienia',
-                     'youtube-nocookie.com/embed/exN_5Wl5EPY',
+                     'youtube-nocookie.com/embed/-GtS3HWavo8',
+                     'wabrotech.pl/poradnik/jak-przygotowac-agregat-malarski-do-pracy',
                      'youtube-nocookie.com/embed/8OgLnaFO1Jk','rel="canonical"',
                      'type="application/ld+json"','SOR','0,021']:
             self.assertIn(term,article)
