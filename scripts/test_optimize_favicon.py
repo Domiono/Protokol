@@ -22,7 +22,7 @@ class TestFav(unittest.TestCase):
     def test_fails_without_expected_public_favicon(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d);source=root/"old.png";template=root/"index.php"
-            Image.new("RGB",(64,64)).save(source)
+            Image.new("RGB",(640,640)).save(source)
             template.write_text("<head></head>")
             with self.assertRaises(ValueError):build(source,template,root/"o")
 if __name__=="__main__":unittest.main()
