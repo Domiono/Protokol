@@ -352,6 +352,45 @@ foreach ($operations as $op) {
 
 
 
+    if ($action === 'asset_delete') {
+        if($role!=='admin'){$results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Tylko administrator może usuwać egzemplarze.'];continue;}
+        $id=(string)($op['id']??'');
+        if(!preg_match('/^[a-zA-Z0-9_-]{1,80}$/D',$id)){
+            $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nieprawidłowy identyfikator egzemplarza.'];continue;
+        }
+        // Serialize with reservation writes, so no existing booking can lose its physical copy.
+        $reservationFile=__DIR__.'/reservations.json';
+        $reservationLock=fopen($reservationFile.'.lock','c+');
+        if(!$reservationLock||!flock($reservationLock,LOCK_EX)){
+            if($reservationLock)fclose($reservationLock);
+            $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Lista rezerwacji jest chwilowo zajęta.'];continue;
+        }
+        $reservations=rm_read_json_file($reservationFile,[]);
+        $referenced=false;
+        foreach($reservations as $r){
+            if(!is_array($r))continue;
+            if((string)($r['asset_id']??'')===$id||(string)($r['vacuum_asset_id']??'')===$id){$referenced=true;break;}
+        }
+        if(!$referenced)foreach($protocols as $p){
+            if(!is_array($p))continue;
+            if((string)($p['asset_id']??'')===$id||(string)($p['vacuum_asset_id']??'')===$id){$referenced=true;break;}
+        }
+        $assets=rm_read_assets();$repairs=false;$found=false;
+        foreach($assets as $a){
+            if((string)($a['id']??'')!==$id)continue;
+            $found=true;$repairs=!empty($a['repairs']);break;
+        }
+        if($referenced||$repairs){
+            flock($reservationLock,LOCK_UN);fclose($reservationLock);
+            $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Egzemplarz ma historię rezerwacji, protokołów lub serwisu. Wyłącz go z wynajmu zamiast usuwać.'];continue;
+        }
+        $kept=array_values(array_filter($assets,fn($a)=>(string)($a['id']??'')!==$id));
+        $ok=!$found||rm_write_assets($kept);
+        flock($reservationLock,LOCK_UN);fclose($reservationLock);
+        $results[]=['op_id'=>$opId,'ok'=>$ok,'error'=>$ok?'':'Nie udało się usunąć egzemplarza.'];
+        continue;
+    }
+
     if ($action === 'asset_save') {
         if($role!=='admin'){$results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Tylko administrator może zmieniać egzemplarze.'];continue;}
         $id=preg_replace('/[^a-zA-Z0-9_-]/','',(string)($op['id']??''));$label=rm_text($op,'label',100);$equipment=rm_text($op,'equipment',200);
