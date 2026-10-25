@@ -19,6 +19,14 @@ with tempfile.TemporaryDirectory() as td:
   assert call(r)['results'][0]['ok']
   assert not call(dict(r,id='r2'))['results'][0]['ok']
   assert call(dict(r,id='r2',start_date='2030-10-28',end_date='2030-10-29'))['results'][0]['ok']
+  second_asset={'action':'asset_save','id':'b','label':'Puzzi 02','equipment':'Puzzi','in_service':False}
+  assert call(second_asset)['results'][0]['ok']
+  auto_r={'action':'reservation_save','auto_assign':True,'id':'auto1','month':'2030-10',
+          'text':'autobook','equipment':'Puzzi','start_date':'2030-10-26','end_date':'2030-10-27'}
+  assert call(auto_r)['results'][0]['ok']
+  assigned=next(x for x in call()['reservations'] if x['id']=='auto1')
+  assert assigned['asset_id']=='b' and assigned['asset_label']=='Puzzi 02'
+  assert not call(dict(auto_r,id='auto2'))['results'][0]['ok']
   data=call(role='assistant');assert all('daily_rate' not in x and 'deposit' not in x for x in data['reservations'])
   assert not call(asset,role='assistant')['results'][0]['ok']
   assert call(dict(asset,in_service=True))['results'][0]['ok']

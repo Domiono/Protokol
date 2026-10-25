@@ -104,6 +104,32 @@ function rm_rental_conflict(array $item, array $reservations, array $assets): st
     }
     return '';
 }
+/**
+ * Pick a physical copy while holding the reservations.json lock.
+ * Overlapping legacy bookings with no copy assigned are not safe to guess.
+ */
+function rm_auto_pick_asset(array $item, array $reservations, array $assets): array {
+    $equipment=(string)($item['equipment']??'');
+    $copies=array_values(array_filter($assets,fn($a)=>($a['equipment']??'')===$equipment));
+    if(!$copies)return ['asset'=>null,'error'=>''];
+    $start=(string)($item['start_date']??'');$end=(string)($item['end_date']??'');
+    foreach([$start,$end] as $day){$d=DateTimeImmutable::createFromFormat('!Y-m-d',$day);if(!$d||$d->format('Y-m-d')!==$day)return ['asset'=>null,'error'=>'Sprawdź daty rezerwacji.'];}
+    if($end<$start)return ['asset'=>null,'error'=>'Zwrot przed wydaniem.'];
+    foreach($reservations as $r){
+        if(($r['id']??'')===($item['id']??'')||!empty($r['settled'])||!empty($r['returned'])||($r['equipment']??'')!==$equipment||!empty($r['asset_id']))continue;
+        $rStart=(string)($r['start_date']??'');$rEnd=(string)($r['end_date']??'');
+        foreach([$rStart,$rEnd] as $day){$d=DateTimeImmutable::createFromFormat('!Y-m-d',$day);if(!$d||$d->format('Y-m-d')!==$day)return ['asset'=>null,'error'=>'Sprawdź wcześniejszą rezerwację bez przypisanego egzemplarza.'];}
+        if(($start<=$rEnd&&$end>=$rStart)||(!empty($r['done'])&&$rEnd<date('Y-m-d')))
+            return ['asset'=>null,'error'=>'Najpierw przypisz egzemplarz do wcześniejszej rezerwacji tego sprzętu.'];
+    }
+    usort($copies,fn($a,$b)=>strcasecmp((string)($a['label']??''),(string)($b['label']??'')));
+    foreach($copies as $copy){
+        $probe=$item;$probe['asset_id']=$copy['id'];
+        if(rm_rental_conflict($probe,$reservations,$assets)==='')
+            return ['asset'=>$copy,'error'=>''];
+    }
+    return ['asset'=>null,'error'=>'Brak wolnego egzemplarza w wybranym terminie. Zmień daty.'];
+}
 function rm_hide_rental_finance(array $r): array {
     foreach(['income','loss','loss_note','settled_at','daily_rate','paid','deposit','settlement'] as $key)unset($r[$key]);
     return $r;
@@ -427,7 +453,16 @@ foreach ($operations as $op) {
                 if($role!=='admin'){if($existing!==null&&array_key_exists($key,$existing))$item[$key]=$existing[$key];continue;}
                 if(array_key_exists($key,$op)){$value=filter_var($op[$key],FILTER_VALIDATE_FLOAT);if($value===false||!is_finite($value)||$value<0||$value>10000000){$bad=true;break;}$item[$key]=round($value,2);}
             }
-            $conflict=$bad?'Nieprawidłowa kwota.':rm_rental_conflict($item,$reservations,rm_read_assets());
+            $assets=rm_read_assets();
+            $autoError='';
+            if(!$bad&&!empty($op['auto_assign'])&&empty($item['done'])&&empty($item['returned'])){
+                // Always re-evaluate on the server; another phone may have booked the locally selected copy.
+                $chosen=rm_auto_pick_asset($item,$reservations,$assets);
+                $autoError=$chosen['error'];
+                $item['asset_id']=$chosen['asset']['id']??'';
+                $item['asset_label']=$chosen['asset']['label']??'';
+            }
+            $conflict=$bad?'Nieprawidłowa kwota.':($autoError!==''?$autoError:rm_rental_conflict($item,$reservations,$assets));
             if($conflict!==''){flock($reservationLock,LOCK_UN);fclose($reservationLock);$results[]=['op_id'=>$opId,'ok'=>false,'error'=>$conflict];continue;}
             $found=false;
             foreach ($reservations as &$saved) { if (($saved['id'] ?? '') === $id) {
