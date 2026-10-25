@@ -47,6 +47,41 @@ public class FinanceAnalyticsTest {
         assertEquals(0,september.income);assertEquals(19999,october.income);
         assertEquals(999,october.loss);assertEquals(1,october.rentals);
     }
+    @Test public void addonBreakdownIsPartOfExistingIncomeNotNewRevenue()throws Exception{
+        JSONArray rentals=new JSONArray();
+        JSONObject first=new JSONObject().put("id","new").put("settled",true).put("settled_at","2026-10-25")
+            .put("income","190").put("loss",0).put("equipment","Puzzi");
+        first.put("settlement",new JSONObject().put("extra","30")
+            .put("add_powder","10").put("add_paper","5")
+            .put("add_disc","12").put("add_other","3"));
+        rentals.put(first);
+        JSONObject legacy=new JSONObject().put("id","old").put("settled",true)
+            .put("settled_at","2026-10-26").put("income","90").put("loss",0)
+            .put("settlement",new JSONObject().put("extra","10"));
+        rentals.put(legacy);
+        rentals.put(new JSONObject().put("id","unclassified").put("settled",true)
+            .put("settled_at","2026-10-26").put("income","100").put("loss",0));
+        rentals.put(new JSONObject().put("id","outside").put("settled",true)
+            .put("settled_at","2026-09-30").put("income","80").put("loss",0)
+            .put("settlement",new JSONObject().put("extra","5")
+                .put("add_powder","5").put("add_paper","0").put("add_disc","0").put("add_other","0")));
+        FinanceAnalytics.Report report=FinanceAnalytics.calculate(rentals,new JSONArray(),d("2026-10-01"),d("2026-10-31"),2);
+        assertEquals(38000,report.income);assertEquals(4000,report.addonTotal());
+        assertEquals(1000,report.addonPowder);assertEquals(500,report.addonPaper);
+        assertEquals(1200,report.addonDisc);assertEquals(300,report.addonOther);
+        assertEquals(1000,report.addonUnclassified);assertEquals(1,report.addonsUnknown);
+        assertEquals(38000,report.result());
+        assertEquals(0,FinanceAnalytics.calculate(rentals,new JSONArray(),d("2026-09-01"),d("2026-09-29"),0).addonTotal());
+    }
+    @Test public void inconsistentAddonAmountsAreNotMisclassified()throws Exception{
+        JSONObject data=new JSONObject().put("settled",true).put("settled_at","2026-10-25")
+            .put("income",100).put("loss",0);
+        data.put("settlement",new JSONObject().put("extra",15).put("add_powder",3)
+            .put("add_paper",4).put("add_disc",0).put("add_other",0));
+        FinanceAnalytics.Report r=FinanceAnalytics.calculate(new JSONArray().put(data),new JSONArray(),d("2026-10-25"),d("2026-10-25"),0);
+        assertEquals(1500,r.addonUnclassified);assertEquals(0,r.addonPowder);
+        assertEquals(10000,r.income);assertEquals(1,r.rentals);
+    }
     @Test public void dashboardHandlesEmptyAndNegativeData() throws Exception {
         android.content.Context context=org.robolectric.Robolectric.buildActivity(android.app.Activity.class).setup().get();
         FinanceDashboard dashboard=new FinanceDashboard(context,new JSONArray(),new JSONArray(),()->{},()->{});
