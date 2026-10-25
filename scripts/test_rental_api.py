@@ -76,6 +76,28 @@ with tempfile.TemporaryDirectory() as td:
   third=next(x for x in call()['reservations'] if x['id']=='combo-three')
   assert third['vacuum_asset_id']=='v1'
   assert not call(dict(booking('vac-busy','Odkurzacz przemysłowy Bosch'),asset_id='v2',auto_assign=False))['results'][0]['ok']
+  # Quick repair toggle persists and prevents new bookings on that physical unit.
+  assert call(dict(second_asset,in_service=True))['results'][0]['ok']
+  assert next(a for a in call()['assets'] if a['id']=='b')['in_service']
+  assert not call(dict(auto_r,id='maintenance-check',start_date='2030-11-01',end_date='2030-11-02'))['results'][0]['ok']
+  assert call(dict(second_asset,in_service=False))['results'][0]['ok']
+  assert not next(a for a in call()['assets'] if a['id']=='b')['in_service']
+  # Unused copies may be deleted; established bookings, including old settlements
+  # and a vacuum used as the secondary item of a kit, must remain traceable.
+  fresh={'action':'asset_save','id':'unused-copy','equipment':'Puzzi','label':'Puzzi Spare'}
+  assert call(fresh)['results'][0]['ok']
+  assert not call({'action':'asset_delete','id':'unused-copy'},role='assistant')['results'][0]['ok']
+  assert call({'action':'asset_delete','id':'unused-copy'})['results'][0]['ok']
+  assert not any(a['id']=='unused-copy' for a in call()['assets'])
+  assert call({'action':'asset_delete','id':'unused-copy'})['results'][0]['ok'] # Idempotent on reconnect.
+  assert not call({'action':'asset_delete','id':'a'})['results'][0]['ok'] # Already settled r1.
+  assert any(a['id']=='a' for a in call()['assets'])
+  assert not call({'action':'asset_delete','id':'v2'})['results'][0]['ok'] # Kit secondary.
+  repaired={'action':'asset_save','id':'service-copy','equipment':'Puzzi','label':'Puzzi Repaired',
+    'repairs':[{'id':'repair-1','date':'2026-10-25','cost':10,'note':'Filtr'}]}
+  assert call(repaired)['results'][0]['ok']
+  assert not call({'action':'asset_delete','id':'service-copy'})['results'][0]['ok']
+  assert any(a['id']=='service-copy' for a in call()['assets'])
   try:urllib.request.urlopen('http://127.0.0.1:18723/rental_assets.php');raise AssertionError('asset storage publicly readable')
   except urllib.error.HTTPError as e:assert e.code==404
   print('Rental API bundle and standalone shared-stock checks passed (isolated test data)')
