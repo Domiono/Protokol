@@ -35,6 +35,7 @@ on:
       - 'scripts/patch_performance_template.py'
       - 'scripts/build_public_tailwind.py'
       - 'scripts/patch_static_tailwind.py'
+      - 'scripts/patch_static_css_cache.py'
       - 'scripts/test_static_tailwind.py'
       - 'scripts/verify_static_tailwind.py'
       - 'scripts/patch_image_cache.py'
@@ -78,7 +79,7 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/rentmor-perf-tests"
           "$RUNNER_TEMP/rentmor-perf-tests/bin/pip" -q install 'Pillow==11.3.0'
           "$RUNNER_TEMP/rentmor-perf-tests/bin/python" scripts/test_performance_images.py
-          python3 -m py_compile scripts/build_public_tailwind.py scripts/patch_static_tailwind.py scripts/verify_static_tailwind.py
+          python3 -m py_compile scripts/build_public_tailwind.py scripts/patch_static_tailwind.py scripts/verify_static_tailwind.py scripts/patch_static_css_cache.py
           python3 -m py_compile scripts/patch_seo_template.py scripts/patch_seo_titles.py scripts/patch_canonical_host.py scripts/verify_seo_improvements.py
           php -l server/rental_offer_details.php
 
@@ -179,6 +180,7 @@ jobs:
           cp "$TEMP_DIR/.htaccess" "$TEMP_DIR/original.htaccess"
           python3 scripts/patch_canonical_host.py "$TEMP_DIR/.htaccess"
           python3 scripts/patch_image_cache.py "$TEMP_DIR/.htaccess"
+          python3 scripts/patch_static_css_cache.py "$TEMP_DIR/.htaccess"
           python3 scripts/patch_statistics_filter.py "$TEMP_DIR/index.php"
           python3 scripts/inject_online_tracker.py "$TEMP_DIR/index.php"
           python3 scripts/patch_public_product_layout.py "$TEMP_DIR/index.php"
