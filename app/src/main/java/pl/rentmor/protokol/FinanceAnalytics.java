@@ -15,8 +15,9 @@ public final class FinanceAnalytics {
         public long result(){return income-costs();}
     }
     public static class Report extends Bucket {
-        public int undated,invalid,pending,addonsUnknown;public long addonPowder,addonPaper,addonDisc,addonOther,addonUnclassified;
-        public long addonTotal(){return addonPowder+addonPaper+addonDisc+addonOther+addonUnclassified;}
+        public int undated,invalid,pending,addonsUnknown;public long addonPowder,addonPaper,addonDisc,addonOther,addonCustom,addonUnclassified;
+        public Map<String,Long> addonCustomByName=new LinkedHashMap<>();
+        public long addonTotal(){return addonPowder+addonPaper+addonDisc+addonOther+addonCustom+addonUnclassified;}
         public List<Bucket> buckets=new ArrayList<>();
         public List<JSONObject> records=new ArrayList<>();
         public Map<String,long[]> equipment=new LinkedHashMap<>();
@@ -43,9 +44,31 @@ public final class FinanceAnalytics {
             if(check>Long.MAX_VALUE-value){classified=false;break;}
             check+=value;
         }
+        Map<String,Long> customAmounts=new LinkedHashMap<>();
+        if(details.has("add_custom")){
+            JSONArray items=details.optJSONArray("add_custom");
+            if(items==null||items.length()>20)classified=false;
+            if(classified)for(int i=0;i<items.length();i++){
+                JSONObject item=items.optJSONObject(i);
+                if(item==null){classified=false;break;}
+                String name=item.optString("name").trim().replaceAll("\\s+"," ");
+                Long amount=amount(item,"amount");
+                if(name.isEmpty()||name.length()>100||amount==null||amount<=0||check>Long.MAX_VALUE-amount){classified=false;break;}
+                check+=amount;
+                String key=name;
+                for(String saved:customAmounts.keySet())if(saved.equalsIgnoreCase(name)){key=saved;break;}
+                customAmounts.put(key,customAmounts.getOrDefault(key,0L)+amount);
+            }
+        }
         if(classified&&check==extra){
             r.addonPowder+=values[0];r.addonPaper+=values[1];
             r.addonDisc+=values[2];r.addonOther+=values[3];
+            for(Map.Entry<String,Long> e:customAmounts.entrySet()){
+                String key=e.getKey();
+                for(String saved:r.addonCustomByName.keySet())if(saved.equalsIgnoreCase(key)){key=saved;break;}
+                r.addonCustomByName.put(key,r.addonCustomByName.getOrDefault(key,0L)+e.getValue());
+                r.addonCustom+=e.getValue();
+            }
         }else{
             r.addonUnclassified+=extra;
         }
