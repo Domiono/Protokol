@@ -17,3 +17,6 @@ jobs:
           ref: main
       - name: Check public SEO and offer pages
         run: python3 scripts/verify_public_seo.py
+      - name: Check WT20i external videos and instruction
+        if: always()
+        run: python3 scripts/check_wt20i_resources.py

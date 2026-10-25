@@ -86,7 +86,14 @@ def main():
     assert 'wabrotech.pl/poradnik/jak-przygotowac-agregat-malarski-do-pracy' in spray_html
     assert 'youtube-nocookie.com/embed/8OgLnaFO1Jk' in spray_html
     offer_html, offer_headers = fetch(AIRLESS_OFFER)
-    validate(offer_html,offer_headers,BASE + AIRLESS_OFFER)
+    offer = validate(offer_html,offer_headers,BASE + AIRLESS_OFFER)
+    assert 'https://static.wabrotech.pl/public/products/29/29/files/wt20i-user-manual_06.07.2026-1783331866.pdf' in spray.links
+    assert 'są pokazane na filmie producenta poniżej' not in spray_html
+    descriptions = [s.get('description', '') for s in offer.schemas if s.get('@type') == 'Product']
+    assert len(descriptions) == 1
+    assert '210 bar (3045 PSI)' in descriptions[0] and 'Pompa typu GRACO 395' in descriptions[0]
+    assert '227 bar' not in descriptions[0]
+    assert '210 bar (3045 PSI)' in offer_html and 'wszystkie farby wodne' in offer_html
     for path in OFFERS:
         assert path in page.links or BASE + path in page.links
         body, headers = fetch(path)

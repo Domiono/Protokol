@@ -29,6 +29,7 @@ on:
       - 'server/robots.txt'
       - 'server/product_description.php'
       - 'scripts/patch_public_product_layout.py'
+      - 'scripts/patch_wt20i_offer.py'
       - 'scripts/inject_online_tracker.py'
       - 'scripts/secure_sftp_connection.sh'
       - '.github/workflows/deploy-rentmor.yml'
@@ -250,6 +251,35 @@ jobs:
             lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/index.php -o $TEMP_DIR/deployed.php; bye"
             cmp "$TEMP_DIR/index.php" "$TEMP_DIR/deployed.php"
             echo "Public homepage uploaded and verified."
+          fi
+
+
+      - name: Correct approved WT20i offer parameters
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -eu
+          OFFER_DIR="$RUNNER_TEMP/rentmor-wt20i-offer"
+          mkdir -p "$OFFER_DIR"
+          source scripts/secure_sftp_connection.sh
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/data.json -o $OFFER_DIR/original.json; bye"
+          python3 scripts/patch_wt20i_offer.py "$OFFER_DIR/original.json" "$OFFER_DIR/updated.json"
+          if ! cmp -s "$OFFER_DIR/original.json" "$OFFER_DIR/updated.json"; then
+            printf 'Require all denied\n' > "$OFFER_DIR/backup.htaccess"
+            printf '<?php http_response_code(404); exit; ?>\n' > "$OFFER_DIR/backup.php"
+            cat "$OFFER_DIR/original.json" >> "$OFFER_DIR/backup.php"
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; mkdir -p public_html/.rentmor-backups; set cmd:fail-exit yes; put $OFFER_DIR/backup.htaccess -o public_html/.rentmor-backups/.htaccess; put $OFFER_DIR/backup.php -o public_html/.rentmor-backups/data-before-wt20i-$GITHUB_RUN_ID.php; put $OFFER_DIR/updated.json -o public_html/data-wt20i-$GITHUB_RUN_ID.tmp; get public_html/data.json -o $OFFER_DIR/current.json; bye"
+            # Refuse to replace inventory changed since the original snapshot.
+            if ! cmp -s "$OFFER_DIR/original.json" "$OFFER_DIR/current.json"; then
+              lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; rm public_html/data-wt20i-$GITHUB_RUN_ID.tmp; bye"
+              echo "Inventory changed during preparation; no replacement performed."
+              exit 1
+            fi
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; mv public_html/data-wt20i-$GITHUB_RUN_ID.tmp public_html/data.json; get public_html/data.json -o $OFFER_DIR/deployed.json; bye"
+            cmp "$OFFER_DIR/updated.json" "$OFFER_DIR/deployed.json"
           fi
 
       - name: Verify public SEO after deployment
