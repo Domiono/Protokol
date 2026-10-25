@@ -14,14 +14,16 @@ rentmor_start_image_optimizer();
 
 def patch(content: str) -> str:
     if content.count(MARKER) > 1: raise ValueError("Duplicate responsive images marker")
-    if MARKER in content: return content
+    if MARKER in content:
+        # Force a new JS URL because v2 is already cached on visitors' browsers.
+        return content.replace('/rentmor-gallery.js?v=2', '/rentmor-gallery.js?v=3')
     match = list(re.finditer(r"<!doctype\s+html\s*>", content, flags=re.I))
     if len(match) != 1 or "<?php" not in content:
         raise ValueError("Unexpected public homepage DOCTYPE layout")
     pos = match[0].start()
     updated = content[:pos] + INCLUDE + content[pos:]
     # Bust the gallery JS URL once so full-resolution lightbox behavior takes effect.
-    return updated.replace('/rentmor-gallery.js?v=1', '/rentmor-gallery.js?v=2')
+    return updated.replace('/rentmor-gallery.js?v=1', '/rentmor-gallery.js?v=3').replace('/rentmor-gallery.js?v=2', '/rentmor-gallery.js?v=3')
 
 if __name__ == "__main__":
     f = Path(sys.argv[1])
