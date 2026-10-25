@@ -26,7 +26,7 @@ class TestImageOptimization(unittest.TestCase):
         gallery=(ROOT/"server/rentmor-gallery.js").read_text()
         self.assertIn("image.src = slideImage.src;", gallery)
         self.assertNotIn("image.src = slideImage.currentSrc", gallery)
-        self.assertIn("/rentmor-gallery.js?v=2", patch('<?php foo(); ?>\\n<!DOCTYPE html><script src="/rentmor-gallery.js?v=1"></script>'))
+        self.assertIn("/rentmor-gallery.js?v=3", patch('<?php foo(); ?>\\n<!DOCTYPE html><script src="/rentmor-gallery.js?v=1"></script>'))
 
     def test_inactive_gallery_slides_hold_sources_until_selected(self):
         if not shutil.which("php"): self.skipTest("PHP not installed")
