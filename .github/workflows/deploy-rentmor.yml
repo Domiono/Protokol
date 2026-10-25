@@ -278,7 +278,7 @@ jobs:
               echo "Inventory changed during preparation; no replacement performed."
               exit 1
             fi
-            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; mv public_html/data-wt20i-$GITHUB_RUN_ID.tmp public_html/data.json; get public_html/data.json -o $OFFER_DIR/deployed.json; bye"
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $OFFER_DIR/updated.json -o public_html/data.json; get public_html/data.json -o $OFFER_DIR/deployed.json; rm public_html/data-wt20i-$GITHUB_RUN_ID.tmp; set cmd:fail-exit no; rm public_html/data-wt20i-40220838158.tmp; bye"
             cmp "$OFFER_DIR/updated.json" "$OFFER_DIR/deployed.json"
           fi
 
