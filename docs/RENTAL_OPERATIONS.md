@@ -44,3 +44,9 @@ Zestaw to **dwa fizyczne egzemplarze**, a nie samodzielna trzecia pula. Nie twó
 7. Starszy panel admin.php WWW wprowadza rezerwacje bez wyboru fizycznych sztuk. Przy żyrafach, przemysłowych odkurzaczach i zestawach korzystaj z formularza rezerwacji w Androidzie; stare zapisy z WWW trzeba pojedynczo przypisać w aplikacji. Nie omijaj komunikatu o brakującym przydziale.
 
 **Uwaga o starszych danych:** aplikacja nie wie, który konkretnie odkurzacz wydano w dawnym zestawie, dlatego nie przypisuje takiej sztuki na podstawie samej liczby rezerwacji.
+
+## Szybkie akcje egzemplarza (1.7.6)
+
+W widoku **Dostępność** każda karta ma przyciski **Edytuj**, **Awaria / wyłącz**, **Historia i serwis** oraz **Usuń egzemplarz** (administrator). Wyłączony egzemplarz jest oznaczony na czerwono, wszystkie dni widoczne jako niedostępne. Włączenie przywraca dostępność z uwzględnieniem dotychczasowych rezerwacji. Wyłączenie pokazuje ostrzeżenie o istniejących rezerwacjach i nie anuluje ich automatycznie. Historia napraw, przypisania oraz grupa żyrafa/odkurzacz pozostają zachowane.
+
+**Usuń egzemplarz** wymaga potwierdzenia i działa wyłącznie, jeśli nie ma żadnej rezerwacji (także już rozliczonej), protokołu wydania ani historii serwisu odnoszącej się do tego egzemplarza. W przeciwnym wypadku aplikacja proponuje **Wyłącz z wynajmu**. Serwer kontroluje historię ponownie, nie ufa samemu telefonowi i sprawdza również odkurzacze pomocnicze w zestawach. Usunięcie może zostać zapisane offline i potwierdzone po synchronizacji, a oczekujące usunięcie nie znika z lokalnej bazy po odświeżeniu starszą migawką danych.
