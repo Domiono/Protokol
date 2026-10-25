@@ -40,6 +40,30 @@ with tempfile.TemporaryDirectory() as td:
   assert saved['returned'] and saved['settlement']['add_powder']==10 and saved['settlement']['add_disc']==12
   assert call({'action':'reservation_settle','id':'r2','income':'80','loss':'0','settlement':{'days':1,'extra':'10'},'actual_return':'2030-10-29'})['results'][0]['ok']
   assert next(x for x in call()['reservations'] if x['id']=='r2')['settlement']['extra']=='10'
+  # Named extras can be created without adding another product category or double-counting.
+  named={'days':2,'extra':'45','add_powder':'10','add_paper':'0',
+         'add_disc':'0','add_other':'0',
+         'add_custom':[{'name':'Worek do odkurzacza','amount':'20'},
+                       {'name':'Nowy filtr','amount':'15'}]}
+  bad_named=dict(named,extra='40')
+  settlement={'action':'reservation_settle','id':'auto1','income':'125','loss':'0',
+              'settlement':bad_named,'actual_return':'2030-10-27'}
+  assert not call(settlement)['results'][0]['ok']  # Wrong total.
+  assert not next(x for x in call()['reservations'] if x['id']=='auto1').get('settled',False)
+  bad_empty=dict(named,add_custom=[{'name':'  ','amount':'20'}])
+  assert not call(dict(settlement,settlement=bad_empty))['results'][0]['ok']
+  bad_negative=dict(named,add_custom=[{'name':'Filtr','amount':'-1'}])
+  assert not call(dict(settlement,settlement=bad_negative))['results'][0]['ok']
+  bad_long=dict(named,add_custom=[{'name':'a'*101,'amount':'35'}])
+  assert not call(dict(settlement,settlement=bad_long))['results'][0]['ok']
+  bad_many=dict(named,add_custom=[{'name':'Pozycja '+str(i),'amount':1} for i in range(21)])
+  assert not call(dict(settlement,settlement=bad_many))['results'][0]['ok']
+  assert call(dict(settlement,settlement=named))['results'][0]['ok']
+  stored=next(x for x in call()['reservations'] if x['id']=='auto1')
+  assert stored['settled'] and len(stored['settlement']['add_custom'])==2
+  assert stored['settlement']['add_custom'][0]['name']=='Worek do odkurzacza'
+  assert stored['settlement']['add_custom'][1]['amount']==15
+  assert stored['settlement']['extra']==45
   # Three physical giraffes and three industrial vacuums are one common inventory,
   # regardless of whether the offer is a set, standalone Bosch, or standalone Metabo.
   for i in range(1,4):
