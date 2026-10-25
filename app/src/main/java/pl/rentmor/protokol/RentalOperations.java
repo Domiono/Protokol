@@ -308,6 +308,40 @@ public final class RentalOperations {
                 paper=field(addonFields,"Papier ścierny (zł)","0",true),
                 disc=field(addonFields,"Zużycie tarczy (zł)","0",true),
                 other=field(addonFields,"Pozostałe materiały i dopłaty (zł)","0",true);
+        // New products can be entered as needed; previous names are suggested automatically.
+        ArrayList<String> suggestions=new ArrayList<>();
+        JSONArray history=store.allReservations();
+        for(int i=0;i<history.length();i++){
+            JSONObject saved=history.optJSONObject(i);
+            JSONArray lines=saved==null?null:saved.optJSONObject("settlement")==null?null:saved.optJSONObject("settlement").optJSONArray("add_custom");
+            if(lines==null)continue;
+            for(int j=0;j<lines.length();j++){
+                JSONObject item=lines.optJSONObject(j);
+                String name=item==null?"":item.optString("name").trim();
+                if(!name.isEmpty()&&!suggestions.contains(name))suggestions.add(name);
+            }
+        }
+        Collections.sort(suggestions,String.CASE_INSENSITIVE_ORDER);
+        LinearLayout customList=new LinearLayout(activity);customList.setOrientation(1);addonFields.addView(customList);
+        ArrayList<AutoCompleteTextView> customNames=new ArrayList<>();
+        ArrayList<EditText> customPrices=new ArrayList<>();
+        button(addonFields,"＋ Dodaj własny produkt lub dopłatę",()->{
+            if(customNames.size()>=20){error(new IllegalArgumentException("Maksymalnie 20 dodatków w jednym najmie."));return;}
+            LinearLayout entry=card(customList,"Nowy dodatek • "+(customNames.size()+1));
+            text(entry,"Nazwa dodatku",13,0xff526174);
+            AutoCompleteTextView name=new AutoCompleteTextView(activity);
+            name.setSingleLine(true);name.setHint("np. Worek do odkurzacza");
+            name.setThreshold(1);
+            ArrayAdapter<String> adapter=new ArrayAdapter<>(activity,android.R.layout.simple_dropdown_item_1line,suggestions);
+            name.setAdapter(adapter);
+            entry.addView(name,new LinearLayout.LayoutParams(-1,dp(48)));
+            EditText price=field(entry,"Kwota za dodatek (zł)","0",true);
+            customNames.add(name);customPrices.add(price);
+            button(entry,"Usuń ten dodatek",()->{
+                customNames.remove(name);customPrices.remove(price);customList.removeView(entry);
+            });
+            name.requestFocus();
+        });
         Button showAddon=action("＋ Dodaj dodatki",false,()->{});
         addon.addView(showAddon,new LinearLayout.LayoutParams(-1,dp(48)));
         showAddon.setOnClickListener(v->{
@@ -317,9 +351,18 @@ public final class RentalOperations {
         });
         EditText discount=field(page,"Rabat","0",true),paid=field(page,"Już zapłacono za najem (bez kaucji)",old.optString("paid","0"),true),deposit=field(page,"Pobrana kaucja",old.optString("deposit","0"),true),retain=field(page,"Potrącenie z kaucji na należność","0",true),loss=field(page,"Koszt / strata wypożyczalni","0",true),note=field(page,"Opis dodatkowych ustaleń / strat","",false);
         button(page,"Podsumuj i zatwierdź",()->{try{LocalDate.parse(end.getText());RentalRules.days(old.optString("start_date"),end.getText().toString());int n=Integer.parseInt(days.getText().toString());if(n<1||n>10000)throw new IllegalArgumentException("Sprawdź liczbę dób");BigDecimal rent=RentalRules.money(rate.getText().toString()).multiply(BigDecimal.valueOf(n));BigDecimal powderTotal=RentalRules.money(powder.getText().toString()),paperTotal=RentalRules.money(paper.getText().toString()),discTotal=RentalRules.money(disc.getText().toString()),otherTotal=RentalRules.money(other.getText().toString());
-                BigDecimal extras=powderTotal.add(paperTotal).add(discTotal).add(otherTotal);
+                JSONArray custom=new JSONArray();BigDecimal customTotal=BigDecimal.ZERO;
+                for(int i=0;i<customNames.size();i++){
+                    String label=customNames.get(i).getText().toString().trim().replaceAll("\\s+"," ");
+                    BigDecimal amount=RentalRules.money(customPrices.get(i).getText().toString());
+                    if(label.isEmpty()||label.length()>100||amount.signum()<=0)
+                        throw new IllegalArgumentException("Każdy własny dodatek musi mieć nazwę i kwotę większą od 0 zł.");
+                    JSONObject entry=new JSONObject().put("name",label).put("amount",amount.toPlainString());
+                    custom.put(entry);customTotal=customTotal.add(amount);
+                }
+                BigDecimal extras=powderTotal.add(paperTotal).add(discTotal).add(otherTotal).add(customTotal);
                 BigDecimal total=rent.add(extras).subtract(RentalRules.money(discount.getText().toString()));BigDecimal p=RentalRules.money(paid.getText().toString()),dep=RentalRules.money(deposit.getText().toString()),keep=RentalRules.money(retain.getText().toString()),cost=RentalRules.money(loss.getText().toString());if(total.signum()<0||keep.compareTo(dep)>0||keep.compareTo(total.subtract(p).max(BigDecimal.ZERO))>0)throw new IllegalArgumentException("Rabat lub potrącenie przekracza należność / kaucję");BigDecimal due=total.subtract(p).subtract(keep),refund=dep.subtract(keep);String summary="Należność: "+total+" zł\nW tym dodatki (przed rabatem): "+extras+" zł\n"+(due.signum()<0?"Nadpłata do zwrotu: "+due.abs():"Do dopłaty: "+due)+" zł\nKaucja do oddania: "+refund+" zł\nZatwierdź po przyjęciu sprzętu i rozliczeniu płatności.";
-            JSONObject r=copy(old);r.put("settled",true);r.put("returned",true);r.put("actual_return",end.getText().toString());r.put("income",total.toPlainString());r.put("loss",cost.toPlainString());r.put("loss_note",note.getText().toString());r.put("settled_at",LocalDate.now()+" 12:00:00");JSONObject details=new JSONObject();details.put("days",n);details.put("rate",rate.getText().toString());details.put("extra",extras.toPlainString());details.put("add_powder",powderTotal.toPlainString());details.put("add_paper",paperTotal.toPlainString());details.put("add_disc",discTotal.toPlainString());details.put("add_other",otherTotal.toPlainString());details.put("discount",discount.getText().toString());details.put("paid",p.toPlainString());details.put("deposit",dep.toPlainString());details.put("retained",keep.toPlainString());details.put("due",due.toPlainString());details.put("deposit_refund",refund.toPlainString());r.put("settlement",details);
+            JSONObject r=copy(old);r.put("settled",true);r.put("returned",true);r.put("actual_return",end.getText().toString());r.put("income",total.toPlainString());r.put("loss",cost.toPlainString());r.put("loss_note",note.getText().toString());r.put("settled_at",LocalDate.now()+" 12:00:00");JSONObject details=new JSONObject();details.put("days",n);details.put("rate",rate.getText().toString());details.put("extra",extras.toPlainString());details.put("add_powder",powderTotal.toPlainString());details.put("add_paper",paperTotal.toPlainString());details.put("add_disc",discTotal.toPlainString());details.put("add_other",otherTotal.toPlainString());details.put("add_custom",custom);details.put("discount",discount.getText().toString());details.put("paid",p.toPlainString());details.put("deposit",dep.toPlainString());details.put("retained",keep.toPlainString());details.put("due",due.toPlainString());details.put("deposit_refund",refund.toPlainString());r.put("settlement",details);
             new AlertDialog.Builder(activity).setTitle("Potwierdź rozliczenie").setMessage(summary).setNegativeButton("Popraw",null).setPositiveButton("Sprzęt i płatność rozliczone",(d,w)->{store.saveRentalOperation(r,"reservation_settle");host.sync();active();}).show();
         }catch(Exception e){error(e);}});
     }
