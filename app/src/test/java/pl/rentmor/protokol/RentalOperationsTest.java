@@ -151,11 +151,11 @@ public class RentalOperationsTest {
   dlg.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
   org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
   JSONObject settled=store.allReservations().getJSONObject(0);
-  assertEquals("25",settled.optString("income"));
+  assertEquals("25.00",settled.optString("income"));
   JSONArray named=settled.getJSONObject("settlement").getJSONArray("add_custom");
   assertEquals(1,named.length());
   assertEquals("Worek do odkurzacza",named.getJSONObject(0).getString("name"));
-  assertEquals("25",named.getJSONObject(0).optString("amount"));
+  assertEquals("25.00",named.getJSONObject(0).optString("amount"));
   assertEquals(1,sync[0]);
   JSONObject another=new JSONObject().put("id","new")
       .put("start_date",LocalDate.now().minusDays(1).toString()).put("end_date",today);
