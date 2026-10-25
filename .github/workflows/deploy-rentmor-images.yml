@@ -58,11 +58,15 @@ jobs:
           mkdir -p "$DIR/originals" "$DIR/webp"
           chmod 700 "$DIR"
           source scripts/secure_sftp_connection.sh
+          # A first deployment has no previous manifest: missing is expected.
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
-            -e "$SFTP_CONNECT_SETUP; get public_html/data.json -o $DIR/data.json; set cmd:fail-exit no; get public_html/rentmor-image-manifest.json -o $DIR/previous.json; bye"
+            -e "$SFTP_CONNECT_SETUP; get public_html/data.json -o $DIR/data.json; bye"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
+            -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; get public_html/rentmor-image-manifest.json -o $DIR/previous.json; bye" || true
           python3 scripts/prepare_rentmor_images.py plan "$DIR/data.json" "$DIR/previous.json" "$DIR/originals" "$DIR/download.lftp"
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
-            -e "$SFTP_CONNECT_SETUP; source $DIR/download.lftp; bye"
+            -e "$SFTP_CONNECT_SETUP; source $DIR/download.lftp; bye" || true
+          # Unavailable individual images are skipped by the converter; it refuses an empty manifest.
 
       - name: Compress to content-hashed responsive WebP sizes
         run: |
