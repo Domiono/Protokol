@@ -19,7 +19,9 @@ def patch(content: str) -> str:
     if len(match) != 1 or "<?php" not in content:
         raise ValueError("Unexpected public homepage DOCTYPE layout")
     pos = match[0].start()
-    return content[:pos] + INCLUDE + content[pos:]
+    updated = content[:pos] + INCLUDE + content[pos:]
+    # Bust the gallery JS URL once so full-resolution lightbox behavior takes effect.
+    return updated.replace('/rentmor-gallery.js?v=1', '/rentmor-gallery.js?v=2')
 
 if __name__ == "__main__":
     f = Path(sys.argv[1])
