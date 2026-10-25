@@ -46,6 +46,7 @@ public class RentalOperationsTest {
   assertNotNull(dialog);assertTrue(((android.widget.TextView)dialog.findViewById(android.R.id.message)).getText().toString().contains("1 aktywnych"));
   assertFalse(store.assets().getJSONObject(0).optBoolean("in_service"));
   dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
+  org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
   JSONObject disabled=store.assets().getJSONObject(0);
   assertTrue(disabled.optBoolean("in_service"));assertEquals("vacuum",disabled.getString("asset_kind"));
   assertEquals(1,disabled.getJSONArray("repairs").length());
@@ -72,6 +73,7 @@ public class RentalOperationsTest {
   assertNotNull(dlg);assertTrue(((android.widget.TextView)dlg.findViewById(android.R.id.message)).getText().toString().contains("trwałe usunięcie"));
   assertEquals(1,store.assets().length());
   dlg.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
+  org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
   assertEquals(0,store.assets().length());assertEquals(1,store.pendingCount());assertEquals(1,sync[0]);
   store.replaceAssets(new JSONArray().put(unused));
   assertEquals(0,store.assets().length()); // Pending deletion must not resurrect locally.
