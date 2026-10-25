@@ -136,6 +136,26 @@ public final class RentalRules {
      * A giraffe listed as "set + vacuum" must not appear unavailable merely
      * because the calendar probe does not include an auxiliary vacuum.
      */
+    /** Removing an asset is safe only if it has never been used by a reservation,
+     * protocol or repair. Disabling it is the non-destructive alternative.
+     */
+    public static String deletionBlocker(JSONObject asset,JSONArray reservations,JSONArray protocols){
+        String id=asset.optString("id");
+        if(id.isEmpty())return "Egzemplarz nie ma identyfikatora.";
+        JSONArray repairs=asset.optJSONArray("repairs");
+        if(repairs!=null&&repairs.length()>0)return "Egzemplarz ma historię napraw lub przeglądów.";
+        for(int i=0;i<reservations.length();i++){
+            JSONObject r=reservations.optJSONObject(i);
+            if(r!=null&&(id.equals(r.optString("asset_id"))||id.equals(r.optString("vacuum_asset_id"))))
+                return "Egzemplarz występuje w historii rezerwacji lub wynajmów.";
+        }
+        for(int i=0;i<protocols.length();i++){
+            JSONObject p=protocols.optJSONObject(i);
+            if(p!=null&&(id.equals(p.optString("asset_id"))||id.equals(p.optString("vacuum_asset_id"))))
+                return "Egzemplarz występuje w historii protokołów.";
+        }
+        return "";
+    }
     public static String assetAvailability(JSONObject asset,String date,JSONArray reservations){
         try{
             JSONObject probe=new JSONObject();
