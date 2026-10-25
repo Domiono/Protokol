@@ -68,7 +68,9 @@ def main():
     assert any(s.get('@type') == 'Article' and s.get('mainEntityOfPage') == BASE + GUIDE for s in page.schemas)
     cleaning_html, cleaning_headers = fetch(PUZZI_GUIDE)
     cleaning = validate(cleaning_html, cleaning_headers, BASE + PUZZI_GUIDE)
-    assert any(s.get('@type') == 'Article' and s.get('mainEntityOfPage') == BASE + PUZZI_GUIDE for s in cleaning.schemas for s in (s.get('@graph',[]) if '@graph' in s else [s]))
+    assert any(node.get('@type') == 'Article' and node.get('mainEntityOfPage') == BASE + PUZZI_GUIDE
+               for schema in cleaning.schemas
+               for node in (schema.get('@graph', []) if '@graph' in schema else [schema]))
     assert PUZZI_OFFER in cleaning.links or BASE + PUZZI_OFFER in cleaning.links
     product_html, product_headers = fetch(PUZZI_OFFER)
     validate(product_html, product_headers, BASE + PUZZI_OFFER)
