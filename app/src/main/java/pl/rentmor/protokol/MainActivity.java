@@ -94,7 +94,7 @@ public class MainActivity extends Activity {
     private Runnable protocolBackAction;
     private LinearLayout homeToolsList;
     private JSONObject issueReservation;
-    private RentalOperations operations(){return new RentalOperations(this,store,new RentalOperations.Host(){
+    private RentalOperations operations(){protocolBackAction=null;return new RentalOperations(this,store,new RentalOperations.Host(){
         public void home(){showHome();}
         public void issue(JSONObject r){issueReservation=r;newIssue();}
         public void protocol(JSONObject p){showProtocolDetail(p);}
@@ -388,7 +388,7 @@ public class MainActivity extends Activity {
                     addAdminDownloadCard();
                 });
             }catch(Exception e){
-                runOnUiThread(()->{if(status!=null)status.setText("Nie wysłano: "+e.getMessage()+" • Dane zapisane lokalnie.");});
+                runOnUiThread(()->{if(status!=null)status.setText("Nie wysłano: "+e.getMessage()+" • Dane zapisane lokalnie.");toast("Nie wysłano zmian: "+e.getMessage()+". Dane pozostają w telefonie.");});
             }finally{syncRunning.set(false);}
         }).start();
     }
