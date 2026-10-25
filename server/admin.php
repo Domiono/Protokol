@@ -207,6 +207,12 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['act
                 if ($name !== '' && strlen($name) <= 160 && $dt && $dt->format('Y-m-d') === $date && $amount !== false && $amount > 0 && $amount <= 100000000) {
                     if ($id === '') $id = bin2hex(random_bytes(12));
                     $equipmentName = trim((string)($_POST['equipment_name'] ?? ''));
+                    // Editing a model's repair in the general costs tab must not erase its attribution.
+                    if (!array_key_exists('equipment_name', $_POST)) {
+                        foreach ($items as $previous) if ((string)($previous['id']??'')===$id) {
+                            $equipmentName=trim((string)($previous['equipment_name']??''));break;
+                        }
+                    }
                     $item = ['id'=>$id, 'date'=>$date, 'month'=>substr($date,0,7), 'name'=>function_exists('mb_substr')?mb_substr($name,0,160,'UTF-8'):substr($name,0,160), 'amount'=>round((float)$amount,2), 'type'=>$type, 'equipment_name'=>function_exists('mb_substr')?mb_substr($equipmentName,0,160,'UTF-8'):substr($equipmentName,0,160), 'note'=>function_exists('mb_substr')?mb_substr($note,0,1000,'UTF-8'):substr($note,0,1000)];
                     $found = false;
                     foreach ($items as &$saved) { if ((string)($saved['id'] ?? '') === $id) { $saved = $item; $found = true; break; } }
