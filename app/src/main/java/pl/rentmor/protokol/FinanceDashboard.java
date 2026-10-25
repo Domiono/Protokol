@@ -76,6 +76,13 @@ public final class FinanceDashboard {
         text(addonDetails,"Papier ścierny: "+money(report.addonPaper),13,0xff334155,false);
         text(addonDetails,"Zużycie tarczy: "+money(report.addonDisc),13,0xff334155,false);
         text(addonDetails,"Pozostałe dodatki: "+money(report.addonOther),13,0xff334155,false);
+        if(report.addonCustom>0){
+            text(addonDetails,"Własne dodatki: "+money(report.addonCustom),14,0xff172b43,true);
+            List<Map.Entry<String,Long>> named=new ArrayList<>(report.addonCustomByName.entrySet());
+            named.sort((left,right)->Long.compare(right.getValue(),left.getValue()));
+            for(Map.Entry<String,Long> entry:named)
+                text(addonDetails,entry.getKey()+": "+money(entry.getValue()),13,0xff334155,false);
+        }
         if(report.addonUnclassified>0)text(addonDetails,"Starsze dopłaty bez podziału: "+money(report.addonUnclassified),13,0xff925400,false);
         if(report.addonsUnknown>0)text(addonDetails,"Przy "+report.addonsUnknown+" rozliczeniach brak zapisanego podziału dodatków. Nie da się odtworzyć ich kwot z samego przychodu.",12,0xff925400,false);
         Button addonToggle=new Button(context);addonToggle.setText("Pokaż szczegóły dodatków");
