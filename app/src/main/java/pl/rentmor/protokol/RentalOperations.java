@@ -99,13 +99,108 @@ public final class RentalOperations {
         if(r.optBoolean("returned")){labels.add("Zobacz protokół");actions.add(()->open(r));}
         new AlertDialog.Builder(activity).setTitle("Opcje najmu").setItems(labels.toArray(new String[0]),(d,index)->actions.get(index).run()).setNegativeButton("Zamknij",null).show();
     }
-    public void calendar(LocalDate start){screen("Dostępność egzemplarzy");text(page,"Rezerwacje blokują cały dzień odbioru i zwrotu. Brak przypisanej sztuki oznacza termin do sprawdzenia.",13,0xff526174);
-        button(page,"‹ Poprzednie 7 dni",()->calendar(start.minusDays(7)));button(page,start+" • następne 7 dni ›",()->calendar(start.plusDays(7)));
+    /** Saves the whole existing asset record, including history and its rental group. */
+    void setServiceStatus(JSONObject original,boolean disabled,LocalDate weekStart){
+        if(!admin){error(new IllegalArgumentException("Tylko administrator może zmieniać dostępność."));return;}
+        try{
+            JSONObject fresh=original;
+            JSONArray current=store.assets();
+            for(int i=0;i<current.length();i++){
+                JSONObject saved=current.optJSONObject(i);
+                if(saved!=null&&saved.optString("id").equals(original.optString("id"))){fresh=saved;break;}
+            }
+            JSONObject changed=copy(fresh);
+            changed.put("in_service",disabled);
+            store.enqueue("asset_save",changed);
+            store.saveAsset(changed);
+            host.sync();
+            calendar(weekStart);
+            Toast.makeText(activity,disabled?
+                "Egzemplarz wyłączony z wynajmu. Synchronizacja potwierdzi zmianę.":
+                "Egzemplarz przywrócony do wynajmu. Synchronizacja potwierdzi zmianę.",
+                Toast.LENGTH_LONG).show();
+        }catch(Exception e){error(e);}
+    }
+    void confirmServiceChange(JSONObject asset,LocalDate weekStart){
+        if(!admin)return;
+        boolean disabled=asset.optBoolean("in_service");
+        if(disabled){setServiceStatus(asset,false,weekStart);return;}
+        int future=0;
+        String today=LocalDate.now().toString();
+        JSONArray rentals=store.allReservations();
+        for(int i=0;i<rentals.length();i++){
+            JSONObject r=rentals.optJSONObject(i);
+            if(r==null||r.optBoolean("returned")||r.optBoolean("settled"))continue;
+            if(asset.optString("id").equals(r.optString("asset_id"))||
+                asset.optString("id").equals(r.optString("vacuum_asset_id"))){
+                if(r.optBoolean("done")||r.optString("end_date").compareTo(today)>=0)future++;
+            }
+        }
+        String message="Egzemplarz nie będzie przydzielany do nowych rezerwacji aż do ponownego włączenia.";
+        if(future>0)message+="\n\nUwaga: ma "+future+" aktywnych lub nadchodzących rezerwacji. Nie zostaną automatycznie anulowane — sprawdź klientów i terminy.";
+        new AlertDialog.Builder(activity)
+            .setTitle("Wyłączyć "+asset.optString("label")+"?")
+            .setMessage(message)
+            .setNegativeButton("Anuluj",null)
+            .setPositiveButton("Wyłącz z wynajmu",(dialog,which)->setServiceStatus(asset,true,weekStart))
+            .show();
+    }
+    void confirmAssetDelete(JSONObject asset,LocalDate weekStart){
+        if(!admin)return;
+        String reason=RentalRules.deletionBlocker(asset,store.allReservations(),store.allProtocols());
+        if(!reason.isEmpty()){
+            AlertDialog.Builder info=new AlertDialog.Builder(activity)
+                .setTitle("Nie można usunąć: "+asset.optString("label"))
+                .setMessage(reason+"\n\nAby zachować historię wypożyczeń i napraw, możesz wyłączyć ten egzemplarz z wynajmu.")
+                .setNegativeButton("Zamknij",null);
+            if(!asset.optBoolean("in_service"))info.setPositiveButton("Wyłącz z wynajmu",
+                (d,w)->confirmServiceChange(asset,weekStart));
+            info.show();
+            return;
+        }
+        new AlertDialog.Builder(activity)
+            .setTitle("Usunąć egzemplarz?")
+            .setMessage(asset.optString("label")+"\n\nTo trwałe usunięcie z listy sprzętu. Nie będzie można cofnąć tej operacji.")
+            .setNegativeButton("Anuluj",null)
+            .setPositiveButton("Usuń", (d,w)->{
+                try{
+                    store.deleteUnusedAsset(asset);
+                    host.sync();
+                    calendar(weekStart);
+                    Toast.makeText(activity,"Egzemplarz usunięty z listy. Synchronizacja potwierdzi usunięcie.",Toast.LENGTH_LONG).show();
+                }catch(Exception e){error(e);}
+            }).show();
+    }
+    public void calendar(LocalDate start){
+        screen("Dostępność egzemplarzy");
+        text(page,"Szybko sprawdź terminy, edytuj egzemplarz lub wyłącz go w razie awarii.",13,0xff526174);
+        text(page,start+" — "+start.plusDays(6),15,0xff245b91);
+        pair(page,"‹ Poprzednie 7 dni",()->calendar(start.minusDays(7)),
+            "Następne 7 dni ›",()->calendar(start.plusDays(7)),false);
+        if(!start.equals(LocalDate.now()))button(page,"Przejdź do dzisiaj",()->calendar(LocalDate.now()));
         if(admin)button(page,"＋ Dodaj egzemplarz",()->assetForm(null));
-        JSONArray assets=store.assets(),rentals=store.allReservations();if(assets.length()==0)text(page,"Dodaj rzeczywiste egzemplarze, np. Puzzi 01, Puzzi 02. Następnie przypisz je do aktywnych rezerwacji.",16,0xff526174);
-        for(int i=0;i<assets.length();i++){JSONObject a=assets.optJSONObject(i);if(a==null)continue;LinearLayout c=card(page,a.optString("label")+" • "+a.optString("equipment"));
-            for(int d=0;d<7;d++){String day=start.plusDays(d).toString();JSONObject probe=new JSONObject();try{probe.put("asset_id",a.optString("id"));probe.put("equipment",a.optString("equipment"));probe.put("start_date",day);probe.put("end_date",day);probe.put("needs_vacuum",false);}catch(Exception ignored){}String reason=RentalRules.conflict(probe,rentals,assets);if(reason.isEmpty())for(int j=0;j<rentals.length();j++){JSONObject legacy=rentals.optJSONObject(j);if(legacy!=null&&!legacy.optBoolean("settled")&&!legacy.optBoolean("returned")&&legacy.optString("asset_id").isEmpty()&&a.optString("equipment").equals(legacy.optString("equipment"))){try{if(RentalRules.overlaps(day,day,legacy.optString("start_date"),legacy.optString("end_date")))reason="Sprawdź — rezerwacja modelu bez przypisanej sztuki";}catch(Exception e){reason="Sprawdź starsze rezerwacje tego modelu";}}}text(c,day+"  •  "+(reason.isEmpty()?"Wolny":reason),13,reason.isEmpty()?0xff166534:0xff925400);}
-            button(c,"Historia i serwis",()->assetDetails(a));
+        JSONArray assets=store.assets(),rentals=store.allReservations();
+        if(assets.length()==0)text(page,"Dodaj rzeczywiste egzemplarze, np. Puzzi 01, Puzzi 02. Następnie przypisz je do aktywnych rezerwacji.",16,0xff526174);
+        for(int i=0;i<assets.length();i++){
+            JSONObject a=assets.optJSONObject(i);if(a==null)continue;
+            boolean disabled=a.optBoolean("in_service");
+            LinearLayout c=card(page,a.optString("label"));
+            text(c,a.optString("equipment"),12,0xff64748b);
+            if(disabled)badge(c,"AWARIA / SERWIS — WYŁĄCZONY",0xffa52e2e,0xffffe5e5);
+            else if(serviceDue(a))badge(c,"ZAPLANUJ PRZEGLĄD",0xff925400,0xfffff0ce);
+            for(int d=0;d<7;d++){
+                String day=start.plusDays(d).toString();
+                String reason=RentalRules.assetAvailability(a,day,rentals);
+                String status=disabled?"Niedostępny — awaria / serwis":reason.isEmpty()?"Wolny":reason;
+                text(c,day+"  •  "+status,13,disabled?0xffa52e2e:reason.isEmpty()?0xff166534:0xff925400);
+            }
+            if(admin){
+                pair(c,"Edytuj",()->assetForm(a),
+                    disabled?"Przywróć do wynajmu":"Awaria / wyłącz",
+                    ()->confirmServiceChange(a,start),false);
+                pair(c,"Historia i serwis",()->assetDetails(a),
+                    "Usuń egzemplarz",()->confirmAssetDelete(a,start),false);
+            }else button(c,"Historia i serwis  ›",()->assetDetails(a));
         }
     }
     long rentalsCount(JSONObject a){long count=0;JSONArray rs=store.allReservations();for(int i=0;i<rs.length();i++){JSONObject r=rs.optJSONObject(i);if(r!=null&&(a.optString("id").equals(r.optString("asset_id"))||a.optString("id").equals(r.optString("vacuum_asset_id")))&&(r.optBoolean("done")||r.optBoolean("settled")))count++;}return count;}

@@ -27,10 +27,39 @@ public class LocalStore extends SQLiteOpenHelper {
         ContentValues v=new ContentValues();v.put("id",a.optString("id"));v.put("data",a.toString());
         getWritableDatabase().insertWithOnConflict("assets",null,v,SQLiteDatabase.CONFLICT_REPLACE);
     }
+    /** Delete a never-used physical copy locally and queue the authenticated server deletion. */
+    public synchronized void deleteUnusedAsset(JSONObject asset){
+        String id=asset.optString("id");
+        String blocker=RentalRules.deletionBlocker(asset,allReservations(),allProtocols());
+        if(!blocker.isEmpty())throw new IllegalArgumentException(blocker);
+        SQLiteDatabase db=getWritableDatabase();db.beginTransaction();
+        try{
+            JSONArray pending=queued();
+            for(int i=0;i<pending.length();i++){
+                JSONObject op=pending.optJSONObject(i);
+                if(op!=null&&"asset_save".equals(op.optString("action"))&&id.equals(op.optString("id")))
+                    clearQueueItem(op.optString("op_id"));
+            }
+            boolean queuedDelete=false;
+            for(int i=0;i<pending.length();i++){
+                JSONObject op=pending.optJSONObject(i);
+                if(op!=null&&"asset_delete".equals(op.optString("action"))&&id.equals(op.optString("id")))queuedDelete=true;
+            }
+            if(!queuedDelete)enqueue("asset_delete",new JSONObject().put("id",id));
+            db.delete("assets","id=?",new String[]{id});
+            db.setTransactionSuccessful();
+        }catch(JSONException e){throw new IllegalStateException(e);}
+        finally{db.endTransaction();}
+    }
     public synchronized void replaceAssets(JSONArray a) {
         SQLiteDatabase db=getWritableDatabase();db.beginTransaction();
         try{db.delete("assets",null,null);for(int i=0;i<a.length();i++)saveAsset(a.getJSONObject(i));
-            JSONArray pending=queued();for(int i=0;i<pending.length();i++){JSONObject op=pending.getJSONObject(i);if("asset_save".equals(op.optString("action")))saveAsset(op);}
+            JSONArray pending=queued();for(int i=0;i<pending.length();i++){
+                JSONObject op=pending.getJSONObject(i);
+                if("asset_save".equals(op.optString("action")))saveAsset(op);
+                else if("asset_delete".equals(op.optString("action")))
+                    db.delete("assets","id=?",new String[]{op.optString("id")});
+            }
             db.setTransactionSuccessful();
         }catch(JSONException e){throw new IllegalStateException(e);}finally{db.endTransaction();}
     }
