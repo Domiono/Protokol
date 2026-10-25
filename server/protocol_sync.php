@@ -151,7 +151,7 @@ function rm_rental_conflict(array $item,array $reservations,array $assets): stri
     if(!empty($item['returned'])||!empty($item['settled']))return '';
     $role=rm_equipment_kind((string)($item['equipment']??''));
     $needs=rm_needs_vacuum($item);$id=(string)($item['asset_id']??'');
-    if($id==='')return $needs?'Przypisz żyrafę oraz odkurzacz do zestawu.':'';
+    if($id==='')return $needs?'Przypisz żyrafę oraz odkurzacz do zestawu.':($role==='standard'?'':'Przypisz konkretny egzemplarz przed zapisaniem rezerwacji.');
     if(!rm_valid_reservation_dates($item))return 'Nieprawidłowy termin.';
     $primary=null;foreach($assets as $a)if(($a['id']??'')===$id)$primary=$a;
     if(!$primary)return 'Nie znaleziono egzemplarza.';
