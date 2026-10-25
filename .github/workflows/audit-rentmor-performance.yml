@@ -1,0 +1,15 @@
+name: Audit public RentMor performance
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/audit_public_assets.py'
+      - '.github/workflows/audit-rentmor-performance.yml'
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inventory public home and offer image markup
+        run: python3 scripts/audit_public_assets.py
