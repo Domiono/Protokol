@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Post-deploy smoke checks: meaningful SEO content and canonical host behavior."""
 from html.parser import HTMLParser
+import sys
 from urllib.error import HTTPError
 from urllib.request import Request, HTTPRedirectHandler, build_opener
 
@@ -73,11 +74,18 @@ def main():
         html, _ = fetch(path)
         title = Title(html).title
         assert expected_title in title and title.endswith("| RentMor"), (path, title, expected_title)
+    verify_redirects()
+    print("PASS: enriched offers, Organization schema, local SEO titles and 301 canonical host.")
+
+def verify_redirects():
     verify_redirect("http://rentmor.pl/robots.txt?seo_check=1",
                     "https://rentmor.pl/robots.txt?seo_check=1")
     verify_redirect("https://www.rentmor.pl/robots.txt?seo_check=1",
                     "https://rentmor.pl/robots.txt?seo_check=1")
-    print("PASS: enriched offers, Organization schema, local SEO titles and 301 canonical host.")
 
 if __name__ == "__main__":
-    main()
+    if "--redirects-only" in sys.argv:
+        verify_redirects()
+        print("PASS: canonical HTTP and www redirects.")
+    else:
+        main()
