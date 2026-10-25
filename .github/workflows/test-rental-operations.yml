@@ -24,6 +24,8 @@ jobs:
       - run: php scripts/test_rental_rules.php
       - run: python3 scripts/test_rental_api.py
       - run: python3 scripts/test_inject_local_seo.py
+      - run: python3 scripts/test_inject_airless_guide_link.py
+      - run: php -l server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php
       - run: python3 scripts/test_public_seo.py
       - run: php -l server/poradnik-pranie-tapicerki-karcher-puzzi.php
       - run: php -l server/sitemap.php
