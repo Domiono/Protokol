@@ -21,8 +21,31 @@ public final class RentalOperations {
     int dp(int n){return (int)(n*activity.getResources().getDisplayMetrics().density+.5f);}
     void text(LinearLayout box,String value,int size,int color){TextView t=new TextView(activity);t.setText(value);t.setTextSize(size);t.setTextColor(color);t.setPadding(0,dp(6),0,dp(6));box.addView(t);}
     LinearLayout card(LinearLayout box,String title){LinearLayout c=new LinearLayout(activity);c.setOrientation(1);c.setPadding(dp(14),dp(10),dp(14),dp(12));GradientDrawable bg=new GradientDrawable();bg.setColor(Color.WHITE);bg.setCornerRadius(dp(16));c.setBackground(bg);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=dp(12);box.addView(c,lp);text(c,title,18,0xff17263e);return c;}
-    void button(LinearLayout box,String label,Runnable action){Button b=new Button(activity);b.setText(label);b.setAllCaps(false);b.setMinHeight(dp(48));b.setOnClickListener(v->action.run());box.addView(b,new LinearLayout.LayoutParams(-1,-2));}
-    void screen(String title){LinearLayout outer=new LinearLayout(activity);outer.setOrientation(1);outer.setPadding(dp(14),dp(30),dp(14),dp(20));outer.setBackgroundColor(0xfff4f6fa);button(outer,"‹ Panel główny",host::home);ScrollView scroll=new ScrollView(activity);page=new LinearLayout(activity);page.setOrientation(1);scroll.addView(page);outer.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));activity.setContentView(outer);text(page,title,26,0xff17263e);if(store.pendingCount()>0)text(page,"Zmiany w telefonie czekają na synchronizację: "+store.pendingCount(),13,0xff925400);button(page,"Synchronizuj dane",host::sync);}
+    GradientDrawable surface(int color,int radius){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(radius));return d;}
+    Button action(String label,boolean primary,Runnable run){
+        Button b=new Button(activity);b.setText(label);b.setAllCaps(false);b.setTextSize(14);b.setTypeface(null,1);
+        b.setTextColor(primary?0xff17263e:0xff34465e);b.setMinHeight(dp(48));b.setMinimumHeight(dp(48));
+        b.setPadding(dp(12),dp(8),dp(12),dp(8));b.setStateListAnimator(null);b.setElevation(0);
+        GradientDrawable bg=surface(primary?0xffffcd54:0xffeef2f7,12);
+        b.setBackgroundTintList(null);b.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x2017263e),bg,null));
+        b.setOnClickListener(v->run.run());return b;
+    }
+    void button(LinearLayout box,String label,Runnable run){Button b=action(label,label.startsWith("Zapisz")||label.startsWith("Podsumuj"),run);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.topMargin=dp(5);lp.bottomMargin=dp(5);box.addView(b,lp);}
+    void pair(LinearLayout box,String first,Runnable firstAction,String second,Runnable secondAction,boolean primary){
+        LinearLayout row=new LinearLayout(activity);LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.topMargin=dp(8);box.addView(row,rp);
+        LinearLayout.LayoutParams left=new LinearLayout.LayoutParams(0,-2,1);left.rightMargin=dp(8);row.addView(action(first,primary,firstAction),left);row.addView(action(second,false,secondAction),new LinearLayout.LayoutParams(0,-2,1));
+    }
+    void badge(LinearLayout box,String value,int color,int fill){TextView t=new TextView(activity);t.setText(value);t.setTextSize(12);t.setTypeface(null,1);t.setTextColor(color);t.setPadding(dp(10),dp(6),dp(10),dp(6));t.setBackground(surface(fill,8));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-2,-2);lp.topMargin=dp(6);lp.bottomMargin=dp(6);box.addView(t,lp);}
+    void metric(LinearLayout row,String label,int value,int color){LinearLayout c=new LinearLayout(activity);c.setOrientation(1);c.setPadding(dp(10),dp(10),dp(8),dp(10));c.setBackground(surface(Color.WHITE,14));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);lp.setMargins(dp(3),0,dp(3),dp(12));row.addView(c,lp);text(c,String.valueOf(value),26,color);text(c,label,12,0xff607086);}
+    void screen(String title){
+        activity.getWindow().setStatusBarColor(0xfff4f6fa);activity.getWindow().setNavigationBarColor(0xfff4f6fa);
+        activity.getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+        LinearLayout outer=new LinearLayout(activity);outer.setOrientation(1);outer.setBackgroundColor(0xfff4f6fa);
+        outer.setPadding(dp(16),dp(8),dp(16),dp(12));outer.setOnApplyWindowInsetsListener((v,i)->{v.setPadding(dp(16)+i.getSystemWindowInsetLeft(),dp(8)+i.getSystemWindowInsetTop(),dp(16)+i.getSystemWindowInsetRight(),dp(12)+i.getSystemWindowInsetBottom());return i;});
+        pair(outer,"‹ Panel główny",host::home,"↻ Odśwież",host::sync,false);
+        ScrollView scroll=new ScrollView(activity);scroll.setClipToPadding(false);scroll.setFillViewport(true);page=new LinearLayout(activity);page.setOrientation(1);page.setPadding(0,dp(12),0,dp(16));scroll.addView(page);outer.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));activity.setContentView(outer);outer.requestApplyInsets();
+        text(page,title,28,0xff17263e);if(store.pendingCount()>0)badge(page,"Oczekuje na synchronizację: "+store.pendingCount(),0xff925400,0xfffff0ce);
+    }
     void error(Exception e){Toast.makeText(activity,e.getMessage()==null?"Sprawdź dane":e.getMessage(),Toast.LENGTH_LONG).show();}
     JSONObject copy(JSONObject o)throws JSONException{return new JSONObject(o.toString());}
     EditText field(LinearLayout b,String label,String value,boolean money){text(b,label,13,0xff526174);EditText e=new EditText(activity);e.setText(value);e.setSingleLine(true);if(money)e.setInputType(8194);b.addView(e);return e;}
@@ -39,10 +62,12 @@ public final class RentalOperations {
             if(r.optBoolean("done")&&today.equals(r.optString("end_date")))returns++;
             if(r.optBoolean("done")&&!r.optString("end_date").isEmpty()&&r.optString("end_date").compareTo(today)<0)late++;
         }
-        text(page,"Wydania: "+issue+"   •   Zwroty: "+returns+"   •   Po terminie: "+late,16,0xff245b91);
-        if(admin)button(page,"Wiadomości • nieprzeczytane: "+store.unreadMessagesCount(),host::inbox);
-        button(page,"Kalendarz dostępności i egzemplarze",()->calendar(LocalDate.now()));
-        button(page,"Wszystkie aktywne najmy • uzupełnij egzemplarze ("+missing+")",this::active);
+        text(page,LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("EEEE, d MMMM",new Locale("pl","PL"))),14,0xff607086);
+        LinearLayout metrics=new LinearLayout(activity);page.addView(metrics);metric(metrics,"Wydania",issue,0xff245b91);metric(metrics,"Zwroty",returns,0xff16755b);metric(metrics,"Po terminie",late,late>0?0xffb53b3b:0xff607086);
+        pair(page,"Dostępność",()->calendar(LocalDate.now()),"Aktywne najmy",this::active,false);
+        if(admin)button(page,"Wiadomości  ·  "+store.unreadMessagesCount()+" nowych",host::inbox);
+        if(missing>0){final int count=missing;button(page,"Przypisz egzemplarze  ·  "+count+" rezerwacji",this::active);}
+        text(page,"Do obsługi dzisiaj",18,0xff17263e);
         boolean any=false;
         for(int i=0;i<all.length();i++){JSONObject r=all.optJSONObject(i);if(r==null||r.optBoolean("settled")||r.optBoolean("returned"))continue;
             String end=r.optString("end_date"),start=r.optString("start_date");
@@ -52,12 +77,26 @@ public final class RentalOperations {
         for(int i=0;i<store.assets().length();i++){JSONObject a=store.assets().optJSONObject(i);if(a!=null&&serviceDue(a))button(page,"Przegląd: "+a.optString("label"),()->assetDetails(a));}
     }
     public void active(){screen("Aktywne najmy");JSONArray all=store.allReservations();for(int i=0;i<all.length();i++){JSONObject r=all.optJSONObject(i);if(r!=null&&!r.optBoolean("settled"))rentalCard(r);}button(page,"Dzisiaj",this::today);}
-    void rentalCard(JSONObject r){LinearLayout c=card(page,r.optString("equipment",r.optString("text")));text(c,r.optString("start_date")+" → "+r.optString("end_date")+"  "+r.optString("time"),14,0xff245b91);text(c,r.optString("customer_name",r.optString("client"))+" • "+r.optString("phone"),14,0xff526174);text(c,r.optBoolean("returned")?"Zwrócony — oczekuje na rozliczenie":r.optBoolean("done")?"Wydany":"Do wydania",14,0xff925400);
-        text(c,"Egzemplarz: "+r.optString("asset_label","nieprzypisany"),14,0xff526174);
-        String phone=r.optString("phone");if(phone.matches("[+0-9 ()-]{7,}"))button(c,"Zadzwoń",()->{try{activity.startActivity(new Intent(Intent.ACTION_DIAL,Uri.fromParts("tel",phone.replaceAll("[^+0-9]",""),null)));}catch(Exception e){error(e);}});
-        button(c,"Egzemplarz i warunki najmu",()->rentalForm(r));button(c,"Protokół wydania / zwrotu",()->open(r));
-        if(!r.optBoolean("returned"))button(c,"Przedłuż najem",()->extend(r));
-        if(admin)button(c,"Rozlicz najem",()->settlement(r));
+    String displayDate(String raw){try{return LocalDate.parse(raw).format(java.time.format.DateTimeFormatter.ofPattern("dd.MM"));}catch(Exception e){return raw;}}
+    void rentalCard(JSONObject r){
+        LinearLayout c=card(page,r.optString("equipment",r.optString("text")));
+        boolean returned=r.optBoolean("returned"),issued=r.optBoolean("done");String end=r.optString("end_date");boolean late=issued&&!returned&&!end.isEmpty()&&end.compareTo(LocalDate.now().toString())<0;
+        badge(c,returned?"Do rozliczenia":late?"Po terminie zwrotu":issued?"Wydany":"Do wydania",late?0xffa52e2e:issued?0xff16654e:0xff925400,late?0xffffe5e5:issued?0xffe4f4ed:0xfffff0ce);
+        text(c,displayDate(r.optString("start_date"))+" – "+displayDate(end)+(r.optString("time").isEmpty()?"":"  •  "+r.optString("time")),15,0xff245b91);
+        String name=r.optString("customer_name",r.optString("client")).trim(),phone=r.optString("phone").trim();
+        if(!name.isEmpty()||!phone.isEmpty())text(c,name+(name.isEmpty()||phone.isEmpty()?"":"  •  ")+phone,14,0xff607086);
+        text(c,r.optString("asset_id").isEmpty()?"Egzemplarz: do przypisania":"Egzemplarz: "+r.optString("asset_label"),13,r.optString("asset_id").isEmpty()?0xff925400:0xff607086);
+        boolean canCall=phone.matches("[+0-9 ()-]{7,}");
+        if(returned&&admin)pair(c,"Rozlicz najem",()->settlement(r),"Więcej opcji",()->rentalMenu(r),true);
+        else pair(c,issued?"Protokół / zwrot":"Protokół wydania",()->open(r),canCall?"Zadzwoń":"Więcej opcji",()->{if(canCall){try{activity.startActivity(new Intent(Intent.ACTION_DIAL,Uri.fromParts("tel",phone.replaceAll("[^+0-9]",""),null)));}catch(Exception e){error(e);}}else rentalMenu(r);},true);
+        if(canCall&&!returned)button(c,"Więcej opcji  ›",()->rentalMenu(r));
+    }
+    void rentalMenu(JSONObject r){ArrayList<String> labels=new ArrayList<>();ArrayList<Runnable> actions=new ArrayList<>();
+        labels.add("Egzemplarz i warunki najmu");actions.add(()->rentalForm(r));
+        if(!r.optBoolean("returned")){labels.add("Przedłuż najem");actions.add(()->extend(r));}
+        if(admin){labels.add("Rozlicz najem");actions.add(()->settlement(r));}
+        if(r.optBoolean("returned")){labels.add("Zobacz protokół");actions.add(()->open(r));}
+        new AlertDialog.Builder(activity).setTitle("Opcje najmu").setItems(labels.toArray(new String[0]),(d,index)->actions.get(index).run()).setNegativeButton("Zamknij",null).show();
     }
     public void calendar(LocalDate start){screen("Dostępność egzemplarzy");text(page,"Rezerwacje blokują cały dzień odbioru i zwrotu. Brak przypisanej sztuki oznacza termin do sprawdzenia.",13,0xff526174);
         button(page,"‹ Poprzednie 7 dni",()->calendar(start.minusDays(7)));button(page,start+" • następne 7 dni ›",()->calendar(start.plusDays(7)));
