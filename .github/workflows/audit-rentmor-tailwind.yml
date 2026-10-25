@@ -4,6 +4,9 @@ on:
     branches: [codex/static-tailwind-2026-10-25]
     paths:
       - 'scripts/audit_tailwind_usage.py'
+      - 'scripts/build_public_tailwind.py'
+      - 'scripts/patch_static_tailwind.py'
+      - 'scripts/test_static_tailwind.py'
       - '.github/workflows/audit-rentmor-tailwind.yml'
   workflow_dispatch:
 jobs:
@@ -25,3 +28,15 @@ jobs:
           mkdir -p "$TMP"
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/index.php -o $TMP/index.php; bye"
           python3 scripts/audit_tailwind_usage.py "$TMP/index.php"
+      - name: Test CDN replacement and build static CSS from actual PHP
+        run: |
+          set -euo pipefail
+          python3 scripts/test_static_tailwind.py
+          npm install --prefix "$RUNNER_TEMP/tailwind-npm" --no-save --no-audit --no-fund tailwindcss@3.4.17
+          python3 scripts/build_public_tailwind.py "$RUNNER_TEMP/tailwind-audit/index.php" "$GITHUB_WORKSPACE" "$RUNNER_TEMP/tailwind-audit/css" "$RUNNER_TEMP/tailwind-npm/node_modules/.bin/tailwindcss"
+          FILE="$(find "$RUNNER_TEMP/tailwind-audit/css" -maxdepth 1 -name 'rentmor-tailwind-*.css' -type f | head -n 1)"
+          test -s "$FILE"
+          python3 scripts/patch_static_tailwind.py "$RUNNER_TEMP/tailwind-audit/index.php" "/assets/$(basename "$FILE")"
+          python3 scripts/patch_static_tailwind.py "$RUNNER_TEMP/tailwind-audit/index.php" "/assets/$(basename "$FILE")"
+          php -l "$RUNNER_TEMP/tailwind-audit/index.php"
+          echo "Static CSS built, PHP linted and patch idempotence passed (NOT deployed)."
