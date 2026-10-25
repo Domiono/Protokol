@@ -38,21 +38,28 @@ public class SyncManager {
                 byte[] bytes=new byte[8192];int count;
                 while((count=stream.read(bytes))!=-1)out.write(bytes,0,count);
             }
-            String raw=out.toString("UTF-8").trim();
-            if(raw.isEmpty())throw new IOException("Serwer RentMor.pl zwrócił pustą odpowiedź (HTTP "+code+").");
-            JSONObject result;
-            try{result=new JSONObject(raw);}
-            catch(JSONException wrongFormat){
-                String type=c.getContentType();
-                boolean html=raw.startsWith("<")||(type!=null&&type.toLowerCase(java.util.Locale.ROOT).contains("text/html"));
-                throw new IOException(html?
-                    "Serwer RentMor.pl zwrócił stronę HTML zamiast danych synchronizacji (HTTP "+code+"). Zmiany oczekujące w telefonie nie zostaną skasowane. Spróbuj ponownie; jeśli błąd wraca, sprawdź dostęp do strony lub hosting.":
-                    "Serwer RentMor.pl zwrócił nieprawidłowe dane (HTTP "+code+"). Spróbuj ponownie.",wrongFormat);
-            }
-            if(code<200||code>=300)throw new IOException(result.optString("error","Błąd serwera "+code));
-            if(!result.optBoolean("ok",false))throw new IOException(result.optString("error","Serwer nie potwierdził synchronizacji."));
-            return result;
+            String raw=out.toString("UTF-8");
+            return decodeResponse(code,c.getContentType(),raw);
         }finally{c.disconnect();}
+    }
+    /** Readable, privacy-safe errors: never show a server HTML page or an activation cookie. */
+    static JSONObject decodeResponse(int code,String contentType,String payload) throws IOException {
+        if(code>=300&&code<400)
+            throw new IOException("Serwer przekierował synchronizację (HTTP "+code+"). Sprawdź połączenie z RentMor.pl i spróbuj ponownie.");
+        String raw=payload==null?"":payload.trim();
+        if(raw.isEmpty())throw new IOException("Serwer RentMor.pl zwrócił pustą odpowiedź (HTTP "+code+").");
+        JSONObject result;
+        try{result=new JSONObject(raw);}
+        catch(JSONException wrongFormat){
+            boolean html=raw.startsWith("<")||(contentType!=null&&
+                contentType.toLowerCase(java.util.Locale.ROOT).contains("text/html"));
+            throw new IOException(html?
+                "Serwer RentMor.pl zwrócił stronę HTML zamiast danych synchronizacji (HTTP "+code+"). Spróbuj ponownie; jeśli błąd wraca, sprawdź hosting.":
+                "Serwer RentMor.pl zwrócił nieprawidłowe dane (HTTP "+code+"). Spróbuj ponownie.",wrongFormat);
+        }
+        if(code<200||code>=300)throw new IOException(result.optString("error","Błąd serwera "+code));
+        if(!result.optBoolean("ok",false))throw new IOException(result.optString("error","Serwer nie potwierdził synchronizacji."));
+        return result;
     }
     /** Only the logged-in administrator can view their own Firebase registration health. */
     public JSONObject fetchPushStatus() throws Exception {
