@@ -580,7 +580,8 @@ foreach ($operations as $op) {
             $details=(isset($op['settlement'])&&is_array($op['settlement']))?$op['settlement']:null;
             if($details!==null){
                 $provided=0;foreach($addonKeys as $key)if(array_key_exists($key,$details))$provided++;
-                if($provided>0){
+                $customPresent=array_key_exists('add_custom',$details);
+                if($provided>0||$customPresent){
                     $valid=$provided===count($addonKeys);
                     $gross=0;
                     foreach($addonKeys as $key){
@@ -589,6 +590,27 @@ foreach ($operations as $op) {
                         $v=is_scalar($raw)?filter_var(str_replace(',','.',(string)$raw),FILTER_VALIDATE_FLOAT):false;
                         if($v===false||!is_finite((float)$v)||$v<0||$v>10000000){$valid=false;break;}
                         $details[$key]=round((float)$v,2);$gross+=(int)round($v*100);
+                    }
+                    if($customPresent){
+                        $lines=$details['add_custom'];
+                        if(!is_array($lines)||count($lines)>20)$valid=false;
+                        $clean=[];
+                        if($valid)foreach($lines as $line){
+                            if(!is_array($line)||!isset($line['name'])||!is_string($line['name'])||
+                                !array_key_exists('amount',$line)){$valid=false;break;}
+                            $name=trim(preg_replace('/\\s+/u',' ',$line['name']));
+                            if($name===''||preg_match('/^.{1,100}$/us',$name)!==1){$valid=false;break;}
+                            $raw=$line['amount'];
+                            $amount=is_scalar($raw)?filter_var(str_replace(',','.',(string)$raw),FILTER_VALIDATE_FLOAT):false;
+                            if($amount===false||!is_finite((float)$amount)||$amount<=0||$amount>10000000){
+                                $valid=false;break;
+                            }
+                            $cents=(int)round((float)$amount*100);
+                            if($cents<1){$valid=false;break;}
+                            $gross+=$cents;
+                            $clean[]=['name'=>$name,'amount'=>round((float)$amount,2)];
+                        }
+                        if($valid)$details['add_custom']=$clean;
                     }
                     $extraRaw=$details['extra']??null;
                     $extra=is_scalar($extraRaw)?filter_var(str_replace(',','.',(string)$extraRaw),FILTER_VALIDATE_FLOAT):false;
@@ -602,7 +624,7 @@ foreach ($operations as $op) {
             }
             foreach ($reservations as &$saved) if ((string)($saved['id'] ?? '') === $id) {
                 $saved['settled']=true; $saved['income']=round((float)$income,2); $saved['loss']=round((float)$loss,2);
-                if(isset($op['settlement'])&&is_array($op['settlement'])){$saved['settlement']=array_intersect_key($op['settlement'],array_flip(['days','rate','extra','discount','paid','deposit','retained','due','deposit_refund','add_powder','add_paper','add_disc','add_other']));$saved['returned']=true;$saved['actual_return']=rm_text($op,'actual_return',10);}
+                if(isset($op['settlement'])&&is_array($op['settlement'])){$saved['settlement']=array_intersect_key($op['settlement'],array_flip(['days','rate','extra','discount','paid','deposit','retained','due','deposit_refund','add_powder','add_paper','add_disc','add_other','add_custom']));$saved['returned']=true;$saved['actual_return']=rm_text($op,'actual_return',10);}
                 $saved['loss_note']=rm_text($op,'loss_note',300); $saved['settled_at']=date('Y-m-d H:i:s'); $found=true; break;
             }
             unset($saved);

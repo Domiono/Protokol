@@ -73,6 +73,46 @@ public class FinanceAnalyticsTest {
         assertEquals(38000,report.result());
         assertEquals(0,FinanceAnalytics.calculate(rentals,new JSONArray(),d("2026-09-01"),d("2026-09-29"),0).addonTotal());
     }
+    @Test public void namedCustomProductsAreIncludedOnceAndGroupedInPeriod()throws Exception{
+        JSONArray rentals=new JSONArray();
+        JSONObject first=new JSONObject().put("settled",true).put("settled_at","2026-10-25")
+            .put("equipment","Puzzi").put("income",125).put("loss",0);
+        first.put("settlement",new JSONObject().put("extra",45).put("add_powder",10)
+            .put("add_paper",0).put("add_disc",0).put("add_other",0)
+            .put("add_custom",new JSONArray()
+                .put(new JSONObject().put("name","Worek do odkurzacza").put("amount",20))
+                .put(new JSONObject().put("name","Filtr").put("amount",15))));
+        rentals.put(first);
+        JSONObject second=new JSONObject().put("settled",true).put("settled_at","2026-10-26")
+            .put("income",90).put("loss",0);
+        second.put("settlement",new JSONObject().put("extra",12).put("add_powder",0)
+            .put("add_paper",0).put("add_disc",0).put("add_other",0)
+            .put("add_custom",new JSONArray().put(new JSONObject()
+                .put("name","worek do odkurzacza").put("amount",12))));
+        rentals.put(second);
+        FinanceAnalytics.Report r=FinanceAnalytics.calculate(rentals,new JSONArray(),d("2026-10-01"),d("2026-10-31"),2);
+        assertEquals(21500,r.income);assertEquals(5700,r.addonTotal());
+        assertEquals(1000,r.addonPowder);assertEquals(4700,r.addonCustom);
+        assertEquals(2,r.addonCustomByName.size());
+        assertEquals(Long.valueOf(3200),r.addonCustomByName.get("Worek do odkurzacza"));
+        assertEquals(Long.valueOf(1500),r.addonCustomByName.get("Filtr"));
+        assertEquals(21500,r.result()); // Extras are part of income already.
+        assertEquals(0,FinanceAnalytics.calculate(rentals,new JSONArray(),d("2026-09-01"),d("2026-09-30"),2).addonTotal());
+    }
+    @Test public void malformedOrMismatchedCustomBreakdownRemainsUnclassified()throws Exception{
+        JSONObject rental=new JSONObject().put("settled",true).put("settled_at","2026-10-25")
+            .put("income",150).put("loss",0);
+        JSONObject details=new JSONObject().put("extra",25).put("add_powder",0)
+            .put("add_paper",0).put("add_disc",0).put("add_other",0)
+            .put("add_custom",new JSONArray().put(new JSONObject().put("name","Filtr").put("amount",12)));
+        rental.put("settlement",details);
+        FinanceAnalytics.Report r=FinanceAnalytics.calculate(new JSONArray().put(rental),new JSONArray(),
+            d("2026-10-25"),d("2026-10-25"),0);
+        assertEquals(2500,r.addonUnclassified);assertEquals(0,r.addonCustom);assertEquals(15000,r.income);
+        details.put("add_custom","nonsense");
+        r=FinanceAnalytics.calculate(new JSONArray().put(rental),new JSONArray(),d("2026-10-25"),d("2026-10-25"),0);
+        assertEquals(2500,r.addonUnclassified);assertEquals(0,r.addonCustom);
+    }
     @Test public void inconsistentAddonAmountsAreNotMisclassified()throws Exception{
         JSONObject data=new JSONObject().put("settled",true).put("settled_at","2026-10-25")
             .put("income",100).put("loss",0);

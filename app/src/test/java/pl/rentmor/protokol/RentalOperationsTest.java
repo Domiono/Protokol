@@ -114,6 +114,64 @@ public class RentalOperationsTest {
   assertEquals(1,store.assets().length());assertEquals(0,store.pendingCount());
   store.close();
  }
+ @Test public void createCustomAddonInSettlementAndReuseNameFromHistory()throws Exception{
+  Activity activity=Robolectric.buildActivity(Activity.class).setup().get();
+  LocalStore store=new LocalStore(activity);
+  String today=LocalDate.now().toString();
+  JSONObject old=new JSONObject().put("id","r-custom").put("month",today.substring(0,7))
+      .put("equipment","Puzzi").put("start_date",LocalDate.now().minusDays(1).toString())
+      .put("end_date",today).put("daily_rate","0");
+  store.saveReservation(old);
+  int[] sync={0};
+  RentalOperations ops=new RentalOperations(activity,store,host(sync),true);
+  ops.settlement(old);
+  ViewGroup root=activity.findViewById(android.R.id.content);
+  View open=findText(root,"＋ Dodaj dodatki");
+  assertNotNull(open);assertTrue(open.performClick());
+  View add=findText(root,"＋ Dodaj własny produkt lub dopłatę");
+  assertNotNull(add);assertTrue(add.performClick());
+  View title=findText(root,"Nowy dodatek •");
+  assertNotNull(title);
+  ViewGroup form=(ViewGroup)title.getParent();
+  android.widget.AutoCompleteTextView name=null;
+  android.widget.EditText price=null;
+  for(int i=0;i<form.getChildCount();i++){
+    View child=form.getChildAt(i);
+    if(child instanceof android.widget.AutoCompleteTextView)name=(android.widget.AutoCompleteTextView)child;
+    else if(child instanceof android.widget.EditText)price=(android.widget.EditText)child;
+  }
+  assertNotNull(name);assertNotNull(price);
+  name.setText("Worek do odkurzacza");price.setText("25");
+  View finish=findText(root,"Podsumuj i zatwierdź");
+  assertNotNull(finish);assertTrue(finish.performClick());
+  android.app.AlertDialog dlg=org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
+  assertNotNull(dlg);
+  String summary=((android.widget.TextView)dlg.findViewById(android.R.id.message)).getText().toString();
+  assertTrue(summary.contains("25"));assertTrue(summary.contains("dodatki"));
+  dlg.getButton(android.app.AlertDialog.BUTTON_POSITIVE).performClick();
+  org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+  JSONObject settled=store.allReservations().getJSONObject(0);
+  assertEquals("25.00",settled.optString("income"));
+  JSONArray named=settled.getJSONObject("settlement").getJSONArray("add_custom");
+  assertEquals(1,named.length());
+  assertEquals("Worek do odkurzacza",named.getJSONObject(0).getString("name"));
+  assertEquals("25.00",named.getJSONObject(0).optString("amount"));
+  assertEquals(1,sync[0]);
+  JSONObject another=new JSONObject().put("id","new")
+      .put("start_date",LocalDate.now().minusDays(1).toString()).put("end_date",today);
+  ops.settlement(another);
+  ViewGroup next=activity.findViewById(android.R.id.content);
+  assertTrue(findText(next,"＋ Dodaj dodatki").performClick());
+  assertTrue(findText(next,"＋ Dodaj własny produkt lub dopłatę").performClick());
+  View newTitle=findText(next,"Nowy dodatek •");
+  ViewGroup newForm=(ViewGroup)newTitle.getParent();
+  android.widget.AutoCompleteTextView suggestion=null;
+  for(int i=0;i<newForm.getChildCount();i++)if(newForm.getChildAt(i) instanceof android.widget.AutoCompleteTextView)
+      suggestion=(android.widget.AutoCompleteTextView)newForm.getChildAt(i);
+  assertNotNull(suggestion);
+  assertEquals("Worek do odkurzacza",suggestion.getAdapter().getItem(0));
+  store.close();
+ }
  private RentalOperations.Host host(int[] sync){
   return new RentalOperations.Host(){public void home(){}public void issue(JSONObject r){}
    public void protocol(JSONObject p){}public void inbox(){}public void sync(){sync[0]++;}};
