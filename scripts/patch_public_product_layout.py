@@ -49,6 +49,21 @@ new_description=r"""require_once __DIR__ . '/product_description.php';
                         echo rentmor_render_description($product['desc'] ?? '');"""
 replace_exact(old_description, new_description)
 
+
+# Keep rental restrictions beside the WT20i description, without changing stored offers.
+restriction_marker = '<!-- rentmor-wt20i-water-based-only-v1 -->'
+restriction = r"""<?php if (stripos((string)($product['name'] ?? ''), 'wt20i') !== false): ?>
+                        <!-- rentmor-wt20i-water-based-only-v1 -->
+                        <p class="mt-4 font-semibold">Agregat wynajmujemy wyłącznie do farb i gruntów wodnych. Nie dopuszczamy farb olejnych ani rozpuszczalnikowych.</p>
+                        <?php endif; ?>"""
+if restriction_marker not in body:
+    render_pos = body.index(new_description)
+    php_end = body.index('?>', render_pos) + 2
+    body = body[:php_end] + '\n                        ' + restriction + body[php_end:]
+    changes += 1
+elif body.count(restriction_marker) != 1:
+    raise SystemExit("Duplicate WT20i rental restriction; refusing to alter source.")
+
 updated=before+body+after
 if updated!=text:
     path.write_text(updated,encoding="utf-8")
