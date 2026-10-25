@@ -30,9 +30,17 @@ on:
       - 'server/product_description.php'
       - 'scripts/patch_public_product_layout.py'
       - 'scripts/patch_wt20i_offer.py'
+      - 'server/rental_offer_details.php'
+      - 'scripts/patch_seo_template.py'
+      - 'scripts/patch_seo_titles.py'
+      - 'scripts/patch_canonical_host.py'
+      - 'scripts/test_seo_improvements.py'
+      - 'scripts/verify_seo_improvements.py'
       - 'scripts/inject_online_tracker.py'
       - 'scripts/secure_sftp_connection.sh'
       - '.github/workflows/deploy-rentmor.yml'
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 concurrency:
@@ -40,7 +48,20 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  seo-preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test SEO patches without production credentials
+        run: |
+          set -eu
+          python3 scripts/test_seo_improvements.py
+          python3 -m py_compile scripts/patch_seo_template.py scripts/patch_seo_titles.py scripts/patch_canonical_host.py scripts/verify_seo_improvements.py
+          php -l server/rental_offer_details.php
+
   deploy-api:
+    needs: seo-preflight
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Check deployment credentials
@@ -72,6 +93,8 @@ jobs:
         run: |
           set -eu
           python3 scripts/test_public_seo.py
+          python3 scripts/test_seo_improvements.py
+          php -l server/rental_offer_details.php
           python3 scripts/test_inject_local_seo.py
           python3 scripts/test_inject_airless_guide_link.py
           php -l server/traffic_filter.php
@@ -125,6 +148,10 @@ jobs:
           # Download the ACTUAL live index.php so recent site changes are preserved.
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/index.php -o $TEMP_DIR/index.php; bye"
           cp "$TEMP_DIR/index.php" "$TEMP_DIR/original.php"
+          # Always start with the actual hosting rewrite file, never a repository guess.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/.htaccess -o $TEMP_DIR/.htaccess; bye"
+          cp "$TEMP_DIR/.htaccess" "$TEMP_DIR/original.htaccess"
+          python3 scripts/patch_canonical_host.py "$TEMP_DIR/.htaccess"
           python3 scripts/patch_statistics_filter.py "$TEMP_DIR/index.php"
           python3 scripts/inject_online_tracker.py "$TEMP_DIR/index.php"
           python3 scripts/patch_public_product_layout.py "$TEMP_DIR/index.php"
@@ -132,6 +159,7 @@ jobs:
           python3 scripts/inject_local_seo.py "$TEMP_DIR/index.php"
           python3 scripts/inject_airless_guide_link.py "$TEMP_DIR/index.php"
           python3 scripts/patch_contact_push.py "$TEMP_DIR/index.php"
+          python3 scripts/patch_seo_template.py "$TEMP_DIR/index.php"
           php -l "$TEMP_DIR/index.php"
 
       - name: Upload validated RentMor files over SFTP
@@ -149,7 +177,7 @@ jobs:
           # Pass credentials as process arguments, not by interpolating them
           # into lftp's command language. This avoids quote/shell parsing issues.
           source scripts/secure_sftp_connection.sh
-          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/traffic_filter.php -o public_html/traffic_filter.php; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/push_bridge.php -o public_html/push_bridge.php; put server/online.php -o public_html/online.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/poradnik-jaki-papier-scierny-do-zyrafy.php -o public_html/poradnik-jaki-papier-scierny-do-zyrafy.php; put server/poradnik-pranie-tapicerki-karcher-puzzi.php -o public_html/poradnik-pranie-tapicerki-karcher-puzzi.php; put server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php -o public_html/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
+          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/rental_offer_details.php -o public_html/rental_offer_details.php; put server/traffic_filter.php -o public_html/traffic_filter.php; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/push_bridge.php -o public_html/push_bridge.php; put server/online.php -o public_html/online.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/poradnik-jaki-papier-scierny-do-zyrafy.php -o public_html/poradnik-jaki-papier-scierny-do-zyrafy.php; put server/poradnik-pranie-tapicerki-karcher-puzzi.php -o public_html/poradnik-pranie-tapicerki-karcher-puzzi.php; put server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php -o public_html/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
           if [ -f server/admin.php ]; then
             LFTP_COMMAND="$LFTP_COMMAND; put server/admin.php -o public_html/admin.php"
           else
@@ -282,6 +310,59 @@ jobs:
             cmp "$OFFER_DIR/updated.json" "$OFFER_DIR/deployed.json"
           fi
 
+
+      - name: Correct product SEO titles using fresh inventory snapshot
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -eu
+          TITLE_DIR="$RUNNER_TEMP/rentmor-seo-titles"
+          mkdir -p "$TITLE_DIR"
+          source scripts/secure_sftp_connection.sh
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/data.json -o $TITLE_DIR/original.json; bye"
+          python3 scripts/patch_seo_titles.py "$TITLE_DIR/original.json" "$TITLE_DIR/updated.json"
+          if ! cmp -s "$TITLE_DIR/original.json" "$TITLE_DIR/updated.json"; then
+            printf 'Require all denied\n' > "$TITLE_DIR/backup.htaccess"
+            printf '<?php http_response_code(404); exit; ?>\n' > "$TITLE_DIR/backup.php"
+            cat "$TITLE_DIR/original.json" >> "$TITLE_DIR/backup.php"
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; mkdir -p public_html/.rentmor-backups; set cmd:fail-exit yes; put $TITLE_DIR/backup.htaccess -o public_html/.rentmor-backups/.htaccess; put $TITLE_DIR/backup.php -o public_html/.rentmor-backups/data-before-seo-titles-$GITHUB_RUN_ID.php; get public_html/data.json -o $TITLE_DIR/current.json; bye"
+            cmp "$TITLE_DIR/original.json" "$TITLE_DIR/current.json"
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $TITLE_DIR/updated.json -o public_html/data.json; get public_html/data.json -o $TITLE_DIR/deployed.json; bye"
+            cmp "$TITLE_DIR/updated.json" "$TITLE_DIR/deployed.json"
+            echo "SEO titles uploaded; inventory read-back matches."
+          fi
+
+      - name: Canonical host redirect with immediate smoke test and rollback
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -eu
+          TEMP_DIR="$RUNNER_TEMP/rentmor-prepared"
+          source scripts/secure_sftp_connection.sh
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/.htaccess -o $TEMP_DIR/current.htaccess; bye"
+          cmp "$TEMP_DIR/original.htaccess" "$TEMP_DIR/current.htaccess"
+          if ! cmp -s "$TEMP_DIR/original.htaccess" "$TEMP_DIR/.htaccess"; then
+            printf 'Require all denied\n' > "$TEMP_DIR/backup.htaccess"
+            printf '<?php http_response_code(404); exit; ?>\n' > "$TEMP_DIR/htaccess-backup.php"
+            cat "$TEMP_DIR/original.htaccess" >> "$TEMP_DIR/htaccess-backup.php"
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; mkdir -p public_html/.rentmor-backups; set cmd:fail-exit yes; put $TEMP_DIR/backup.htaccess -o public_html/.rentmor-backups/.htaccess; put $TEMP_DIR/htaccess-backup.php -o public_html/.rentmor-backups/htaccess-before-seo-$GITHUB_RUN_ID.php; put $TEMP_DIR/.htaccess -o public_html/.htaccess; get public_html/.htaccess -o $TEMP_DIR/deployed.htaccess; bye"
+            cmp "$TEMP_DIR/.htaccess" "$TEMP_DIR/deployed.htaccess"
+            if ! python3 scripts/verify_seo_improvements.py --redirects-only; then
+              echo "Redirect verification failed. Restoring original .htaccess."
+              lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $TEMP_DIR/original.htaccess -o public_html/.htaccess; get public_html/.htaccess -o $TEMP_DIR/restored.htaccess; bye"
+              cmp "$TEMP_DIR/original.htaccess" "$TEMP_DIR/restored.htaccess"
+              exit 1
+            fi
+          fi
+
       - name: Verify public SEO after deployment
         if: steps.config.outputs.enabled == 'true'
-        run: python3 scripts/verify_public_seo.py
+        run: |
+          python3 scripts/verify_public_seo.py
+          python3 scripts/verify_seo_improvements.py
