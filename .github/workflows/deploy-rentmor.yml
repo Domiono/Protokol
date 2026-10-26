@@ -35,6 +35,9 @@ on:
       - 'scripts/optimize_favicon.py'
       - 'scripts/test_optimize_favicon.py'
       - 'scripts/verify_fast_gallery.py'
+      - 'scripts/patch_static_cards.py'
+      - 'scripts/test_static_cards.py'
+      - 'scripts/png_metadata.py'
       - 'scripts/patch_deferred_fonts.py'
       - 'scripts/test_deferred_fonts.py'
       - 'scripts/verify_deferred_fonts.py'
@@ -74,11 +77,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - name: Test SEO patches without production credentials
         run: |
           set -eu
           python3 scripts/test_seo_improvements.py
           python3 scripts/test_static_tailwind.py
+          python3 scripts/test_static_cards.py
           python3 scripts/test_deferred_fonts.py
           python3 -m py_compile scripts/patch_deferred_fonts.py scripts/verify_deferred_fonts.py
           python3 scripts/test_performance_images.py
@@ -128,6 +134,7 @@ jobs:
           python3 scripts/test_public_seo.py
           python3 scripts/test_seo_improvements.py
           python3 scripts/test_static_tailwind.py
+          python3 scripts/test_static_cards.py
           python3 scripts/test_deferred_fonts.py
           python3 -m py_compile scripts/patch_deferred_fonts.py scripts/verify_deferred_fonts.py
           python3 scripts/test_performance_images.py
@@ -173,6 +180,11 @@ jobs:
           PY
           php -r 'require "server/product_description.php"; $html=rentmor_render_description("Parametry:\n- Moc 2200 W\n\n<strong>unsafe</strong>"); if (!str_contains($html, "&lt;strong&gt;unsafe&lt;/strong&gt;") || !str_contains($html, "<ul")) exit(1); echo "Description formatter test passed.\n";'
 
+      - name: Detect isolated public performance update
+        id: scope
+        run: |
+          python3 scripts/public_performance_scope.py >> "$GITHUB_OUTPUT"
+
       - name: Prepare and validate current public site before upload
         if: steps.config.outputs.enabled == 'true'
         env:
@@ -205,6 +217,7 @@ jobs:
           python3 scripts/patch_contact_push.py "$TEMP_DIR/index.php"
           python3 scripts/patch_seo_template.py "$TEMP_DIR/index.php"
           python3 scripts/patch_performance_template.py "$TEMP_DIR/index.php"
+          python3 scripts/patch_static_cards.py "$TEMP_DIR/index.php"
           php -l "$TEMP_DIR/index.php"
 
       - name: Compile public Tailwind v3 CSS from live PHP and rendered pages
@@ -228,7 +241,7 @@ jobs:
           php -l "$TEMP_DIR/index.php"
 
       - name: Upload validated RentMor files over SFTP
-        if: steps.config.outputs.enabled == 'true'
+        if: steps.config.outputs.enabled == 'true' && steps.scope.outputs.public_only != 'true'
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
@@ -278,7 +291,7 @@ jobs:
           echo "Static CSS and tiny favicon published and verified before PHP change."
 
       - name: Install Firebase key into PHP runtime private directory (HTTPS)
-        if: steps.config.outputs.enabled == 'true'
+        if: steps.config.outputs.enabled == 'true' && steps.scope.outputs.public_only != 'true'
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
@@ -328,7 +341,7 @@ jobs:
           printf '%s' "$RESPONSE" | python3 -c 'import sys,json; a=json.load(sys.stdin); assert a.get("ok") and a.get("result")=="configured_and_readable", a.get("result"); print("PHP verified Firebase key stored and readable above the document root.")'
 
       - name: Diagnose authorized Firebase tokens (no private data in logs)
-        if: steps.config.outputs.enabled == 'true'
+        if: steps.config.outputs.enabled == 'true' && steps.scope.outputs.public_only != 'true'
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
@@ -383,7 +396,7 @@ jobs:
 
 
       - name: Correct approved WT20i offer parameters
-        if: steps.config.outputs.enabled == 'true'
+        if: steps.config.outputs.enabled == 'true' && steps.scope.outputs.public_only != 'true'
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
@@ -412,7 +425,7 @@ jobs:
 
 
       - name: Correct product SEO titles using fresh inventory snapshot
-        if: steps.config.outputs.enabled == 'true'
+        if: steps.config.outputs.enabled == 'true' && steps.scope.outputs.public_only != 'true'
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
