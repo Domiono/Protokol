@@ -8,6 +8,8 @@ from urllib.request import Request, HTTPRedirectHandler, build_opener
 from verify_public_seo import BASE, Page, fetch, validate, GUIDE, PUZZI_GUIDE, AIRLESS_GUIDE
 from verify_public_seo import PUZZI_OFFER, AIRLESS_OFFER, OFFERS
 
+COMPACTOR_OFFER = '/zageszczarka-dro-masz-101-kg-do-kostki/'
+
 OFFER_GUIDES = {
     PUZZI_OFFER: (PUZZI_GUIDE, "69388418830b8"),
     AIRLESS_OFFER: (AIRLESS_GUIDE, "69385f95de01c"),
@@ -74,14 +76,22 @@ def main():
         html, _ = fetch(path)
         title = Title(html).title
         assert expected_title in title and title.endswith("| RentMor"), (path, title, expected_title)
+    compactor_html, compactor_headers = fetch(COMPACTOR_OFFER)
+    validate(compactor_html, compactor_headers, BASE + COMPACTOR_OFFER)
+    assert 'data-rentmor-offer-details="693844ff66e57"' in compactor_html
+    assert '18 kN' in compactor_html and '101 kg' in compactor_html
     verify_redirects()
-    print("PASS: enriched offers, Organization schema, local SEO titles and 301 canonical host.")
+    print("PASS: offers incl. compactor, canonicals, Organization schema and 301 redirects.")
 
 def verify_redirects():
     verify_redirect("http://rentmor.pl/robots.txt?seo_check=1",
                     "https://rentmor.pl/robots.txt?seo_check=1")
     verify_redirect("https://www.rentmor.pl/robots.txt?seo_check=1",
                     "https://rentmor.pl/robots.txt?seo_check=1")
+    # Important while Google transitions from legacy ?id= links to clean URLs.
+    verify_redirect("https://rentmor.pl/index.php?id=693844ff66e57", BASE + COMPACTOR_OFFER)
+    verify_redirect("https://rentmor.pl/index.php?id=69388418830b8", BASE + PUZZI_OFFER)
+    verify_redirect("https://rentmor.pl/index.php?id=69385df56774a", BASE + OFFERS[1])
 
 if __name__ == "__main__":
     if "--redirects-only" in sys.argv:
