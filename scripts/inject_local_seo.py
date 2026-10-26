@@ -7,6 +7,13 @@ import re
 import sys
 
 MARKER = '<!-- rentmor-krakow-seo-v1 -->'
+COMPACTOR_MARKER = '<!-- rentmor-compactor-link-v1 -->'
+COMPACTOR_ANCHOR = '<h3 class="text-lg font-bold mt-7 mb-3">Jak wypożyczyć sprzęt w RentMor?</h3>'
+COMPACTOR_BLOCK = '''<!-- rentmor-compactor-link-v1 -->
+    <h3 class="text-lg font-bold mt-7 mb-3">Zagęszczarka do kostki brukowej — wynajem Kraków</h3>
+    <p class="text-gray-700 mb-5">Potrzebujesz zagęścić podbudowę lub przygotować nawierzchnię z kostki? <a href="/zageszczarka-dro-masz-101-kg-do-kostki/" class="font-semibold underline">Sprawdź wynajem zagęszczarki Dro-Masz 18 kN, 101 kg w Krakowie</a>. Sprzęt ma koła transportowe i matę ochronną do kostki. Odbiór osobisty w Czyżynach.</p>
+    '''
+
 SECTION = '''<!-- rentmor-krakow-seo-v1 -->
 <section id="wynajem-sprzetu-krakow" aria-labelledby="rentmor-local-title" class="max-w-7xl mx-auto w-full px-4 py-8">
   <div class="bg-white border border-gray-200 rounded-2xl p-5 sm:p-8 text-gray-800">
@@ -43,6 +50,12 @@ def patch(html):
     if MARKER in html:
         if html.count(MARKER) != 1:
             raise ValueError("Duplicate SEO section markers: refusing patch")
+        if html.count(COMPACTOR_MARKER) > 1:
+            raise ValueError("Duplicate compactor link markers: refusing patch")
+        if COMPACTOR_MARKER not in html:
+            if html.count(COMPACTOR_ANCHOR) != 1:
+                raise ValueError("Unknown local SEO layout: refusing compactor link update")
+            return html.replace(COMPACTOR_ANCHOR, COMPACTOR_BLOCK + COMPACTOR_ANCHOR)
         return html
     if '<?php' not in html or 'stats.json' not in html:
         raise ValueError('Unknown homepage template; refusing to patch')
@@ -52,7 +65,7 @@ def patch(html):
     if '<h1' not in html.lower():
         raise ValueError('Missing homepage H1')
     start=footers[0].start()
-    return html[:start]+SECTION+html[start:]
+    return patch(html[:start]+SECTION+html[start:])
 
 if __name__ == '__main__':
     path=Path(sys.argv[1])
