@@ -1,0 +1,31 @@
+name: Public speed audit
+on:
+  push:
+    branches: [codex/public-speed-2026-10-26]
+    paths: ['.github/workflows/public-speed-audit.yml']
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        device: [mobile, desktop]
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install --no-save lighthouse@12.8.2
+      - name: Three comparable lab measurements
+        env:
+          DEVICE: ${{ matrix.device }}
+        run: |
+          mkdir -p reports
+          for RUN in 1 2 3; do
+            PRESET=""
+            if [ "$DEVICE" = desktop ]; then PRESET="--preset=desktop"; fi
+            npx lighthouse https://rentmor.pl/ --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance --output=json --output-path="reports/$DEVICE-$RUN.json" --quiet $PRESET
+            python3 scripts/summarize_speed.py "reports/$DEVICE-$RUN.json"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-${{ matrix.device }}
+          path: reports/
