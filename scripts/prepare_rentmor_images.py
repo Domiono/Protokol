@@ -41,7 +41,7 @@ def existing(path):
     return parsed
 
 def candidates(data, current):
-    return [name for name in data if name not in current]
+    return [name for name in data if current.get(name, {}).get("variants_version", 1) < 2]
 
 def lftp_safe(path):
     return str(path).replace("\\", "/")
@@ -93,12 +93,14 @@ def convert(data, oldmanifest, source, output, manifestfile, uploadfile):
                     im = im.convert("RGBA" if "A" in im.getbands() or "transparency" in im.info else "RGB")
                 fingerprint = hashlib.sha256(origin.read_bytes()).hexdigest()[:12]
                 stem = Path(name).stem
-                info = {"width":width,"height":height}
-                selections = [( "card", 640, 74), ("detail", 1440, 81)]
-                if name == "rentmor-logo.png": selections = [("card", 260, 82), ("detail", 520, 83)]
+                info = dict(old.get(name, {}))
+                info.update({"width":width,"height":height,"variants_version":2})
+                selections = [("thumb", 160, 78), ("small", 320, 78), ("card", 640, 74), ("detail", 1440, 81)]
+                if name == "rentmor-logo.png": selections = [("thumb", 144, 82), ("card", 260, 82), ("detail", 520, 83)]
                 for kind, max_width, quality in selections:
+                    if kind in info: continue  # Preserve all already published derivatives.
                     dest_width = min(width, max_width)
-                    if kind == "detail" and info.get("card", {}).get("width") == dest_width:
+                    if any(isinstance(v, dict) and v.get("width") == dest_width for v in info.values()):
                         continue
                     target = im.copy()
                     if target.width > dest_width:

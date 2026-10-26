@@ -1,6 +1,7 @@
 """Skip unrelated API/admin/data writes when a commit changes only public speed files."""
 import subprocess
 SAFE={
+ 'server/performance_images_v2.php','scripts/patch_mobile_rendering.py','scripts/test_mobile_rendering.py','scripts/verify_mobile_rendering.py','scripts/verify_rentmor_webp.py','docs/MOBILE-PERFORMANCE-2026-10-26.md',
  '.github/workflows/public-speed-audit.yml','.github/workflows/deploy-rentmor.yml',
  '.github/workflows/deploy-gallery.yml','.github/workflows/deploy-rentmor-images.yml',
  'scripts/public_speed_browser.cjs','scripts/summarize_speed.py','scripts/patch_static_cards.py','scripts/test_static_cards.py',

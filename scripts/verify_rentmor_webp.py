@@ -17,7 +17,7 @@ def verify(path):
     count = 0
     for filename in sample:
         a = m[filename]
-        for variant in ("card", "detail"):
+        for variant in ("thumb", "small", "card", "detail"):
             data = a.get(variant)
             if not data: continue
             url = BASE + data["url"]
