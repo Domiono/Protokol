@@ -40,6 +40,17 @@ function rentmor_offer_details(array $product): string {
             'guide' => '/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php',
             'guide_label' => 'Jak malować agregatem i dobrać dyszę 511, 517 lub 521?',
         ],
+        '693844ff66e57' => [
+            'title' => 'Wynajem zagęszczarki 18 kN, 101 kg w Krakowie',
+            'intro' => 'Jednokierunkowa zagęszczarka spalinowa Dro-Masz o sile 18 kN i masie 101 kg nadaje się do przygotowania i zagęszczania podbudowy pod kostkę brukową oraz innych prac, w których takie parametry są odpowiednie do rodzaju materiału i grubości warstwy. Płyta robocza ma wymiary 60 × 45 cm. Przy odbiorze otrzymujesz również matę ochronną do kostki.',
+            'questions' => [
+                'Do czego przydaje się zagęszczarka 18 kN?' => 'Między innymi do zagęszczania odpowiednio przygotowanych warstw podbudowy pod chodnik, podjazd lub kostkę brukową. Dobór maszyny i grubości kolejnych warstw powinien wynikać z rodzaju gruntu lub kruszywa oraz wymagań wykonywanej nawierzchni.',
+                'Czy można nią zagęszczać ułożoną kostkę brukową?' => 'W zestawie jest mata ochronna, która ogranicza ryzyko porysowania i uszkodzenia kostki. Przed pracą sprawdź zalecenia producenta kostki dotyczące zagęszczania i rodzaju maty; nie każda nawierzchnia dopuszcza takie samo postępowanie.',
+                'Jak przetransportować maszynę ważącą 101 kg?' => 'Zagęszczarka ma koła transportowe, ale waży 101 kg. Zaplanuj bezpieczny załadunek, właściwe unieruchomienie urządzenia i odpowiedni pojazd lub przyczepę. Transport odbywa się we własnym zakresie.',
+                'Ile kosztuje wynajem zagęszczarki w Krakowie?' => 'Aktualną stawkę za dobę i kaucję podajemy powyżej. W opisie oferty znajdują się też rabaty na 5 i 6 dób; przy dłuższym wynajmie warunki ustalamy indywidualnie.',
+                'Na co uważać podczas pracy?' => 'Przestrzegaj instrukcji obsługi i stosuj ochronniki słuchu oraz odpowiednie obuwie. Silnik spalinowy wytwarza trujące spaliny, dlatego nie wolno używać urządzenia w zamkniętych pomieszczeniach.',
+            ],
+        ],
     ];
     if (!isset($offers[$id])) return '';
     $offer = $offers[$id];
@@ -50,7 +61,9 @@ function rentmor_offer_details(array $product): string {
         $html .= '<h3 class="text-lg font-bold mt-5 mb-2">' . $e($question) . '</h3><p class="mb-4">' . $e($answer) . '</p>';
     }
     $html .= '<h3 class="text-lg font-bold mt-5 mb-2">Jak zarezerwować i odebrać sprzęt?</h3><p class="mb-4">Zadzwoń pod <a class="underline font-semibold" href="tel:+48733891281">733 891 281</a> i ustal termin. Odbiór i zwrot odbywają się osobiście w Krakowie, w Czyżynach przy ul. Woźniców. Dokładny adres otrzymasz przy rezerwacji. Transport zapewniasz we własnym zakresie. Przy odbiorze podpisujesz umowę i wpłacasz kaucję wskazaną w ofercie. Przedłużenie najmu wymaga wcześniejszego uzgodnienia.</p>';
-    $html .= '<p class="mb-4"><a class="underline font-semibold" href="' . $e($offer['guide']) . '">' . $e($offer['guide_label']) . '</a></p>';
+    if (!empty($offer['guide']) && !empty($offer['guide_label'])) {
+        $html .= '<p class="mb-4"><a class="underline font-semibold" href="' . $e($offer['guide']) . '">' . $e($offer['guide_label']) . '</a></p>';
+    }
     if ($id === '69385df56774a') $html .= '<p class="mb-4"><a class="underline" href="/szlifierka-stanley-zyrafa-do-gladzi-gipsu/">Zobacz wynajem samej szlifierki żyrafy Stanley</a></p>';
     return $html . '<p><a class="underline" href="/zasady.php">Zasady wynajmu, kaucji i zwrotu sprzętu</a></p></section>';
 }
