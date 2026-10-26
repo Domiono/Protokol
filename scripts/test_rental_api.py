@@ -15,6 +15,20 @@ with tempfile.TemporaryDirectory() as td:
    return json.load(urllib.request.urlopen(req))
   asset={'action':'asset_save','id':'a','label':'Puzzi 01','equipment':'Puzzi','in_service':False}
   assert call(asset)['results'][0]['ok']
+  # Old bookings may be linked to the same physical unit under a former offer title.
+  assert call({'action':'asset_save','id':'legacy-asset','label':'Agregat WT20 #2',
+      'equipment':'Wabrotech WT20','in_service':False})['results'][0]['ok']
+  legacy={'id':'legacy-rent','month':'2030-10','text':'legacy',
+      'equipment':'Agregat Malarski Wabrotech wt20i','asset_id':'legacy-asset',
+      'start_date':'2030-10-26','end_date':'2030-10-27','time':'10:00','done':True}
+  (p/'reservations.json').write_text(json.dumps([legacy]),encoding='utf-8')
+  edited=dict(legacy,action='reservation_save',time='13:10')
+  assert call(edited)['results'][0]['ok']
+  assert next(x for x in call()['reservations'] if x['id']=='legacy-rent')['time']=='13:10'
+  assert not call(dict(edited,equipment='Wabrotech WT20i'))['results'][0]['ok']
+  assert not call(dict(edited,id='fake-new'))['results'][0]['ok']
+  # A different valid booking cannot take the same copy over its occupied dates.
+  assert not call(dict(edited,id='other',equipment='Wabrotech WT20'))['results'][0]['ok']
   r={'action':'reservation_save','id':'r1','month':'2030-10','text':'test rental','equipment':'Puzzi','asset_id':'a','start_date':'2030-10-25','end_date':'2030-10-27','daily_rate':'80','deposit':'200','paid':'40'}
   assert call(r)['results'][0]['ok']
   assert not call(dict(r,id='r2'))['results'][0]['ok']
