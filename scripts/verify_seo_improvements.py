@@ -4,6 +4,7 @@ from html.parser import HTMLParser
 import sys
 from urllib.error import HTTPError
 from urllib.request import Request, HTTPRedirectHandler, build_opener
+from urllib.parse import urljoin
 
 from verify_public_seo import BASE, Page, fetch, validate, GUIDE, PUZZI_GUIDE, AIRLESS_GUIDE
 from verify_public_seo import PUZZI_OFFER, AIRLESS_OFFER, OFFERS
@@ -53,7 +54,8 @@ def verify_redirect(url, expected):
         response = exc
     with response:
         assert response.code in (301, 308), (url, response.code)
-        assert response.headers.get("Location") == expected, (url, response.headers.get("Location"), expected)
+        location = response.headers.get("Location")
+        assert location and urljoin(url, location) == expected, (url, location, expected)
 
 def main():
     home, hdrs = fetch("/")
