@@ -56,4 +56,18 @@ check((rm_auto_pick_asset($vacSolo,[$legacy],$shared)['asset']['id']??'')==='v2'
 check(rm_rental_conflict($set1,[$vac],$shared)==='','valid dual reservation');
 check(rm_rental_conflict($set2,[$set1],$shared)==='','different copies can share dates');
 check(rm_rental_conflict($set3+['asset_id'=>'g3','vacuum_asset_id'=>'v2'],[$set1],$shared)!=='','reserved auxiliary vacuum conflicts');
+// Legacy assigned product names must not block editing only the time, but new or changed bindings are invalid.
+$legacyAsset=['id'=>'wt2','equipment'=>'Agregat Wabrotech WT20'];
+$legacySaved=['id'=>'rent-old','equipment'=>'Agregat Malarski Wabrotech wt20i','asset_id'=>'wt2',
+    'start_date'=>'2030-10-26','end_date'=>'2030-10-27','done'=>true,'time'=>'10:00'];
+$timeOnly=$legacySaved;$timeOnly['time']='13:10';
+check(rm_rental_conflict($timeOnly,[$legacySaved],[$legacyAsset])==='','legacy assignment permits time edit');
+$renamed=$timeOnly;$renamed['equipment']='Inny agregat';
+check(rm_rental_conflict($renamed,[$legacySaved],[$legacyAsset])!=='','renaming cannot launder legacy asset');
+$unknown=$timeOnly;$unknown['id']='new';
+check(rm_rental_conflict($unknown,[$legacySaved],[$legacyAsset])!=='','new rental cannot reuse mismatch');
+$other=$timeOnly;$other['id']='other';$other['equipment']='Agregat Wabrotech WT20';
+check(rm_rental_conflict($other,[$legacySaved],[$legacyAsset])!=='','other booking still sees occupied copy');
+$legacyAsset['in_service']=true;
+check(rm_rental_conflict($timeOnly,[$legacySaved],[$legacyAsset])!=='','service still blocks legacy edit');
 echo "Rental rules passed\n";
