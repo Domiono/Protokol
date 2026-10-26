@@ -1,0 +1,21 @@
+name: Public browser interaction checks
+on:
+  push:
+    branches: [main, codex/public-speed-validation-2026-10-26]
+    paths:
+      - scripts/public_speed_browser.cjs
+      - .github/workflows/public-browser-check.yml
+  workflow_dispatch:
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install --no-save playwright@1.56.1
+      - run: mkdir -p reports && node scripts/public_speed_browser.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-browser-screenshots
+          path: reports/
