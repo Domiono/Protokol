@@ -125,8 +125,25 @@ function rm_valid_reservation_dates(array $item): bool {
     foreach([$start,$end] as $day){$d=DateTimeImmutable::createFromFormat('!Y-m-d',$day);if(!$d||$d->format('Y-m-d')!==$day)return false;}
     return $end>=$start;
 }
+/**
+ * Historic assigned rentals can use an older offer name than the current asset.
+ * Accept the mismatch only for the original reservation with the same copy and
+ * equipment name; still check service and other reservations for collisions.
+ */
+function rm_keeps_legacy_assignment(array $item,array $asset,string $role,array $reservations): bool {
+    if($role!=='standard')return false;
+    $bookingId=(string)($item['id']??'');$assetId=(string)($item['asset_id']??'');
+    if($bookingId===''||$assetId===''||$assetId!==(string)($asset['id']??''))return false;
+    foreach($reservations as $previous){
+        if(!is_array($previous)||((string)($previous['id']??''))!==$bookingId)continue;
+        return (string)($previous['asset_id']??'')===$assetId
+            &&(string)($previous['equipment']??'')===(string)($item['equipment']??'');
+    }
+    return false;
+}
 function rm_copy_conflict(array $item,array $asset,string $role,array $reservations): string {
-    if($role==='standard'?(($asset['equipment']??'')!==($item['equipment']??'')):rm_asset_kind($asset)!==$role)
+    if(($role==='standard'?(($asset['equipment']??'')!==($item['equipment']??'')):rm_asset_kind($asset)!==$role)
+        &&!rm_keeps_legacy_assignment($item,$asset,$role,$reservations))
         return 'Egzemplarz należy do innej grupy sprzętu.';
     if(!empty($asset['in_service']))return 'Egzemplarz jest w serwisie.';
     $id=(string)($asset['id']??'');$start=(string)($item['start_date']??'');$end=(string)($item['end_date']??'');

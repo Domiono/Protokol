@@ -1091,10 +1091,11 @@ public class MainActivity extends Activity {
                     java.util.regex.Matcher textTime=java.util.regex.Pattern.compile("\\d{4}-\\d{2}-\\d{2}\\s*[–-]\\s*\\d{4}-\\d{2}-\\d{2}\\s+([01]?\\d|2[0-3]):([0-5]\\d)(?:$|\\s|•)").matcher(raw);
                     if(textTime.find())initialTime=String.format(Locale.US,"%02d:%s",Integer.parseInt(textTime.group(1)),textTime.group(2));
                     EditText timeEdit=new EditText(this);timeEdit.setSingleLine(true);timeEdit.setHint("Godzina, np. 08:00");timeEdit.setInputType(android.text.InputType.TYPE_CLASS_DATETIME|android.text.InputType.TYPE_DATETIME_VARIATION_TIME);timeEdit.setText(initialTime);f.addView(timeEdit);
-                    EditText equipmentEdit=new EditText(this);equipmentEdit.setSingleLine(false);equipmentEdit.setHint("Nazwa sprzętu");equipmentEdit.setText(reservationEquipment(item));f.addView(equipmentEdit);
+                    String displayedEquipment=reservationEquipment(item);
+                    EditText equipmentEdit=new EditText(this);equipmentEdit.setSingleLine(false);equipmentEdit.setHint("Nazwa sprzętu");equipmentEdit.setText(displayedEquipment);f.addView(equipmentEdit);
                     EditText customerNameEdit=new EditText(this);customerNameEdit.setSingleLine(true);customerNameEdit.setHint("Imię i nazwisko / firma klienta");customerNameEdit.setText(item.optString("customer_name",item.optString("client","")));f.addView(customerNameEdit);
                     EditText phoneEdit=new EditText(this);phoneEdit.setSingleLine(true);phoneEdit.setHint("Telefon lub nick z OLX");phoneEdit.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);phoneEdit.setText(reservationPhoneForItem(item));f.addView(phoneEdit);
-                    TextView info=new TextView(this);info.setText("Możesz zmienić termin, sprzęt i dane kontaktowe klienta.");info.setTextSize(12);info.setTextColor(0xff718096);info.setPadding(0,6,0,0);f.addView(info);
+                    TextView info=new TextView(this);info.setText("Możesz zmienić termin i kontakt. Zmiana modelu z przypisanym egzemplarzem wymaga osobnej zmiany przypisania.");info.setTextSize(12);info.setTextColor(0xff718096);info.setPadding(0,6,0,0);f.addView(info);
                     new AlertDialog.Builder(this).setTitle("Edytuj rezerwację").setView(new ScrollView(this){{addView(f);}}).setNegativeButton("Anuluj",null).setPositiveButton("Zapisz",(d,w)->{
                         try{
                             String entered=timeEdit.getText().toString().trim(),normalizedTime="";
@@ -1106,17 +1107,22 @@ public class MainActivity extends Activity {
                             }
                             SimpleDateFormat iso=new SimpleDateFormat("yyyy-MM-dd",Locale.US);
                             String from=iso.format(editStart[0].getTime()),to=iso.format(editEnd[0].getTime());
-                            String equipmentName=equipmentEdit.getText().toString().trim().replaceAll("\\s+"," ");
+                            String equipmentName=RentalRules.equipmentAfterEdit(item,displayedEquipment,equipmentEdit.getText().toString().trim().replaceAll("\\s+"," "));
                             String customerNameValue=customerNameEdit.getText().toString().trim().replaceAll("\\s+"," ");
                             String phoneValue=phoneEdit.getText().toString().trim();
                             if(equipmentName.isEmpty()){toast("Wpisz nazwę sprzętu.");return;}
+                            if(!equipmentName.equals(item.optString("equipment"))&&!item.optString("asset_id").isEmpty()){
+                                toast("Model ma przypisany egzemplarz. Zmień przypisanie sprzętu osobno; edycja godziny go nie zmienia.");return;
+                            }
                             String monthValue=new SimpleDateFormat("yyyy-MM",Locale.US).format(editStart[0].getTime());
                             String value=from+" – "+to+(normalizedTime.isEmpty()?"":" "+normalizedTime)+" • "+equipmentName+(phoneValue.isEmpty()?"":" • "+phoneValue);
-                            item.put("month",monthValue);item.put("text",value);item.put("equipment",equipmentName);item.put("day",editStart[0].get(Calendar.DAY_OF_MONTH));
-                            item.put("start_date",from);item.put("end_date",to);item.put("end_day",editEnd[0].get(Calendar.DAY_OF_MONTH));
-                            item.put("end_month",new SimpleDateFormat("yyyy-MM",Locale.US).format(editEnd[0].getTime()));item.put("time",normalizedTime);item.put("phone",phoneValue);
-                            item.put("customer_name",customerNameValue);item.put("client",customerNameValue);
-                            String availability=RentalRules.conflict(item,store.allReservations(),store.assets());if(!availability.isEmpty())throw new IllegalArgumentException(availability);store.saveRentalOperation(item,"reservation_save");month[0]=monthValue;ReservationsWidgetProvider.refresh(this);render[0].run();if(isOnline())syncNow();
+                            // Do not mutate the in-memory booking before validation or a failed save.
+                            JSONObject updated=new JSONObject(item.toString());
+                            updated.put("month",monthValue);updated.put("text",value);updated.put("equipment",equipmentName);updated.put("day",editStart[0].get(Calendar.DAY_OF_MONTH));
+                            updated.put("start_date",from);updated.put("end_date",to);updated.put("end_day",editEnd[0].get(Calendar.DAY_OF_MONTH));
+                            updated.put("end_month",new SimpleDateFormat("yyyy-MM",Locale.US).format(editEnd[0].getTime()));updated.put("time",normalizedTime);updated.put("phone",phoneValue);
+                            updated.put("customer_name",customerNameValue);updated.put("client",customerNameValue);
+                            String availability=RentalRules.conflict(updated,store.allReservations(),store.assets());if(!availability.isEmpty())throw new IllegalArgumentException(availability);store.saveRentalOperation(updated,"reservation_save");month[0]=monthValue;ReservationsWidgetProvider.refresh(this);render[0].run();if(isOnline())syncNow();
                             toast("Zaktualizowano rezerwację i dane klienta.");
                         }catch(Exception ex){toast("Nie udało się zapisać rezerwacji: "+ex.getMessage());}
                     }).show();

@@ -66,9 +66,33 @@ public final class RentalRules {
         return overlaps(candidate.optString("start_date"),candidate.optString("end_date"),
             r.optString("start_date"),r.optString("end_date"));
     }
+    /**
+     * Existing reservations may have a historic offer name different from the asset's
+     * current catalogue name. Editing the time must not invalidate that assignment.
+     * Only the same reservation, unchanged offer name and unchanged copy qualify.
+     * New reservations and equipment/copy changes still require a real match.
+     */
+    private static boolean keepsLegacyAssignment(JSONObject candidate,JSONObject copy,String role,JSONArray reservations){
+        if(!"standard".equals(role))return false;
+        String bookingId=candidate.optString("id"),assetId=candidate.optString("asset_id");
+        if(bookingId.isEmpty()||assetId.isEmpty()||!assetId.equals(copy.optString("id")))return false;
+        for(int i=0;i<reservations.length();i++){
+            JSONObject previous=reservations.optJSONObject(i);
+            if(previous!=null&&bookingId.equals(previous.optString("id")))
+                return assetId.equals(previous.optString("asset_id"))
+                    &&candidate.optString("equipment").equals(previous.optString("equipment"));
+        }
+        return false;
+    }
+    /** Keep the stored inventory name when the user has not actually edited the field. */
+    public static String equipmentAfterEdit(JSONObject original,String visibleName,String enteredName){
+        String stored=original.optString("equipment").trim();
+        return !stored.isEmpty()&&enteredName.equals(visibleName)?stored:enteredName;
+    }
     private static String checkCopy(JSONObject candidate,JSONObject copy,String role,JSONArray reservations){
         if(copy==null)return "Nie znaleziono egzemplarza.";
-        if(!matches(candidate,copy,role))return "Wybrany egzemplarz należy do innej grupy sprzętu.";
+        if(!matches(candidate,copy,role)&&!keepsLegacyAssignment(candidate,copy,role,reservations))
+            return "Wybrany egzemplarz należy do innej grupy sprzętu.";
         if(copy.optBoolean("in_service"))return "Egzemplarz jest w serwisie.";
         for(int i=0;i<reservations.length();i++){
             JSONObject r=reservations.optJSONObject(i);
