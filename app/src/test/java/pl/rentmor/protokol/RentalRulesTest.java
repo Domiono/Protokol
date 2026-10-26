@@ -73,6 +73,25 @@ public class RentalRulesTest {
   assertEquals("",RentalRules.autoAssign(third,bookings,assets));
   assertEquals("v1",third.getString("vacuum_asset_id"));
  }
+ @Test public void editingTimePreservesHistoricAssetButNotEquipmentChanges()throws Exception {
+  JSONObject copy=new JSONObject().put("id","wt2").put("equipment","Agregat Wabrotech WT20");
+  JSONArray assets=new JSONArray().put(copy);
+  JSONObject saved=new JSONObject().put("id","rent-old").put("equipment","Agregat Malarski Wabrotech wt20i")
+      .put("asset_id","wt2").put("start_date","2030-10-26").put("end_date","2030-10-27").put("time","10:00").put("done",true);
+  JSONArray reservations=new JSONArray().put(saved);
+  JSONObject edited=new JSONObject(saved.toString()).put("time","13:10");
+  assertEquals("",RentalRules.conflict(edited,reservations,assets));
+  assertEquals("Agregat Malarski Wabrotech wt20i",
+      RentalRules.equipmentAfterEdit(saved,"Agregat Malarski Wabrotech wt20i","Agregat Malarski Wabrotech wt20i"));
+  JSONObject named=new JSONObject(saved.toString()).put("equipment","Inny agregat");
+  assertFalse(RentalRules.conflict(named,reservations,assets).isEmpty());
+  JSONObject newBooking=new JSONObject(saved.toString()).put("id","new");
+  assertFalse(RentalRules.conflict(newBooking,reservations,assets).isEmpty());
+  JSONObject conflicting=new JSONObject(saved.toString()).put("id","other").put("equipment","Agregat Wabrotech WT20");
+  assertFalse(RentalRules.conflict(conflicting,reservations,assets).isEmpty());
+  copy.put("in_service",true);
+  assertFalse(RentalRules.conflict(edited,reservations,assets).isEmpty());
+ }
  @Test public void legacySetWithoutVacuumBlocksUnsafeBookingsUntilReconciled()throws Exception{
   JSONArray assets=new JSONArray().put(new JSONObject().put("id","g1").put("equipment","Żyrafa"))
       .put(new JSONObject().put("id","v1").put("equipment","Odkurzacz przemysłowy"))
