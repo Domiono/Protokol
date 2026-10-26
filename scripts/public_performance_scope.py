@@ -3,7 +3,7 @@ import subprocess
 SAFE={
  '.github/workflows/public-speed-audit.yml','.github/workflows/deploy-rentmor.yml',
  '.github/workflows/deploy-gallery.yml','.github/workflows/deploy-rentmor-images.yml',
- 'scripts/summarize_speed.py','scripts/patch_static_cards.py','scripts/test_static_cards.py',
+ 'scripts/public_speed_browser.cjs','scripts/summarize_speed.py','scripts/patch_static_cards.py','scripts/test_static_cards.py',
  'scripts/png_metadata.py','scripts/prepare_rentmor_images.py','scripts/verify_fast_gallery.py',
  'scripts/check_public_image_markup.py','scripts/public_performance_scope.py',
  'docs/PERFORMANCE-2026-10-26.md',

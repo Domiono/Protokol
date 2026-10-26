@@ -3,9 +3,14 @@ on:
   push:
     branches: [codex/public-speed-2026-10-26]
     paths: ['.github/workflows/public-speed-audit.yml']
+  workflow_run:
+    workflows: ['Optimize RentMor product photos']
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 jobs:
   audit:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -25,7 +30,13 @@ jobs:
             npx lighthouse https://rentmor.pl/ --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance --output=json --output-path="reports/$DEVICE-$RUN.json" --quiet $PRESET
             python3 scripts/summarize_speed.py "reports/$DEVICE-$RUN.json"
           done
+      - name: Verify static cards and retained interactions
+        if: github.event_name == 'workflow_run' && matrix.device == 'mobile'
+        run: |
+          npm install --no-save playwright@1.56.1
+          node scripts/public_speed_browser.cjs
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: lighthouse-${{ matrix.device }}
           path: reports/
