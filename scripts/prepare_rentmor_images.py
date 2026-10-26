@@ -61,6 +61,7 @@ def plan(data, oldmanifest, source, output):
 def convert(data, oldmanifest, source, output, manifestfile, uploadfile):
     try:
         from PIL import Image, ImageOps
+        from png_metadata import open_image
     except ImportError as exc:
         raise RuntimeError("Pillow is required for offline image processing") from exc
     Image.MAX_IMAGE_PIXELS = MAX_PIXELS
@@ -83,7 +84,7 @@ def convert(data, oldmanifest, source, output, manifestfile, uploadfile):
             print("Skipping oversized image:", name)
             continue
         try:
-            with Image.open(origin) as im:
+            with open_image(origin) as im:
                 im = ImageOps.exif_transpose(im)
                 im.load()
                 width, height = im.size

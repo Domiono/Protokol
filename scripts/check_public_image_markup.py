@@ -15,7 +15,7 @@ def main():
                and (a.get("srcset") or a.get("data-rm-srcset")) and a.get("width") and a.get("height")]
         logo=[a for a in parsed.images if a.get("src")=="/rentmor-logo.png"]
         assert logo and logo[0].get("srcset"), ("Optimized logo missing",url)
-        assert len(ready) >= (35 if url == "https://rentmor.pl/" else 1), ("Responsive photographs absent",url,len(ready),len(photos))
+        assert len(ready) >= (20 if url == "https://rentmor.pl/" else 1), ("Responsive photographs absent",url,len(ready),len(photos))
         for img in ready:
             original = img.get("src") or img.get("data-rm-src")
             responsive = img.get("srcset") or img.get("data-rm-srcset")

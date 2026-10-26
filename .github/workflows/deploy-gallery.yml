@@ -94,8 +94,8 @@ jobs:
           js=get("https://rentmor.pl/rentmor-gallery.js?v=1")
           assert ".rm-gallery-slide" in css and "startGalleries" in js
           home=get("https://rentmor.pl/?gallery_validation=1")
-          assert 'rm-card-gallery' in home and 'data-rm-gallery' in home
-          print("Homepage photo sliders confirmed.")
+          assert 'rm-card-gallery' in home and ('data-rm-gallery' in home or 'data-rm-static' in home)
+          print("Homepage product photos confirmed.")
 
           sitemap=ET.fromstring(get("https://rentmor.pl/sitemap.xml"))
           urls=[e.text for e in sitemap.iter() if e.tag.endswith("loc") and e.text]

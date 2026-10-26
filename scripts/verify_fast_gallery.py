@@ -28,7 +28,12 @@ def main():
     p=ImgParser();p.feed(home)
     active=[s for s in p.slides if s["active"] and s["image"]]
     inactive=[s for s in p.slides if not s["active"] and s["image"]]
-    assert len(active)>=15 and len(inactive)>=15,(len(active),len(inactive))
+    assert len(active)>=15,(len(active),len(inactive))
+    if 'data-rm-static="1"' in home:
+        assert len(inactive)==0 and 'data-rm-next' not in home
+        assert 'data-rm-autoplay="true"' not in home
+    else:
+        assert len(inactive)>=15
     assert all(s["image"].get("src") for s in active)
     assert all(not s["image"].get("src") and s["image"].get("data-rm-src") for s in inactive)
     assert all(not s["image"].get("srcset") for s in inactive)
