@@ -22,6 +22,8 @@ class LocalSEOTests(unittest.TestCase):
             self.assertIn('href="'+path+'"',result)
         self.assertIn('Wynajem sprzętu budowlanego',result)
         self.assertIn('Krakowie',result)
+        self.assertIn('href="/zageszczarka-dro-masz-101-kg-do-kostki/"',result)
+        self.assertEqual(result.count('<!-- rentmor-compactor-link-v1 -->'),1)
     def test_rejects_unexpected_homepage_without_mangling_it(self):
         for source in ['<footer>Footer</footer>','<?php $s="stats.json"; ?><footer>A</footer>',
                        '<?php $s="stats.json"; ?><h1>A</h1><footer>A</footer><footer>B</footer>',
