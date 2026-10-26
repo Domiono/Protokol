@@ -64,6 +64,7 @@ def main():
                      and node.get("@id") == BASE + "/#organization"]
     assert len(organizations) == 1, ("Organization JSON-LD", organizations)
     assert organizations[0]["telephone"] == "+48733891281"
+    assert COMPACTOR_OFFER in homepage.links, ('Missing compactor homepage link', COMPACTOR_OFFER)
     for path, (guide, product_id) in OFFER_GUIDES.items():
         html, headers = fetch(path)
         parsed = validate(html, headers, BASE + path)
