@@ -65,12 +65,16 @@ class SEOPatches(unittest.TestCase):
 
     def test_php_offer_helper_output_and_escaping(self):
         php = r"""require 'server/rental_offer_details.php';
-        $known=['69388418830b8','69385df56774a','69385f95de01c'];
+        $known=['69388418830b8','69385df56774a','69385f95de01c','693844ff66e57'];
         foreach ($known as $id) {
           $body=rentmor_offer_details(['id'=>$id]);
           if (!str_contains($body,'<h2') || !str_contains($body,'/zasady.php') ||
               !str_contains($body,'data-rentmor-offer-details')) exit(2);
         }
+        $compactor=rentmor_offer_details(['id'=>'693844ff66e57']);
+        if (!str_contains($compactor,'18 kN') || !str_contains($compactor,'101 kg')
+            || !str_contains($compactor,'mata ochronna')
+            || str_contains($compactor,'href=""')) exit(4);
         if (rentmor_offer_details(['id'=>'unknown'])!=='') exit(3);
         echo 'ok';"""
         if not __import__("shutil").which("php"):
