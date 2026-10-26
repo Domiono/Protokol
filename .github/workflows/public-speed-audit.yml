@@ -1,7 +1,7 @@
 name: Public speed audit
 on:
   push:
-    branches: [codex/public-speed-2026-10-26]
+    branches: [codex/mobile-first-paint-2026-10-26]
     paths: ['.github/workflows/public-speed-audit.yml']
   workflow_run:
     workflows: ['Optimize RentMor product photos']
