@@ -1151,7 +1151,14 @@ public class MainActivity extends Activity {
                 render[0].run();
                 toast(item.optString("asset_id").isEmpty()?"Rezerwacja dodana. Egzemplarz do przypisania.":"Rezerwacja dodana: "+item.optString("asset_label")+(RentalRules.needsVacuum(item)?" + "+item.optString("vacuum_asset_label"):"")+". Synchronizacja potwierdzi przydział.");
                 if(isOnline())syncNow();}
-            catch(Exception ex){toast("Nie udało się dodać rezerwacji: "+ex.getMessage());}
+            catch(Exception ex){
+                String reason=ex.getMessage()==null?"Nieznany błąd":ex.getMessage();
+                if(reason.startsWith("Brak wolnego egzemplarza")||reason.startsWith("Brak wolnego odkurzacza")){
+                    new AlertDialog.Builder(this).setTitle("Dlaczego sprzęt jest niedostępny?")
+                        .setMessage(reason).setNegativeButton("Zamknij",null)
+                        .setPositiveButton("Sprawdź aktywne najmy",(d,w)->operations().active()).show();
+                }else toast("Nie udało się dodać rezerwacji: "+reason);
+            }
         });
         View submitReservation=root.getChildAt(root.getChildCount()-1);
         root.removeView(submitReservation);

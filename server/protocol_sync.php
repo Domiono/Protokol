@@ -158,9 +158,12 @@ function rm_copy_conflict(array $item,array $asset,string $role,array $reservati
         if(!$reserved&&!$ambiguous)continue;
         $rs=(string)($r['start_date']??'');$re=(string)($r['end_date']??'');
         if(!rm_valid_reservation_dates($r))return 'Sprawdź daty starszej rezerwacji sprzętu.';
-        if(($start<=$re&&$end>=$rs)||(!empty($r['done'])&&$re<date('Y-m-d')))
-            return $ambiguous?'Wcześniejsza rezerwacja tej grupy nie ma przypisanego egzemplarza. Uzupełnij ją najpierw.':
-                'Egzemplarz jest już zajęty w tym terminie lub po terminie zwrotu.';
+        if(($start<=$re&&$end>=$rs)||(!empty($r['done'])&&$re<date('Y-m-d'))){
+            if($ambiguous)return "Rezerwacja $rs – $re nie ma przypisanego egzemplarza. Uzupełnij przypisanie.";
+            if(!empty($r['done'])&&$re<date('Y-m-d'))
+                return "Wydany, brak potwierdzonego zwrotu (planowany: $re).";
+            return "Zajęty przez rezerwację $rs – $re.";
+        }
     }
     return '';
 }
@@ -181,6 +184,15 @@ function rm_rental_conflict(array $item,array $reservations,array $assets): stri
     if(!$secondary)return 'Nie znaleziono odkurzacza do zestawu.';
     return rm_copy_conflict($item,$secondary,'vacuum',$reservations);
 }
+/** Summarize blocked physical copies without exposing customer details. */
+function rm_unavailable_copies(array $item,array $reservations,array $assets,string $role): string {
+    $reasons=[];
+    foreach(rm_matching_assets($item,$assets,$role) as $copy){
+        $reason=rm_copy_conflict($item,$copy,$role,$reservations);
+        if($reason!=='')$reasons[]='• '.(string)($copy['label']??'Egzemplarz').': '.$reason;
+    }
+    return implode("\n",$reasons);
+}
 /** Choose both devices under the reservations.json lock (the inventory file is read inside it). */
 function rm_auto_pick_asset(array $item,array $reservations,array $assets): array {
     if(!rm_valid_reservation_dates($item))return ['asset'=>null,'vacuum'=>null,'error'=>'Sprawdź daty rezerwacji.'];
@@ -189,13 +201,19 @@ function rm_auto_pick_asset(array $item,array $reservations,array $assets): arra
     if(!$mains)return ['asset'=>null,'vacuum'=>null,'error'=>$role==='standard'&&!$needs?'':'Dodaj egzemplarze żyraf i odkurzaczy w Dostępność przed rezerwacją.'];
     $primary=null;
     foreach($mains as $a)if(rm_copy_conflict($item,$a,$role,$reservations)===''){$primary=$a;break;}
-    if($primary===null)return ['asset'=>null,'vacuum'=>null,'error'=>'Brak wolnego egzemplarza sprzętu w wybranym terminie.'];
+    if($primary===null)return ['asset'=>null,'vacuum'=>null,'error'=>"Brak wolnego egzemplarza sprzętu w wybranym terminie.\n".
+        rm_unavailable_copies($item,$reservations,$assets,$role).
+        "\nJeżeli sprzęt wrócił, potwierdź zwrot lub rozlicz najem."];
     $secondary=null;
     if($needs){
         foreach(rm_matching_assets($item,$assets,'vacuum') as $a){
             if(($a['id']??'')!==($primary['id']??'')&&rm_copy_conflict($item,$a,'vacuum',$reservations)===''){$secondary=$a;break;}
         }
-        if($secondary===null)return ['asset'=>null,'vacuum'=>null,'error'=>'Brak wolnego odkurzacza przemysłowego do zestawu. Sprawdź wcześniejsze rezerwacje i przypisania.'];
+        if($secondary===null)return ['asset'=>null,'vacuum'=>null,'error'=>"Brak wolnego odkurzacza przemysłowego do zestawu.\n".
+            (rm_matching_assets($item,$assets,'vacuum')?
+                rm_unavailable_copies($item,$reservations,$assets,'vacuum'):
+                'Nie zarejestrowano odkurzaczy w grupie Odkurzacz przemysłowy.').
+            "\nJeżeli sprzęt wrócił, potwierdź zwrot lub rozlicz najem."];
     }
     return ['asset'=>$primary,'vacuum'=>$secondary,'error'=>''];
 }

@@ -95,6 +95,28 @@ public final class RentalOperations {
     void rentalMenu(JSONObject r){ArrayList<String> labels=new ArrayList<>();ArrayList<Runnable> actions=new ArrayList<>();
         labels.add("Egzemplarz i warunki najmu");actions.add(()->rentalForm(r));
         if(!r.optBoolean("returned")){labels.add("Przedłuż najem");actions.add(()->extend(r));}
+        // Rentals without an issue protocol need a safe way to confirm physical return
+        // before finance is settled. Never silently release overdue issued equipment.
+        if(r.optBoolean("done")&&!r.optBoolean("returned")&&protocolFor(r)==null){
+            labels.add("Potwierdź zwrot bez protokołu");
+            actions.add(()->new AlertDialog.Builder(activity)
+                .setTitle("Potwierdź fizyczny zwrot sprzętu")
+                .setMessage("Użyj tej opcji wyłącznie po odebraniu sprzętu od klienta. "+
+                    "W przypadku zestawu zwolnione zostaną żyrafa i odkurzacz. "+
+                    "Najem pozostanie do rozliczenia.")
+                .setNegativeButton("Anuluj",null)
+                .setPositiveButton("Sprzęt wrócił",(d,w)->{
+                    try{
+                        JSONObject updated=copy(r);
+                        updated.put("returned",true);
+                        updated.put("actual_return",LocalDate.now().toString());
+                        updated.put("auto_assign",false);
+                        save(updated);
+                        active();
+                        Toast.makeText(activity,"Zapisano zwrot. Synchronizacja potwierdzi dostępność.",Toast.LENGTH_LONG).show();
+                    }catch(Exception ex){error(ex);}
+                }).show());
+        }
         if(admin){labels.add("Rozlicz najem");actions.add(()->settlement(r));}
         if(r.optBoolean("returned")){labels.add("Zobacz protokół");actions.add(()->open(r));}
         new AlertDialog.Builder(activity).setTitle("Opcje najmu").setItems(labels.toArray(new String[0]),(d,index)->actions.get(index).run()).setNegativeButton("Zamknij",null).show();

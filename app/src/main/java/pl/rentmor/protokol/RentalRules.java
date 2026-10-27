@@ -106,9 +106,14 @@ public final class RentalRules {
                         (!"vacuum".equals(kind(r.optString("equipment")))||r.optString("asset_id").isEmpty()):
                     r.optString("asset_id").isEmpty());
             try {
-                if((reserved(r,rid)||ambiguous)&&busy(candidate,r))
-                    return ambiguous?"Wcześniejsza rezerwacja tej grupy nie ma przypisanego egzemplarza. Uzupełnij ją najpierw.":
-                        "Egzemplarz jest już zajęty w tym terminie lub po terminie zwrotu.";
+                if((reserved(r,rid)||ambiguous)&&busy(candidate,r)){
+                    if(ambiguous)return "Rezerwacja "+r.optString("start_date")+" – "+r.optString("end_date")+
+                        " nie ma przypisanego egzemplarza. Uzupełnij przypisanie.";
+                    if(r.optBoolean("done")&&!r.optString("end_date").isEmpty()&&
+                        r.optString("end_date").compareTo(LocalDate.now().toString())<0)
+                        return "Wydany, brak potwierdzonego zwrotu (planowany: "+r.optString("end_date")+").";
+                    return "Zajęty przez rezerwację "+r.optString("start_date")+" – "+r.optString("end_date")+".";
+                }
             }catch(Exception ex){if(reserved(r,rid)||ambiguous)return "Sprawdź daty starszej rezerwacji sprzętu.";}
         }
         return "";
@@ -125,6 +130,17 @@ public final class RentalRules {
     private static JSONObject byId(JSONArray assets,String id){
         for(int i=0;i<assets.length();i++){JSONObject a=assets.optJSONObject(i);if(a!=null&&id.equals(a.optString("id")))return a;}
         return null;
+    }
+    /** Human-readable inventory breakdown without exposing any customer data. */
+    private static String unavailableCopies(JSONObject candidate,JSONArray reservations,JSONArray assets,String role){
+        StringBuilder details=new StringBuilder();
+        for(JSONObject copy:copies(candidate,assets,role)){
+            String why=checkCopy(candidate,copy,role,reservations);
+            if(why.isEmpty())continue;
+            if(details.length()>0)details.append("\n");
+            details.append("• ").append(copy.optString("label","Egzemplarz")).append(": ").append(why);
+        }
+        return details.toString();
     }
     /**
      * Allocate both physical devices of a set or one item for a standalone booking.
@@ -143,12 +159,18 @@ public final class RentalRules {
         }
         JSONObject first=null;
         for(JSONObject a:mains)if(checkCopy(candidate,a,role,reservations).isEmpty()){first=a;break;}
-        if(first==null)return "Brak wolnego egzemplarza "+("vacuum".equals(role)?"odkurzacza":"sprzętu")+" w wybranym terminie.";
+        if(first==null)return "Brak wolnego egzemplarza "+("vacuum".equals(role)?"odkurzacza":"sprzętu")+
+            " w wybranym terminie.\n"+unavailableCopies(candidate,reservations,assets,role)+
+            "\nJeżeli sprzęt wrócił, potwierdź zwrot lub rozlicz najem.";
         if(needs){
             JSONObject second=null;
             for(JSONObject a:copies(candidate,assets,"vacuum"))
                 if(!a.optString("id").equals(first.optString("id"))&&checkCopy(candidate,a,"vacuum",reservations).isEmpty()){second=a;break;}
-            if(second==null)return "Brak wolnego odkurzacza przemysłowego do zestawu. Sprawdź rezerwacje i przypisania.";
+            if(second==null)return "Brak wolnego odkurzacza przemysłowego do zestawu.\n"+
+                (copies(candidate,assets,"vacuum").isEmpty()?
+                    "Nie zarejestrowano odkurzaczy w grupie Odkurzacz przemysłowy.":
+                    unavailableCopies(candidate,reservations,assets,"vacuum"))+
+                "\nJeżeli sprzęt wrócił, potwierdź zwrot lub rozlicz najem.";
             candidate.put("vacuum_asset_id",second.optString("id"));
             candidate.put("vacuum_asset_label",second.optString("label"));
         }
