@@ -85,7 +85,9 @@ $released=rm_auto_pick_asset($futureSet,[$overdue],$vacuumAssets);
 check(($released['vacuum']['id']??'')==='v1','confirmed return releases vacuum before settlement');
 $legacySet=['id'=>'old-set','equipment'=>'Żyrafa + odkurzacz','asset_id'=>'g1',
     'start_date'=>'2030-10-29','end_date'=>'2030-10-30'];
-$legacyBlock=rm_auto_pick_asset($futureSet,[$legacySet],$vacuumAssets);
+$soloVacuum=['id'=>'solo-vacuum','equipment'=>'Odkurzacz przemysłowy',
+    'start_date'=>'2030-10-29','end_date'=>'2030-10-30'];
+$legacyBlock=rm_auto_pick_asset($soloVacuum,[$legacySet],$vacuumAssets);
 check(str_contains($legacyBlock['error'],'nie ma przypisanego egzemplarza'),'explain legacy unassigned');
 
 echo "Rental rules passed\n";
