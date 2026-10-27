@@ -110,4 +110,33 @@ public class RentalRulesTest {
       .put("start_date","2030-11-01").put("end_date","2030-11-02");
   assertFalse(RentalRules.autoAssign(set,new JSONArray(),onlyGiraffe).isEmpty());
  }
+ @Test public void issuedOverdueVacuumExplainsBlockAndConfirmedReturnReleasesIt()throws Exception{
+  JSONArray assets=new JSONArray()
+      .put(new JSONObject().put("id","g1").put("label","Żyrafa 1").put("asset_kind","giraffe"))
+      .put(new JSONObject().put("id","v1").put("label","Odkurzacz 1").put("asset_kind","vacuum"));
+  JSONObject overdue=new JSONObject().put("id","old").put("equipment","Odkurzacz przemysłowy")
+      .put("asset_id","v1").put("done",true).put("start_date","2020-01-01")
+      .put("end_date","2020-01-02");
+  JSONArray bookings=new JSONArray().put(overdue);
+  JSONObject upcoming=new JSONObject().put("id","new").put("equipment","Żyrafa + odkurzacz")
+      .put("start_date","2030-10-29").put("end_date","2030-10-30");
+  String reason=RentalRules.autoAssign(upcoming,bookings,assets);
+  assertTrue(reason,reason.contains("Odkurzacz 1"));
+  assertTrue(reason,reason.contains("brak potwierdzonego zwrotu"));
+  overdue.put("returned",true);
+  assertEquals("",RentalRules.autoAssign(upcoming,bookings,assets));
+  assertEquals("v1",upcoming.getString("vacuum_asset_id"));
+ }
+ @Test public void unassignedLegacyVacuumShowsActionableWarning()throws Exception{
+  JSONArray assets=new JSONArray()
+      .put(new JSONObject().put("id","g1").put("asset_kind","giraffe"))
+      .put(new JSONObject().put("id","v1").put("label","Odkurzacz 1").put("asset_kind","vacuum"));
+  JSONObject legacy=new JSONObject().put("id","legacy").put("equipment","Żyrafa + odkurzacz")
+      .put("asset_id","g1").put("start_date","2030-10-29").put("end_date","2030-10-30");
+  JSONObject candidate=new JSONObject().put("id","new").put("equipment","Odkurzacz przemysłowy")
+      .put("start_date","2030-10-29").put("end_date","2030-10-30");
+  String reason=RentalRules.autoAssign(candidate,new JSONArray().put(legacy),assets);
+  assertTrue(reason,reason.contains("nie ma przypisanego egzemplarza"));
+ }
+
 }
