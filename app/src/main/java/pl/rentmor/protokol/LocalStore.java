@@ -143,7 +143,7 @@ public class LocalStore extends SQLiteOpenHelper {
         } catch(Exception e) { throw new RuntimeException(e); }
     }
     public synchronized JSONArray queued() {
-        JSONArray a=new JSONArray(); Cursor c=getReadableDatabase().rawQuery("SELECT payload FROM queue ORDER BY created",null);
+        JSONArray a=new JSONArray(); Cursor c=getReadableDatabase().rawQuery("SELECT payload FROM queue ORDER BY created, rowid",null);
         try { while(c.moveToNext()) a.put(new JSONObject(c.getString(0))); } catch(Exception ignored) {} finally { c.close(); }
         return a;
     }
