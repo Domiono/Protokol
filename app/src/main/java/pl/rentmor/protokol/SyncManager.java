@@ -78,6 +78,27 @@ public class SyncManager {
         if(items==null)throw new IOException("Brak poprawnej listy wiadomości.");
         return items;
     }
+    /** The server may have committed later operations even when an earlier one failed. */
+    static void applyAcknowledgements(LocalStore store,JSONArray pending,JSONArray results) throws Exception {
+        java.util.HashSet<String> submitted=new java.util.HashSet<>();
+        java.util.HashSet<String> acknowledged=new java.util.HashSet<>();
+        for(int i=0;i<pending.length();i++)submitted.add(pending.getJSONObject(i).optString("op_id"));
+        String error=null;int failures=0;
+        for(int i=0;i<results.length();i++){
+            JSONObject item=results.getJSONObject(i);
+            String id=item.optString("op_id");
+            if(!submitted.contains(id)||!acknowledged.add(id))continue;
+            if(item.optBoolean("ok"))store.clearQueueItem(id);
+            else {
+                failures++;
+                if(error==null)error=item.optString("error","Nie udało się zsynchronizować operacji");
+            }
+        }
+        if(acknowledged.size()!=submitted.size())
+            throw new IOException("Serwer nie potwierdził wszystkich operacji. Ponów synchronizację.");
+        if(failures>0)
+            throw new IOException(error+(failures>1?" (Nieudanych operacji: "+failures+")":""));
+    }
     public synchronized JSONObject sync() throws Exception {
         JSONArray pending=store.queued();
         if(pending.length()>0){
@@ -86,11 +107,7 @@ public class SyncManager {
             body.put("operations",ops);
             JSONObject response=request("POST",body);JSONArray results=response.optJSONArray("results");
             if(results==null)throw new IOException("Serwer nie potwierdził zapisania operacji. Ponów synchronizację.");
-            for(int i=0;i<results.length();i++){
-                JSONObject r=results.getJSONObject(i);
-                if(r.optBoolean("ok")) store.clearQueueItem(r.optString("op_id"));
-                else throw new IOException(r.optString("error","Nie udało się zsynchronizować operacji"));
-            }
+            applyAcknowledgements(store,pending,results);
         }
         JSONObject server=request("GET",null);
         store.replaceServerProtocols(server.optJSONArray("protocols")==null?new JSONArray():server.optJSONArray("protocols"));

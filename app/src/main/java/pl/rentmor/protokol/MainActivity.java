@@ -152,6 +152,7 @@ public class MainActivity extends Activity {
         status.setText("W telefonie: "+store.allProtocols().length()+"   •   Do wysłania: "+store.pendingCount());
         status.setTextSize(13);status.setTextColor(0xff172235);status.setPadding(0,dp(3),0,0);
         statusContent.addView(status);statusCard.addView(statusContent,new LinearLayout.LayoutParams(0,-2,1));
+        if(isAdmin())statusCard.setOnClickListener(v->pendingOperationsPage());
         LinearLayout.LayoutParams statusParams=new LinearLayout.LayoutParams(-1,-2);
         statusParams.bottomMargin=dp(8);page.addView(statusCard,statusParams);
 
@@ -202,6 +203,9 @@ public class MainActivity extends Activity {
         homeToolsList=new LinearLayout(this);homeToolsList.setOrientation(1);page.addView(homeToolsList);
         homeMenuItem(homeToolsList,android.R.drawable.ic_popup_sync,"Synchronizuj teraz",
             "Prześlij dane na serwer",0xffe6f4ec,()->syncNow());
+        if(isAdmin()&&store.pendingCount()>0)
+            homeMenuItem(homeToolsList,android.R.drawable.ic_dialog_alert,"Napraw synchronizację",
+                "Oczekujące operacje: "+store.pendingCount(),0xffffe8ac,()->pendingOperationsPage());
         homeMenuItem(homeToolsList,android.R.drawable.ic_menu_preferences,"Aktywuj / zmień urządzenie",
             "Skonfiguruj dostęp telefonu",0xffedf0f5,()->resetActivation());
         addAdminDownloadCard();
@@ -368,6 +372,68 @@ public class MainActivity extends Activity {
     }
     private void registerNetworkSync(){ConnectivityManager cm=(ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);networkCallback=new ConnectivityManager.NetworkCallback(){@Override public void onAvailable(android.net.Network network){runOnUiThread(()->{if(showingApp&&getSharedPreferences("rentmor",0).getString("cookie","").length()>0)syncNow();});}};try{cm.registerDefaultNetworkCallback(networkCallback);}catch(Exception ignored){}}
     @Override protected void onDestroy(){try{if(networkCallback!=null)((ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE)).unregisterNetworkCallback(networkCallback);}catch(Exception ignored){}super.onDestroy();}
+    /** Repair offline asset saves without erasing bookings, protocols or other queue items. */
+    private void pendingOperationsPage(){
+        if(!isAdmin()){showHome();return;}
+        root.removeAllViews();root.setPadding(dp(14),dp(14),dp(14),dp(18));
+        TextView title=new TextView(this);title.setText("OCZEKUJĄCE OPERACJE");
+        title.setTextSize(23);title.setTypeface(null,1);title.setTextColor(0xff17263e);root.addView(title);
+        TextView note=new TextView(this);
+        note.setText("Popraw tylko błędny wpis. Pozostałe rezerwacje, protokoły i zmiany pozostają zapisane na telefonie. Nie czyść danych aplikacji.");
+        note.setTextSize(13);note.setTextColor(0xff526174);
+        note.setPadding(0,dp(9),0,dp(15));root.addView(note);
+        JSONArray pending=store.queued();
+        if(pending.length()==0){
+            TextView empty=new TextView(this);empty.setText("Brak oczekujących operacji.");
+            empty.setTextColor(0xff256c48);empty.setTextSize(16);root.addView(empty);
+        }
+        for(int i=0;i<pending.length();i++){
+            JSONObject operation=pending.optJSONObject(i);if(operation==null)continue;
+            String action=operation.optString("action");
+            LinearLayout card=new LinearLayout(this);card.setOrientation(1);
+            card.setPadding(dp(14),dp(12),dp(14),dp(12));
+            card.setBackground(roundBg(Color.WHITE,13));
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);
+            lp.bottomMargin=dp(9);root.addView(card,lp);
+            TextView heading=new TextView(this);
+            heading.setText((i+1)+". "+("asset_save".equals(action)?"Zapis egzemplarza":("asset_delete".equals(action)?"Usunięcie egzemplarza":"Zmiana do wysłania • "+action)));
+            heading.setTextSize(15);heading.setTypeface(null,1);heading.setTextColor(0xff17263e);card.addView(heading);
+            if("asset_save".equals(action)){
+                TextView details=new TextView(this);
+                details.setText(operation.optString("equipment")+"\nNazwa: "+operation.optString("label"));
+                details.setTextColor(0xff526174);details.setTextSize(13);card.addView(details);
+                Button fix=new Button(this);fix.setText("Popraw nazwę egzemplarza");brandButton(fix,true);
+                card.addView(fix);
+                fix.setOnClickListener(v->{
+                    EditText input=new EditText(this);input.setSingleLine(true);
+                    input.setSelectAllOnFocus(true);input.setText(operation.optString("label"));
+                    LinearLayout wrapper=new LinearLayout(this);wrapper.setPadding(dp(16),0,dp(16),0);wrapper.addView(input);
+                    AlertDialog dialog=new AlertDialog.Builder(this)
+                        .setTitle("Popraw nazwę egzemplarza")
+                        .setMessage("Wpisz unikalną nazwę. Poprawi to oczekujące zapisy tej sztuki bez usuwania historii.")
+                        .setView(wrapper).setNegativeButton("Anuluj",null)
+                        .setPositiveButton("Zapisz i ponów",null).create();
+                    dialog.setOnShowListener(unused->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(button->{
+                        if(!syncRunning.compareAndSet(false,true)){
+                            toast("Trwa synchronizacja. Spróbuj ponownie po jej zakończeniu.");return;
+                        }
+                        try{
+                            int changed=store.repairQueuedAssetLabel(operation.optString("op_id"),input.getText().toString());
+                            toast("Poprawiono "+changed+" zapisów tego egzemplarza.");
+                            dialog.dismiss();
+                            showHome();
+                        }catch(Exception ex){input.setError(ex.getMessage());}
+                        finally{syncRunning.set(false);}
+                        // The next manual/automatic synchronization uses the corrected queue.
+                        if(isOnline()&&dialog.isShowing()==false)syncNow();
+                    }));
+                    dialog.show();
+                });
+            }
+        }
+        addButton("SYNCHRONIZUJ TERAZ",()->{showHome();});
+        addButton("WRÓĆ DO MENU",()->showHome());
+    }
     private void syncNow(){
         if(!isOnline()){
             if(status!=null)status.setText("Brak internetu. Dane pozostają bezpiecznie w telefonie.");
