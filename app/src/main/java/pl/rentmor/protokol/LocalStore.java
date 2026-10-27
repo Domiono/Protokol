@@ -51,6 +51,63 @@ public class LocalStore extends SQLiteOpenHelper {
         }catch(JSONException e){throw new IllegalStateException(e);}
         finally{db.endTransaction();}
     }
+    /** A duplicate label is rejected before a change gets stuck in the offline queue. */
+    public synchronized boolean isAssetLabelTaken(String proposed, String excludingId) {
+        String label=proposed==null?"":proposed.trim();
+        JSONArray assets=assets();
+        for(int i=0;i<assets.length();i++){
+            JSONObject asset=assets.optJSONObject(i);
+            if(asset!=null&&!asset.optString("id").equals(excludingId)
+                    &&asset.optString("label").trim().equalsIgnoreCase(label))return true;
+        }
+        return false;
+    }
+    /**
+     * Repair an unsent asset rename without dropping unrelated offline operations.
+     * Every queued save for this copy is corrected, preserving op_id and its position.
+     * The local asset and the queue change in a single SQLite transaction.
+     */
+    public synchronized int repairQueuedAssetLabel(String operationId,String proposed) {
+        String label=proposed==null?"":proposed.trim();
+        if(label.isEmpty()||label.length()>100)
+            throw new IllegalArgumentException("Nazwa egzemplarza musi mieć od 1 do 100 znaków.");
+        SQLiteDatabase db=getWritableDatabase();
+        db.beginTransaction();
+        try{
+            JSONArray pending=queued();
+            JSONObject target=null;
+            for(int i=0;i<pending.length();i++){
+                JSONObject item=pending.optJSONObject(i);
+                if(item!=null&&operationId.equals(item.optString("op_id"))&&"asset_save".equals(item.optString("action"))) {
+                    target=item;break;
+                }
+            }
+            if(target==null)throw new IllegalArgumentException("Ta zmiana nie oczekuje już na synchronizację.");
+            String assetId=target.optString("id");
+            if(assetId.isEmpty())throw new IllegalArgumentException("Brak identyfikatora egzemplarza.");
+            if(isAssetLabelTaken(label,assetId))
+                throw new IllegalArgumentException("Taka nazwa jest już używana przez inny egzemplarz.");
+            int corrected=0;
+            for(int i=0;i<pending.length();i++){
+                JSONObject item=pending.optJSONObject(i);
+                if(item==null||!"asset_save".equals(item.optString("action"))||!assetId.equals(item.optString("id")))continue;
+                item.put("label",label);
+                ContentValues payload=new ContentValues();payload.put("payload",item.toString());
+                db.update("queue",payload,"op_id=?",new String[]{item.optString("op_id")});
+                corrected++;
+            }
+            Cursor c=db.rawQuery("SELECT data FROM assets WHERE id=?",new String[]{assetId});
+            try{
+                if(!c.moveToFirst())throw new IllegalArgumentException("Brak lokalnego egzemplarza. Nie zmieniono kolejki.");
+                JSONObject asset=new JSONObject(c.getString(0));asset.put("label",label);
+                ContentValues data=new ContentValues();data.put("data",asset.toString());
+                db.update("assets",data,"id=?",new String[]{assetId});
+            }finally{c.close();}
+            db.setTransactionSuccessful();
+            return corrected;
+        }catch(JSONException e){throw new IllegalStateException(e);}
+        finally{db.endTransaction();}
+    }
     public synchronized void replaceAssets(JSONArray a) {
         SQLiteDatabase db=getWritableDatabase();db.beginTransaction();
         try{db.delete("assets",null,null);for(int i=0;i<a.length();i++)saveAsset(a.getJSONObject(i));
