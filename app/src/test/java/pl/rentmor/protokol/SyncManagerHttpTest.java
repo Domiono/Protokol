@@ -11,6 +11,18 @@ import static org.junit.Assert.*;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk=34)
 public class SyncManagerHttpTest {
+    @Test public void retriesOnlyTemporaryReadErrorsAndNeverReplaysWrites(){
+        assertTrue(SyncManager.shouldRetryRead("GET",500,1,3));
+        assertTrue(SyncManager.shouldRetryRead("GET",502,2,3));
+        assertTrue(SyncManager.shouldRetryRead("GET",503,1,3));
+        assertTrue(SyncManager.shouldRetryRead("GET",504,1,3));
+        assertFalse(SyncManager.shouldRetryRead("GET",500,3,3));
+        assertFalse(SyncManager.shouldRetryRead("POST",500,1,3));
+        assertFalse(SyncManager.shouldRetryRead("GET",401,1,3));
+        assertFalse(SyncManager.shouldRetryRead("GET",403,1,3));
+        assertFalse(SyncManager.shouldRetryRead("GET",302,1,3));
+        assertFalse(SyncManager.shouldRetryRead("GET",200,1,3));
+    }
     @Test public void htmlOrHostingErrorDoesNotLeakRawMarkup() throws Exception{
         for(int status:new int[]{200,401,403,502}){
             try{
