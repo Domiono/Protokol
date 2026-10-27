@@ -13,34 +13,53 @@ public class SyncManager {
     private JSONObject request(String method, JSONObject body) throws Exception {
         return request(API,method,body);
     }
+    // Only read-only requests may be repeated. Never blindly replay writes: a POST
+    // could have reached the server even when its HTTP response failed.
+    static boolean shouldRetryRead(String method,int status,int attempt,int maxAttempts) {
+        return "GET".equals(method) && attempt < maxAttempts &&
+            (status==500 || status==502 || status==503 || status==504);
+    }
     // Package-private for local HTTP integration tests; never expose the session cookie.
     JSONObject request(String endpoint,String method,JSONObject body) throws Exception {
-        HttpURLConnection c=(HttpURLConnection)new URL(endpoint).openConnection();
-        c.setInstanceFollowRedirects(false);
-        c.setRequestMethod(method);c.setConnectTimeout(12000);c.setReadTimeout(20000);
-        c.setRequestProperty("Accept","application/json");
-        String ck=cookie();if(ck.isEmpty())throw new IOException("Brak aktywacji urządzenia. Otwórz aktywację online.");
-        try{
-            c.setRequestProperty("Cookie",ck);
-            if(body!=null){
-                c.setDoOutput(true);
-                c.setRequestProperty("Content-Type","application/json; charset=utf-8");
-                c.setRequestProperty("X-RentMor-Sync","1");
-                try(OutputStream o=c.getOutputStream()){o.write(body.toString().getBytes("UTF-8"));}
+        String ck=cookie();
+        if(ck.isEmpty())throw new IOException("Brak aktywacji urządzenia. Otwórz aktywację online.");
+        int maxAttempts=("GET".equals(method) && body==null)?3:1;
+        for(int attempt=1;attempt<=maxAttempts;attempt++) {
+            HttpURLConnection c=(HttpURLConnection)new URL(endpoint).openConnection();
+            int code=0;
+            try{
+                c.setInstanceFollowRedirects(false);
+                c.setRequestMethod(method);c.setConnectTimeout(12000);c.setReadTimeout(20000);
+                c.setRequestProperty("Accept","application/json");
+                c.setRequestProperty("Cookie",ck);
+                if(body!=null){
+                    c.setDoOutput(true);
+                    c.setRequestProperty("Content-Type","application/json; charset=utf-8");
+                    c.setRequestProperty("X-RentMor-Sync","1");
+                    try(OutputStream o=c.getOutputStream()){o.write(body.toString().getBytes("UTF-8"));}
+                }
+                code=c.getResponseCode();
+                if(code>=300&&code<400)
+                    throw new IOException("Serwer przekierował synchronizację (HTTP "+code+"). Sprawdź połączenie z RentMor.pl i ponów synchronizację.");
+                InputStream in=code>=200&&code<300?c.getInputStream():c.getErrorStream();
+                if(in==null)throw new IOException("Serwer RentMor.pl nie zwrócił danych (HTTP "+code+").");
+                ByteArrayOutputStream out=new ByteArrayOutputStream();
+                try(InputStream stream=in){
+                    byte[] bytes=new byte[8192];int count;
+                    while((count=stream.read(bytes))!=-1)out.write(bytes,0,count);
+                }
+                return decodeResponse(code,c.getContentType(),out.toString("UTF-8"));
+            }catch(IOException e){
+                if(!shouldRetryRead(method,code,attempt,maxAttempts))throw e;
+            }finally{c.disconnect();}
+            // A short delay gives transient PHP/hosting failures time to recover.
+            try{Thread.sleep(attempt==1?700L:1500L);}
+            catch(InterruptedException e){
+                Thread.currentThread().interrupt();
+                throw new IOException("Przerwano synchronizację.",e);
             }
-            int code=c.getResponseCode();
-            if(code>=300&&code<400)
-                throw new IOException("Serwer przekierował synchronizację (HTTP "+code+"). Sprawdź połączenie z RentMor.pl i ponów synchronizację.");
-            InputStream in=code>=200&&code<300?c.getInputStream():c.getErrorStream();
-            if(in==null)throw new IOException("Serwer RentMor.pl nie zwrócił danych (HTTP "+code+").");
-            ByteArrayOutputStream out=new ByteArrayOutputStream();
-            try(InputStream stream=in){
-                byte[] bytes=new byte[8192];int count;
-                while((count=stream.read(bytes))!=-1)out.write(bytes,0,count);
-            }
-            String raw=out.toString("UTF-8");
-            return decodeResponse(code,c.getContentType(),raw);
-        }finally{c.disconnect();}
+        }
+        throw new IOException("Nie udało się zsynchronizować danych.");
     }
     /** Readable, privacy-safe errors: never show a server HTML page or an activation cookie. */
     static JSONObject decodeResponse(int code,String contentType,String payload) throws IOException {
