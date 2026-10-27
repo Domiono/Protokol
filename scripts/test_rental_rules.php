@@ -70,4 +70,22 @@ $other=$timeOnly;$other['id']='other';$other['equipment']='Agregat Wabrotech WT2
 check(rm_rental_conflict($other,[$legacySaved],[$legacyAsset])!=='','other booking still sees occupied copy');
 $legacyAsset['in_service']=true;
 check(rm_rental_conflict($timeOnly,[$legacySaved],[$legacyAsset])!=='','service still blocks legacy edit');
+$vacuumAssets=[
+    ['id'=>'g1','label'=>'Żyrafa 1','asset_kind'=>'giraffe','equipment'=>'Żyrafa'],
+    ['id'=>'v1','label'=>'Odkurzacz 1','asset_kind'=>'vacuum','equipment'=>'Odkurzacz przemysłowy'],
+];
+$overdue=['id'=>'overdue','equipment'=>'Odkurzacz przemysłowy','asset_id'=>'v1','done'=>true,
+    'start_date'=>'2020-01-01','end_date'=>'2020-01-02'];
+$futureSet=['id'=>'future','equipment'=>'Żyrafa + odkurzacz','start_date'=>'2030-10-29','end_date'=>'2030-10-30'];
+$blocked=rm_auto_pick_asset($futureSet,[$overdue],$vacuumAssets);
+check(str_contains($blocked['error'],'brak potwierdzonego zwrotu'),'explain overdue issue');
+check(str_contains($blocked['error'],'Odkurzacz 1'),'explain which device');
+$overdue['returned']=true;
+$released=rm_auto_pick_asset($futureSet,[$overdue],$vacuumAssets);
+check(($released['vacuum']['id']??'')==='v1','confirmed return releases vacuum before settlement');
+$legacySet=['id'=>'old-set','equipment'=>'Żyrafa + odkurzacz','asset_id'=>'g1',
+    'start_date'=>'2030-10-29','end_date'=>'2030-10-30'];
+$legacyBlock=rm_auto_pick_asset($futureSet,[$legacySet],$vacuumAssets);
+check(str_contains($legacyBlock['error'],'nie ma przypisanego egzemplarza'),'explain legacy unassigned');
+
 echo "Rental rules passed\n";
