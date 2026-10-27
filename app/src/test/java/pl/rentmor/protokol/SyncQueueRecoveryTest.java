@@ -45,7 +45,7 @@ public class SyncQueueRecoveryTest {
         String reservation=before.getJSONObject(2).getString("op_id");
 
         try{store.repairQueuedAssetLabel(first,"Puzzi 02");fail("duplicate");}
-        catch(IllegalArgumentException ex){assertTrue(ex.getMessage().contains("zajęta"));}
+        catch(IllegalArgumentException ex){assertTrue(ex.getMessage().contains("używana"));}
         assertEquals(3,store.pendingCount());
         assertEquals(2,store.repairQueuedAssetLabel(first,"Puzzi 03"));
         JSONArray after=store.queued();
