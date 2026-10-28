@@ -74,6 +74,17 @@ def make_snapshot():
             payload[fn] = data
         if len(payload) < len(ESSENTIAL):
             raise RuntimeError("Kopia nie zawiera wymaganych plików.")
+        # Verify source stability: detect concurrent updates before archiving.
+        # This is not a full cross-file transaction, but prevents quietly
+        # accepting a snapshot that changed during its collection.
+        verify = root / "verify"
+        verify.mkdir()
+        sftp([f"get public_html/{fn} -o {verify / fn}" for fn in payload])
+        for fn, original in payload.items():
+            check = verify / fn
+            if not check.is_file() or sha(check.read_bytes()) != sha(original):
+                raise RuntimeError("Dane zmieniły się podczas kopii: " + fn +
+                                   ". Ponów backup bez nadpisywania danych.")
         manifest = {
             "created_utc": now.isoformat(),
             "files": {fn: {"sha256": sha(data), "bytes": len(data)}
