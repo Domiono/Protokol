@@ -264,14 +264,12 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['act
 $protocol_devices_file = __DIR__ . '/protocol_devices.json';
 function admin_load_protocol_devices($file) {
     if (!is_file($file)) return ['devices' => [], 'codes' => []];
-    $data = json_decode(file_get_contents($file), true);
-    if (!is_array($data)) $data = [];
+    $data = json_decode((string)file_get_contents($file), true);
+    if (!is_array($data)) rm_admin_storage_error();
     return ['devices' => is_array($data['devices'] ?? null) ? $data['devices'] : [], 'codes' => is_array($data['codes'] ?? null) ? $data['codes'] : []];
 }
 function admin_save_protocol_devices($file, $data) {
-    $tmp = $file . '.tmp';
-    file_put_contents($tmp, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
-    rename($tmp, $file);
+    rm_admin_write_json_file($file, $data);
 }
 if ($is_logged && empty($_SESSION['protocol_devices_csrf'])) $_SESSION['protocol_devices_csrf'] = bin2hex(random_bytes(32));
 
