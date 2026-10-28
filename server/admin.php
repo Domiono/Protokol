@@ -346,6 +346,22 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        // New and old photo changes are validated before any file is moved.
+        $removedPhotos = [];
+        if ($is_update) {
+            $originalPhotos = is_array($old_item['images'] ?? null) ? array_values($old_item['images']) : [];
+            $order = $_POST['photo_order'] ?? $originalPhotos;
+            $remove = $_POST['photo_remove'] ?? [];
+            if (!is_array($order) || !is_array($remove) ||
+                count($order) !== count($originalPhotos) ||
+                count(array_unique($order)) !== count($order) ||
+                array_diff($order, $originalPhotos) || array_diff($originalPhotos, $order) ||
+                array_diff($remove, $originalPhotos)) {
+                rm_admin_reject('Nieprawidłowa kolejność lub lista zdjęć.');
+            }
+            $removedPhotos = array_values(array_intersect($originalPhotos, $remove));
+            $images = array_values(array_diff($order, $removedPhotos));
+        }
         // Validate monetary values and *every* upload before mutating the catalogue.
         $price = rm_admin_money($_POST['price'] ?? null, true, 'Cena');
         $deposit = rm_admin_money(($_POST['deposit'] ?? '') === '' ? '0' : $_POST['deposit'], false, 'Kaucja');
@@ -400,6 +416,17 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
         rm_admin_inventory_write($inventoryHandle, array_values($current_data));
         $newFiles = []; // Commit complete: keep uploaded images.
+        // Delete removed files only after a successful commit, and never if shared.
+        $usedPhotos = [];
+        foreach ($current_data as $entry) {
+            foreach (($entry['images'] ?? []) as $photoName) $usedPhotos[(string)$photoName] = true;
+        }
+        foreach ($removedPhotos as $photoName) {
+            if (isset($usedPhotos[$photoName])) continue;
+            if (!preg_match('/^[a-zA-Z0-9_.-]+$/D', (string)$photoName)) continue;
+            $file = $upload_dir . $photoName;
+            if (is_file($file)) @unlink($file);
+        }
 
         header("Location: admin.php?tab=products");
         exit();
@@ -1387,9 +1414,33 @@ if (isset($_GET['edit_id'])) {
                         </p>
 
                         <?php if ($edit_mode && !empty($edit_item['images'])): ?>
-                            <p class="text-xs text-gray-500 mt-2">
-                                Dotychczasowe zdjęcia zostaną zachowane. Nowe zostaną dodane.
-                            </p>
+                            <p class="text-sm font-bold mt-4 mb-2">Kolejność zdjęć — pierwsze jest okładką oferty</p>
+                            <div id="rm-existing-photos" class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">
+                                <?php foreach ($edit_item['images'] as $existingPhoto): ?>
+                                    <div class="rm-existing-photo rounded-xl border bg-white p-2">
+                                        <img src="uploads/<?php echo e_admin(basename((string)$existingPhoto)); ?>" alt="Zdjęcie oferty" class="w-full h-24 object-cover rounded-lg" loading="lazy">
+                                        <input type="hidden" name="photo_order[]" value="<?php echo e_admin($existingPhoto); ?>">
+                                        <div class="flex items-center justify-between mt-2 gap-1">
+                                            <button type="button" onclick="rmMovePhoto(this,-1)" class="border rounded-lg px-2 py-1 text-xs" title="Przesuń w lewo" aria-label="Przenieś zdjęcie wcześniej">←</button>
+                                            <button type="button" onclick="rmMovePhoto(this,1)" class="border rounded-lg px-2 py-1 text-xs" title="Przesuń w prawo" aria-label="Przenieś zdjęcie później">→</button>
+                                        </div>
+                                        <label class="text-xs block mt-2"><input type="checkbox" name="photo_remove[]" value="<?php echo e_admin($existingPhoto); ?>" onchange="this.closest('.rm-existing-photo').style.opacity=this.checked?'0.45':'1'"> Usuń zdjęcie</label>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">Zmień kolejność strzałkami. Zaznaczone zdjęcia znikną dopiero po zapisaniu zmian.</p>
+                            <script>
+                            function rmMovePhoto(button, direction) {
+                                const card = button.closest('.rm-existing-photo');
+                                const container = card && card.parentNode;
+                                if (!container) return;
+                                if (direction < 0 && card.previousElementSibling) {
+                                    container.insertBefore(card, card.previousElementSibling);
+                                } else if (direction > 0 && card.nextElementSibling) {
+                                    container.insertBefore(card.nextElementSibling, card);
+                                }
+                            }
+                            </script>
                         <?php endif; ?>
                     </div>
 
