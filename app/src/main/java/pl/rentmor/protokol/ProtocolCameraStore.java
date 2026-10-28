@@ -36,4 +36,29 @@ public final class ProtocolCameraStore {
         context.getSharedPreferences("protocol_camera",0).edit().remove("pending").commit();
         if(file!=null)file.delete();
     }
+
+    /** Private filesDir is retained more reliably than cacheDir between app launches. */
+    public File draftFile() {
+        File current=new File(context.getFilesDir(),"protocol-form-draft.json");
+        File legacy=new File(context.getCacheDir(),"protocol-camera-draft.json");
+        return !current.isFile()&&legacy.isFile()?legacy:current;
+    }
+
+    public void saveDraft(String json) throws IOException {
+        File target=new File(context.getFilesDir(),"protocol-form-draft.json");
+        File temp=new File(target.getParentFile(),"protocol-form-draft.json.tmp");
+        try(java.io.FileOutputStream stream=new java.io.FileOutputStream(temp)) {
+            stream.write(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            stream.getFD().sync();
+        }
+        if(!temp.renameTo(target)) {
+            temp.delete();
+            throw new IOException("Nie udało się zabezpieczyć protokołu.");
+        }
+    }
+
+    public void clearDraft() {
+        new File(context.getFilesDir(),"protocol-form-draft.json").delete();
+        new File(context.getCacheDir(),"protocol-camera-draft.json").delete();
+    }
 }
