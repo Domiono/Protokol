@@ -36,6 +36,17 @@ public class AdminStatisticsAccessTest {
         }
         return false;
     }
+    private HomeInboxShortcut findInboxShortcut(View view){
+        if(view instanceof HomeInboxShortcut)return (HomeInboxShortcut)view;
+        if(view instanceof ViewGroup){
+            ViewGroup group=(ViewGroup)view;
+            for(int index=0;index<group.getChildCount();index++){
+                HomeInboxShortcut found=findInboxShortcut(group.getChildAt(index));
+                if(found!=null)return found;
+            }
+        }
+        return null;
+    }
     @Test public void assistantHasNoFinanceNavigation() throws Exception {
         MainActivity activity=open("assistant");
         View screen=activity.findViewById(android.R.id.content);
@@ -69,14 +80,19 @@ public class AdminStatisticsAccessTest {
     }
     @Test public void contactInboxIsAdministratorOnly() throws Exception {
         MainActivity assistant=open("assistant");
-        assertFalse(shows(assistant.findViewById(android.R.id.content),"Wiadomości klientów"));
+        assertNull(findInboxShortcut(assistant.findViewById(android.R.id.content)));
         Method inbox=MainActivity.class.getDeclaredMethod("messageInboxPage");
         inbox.setAccessible(true);
         inbox.invoke(assistant);
         assertFalse(shows(assistant.findViewById(android.R.id.content),"Wiadomości klientów"));
         assistant.finish();
         MainActivity admin=open("admin");
-        assertTrue(shows(admin.findViewById(android.R.id.content),"Wiadomości klientów"));
+        View screen=admin.findViewById(android.R.id.content);
+        HomeInboxShortcut shortcut=findInboxShortcut(screen);
+        assertNotNull("Administrator should have a top-right inbox button",shortcut);
+        assertTrue(shortcut.getContentDescription().toString().contains("Wiadomości klientów"));
+        assertFalse("Bottom contact section should be removed",shows(screen,"KONTAKT Z KLIENTAMI"));
+        assertFalse("Old text menu item should be removed",shows(screen,"Wiadomości klientów"));
     }
     @Test public void administratorSeesFinanceNavigation() {
         MainActivity activity=open("admin");
