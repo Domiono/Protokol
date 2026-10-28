@@ -14,7 +14,11 @@ contents = path.read_text(encoding="utf-8")
 if "<?php" not in contents or "stats.json" not in contents:
     raise SystemExit("Unexpected index.php; refusing to overwrite live site.")
 
-tag = '<script src="/online.js" defer></script>'
+old_tag = '<script src="/online.js" defer></script>'
+tag = '<script src="/online.js?v=phone-events-1" defer></script>'
+if old_tag in contents:
+    contents = contents.replace(old_tag, tag)
+    path.write_text(contents, encoding="utf-8")
 if tag in contents:
     print("Live index already has the online heartbeat. No changes.")
     raise SystemExit(0)

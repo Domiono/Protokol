@@ -665,7 +665,13 @@ public class MainActivity extends Activity {
         if(siteLiveHandler!=null&&siteLiveRefresh!=null)siteLiveHandler.removeCallbacks(siteLiveRefresh);
         siteLiveHandler=new Handler(getMainLooper());siteLiveRefresh=()->{if(!isFinishing()&&root!=null){refreshSiteData(render);siteLiveHandler.postDelayed(siteLiveRefresh,30000);}};
         siteLiveHandler.postDelayed(siteLiveRefresh,30000);
+        addButton("KONTAKTY TELEFONICZNE",()->phoneContactsPage());
         addButton("⟳ ODŚWIEŻ TERAZ",()->refreshSiteData(render));addButton("WRÓĆ",()->{if(siteLiveHandler!=null&&siteLiveRefresh!=null)siteLiveHandler.removeCallbacks(siteLiveRefresh);sitePage();});
+    }
+    private void phoneContactsPage() {
+        if(!isAdmin()){toast("Historia dostępna tylko dla administratora.");showHome();return;}
+        if(siteLiveHandler!=null&&siteLiveRefresh!=null)siteLiveHandler.removeCallbacks(siteLiveRefresh);
+        PhoneContacts.show(this,root,siteStats(),()->refreshSiteData(()->phoneContactsPage()),()->siteStatsPage());
     }
     private int dp(int value){return (int)(value*getResources().getDisplayMetrics().density+0.5f);}
     private void addMetric(LinearLayout parent,String label,String value){
