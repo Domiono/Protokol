@@ -11,6 +11,21 @@ function rentmor_offer_details(array $product): string {
         $offerKey = 'bruzdownica-stalco';
     }
     $offers = [
+        '6938228c7c4bb' => [
+            'title' => 'Drabina KRAUSE Corda 4×3 z podestem – wynajem w Krakowie',
+            'intro' => 'Składana, przegubowa drabina KRAUSE Corda 4×3 z podestem może ułatwić prace montażowe i wykończeniowe wewnątrz budynku. Wysokość robocza podawana w ofercie to 4,40 m, a długość po złożeniu wynosi około 1 m. Wybierz wyłącznie ustawienie dopuszczone przez producenta i sprawdź stabilność przed wejściem.',
+            'questions' => [
+                'Czy to drabina z podestem do prac przy suficie?' => 'W komplecie znajduje się stalowy podest. Drabina może być ustawiana w konfiguracjach opisanych w instrukcji KRAUSE; nie każde ustawienie daje taką samą wysokość i stabilność. Przed pracą sprawdź, czy wybrana konfiguracja jest dopuszczona i czy podest jest poprawnie zamocowany.',
+                'Jak wysoko sięga drabina KRAUSE Corda 4×3?' => 'W ofercie podajemy wysokość roboczą do 4,40 m. Nie oznacza to wysokości, na której można bezpiecznie stanąć w każdej konfiguracji. Maksymalna pozycja stojąca wynika z instrukcji i zastosowanego ułożenia drabiny.',
+                'Czy drabina zmieści się w samochodzie?' => 'Po złożeniu ma około 1 m długości i waży około 12 kg. Przed odbiorem sprawdź wymiary bagażnika, zabezpiecz sprzęt przed przesuwaniem i nie przewoź go luzem w kabinie.',
+                'Jakie jest dopuszczalne obciążenie?' => 'Maksymalne obciążenie określone w ofercie wynosi 150 kg. Obejmuje ono osobę wraz z narzędziami i materiałami. Ustaw drabinę na równym, stabilnym podłożu i stosuj zasady bezpieczeństwa określone przez producenta.',
+                'Jak wypożyczyć drabinę z podestem w Krakowie?' => 'Skontaktuj się z RentMor, aby potwierdzić dostępność na wybrany termin. Aktualną cenę, kaucję oraz sposób odbioru znajdziesz powyżej; sprzęt odbierasz osobiście w Krakowie (Czyżyny).',
+            ],
+            'related' => [
+                ['/szlifierka-stanley-zyrafa-do-gladzi-gipsu/', 'Szlifierka żyrafa Stanley – obróbka gładzi przy remoncie'],
+                ['/odkurzacz-przemyslowy-bosch-gas-25-l-sfc-metabo-asr-25l-sc/', 'Odkurzacz przemysłowy – sprzątanie po pracach wykończeniowych'],
+            ],
+        ],
         'bruzdownica-stalco' => [
             'title' => 'Bruzdownica Stalco – wynajem do instalacji elektrycznych w Krakowie',
             'intro' => 'Bruzdownica służy do wykonywania dwóch równoległych nacięć w podłożu, między którymi można następnie usunąć materiał i przygotować kanał pod przewody lub rurki instalacyjne. To urządzenie do wykonywania bruz, nie do cięcia całych ścian na wylot. Przed rozpoczęciem pracy sprawdź rodzaj podłoża, przebieg istniejących instalacji i dopuszczalne miejsce wykonania bruzdy.',
