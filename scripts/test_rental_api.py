@@ -38,6 +38,15 @@ with tempfile.TemporaryDirectory() as td:
   registry = p/'rental_equipment_names.php'
   assert registry.is_file() and 'Niepublikowana nowa maszyna' in registry.read_text()
   assert call({'action':'equipment_add','name':'niepublikowana nowa maszyna'})['results'][0]['exists']
+  assert json.loads((p/'protocols.json').read_text())==[]
+  # Product changes also must not get replaced by the global protocol writer.
+  product = {'action':'product_save','name':'Katalog testowy','category':'budowlane',
+             'price':'80','deposit':'200','desc':'Test'}
+  assert call(product)['results'][0]['ok']
+  public = call()['site_products']
+  assert any(item.get('name')=='Katalog testowy' for item in public)
+  assert any(item.get('name')=='Katalog testowy' for item in json.loads((p/'data.json').read_text()))
+  assert json.loads((p/'protocols.json').read_text())==[]
   assert not call({'action':'equipment_add','name':'Assistant-only'},role='assistant')['results'][0]['ok']
   try:urllib.request.urlopen('http://127.0.0.1:18723/rental_equipment_names.php')
   except urllib.error.HTTPError as error: assert error.code==404
