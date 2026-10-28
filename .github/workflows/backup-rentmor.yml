@@ -65,12 +65,22 @@ jobs:
               echo "Optional source absent: $name"
             fi
           done
-          # Notebook lives outside public_html; a first-time installation may not have it yet.
-          if lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
-            -e "$SFTP_CONNECT_SETUP; get rentmor-private/notebook.json -o $SNAPSHOT/notebook.json; bye" >/dev/null 2>&1; then
+          # Listing distinguishes a not-yet-initialized notebook from a failed read.
+          # Never claim that a complete backup exists if an initialized notebook is inaccessible.
+          PRIVATE_NAMES="$(lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
+            -e "$SFTP_CONNECT_SETUP; cls -1 rentmor-private; bye" 2>/dev/null)" || {
+            echo "::error::Cannot inspect private notebook backup directory."
+            exit 1
+          }
+          if printf '%s\n' "$PRIVATE_NAMES" | grep -qx 'notebook.json'; then
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
+              -e "$SFTP_CONNECT_SETUP; get rentmor-private/notebook.json -o $SNAPSHOT/notebook.json; bye" >/dev/null 2>&1 || {
+              echo "::error::Private notebook exists but cannot be backed up."
+              exit 1
+            }
             chmod 600 "$SNAPSHOT/notebook.json"
           else
-            echo "Private notebook not initialized yet; archival of notes skipped."
+            echo "Private notebook has not been initialized; no notebook data yet."
           fi
           python3 scripts/backup_rentmor.py "$SNAPSHOT"
           STAMP="$(date -u +%Y-%m-%d)"
