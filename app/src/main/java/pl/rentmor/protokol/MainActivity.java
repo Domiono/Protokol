@@ -22,9 +22,9 @@ import android.util.Base64;
 
 public class MainActivity extends Activity {
     private static final String HOME="https://rentmor.pl/protocol.php";
-    private LocalStore store; private SyncManager sync; private LinearLayout root; private LinearLayout homePage; private boolean adminDownloadAdded=false; private TextView status;
+    private LocalStore store; private NotebookStore notebook; private SyncManager sync; private LinearLayout root; private LinearLayout homePage; private boolean adminDownloadAdded=false; private TextView status;
     private WebView activation; private boolean showingApp=false; private HomeInboxShortcut homeInboxShortcut; private final ArrayList<Bitmap> issuePhotos=new ArrayList<>(); private final ArrayList<Bitmap> productPhotos=new ArrayList<>(); private final ArrayList<String> productSelectedPhotoUris=new ArrayList<>(); private final ArrayList<String> productExistingImages=new ArrayList<>(); private int existingProductPhotoCount=0; private int productPhotoSession=0; private boolean productPhotosLoading=false; private LinearLayout productExistingPhotoContainer,productNewPhotoContainer; private Button productPhotoPickButton,productPhotoCameraButton; private TextView productPhotoCount; private Runnable productDraftWriter; private android.net.Uri pendingProductPhoto; private TextView photoCount; private SignatureView signatureView; private final AtomicBoolean syncRunning=new AtomicBoolean(false); private ConnectivityManager.NetworkCallback networkCallback;
-    @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(Color.rgb(20,29,45));getWindow().setNavigationBarColor(Color.rgb(20,29,45));store=new LocalStore(this);sync=new SyncManager(this,store);registerNetworkSync();
+    @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(Color.rgb(20,29,45));getWindow().setNavigationBarColor(Color.rgb(20,29,45));store=new LocalStore(this);notebook=new NotebookStore(this);sync=new SyncManager(this,store);registerNetworkSync();
         recordOpenedContactNotification(getIntent());
         String saved=getSharedPreferences("rentmor",0).getString("cookie","");
         if(!saved.isEmpty()){showHome();
@@ -188,6 +188,11 @@ public class MainActivity extends Activity {
                 0xffedf0f5,()->protocolList());
         }
 
+        homeMenuItem(page,android.R.drawable.ic_menu_edit,"Notatki i zadania",
+            "Do zrobienia: "+notebook.pendingCount()+" • Zakupy, umowy i inne",0xffffe8a2,()->{
+                protocolBackAction=null;
+                new NotebookPage(this,root,notebook,()->showHome()).show();
+            });
         homeSectionTitle(page,"DOKUMENTY I FINANSE","Dokumenty i wyniki wypożyczalni");
         homeMenuItem(page,android.R.drawable.ic_menu_agenda,"Lista protokołów",
             "Przeglądaj i pobieraj dokumenty PDF",0xffedf1fa,()->protocolList());
@@ -254,6 +259,7 @@ public class MainActivity extends Activity {
         lp.setMargins(dp(3),dp(3),dp(3),dp(5));parent.addView(button,lp);
     }
     private int homeIcon(int icon){
+        if(icon==android.R.drawable.ic_menu_edit)return R.drawable.home_notes;
         if(icon==android.R.drawable.ic_menu_my_calendar)return R.drawable.home_calendar;
         if(icon==android.R.drawable.ic_menu_today)return R.drawable.home_box;
         if(icon==android.R.drawable.ic_menu_myplaces)return R.drawable.home_users;
@@ -418,7 +424,7 @@ public class MainActivity extends Activity {
             }).show();
     }
     private void registerNetworkSync(){ConnectivityManager cm=(ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);networkCallback=new ConnectivityManager.NetworkCallback(){@Override public void onAvailable(android.net.Network network){runOnUiThread(()->{if(showingApp&&getSharedPreferences("rentmor",0).getString("cookie","").length()>0)syncNow();});}};try{cm.registerDefaultNetworkCallback(networkCallback);}catch(Exception ignored){}}
-    @Override protected void onDestroy(){try{if(networkCallback!=null)((ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE)).unregisterNetworkCallback(networkCallback);}catch(Exception ignored){}super.onDestroy();}
+    @Override protected void onDestroy(){try{if(networkCallback!=null)((ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE)).unregisterNetworkCallback(networkCallback);}catch(Exception ignored){}if(notebook!=null)notebook.close();super.onDestroy();}
     /** Repair offline asset saves without erasing bookings, protocols or other queue items. */
     private void pendingOperationsPage(){
         if(!isAdmin()){showHome();return;}
