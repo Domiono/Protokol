@@ -103,6 +103,8 @@ jobs:
           php -l server/rental_inventory.php
           python3 scripts/test_admin_safety.py
           node scripts/test_catalog_filters.cjs
+          python3 scripts/test_rentmor_reliability.py
+          python3 -m py_compile scripts/backup_rentmor.py scripts/monitor_rentmor.py
           php scripts/test_rental_rules.php
           python3 scripts/test_rental_api.py
           php -l server/browser_stats.php
