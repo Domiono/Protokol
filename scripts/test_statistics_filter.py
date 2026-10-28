@@ -4,13 +4,22 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
-from patch_statistics_filter import patch, GLOBAL, PRODUCT, SAVE
+from patch_statistics_filter import patch, GLOBAL, PRODUCT, SAVE, legacy_block
 
 root = Path(__file__).resolve().parents[1]
 fixture = "<?php\n" + GLOBAL + "\n// routing stays here\n" + PRODUCT + "\n" + SAVE
 result = patch(fixture)
 assert patch(result) == result
-assert result.index('// routing stays here') < result.index('rm_stats_count_pageview()')
+assert 'rm_stats_count_pageview()' not in result
+assert GLOBAL not in result and SAVE not in result
+assert patch('<?php\n'+legacy_block()) == '<?php\n'+result[result.index('// RentMor browser-confirmed statistics v2'):]
+try:
+    patch('<?php\n'+legacy_block()+SAVE)
+except ValueError:
+    pass
+else:
+    raise AssertionError('Duplicate counter bypass accepted')
+assert result.index('// routing stays here') < result.index('rm_stats_prepare_pageview(')
 for bad in (fixture.replace(SAVE, ''), fixture + SAVE, fixture.replace("$stats['days'][$today]++;", '/* changed */')):
     try:
         patch(bad)
@@ -54,24 +63,5 @@ echo "Traffic filter regression tests passed.\n";
 with tempfile.TemporaryDirectory() as tmp:
     p=Path(tmp)/'test.php'; p.write_text(php)
     subprocess.run(['php', str(p), str(root/'server/traffic_filter.php')], check=True)
-    # Exercise the actual migrated increments and save, including preserved old totals.
-    (Path(tmp)/'traffic_filter.php').write_text((root/'server/traffic_filter.php').read_text())
-    source = '''<?php
-$_SERVER=['REQUEST_METHOD'=>'GET','HTTP_USER_AGENT'=>$argv[2], 'REQUEST_URI'=>'/zyrafa/'];
-$_SESSION=[]; $_COOKIE=[];
-$stats_file='unused'; $today='2026-10-24';
-$stats=['total_views'=>100,'unique_visitors'=>50,'days'=>[$today=>10],'product_views'=>['x'=>5],'total_phone_clicks'=>9];
-function get_traffic_source() { return 'direct'; }
-function save_json_file($file,$stats) { echo json_encode($stats); }
-''' + GLOBAL + "\n$detail_view=true; $product=['id'=>'x'];\n" + PRODUCT + '\n' + SAVE
-    p.write_text(patch(source))
-    import json
-    run = lambda ua: subprocess.check_output(['php', str(p), str(root/'server/traffic_filter.php'), ua], text=True)
-    stats = json.loads(run('Mozilla/5.0 Chrome/130.0'))
-    assert stats['total_views']==101 and stats['days']['2026-10-24']==11
-    assert stats['unique_visitors']==51 and stats['product_views']['x']==6
-    assert stats['total_phone_clicks']==9 and stats['sources']['2026-10-24']['direct']==1
-    assert run('Googlebot') == ''
-    p.write_text(patch(source).replace('$detail_view=true;', 'http_response_code(404); $detail_view=true;'))
-    assert run('Mozilla/5.0') == ''
-print('Migrated counter: visitor increments once; bot and 404 never save; historical totals preserved.')
+
+print('Browser migration removes request counters and preserves the old filter regression checks.')
