@@ -170,3 +170,12 @@ function rm_admin_reorder_images(array $existing, array $ordered, array $removed
     }
     return array_values($result);
 }
+
+/** Mutation reads must reject corruption; never replace damaged history with []. */
+function rm_admin_read_json_list(string $path): array {
+    if (!is_file($path)) return [];
+    $raw = @file_get_contents($path);
+    $value = is_string($raw) ? json_decode($raw, true) : null;
+    if (!is_array($value) || !array_is_list($value)) rm_admin_storage_error();
+    return $value;
+}
