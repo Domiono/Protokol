@@ -21,7 +21,7 @@ final class NotebookPage {
     private final NotebookStore store;
     private final SyncManager sync;
     private final Runnable home;
-    private boolean syncing=false;
+    private boolean syncing=false,again=false;
     private LinearLayout list;
     private TextView summary;
     private String category;
@@ -85,15 +85,21 @@ final class NotebookPage {
         check.setMinHeight(dp(48));check.setGravity(Gravity.TOP);check.setPadding(0,dp(8),0,dp(8));check.setChecked(entry.done);
         if(entry.done)check.setPaintFlags(check.getPaintFlags()|Paint.STRIKE_THRU_TEXT_FLAG);
         card.addView(check,new LinearLayout.LayoutParams(-1,-2));
+        if(entry.conflict){
+            String remote=entry.remoteDeleted?"Wpis usunięty na innym urządzeniu":
+                "Wersja z drugiego urządzenia ("+entry.remoteCategory+"): "+entry.remoteText;
+            TextView other=text(remote+"\nSprawdź obie wersje i wybierz „Edytuj”, aby świadomie zapisać własną.",12,0xff9a3412);
+            other.setPadding(0,dp(8),0,dp(8));card.addView(other);
+        }
         check.setOnCheckedChangeListener((v,checked)->{
-            try{store.setDone(entry.id,checked);render();}catch(Exception error){check.setChecked(entry.done);error(error);}
+            try{store.setDone(entry.id,checked);render();syncNow();}catch(Exception error){check.setChecked(entry.done);error(error);}
         });
         LinearLayout actions=new LinearLayout(activity);
         LinearLayout.LayoutParams left=new LinearLayout.LayoutParams(0,-2,1);left.rightMargin=dp(8);
         actions.addView(button("Edytuj",false,()->edit(entry)),left);
         actions.addView(button("Usuń",false,()->new AlertDialog.Builder(activity).setTitle("Usunąć wpis?")
             .setMessage("Wpis zostanie usunięty z notatnika.").setNegativeButton("Anuluj",null)
-            .setPositiveButton("Usuń",(dialog,which)->{try{store.delete(entry.id);render();}catch(Exception error){error(error);}}).show()),new LinearLayout.LayoutParams(0,-2,1));
+            .setPositiveButton("Usuń",(dialog,which)->{try{store.delete(entry.id);render();syncNow();}catch(Exception error){error(error);}}).show()),new LinearLayout.LayoutParams(0,-2,1));
         card.addView(actions);
     }
     private void edit(NotebookStore.Entry entry){
@@ -115,13 +121,13 @@ final class NotebookPage {
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
             try{
                 store.save(entry==null?null:entry.id,input.getText().toString(),type.getSelectedItem().toString());
-                dialog.dismiss();render();
+                dialog.dismiss();render();syncNow();
             }catch(IllegalArgumentException error){input.setError(error.getMessage());}
             catch(Exception error){error(error);}
         });
     }
     private void syncNow(){
-        if(syncing)return;
+        if(syncing){again=true;return;}
         syncing=true;
         new Thread(()->{
             try {
@@ -129,13 +135,14 @@ final class NotebookPage {
                 activity.runOnUiThread(()->{
                     syncing=false;
                     render();
+                    if(again){again=false;syncNow();}
                     Toast.makeText(activity,conflicts>0?
                         "Notatnik zsynchronizowany, ale wykryto konflikty. Sprawdź oznaczone wpisy.":
                         "Notatnik zsynchronizowany.",Toast.LENGTH_LONG).show();
                 });
             }catch(Exception e){
                 activity.runOnUiThread(()->{
-                    syncing=false;
+                    syncing=false;again=false;
                     Toast.makeText(activity,"Notatki pozostają w telefonie. Brak synchronizacji: "+
                         e.getMessage(),Toast.LENGTH_LONG).show();
                 });
