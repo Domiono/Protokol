@@ -31,6 +31,8 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq lftp
+      - name: Test backup validation before downloading private data
+        run: python3 scripts/test_backup_rentmor.py
       - name: Copy, validate and privately archive rental data
         shell: bash
         run: |
@@ -72,3 +74,9 @@ jobs:
             rm -f "$SNAPSHOT/verified-$name"
           done
           echo "Private backup verified outside public_html ($STAMP). No personal data published."
+      - name: Alert on backup failure (Telegram optional)
+        if: failure()
+        env:
+          RENTMOR_MONITOR_TELEGRAM_BOT_TOKEN: ${{ secrets.RENTMOR_MONITOR_TELEGRAM_BOT_TOKEN }}
+          RENTMOR_MONITOR_TELEGRAM_CHAT_ID: ${{ secrets.RENTMOR_MONITOR_TELEGRAM_CHAT_ID }}
+        run: python3 scripts/notify_health_failure.py
