@@ -1,0 +1,36 @@
+name: RentMor uptime and API health
+
+on:
+  schedule:
+    - cron: '10 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/monitor-rentmor.yml'
+      - 'scripts/monitor_public.py'
+      - 'scripts/notify_health_failure.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rentmor-health-check
+  cancel-in-progress: false
+
+jobs:
+  check-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate monitor rules
+        run: python3 scripts/monitor_public.py --self-test
+      - name: Check homepage, search sitemap and Android API authentication
+        run: python3 scripts/monitor_public.py
+      - name: Alert on failure (Telegram optional)
+        if: failure()
+        env:
+          RENTMOR_MONITOR_TELEGRAM_BOT_TOKEN: ${{ secrets.RENTMOR_MONITOR_TELEGRAM_BOT_TOKEN }}
+          RENTMOR_MONITOR_TELEGRAM_CHAT_ID: ${{ secrets.RENTMOR_MONITOR_TELEGRAM_CHAT_ID }}
+        run: python3 scripts/notify_health_failure.py
