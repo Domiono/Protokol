@@ -87,9 +87,9 @@ with tempfile.TemporaryDirectory() as directory:
             fields = dict(action='add',admin_csrf='test-token',name='Upload trial',price='40')
             parts = []
             for key, value in fields.items():
-                parts.append(('--' + boundary + '\\r\\nContent-Disposition: form-data; name="' + key + '"\\r\\n\\r\\n' + value + '\\r\\n').encode())
-            parts.append(('--' + boundary + '\\r\\nContent-Disposition: form-data; name="photos[]"; filename="' + name + '"\\r\\nContent-Type: ' + mime + '\\r\\n\\r\\n').encode()+content+b'\\r\\n')
-            parts.append(('--' + boundary + '--\\r\\n').encode())
+                parts.append(('--' + boundary + '\r\nContent-Disposition: form-data; name="' + key + '"\r\n\r\n' + value + '\r\n').encode())
+            parts.append(('--' + boundary + '\r\nContent-Disposition: form-data; name="photos[]"; filename="' + name + '"\r\nContent-Type: ' + mime + '\r\n\r\n').encode()+content+b'\r\n')
+            parts.append(('--' + boundary + '--\r\n').encode())
             body = b''.join(parts)
             req = urllib.request.Request(base + '/admin.php', data=body,headers={'Content-Type':'multipart/form-data; boundary='+boundary})
             try: response = client.open(req)
