@@ -18,6 +18,39 @@ with tempfile.TemporaryDirectory() as td:
    return json.load(urllib.request.urlopen(req))
   assert len(call()['site_stats']['phone_events'])==1
   assert call(role='assistant')['site_stats']==[]
+  # A new internal equipment name must not be published as an incomplete offer.
+  originalProducts = call()['site_products']
+  added = call({'action':'equipment_add','name':'Niepublikowana nowa maszyna'})['results'][0]
+  assert added['ok'] and not added['exists']
+  registry = p/'rental_equipment_names.php'
+  assert registry.is_file(), 'New private internal list missing'
+  try:
+   json.loads(registry.read_text().splitlines()[1])
+  except Exception as diagnostic:
+   raise AssertionError('Malformed private registry fixture: '+repr(registry.read_bytes())) from diagnostic
+  try:
+   after_internal_add=call()
+  except urllib.error.HTTPError as error:
+   raise AssertionError('GET after internal equipment insert returned '+str(error.code)+': '+error.read().decode()) from error
+  assert 'Niepublikowana nowa maszyna' in after_internal_add['equipment']
+  assert call()['site_products'] == originalProducts
+  assert not (p/'data.json').exists(), 'Internal equipment name contaminated public offers'
+  registry = p/'rental_equipment_names.php'
+  assert registry.is_file() and 'Niepublikowana nowa maszyna' in registry.read_text()
+  assert call({'action':'equipment_add','name':'niepublikowana nowa maszyna'})['results'][0]['exists']
+  assert json.loads((p/'protocols.json').read_text())==[]
+  # Product changes also must not get replaced by the global protocol writer.
+  product = {'action':'product_save','name':'Katalog testowy','category':'budowlane',
+             'price':'80','deposit':'200','desc':'Test'}
+  assert call(product)['results'][0]['ok']
+  public = call()['site_products']
+  assert any(item.get('name')=='Katalog testowy' for item in public)
+  assert any(item.get('name')=='Katalog testowy' for item in json.loads((p/'data.json').read_text()))
+  assert json.loads((p/'protocols.json').read_text())==[]
+  assert not call({'action':'equipment_add','name':'Assistant-only'},role='assistant')['results'][0]['ok']
+  try:urllib.request.urlopen('http://127.0.0.1:18723/rental_equipment_names.php')
+  except urllib.error.HTTPError as error: assert error.code==404
+  else: raise AssertionError('Internal equipment registry publicly exposed')
   asset={'action':'asset_save','id':'a','label':'Puzzi 01','equipment':'Puzzi','in_service':False}
   assert call(asset)['results'][0]['ok']
   # Old bookings may be linked to the same physical unit under a former offer title.

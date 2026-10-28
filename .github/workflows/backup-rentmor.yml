@@ -3,11 +3,14 @@ name: Private RentMor daily backup
 on:
   schedule:
     - cron: '15 02 * * *'
+    - cron: '35 02 * * 0'  # Weekly photo archive
   push:
     branches: [main]
     paths:
       - '.github/workflows/backup-rentmor.yml'
       - 'scripts/backup_rentmor.py'
+      - 'scripts/backup_photos.py'
+      - 'scripts/backup_retention.py'
   workflow_dispatch:
 
 permissions:
@@ -47,7 +50,7 @@ jobs:
           chmod 700 "$SNAPSHOT"
           # No user data goes into GitHub artifacts, commits or logs.
           essential="data.json reservations.json protocols.json customers.json costs.json"
-          optional="messages.json terms.json protocol_devices.json stats.json rental_assets.php"
+          optional="messages.json terms.json protocol_devices.json stats.json rental_assets.php rental_equipment_names.php"
           for name in $essential $optional; do
             if lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
               -e "$SFTP_CONNECT_SETUP; get public_html/$name -o $SNAPSHOT/$name; bye" \
@@ -62,7 +65,8 @@ jobs:
           done
           python3 scripts/backup_rentmor.py "$SNAPSHOT"
           STAMP="$(date -u +%Y-%m-%d)"
-          DEST="rentmor-private/backups/$STAMP"
+          # Never overwrite a completed snapshot from an earlier run.
+          DEST="rentmor-private/backups/$STAMP-run-$GITHUB_RUN_ID"
           # Outside public_html. No public URL, no GitHub artifact.
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
             -e "$SFTP_CONNECT_SETUP; cd public_html; cd ..; set cmd:fail-exit no; mkdir -p rentmor-private/backups/$STAMP; set cmd:fail-exit yes; cd $DEST; bye" >/dev/null
@@ -73,8 +77,71 @@ jobs:
             cmp "$SNAPSHOT/$name" "$SNAPSHOT/verified-$name"
             rm -f "$SNAPSHOT/verified-$name"
           done
-          echo "Private backup verified outside public_html ($STAMP). No personal data published."
+          echo "Private backup verified outside public_html ($STAMP, run $GITHUB_RUN_ID). No personal data published."
+
+      - name: Prune expired unique private snapshots
+        # Deletion runs only after a fully verified current backup.
+        shell: bash
+        run: |
+          set -euo pipefail
+          source scripts/secure_sftp_connection.sh
+          LIST="$(lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222"             -e "$SFTP_CONNECT_SETUP; cls -1 rentmor-private/backups; bye")"
+          printf '%s\n' "$LIST" | python3 scripts/backup_retention.py data > "$RUNNER_TEMP/rentmor-expired.txt"
+          while IFS= read -r NAME; do
+            [[ "$NAME" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}-run-[0-9]{5,15}$ ]] || exit 1
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222"               -e "$SFTP_CONNECT_SETUP; rm -r rentmor-private/backups/$NAME; bye"
+          done < "$RUNNER_TEMP/rentmor-expired.txt"
+          echo "Data backup retention checked (30 days, keep at least two)."
       - name: Alert on backup failure (Telegram optional)
+        if: failure()
+        env:
+          RENTMOR_MONITOR_TELEGRAM_BOT_TOKEN: ${{ secrets.RENTMOR_MONITOR_TELEGRAM_BOT_TOKEN }}
+          RENTMOR_MONITOR_TELEGRAM_CHAT_ID: ${{ secrets.RENTMOR_MONITOR_TELEGRAM_CHAT_ID }}
+        run: python3 scripts/notify_health_failure.py
+
+  photos:
+    # Weekly and manually, plus once on release to establish an initial copy.
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.schedule == '35 02 * * 0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+      FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+      LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SFTP client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lftp
+      - name: Download uploads, archive and verify readback privately
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${FTP_SERVER:?Missing FTP_SERVER}"
+          : "${FTP_USERNAME:?Missing FTP_USERNAME}"
+          : "${LFTP_PASSWORD:?Missing FTP_PASSWORD}"
+          source scripts/secure_sftp_connection.sh
+          PHOTO_ROOT="$RUNNER_TEMP/rentmor-photo-snapshot"
+          mkdir -m 700 -p "$PHOTO_ROOT/uploads"
+          # No --delete and no upload to a public directory.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222"             -e "$SFTP_CONNECT_SETUP; mirror --parallel=2 public_html/uploads $PHOTO_ROOT/uploads; bye" >/dev/null
+          STAMP="$(date -u +%Y-%m-%d)"
+          NAME="$STAMP-run-$GITHUB_RUN_ID.tar.gz"
+          ARCHIVE="$PHOTO_ROOT/$NAME"
+          python3 scripts/backup_photos.py "$PHOTO_ROOT/uploads" "$ARCHIVE"
+          DEST="rentmor-private/photo-backups"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222"             -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; mkdir -p $DEST; set cmd:fail-exit yes; put $ARCHIVE -o $DEST/$NAME; get $DEST/$NAME -o $PHOTO_ROOT/readback.tar.gz; bye"
+          cmp "$ARCHIVE" "$PHOTO_ROOT/readback.tar.gz"
+          python3 scripts/backup_photos.py "$PHOTO_ROOT/readback.tar.gz"
+          LIST="$(lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222"             -e "$SFTP_CONNECT_SETUP; cls -1 $DEST; bye")"
+          printf '%s\n' "$LIST" | python3 scripts/backup_retention.py photos > "$PHOTO_ROOT/expired.txt"
+          while IFS= read -r OLD; do
+            [[ "$OLD" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}-run-[0-9]{5,15}\.tar\.gz$ ]] || exit 1
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222"               -e "$SFTP_CONNECT_SETUP; rm $DEST/$OLD; bye"
+          done < "$PHOTO_ROOT/expired.txt"
+          echo "Photo backup verified outside public_html. 35-day retention, at least two copies."
+      - name: Alert on failure (Telegram optional)
         if: failure()
         env:
           RENTMOR_MONITOR_TELEGRAM_BOT_TOKEN: ${{ secrets.RENTMOR_MONITOR_TELEGRAM_BOT_TOKEN }}

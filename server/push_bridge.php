@@ -19,6 +19,15 @@ function rm_push_read_json(string $path): array {
     $decoded=json_decode((string)@file_get_contents($path),true);
     return is_array($decoded)?$decoded:[];
 }
+/** A corrupt existing registry must never be replaced with an empty one. */
+function rm_push_read_registry(string $path): ?array {
+    if (!file_exists($path)) return [];
+    if (!is_file($path)) return null;
+    $raw=@file_get_contents($path);
+    if (!is_string($raw) || $raw==='') return null;
+    $decoded=json_decode($raw,true);
+    return is_array($decoded) && array_is_list($decoded) ? $decoded : null;
+}
 function rm_push_device_hash(): string {
     return hash('sha256',(string)($_COOKIE['rm_protocol_device'] ?? ''));
 }
@@ -30,8 +39,8 @@ function rm_push_register(string $deviceHash, string $token, bool $admin): bool 
     $lock=@fopen($path.'.lock','c');
     if (!$lock||!flock($lock,LOCK_EX)) { if($lock)fclose($lock);return false; }
     try {
-        $tokens=rm_push_read_json($path);
-        if (!array_is_list($tokens)) $tokens=[];
+        $tokens=rm_push_read_registry($path);
+        if ($tokens===null) return false;
         $new=[];$now=time();
         foreach($tokens as $row){
             if(!is_array($row)||!isset($row['device_hash'],$row['token'],$row['updated']))continue;
@@ -45,7 +54,7 @@ function rm_push_register(string $deviceHash, string $token, bool $admin): bool 
         $json=json_encode($new,JSON_UNESCAPED_SLASHES);
         if($json===false)return false;
         $temp=$path.'.'.bin2hex(random_bytes(8)).'.tmp';
-        if(file_put_contents($temp,$json,LOCK_EX)===false)return false;
+        if(@file_put_contents($temp,$json,LOCK_EX)!==strlen($json)) { @unlink($temp); return false; }
         @chmod($temp,0600);
         $ok=@rename($temp,$path);
         if(!$ok)@unlink($temp);

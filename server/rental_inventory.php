@@ -31,6 +31,35 @@ function rm_write_assets(array $assets): bool {
     $ok=@file_put_contents($tmp,$contents,LOCK_EX)===strlen($contents)&&@rename($tmp,$path);
     if(!$ok&&is_file($tmp))unlink($tmp);return $ok;
 }
+// An internal equipment name must never become an incomplete public offer.
+// Keep the private Android-only name registry in a non-executable PHP envelope.
+function rm_equipment_names_path(): string {
+    return __DIR__ . '/rental_equipment_names.php';
+}
+function rm_read_equipment_names(): array {
+    $path=rm_equipment_names_path();
+    if (!file_exists($path)) return [];
+    $raw=@file_get_contents($path);
+    $cut=is_string($raw)?strpos($raw,"\n"):false;
+    $names=$cut===false?null:json_decode(substr($raw,$cut+1),true);
+    if (!is_array($names) || !array_is_list($names)) {
+        if (function_exists('rm_json_response')) rm_json_response(503,['ok'=>false,'error'=>'Wewnętrzna lista sprzętu jest nieczytelna.']);
+        http_response_code(503);exit('Wewnętrzna lista sprzętu jest nieczytelna.');
+    }
+    return array_values(array_filter($names,fn($name)=>is_string($name)&&trim($name)!==''));
+}
+function rm_write_equipment_names(array $names): bool {
+    $path=rm_equipment_names_path();
+    $json=json_encode(array_values($names),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+    if ($json===false) return false;
+    $payload="<?php http_response_code(404); exit; ?>\n".$json;
+    $tmp=$path.'.'.bin2hex(random_bytes(8)).'.php';
+    $bytes=@file_put_contents($tmp,$payload,LOCK_EX);
+    $ok=$bytes===strlen($payload)&&@rename($tmp,$path);
+    if (!$ok) @unlink($tmp);
+    return $ok;
+}
+
 function rm_inventory_normalize(string $name): string {
     // Transliterate before strtolower so this works without PHP mbstring (php -n tests).
     $map=['Ą'=>'a','Ć'=>'c','Ę'=>'e','Ł'=>'l','Ń'=>'n','Ó'=>'o','Ś'=>'s','Ź'=>'z','Ż'=>'z',

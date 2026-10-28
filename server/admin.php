@@ -444,9 +444,18 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         rm_admin_inventory_write($inventoryHandle, array_values($current_data));
-        // Only delete photos once the catalogue transaction has succeeded.
+        // A photo can be referenced by multiple products. Delete the file
+        // only after committing the catalogue and checking all remaining offers.
+        $usedPhotos = [];
+        foreach ($current_data as $remaining) {
+            foreach (($remaining['images'] ?? []) as $used) {
+                if (is_string($used)) $usedPhotos[$used] = true;
+            }
+        }
         foreach ($imagesToDelete as $img) {
-            $file = $upload_dir . basename((string)$img);
+            if (!is_string($img) || isset($usedPhotos[$img])) continue;
+            if (!preg_match('/^[a-zA-Z0-9_.-]+$/D', $img) || basename($img) !== $img) continue;
+            $file = $upload_dir . $img;
             if (is_file($file)) @unlink($file);
         }
         header("Location: admin.php?tab=products");
