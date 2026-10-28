@@ -34,4 +34,5 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("kind", choices=["data", "photos"])
     args = parser.parse_args()
-    print("\n".join(expired(sys.stdin.readlines(), args.kind)))
+    for name in expired(sys.stdin.readlines(), args.kind):
+        print(name)
