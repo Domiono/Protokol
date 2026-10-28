@@ -107,6 +107,8 @@ jobs:
           php -l server/rental_inventory.php
           python3 scripts/test_admin_safety.py
           python3 scripts/test_backup_rentmor.py
+          python3 scripts/test_post_audit.py
+          python3 -m py_compile scripts/backup_photos.py scripts/backup_retention.py scripts/verify_private_paths.py
           python3 scripts/monitor_public.py --self-test
           node scripts/test_catalog_filters.cjs
           php scripts/test_rental_rules.php
@@ -262,6 +264,7 @@ jobs:
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/.htaccess -o $TEMP_DIR/.htaccess; bye"
           cp "$TEMP_DIR/.htaccess" "$TEMP_DIR/original.htaccess"
           python3 scripts/patch_canonical_host.py "$TEMP_DIR/.htaccess"
+          python3 scripts/patch_private_data_access.py "$TEMP_DIR/.htaccess"
           python3 scripts/patch_image_cache.py "$TEMP_DIR/.htaccess"
           python3 scripts/patch_static_css_cache.py "$TEMP_DIR/.htaccess"
           python3 scripts/patch_catalog_filters.py "$TEMP_DIR/index.php"
@@ -549,3 +552,4 @@ jobs:
         run: |
           python3 scripts/verify_public_seo.py
           python3 scripts/verify_seo_improvements.py
+          python3 scripts/verify_private_paths.py
