@@ -231,12 +231,16 @@ $operations = $body['operations'] ?? [];
 if (!is_array($operations) || count($operations) > 100) rm_json_response(400, ['ok'=>false, 'error'=>'Nieprawidłowa lista operacji.']);
 
 $file = __DIR__ . '/protocols.json';
-$fp = fopen($file, 'c+');
-if (!$fp) rm_json_response(500, ['ok'=>false, 'error'=>'Nie można otworzyć bazy protokołów.']);
-if (!flock($fp, LOCK_EX)) { fclose($fp); rm_json_response(503, ['ok'=>false, 'error'=>'Baza jest chwilowo zajęta.']); }
-$rawDb = stream_get_contents($fp);
-$protocols = json_decode((string)$rawDb, true);
-if (!is_array($protocols)) $protocols = [];
+// Photo-expiration maintenance uses protocols.json.lock; all protocol writes
+// must use the same stable sidecar instead of a data inode.
+$fp = @fopen($file . '.lock', 'c+');
+if (!$fp || !@flock($fp, LOCK_EX)) {
+    if ($fp) fclose($fp);
+    rm_json_response(503, ['ok'=>false, 'error'=>'Baza protokołów jest chwilowo zajęta.']);
+}
+// A malformed existing protocols.json must never be replaced with an empty list.
+$protocols = rm_read_json_file($file, []);
+if (!array_is_list($protocols)) rm_json_response(503, ['ok'=>false,'error'=>'Nieprawidłowa lista protokołów. Zapis wstrzymany.']);
 $results = [];
 
 foreach ($operations as $op) {
@@ -270,17 +274,24 @@ foreach ($operations as $op) {
             if(!is_array($p))continue;
             if((string)($p['asset_id']??'')===$id||(string)($p['vacuum_asset_id']??'')===$id){$referenced=true;break;}
         }
+        $assetLock=rm_lock_assets();
+        if (!$assetLock) {
+            flock($reservationLock, LOCK_UN); fclose($reservationLock);
+            $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Lista egzemplarzy jest chwilowo zajęta.'];continue;
+        }
         $assets=rm_read_assets();$repairs=false;$found=false;
         foreach($assets as $a){
             if((string)($a['id']??'')!==$id)continue;
             $found=true;$repairs=!empty($a['repairs']);break;
         }
         if($referenced||$repairs){
+            flock($assetLock,LOCK_UN);fclose($assetLock);
             flock($reservationLock,LOCK_UN);fclose($reservationLock);
             $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Egzemplarz ma historię rezerwacji, protokołów lub serwisu. Wyłącz go z wynajmu zamiast usuwać.'];continue;
         }
         $kept=array_values(array_filter($assets,fn($a)=>(string)($a['id']??'')!==$id));
         $ok=!$found||rm_write_assets($kept);
+        flock($assetLock,LOCK_UN);fclose($assetLock);
         flock($reservationLock,LOCK_UN);fclose($reservationLock);
         $results[]=['op_id'=>$opId,'ok'=>$ok,'error'=>$ok?'':'Nie udało się usunąć egzemplarza.'];
         continue;
@@ -290,16 +301,23 @@ foreach ($operations as $op) {
         if($role!=='admin'){$results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Tylko administrator może zmieniać egzemplarze.'];continue;}
         $id=preg_replace('/[^a-zA-Z0-9_-]/','',(string)($op['id']??''));$label=rm_text($op,'label',100);$equipment=rm_text($op,'equipment',200);
         if($id===''||$label===''||$equipment===''){$results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Uzupełnij egzemplarz.'];continue;}
+        $assetLock=rm_lock_assets();
+        if (!$assetLock) {$results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Lista egzemplarzy jest chwilowo zajęta.'];continue;}
         $assets=rm_read_assets();$invalid=false;$index=null;
         foreach($assets as $i=>$a){if(($a['id']??'')===$id){$index=$i;if(($a['equipment']??'')!==$equipment)$invalid=true;}elseif(($a['label']??'')===$label)$invalid=true;}
         $next=rm_text($op,'next_service',10);$date=$next===''?null:DateTimeImmutable::createFromFormat('!Y-m-d',$next);
-        if($invalid||($next!==''&&(!$date||$date->format('Y-m-d')!==$next))){$results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nazwa egzemplarza jest zajęta, zmieniono model lub data przeglądu jest błędna.'];continue;}
+        if($invalid||($next!==''&&(!$date||$date->format('Y-m-d')!==$next))){
+            flock($assetLock,LOCK_UN);fclose($assetLock);
+            $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nazwa egzemplarza jest zajęta, zmieniono model lub data przeglądu jest błędna.'];continue;
+        }
         $asset=['id'=>$id,'label'=>$label,'equipment'=>$equipment,'in_service'=>!empty($op['in_service']),'next_service'=>$next,'service_every'=>max(0,min(10000,(int)($op['service_every']??0))),'service_at_count'=>max(0,(int)($op['service_at_count']??0)),'asset_kind'=>(in_array(($op['asset_kind']??''),['standard','giraffe','vacuum'],true)?$op['asset_kind']:(($index!==null&&isset($assets[$index]['asset_kind']))?$assets[$index]['asset_kind']:rm_equipment_kind($equipment)))];
         // Merge immutable repair entries by ID so another device cannot erase service history.
         $repairs=[];foreach(($index===null?[]:($assets[$index]['repairs']??[])) as $r)$repairs[$r['id']]=$r;
         foreach(($op['repairs']??[]) as $r){if(!is_array($r))continue;$rid=preg_replace('/[^a-zA-Z0-9_-]/','',(string)($r['id']??''));$cost=filter_var($r['cost']??null,FILTER_VALIDATE_FLOAT);if($rid===''||$cost===false||!is_finite($cost)||$cost<0||$cost>10000000)continue;if(!isset($repairs[$rid]))$repairs[$rid]=['id'=>$rid,'date'=>rm_text($r,'date',10),'note'=>rm_text($r,'note',1000),'cost'=>round($cost,2)];}
         $asset['repairs']=array_values($repairs);if($index===null)$assets[]=$asset;else $assets[$index]=$asset;
-        $ok=rm_write_assets($assets);$results[]=['op_id'=>$opId,'ok'=>$ok,'error'=>$ok?'':'Nie udało się zapisać egzemplarza.'];continue;
+        $ok=rm_write_assets($assets);
+        flock($assetLock,LOCK_UN);fclose($assetLock);
+        $results[]=['op_id'=>$opId,'ok'=>$ok,'error'=>$ok?'':'Nie udało się zapisać egzemplarza.'];continue;
     }
     if ($action === 'expense_save' || $action === 'expense_delete') {
         if ($role !== 'admin') { $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Koszty są dostępne tylko dla administratora.']; continue; }
@@ -620,9 +638,7 @@ foreach ($operations as $op) {
         $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nieobsługiwana operacja'];
     }
 }
-rewind($fp);
-$encoded = json_encode(array_values($protocols), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-$writeOk = $encoded !== false && ftruncate($fp, 0) && fwrite($fp, $encoded) !== false && fflush($fp);
+$writeOk = rm_write_json_atomic($file, $protocols);
 flock($fp, LOCK_UN);
 fclose($fp);
 if (!$writeOk) rm_json_response(500, ['ok'=>false,'error'=>'Nie udało się zapisać danych. Operacje należy ponowić.']);
