@@ -1,0 +1,76 @@
+# RentMor — stan projektu i dziennik zmian
+
+**Główna karta projektu: strona RentMor.pl + natywna aplikacja Android.**  
+Ostatnia weryfikacja: **28.10.2026**. Stan kodu: gałąź `main`, commit `164bc4551a73d6148842da0fe2113b12e2b3796a` (przed utworzeniem tego dokumentu). Aplikacja: **1.7.13**, `versionCode 28`.
+
+> **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
+
+## Źródła prawdy i gdzie szukać
+
+- Kod i historia: [repozytorium Domiono/Protokol](https://github.com/Domiono/Protokol), [scalone PR](https://github.com/Domiono/Protokol/pulls?q=is%3Apr+is%3Amerged), [testy i wdrożenia Actions](https://github.com/Domiono/Protokol/actions).
+- Android: `app/src/main/java/pl/rentmor/protokol/`, testy `app/src/test/`, wersja `app/build.gradle`.
+- Witryna i API: `server/`, w szczególności `server/protocol_sync.php`, `server/admin.php`, `server/index.php`. Workflow wdrożenia w `.github/workflows/`.
+- Ustalone reguły rezerwacji: [RENTAL_OPERATIONS.md](RENTAL_OPERATIONS.md).
+- Bezpieczeństwo i backup: [RENTMOR-DATA-SAFETY-2026-10-28.md](RENTMOR-DATA-SAFETY-2026-10-28.md).
+- SEO: [SEO-CONTINUE-2026-10-25.md](SEO-CONTINUE-2026-10-25.md).
+- Wydajność i ograniczenia pomiarów: [MOBILE-PERFORMANCE-2026-10-26.md](MOBILE-PERFORMANCE-2026-10-26.md).
+
+**Znaczenie statusów:** `WDROŻONE W KODZIE` — jest na `main`; `PUBLIKACJA POTWIERDZONA` — sprawdzony workflow publikacji; `CZĘŚCIOWO` — konkretne fragmenty istnieją, ale wskazany zakres nie jest zamknięty; `DO ZROBIENIA` — brak potwierdzonej realizacji. Nie utożsamiaj zielonego testu ze sprawdzeniem na fizycznym telefonie lub pełnym wdrożeniem hostingu.
+
+## Stan funkcji — co już zrobiono
+
+| Obszar | Stan na 28.10.2026 | Co jest zaimplementowane i gdzie sprawdzić |
+|---|---|---|
+| Rezerwacje, wydania, zwroty, finanse | **WDROŻONE W KODZIE** | Plan dnia, rezerwacje, automatyczne przydziały egzemplarzy, rozliczenia, koszty, protokoły. [#12](https://github.com/Domiono/Protokol/pull/12), [#14](https://github.com/Domiono/Protokol/pull/14), [#16](https://github.com/Domiono/Protokol/pull/16). |
+| Żyrafa + odkurzacz — jeden wspólny magazyn | **WDROŻONE W KODZIE** | Zestaw zużywa żyrafę i fizyczny odkurzacz; model jest współdzielony z osobnym wynajmem. [#17](https://github.com/Domiono/Protokol/pull/17). Starsze rezerwacje bez przypisania wymagają uporządkowania. |
+| Obsługa egzemplarzy i blokada przy awarii | **WDROŻONE W KODZIE** | Edycja, serwis, bezpieczne usuwanie, historia. [#18](https://github.com/Domiono/Protokol/pull/18), [#36](https://github.com/Domiono/Protokol/pull/36), [#37](https://github.com/Domiono/Protokol/pull/37). |
+| Zmiana terminów i odzyskiwanie synchronizacji | **WDROŻONE W KODZIE** | Poprawki godzin rezerwacji, konfliktów nazw, ponowienia chwilowych błędów odczytu i spójności plików. [#33](https://github.com/Domiono/Protokol/pull/33), [#37](https://github.com/Domiono/Protokol/pull/37), [#38](https://github.com/Domiono/Protokol/pull/38), [#44](https://github.com/Domiono/Protokol/pull/44). |
+| Ochrona panelu i danych | **WDROŻONE W KODZIE** | CSRF w formularzach administracyjnych, blokady zapisu, walidacja, zabezpieczenie przed nadpisaniem uszkodzonych baz; zakres w [#41](https://github.com/Domiono/Protokol/pull/41), [#42](https://github.com/Domiono/Protokol/pull/42), [#44](https://github.com/Domiono/Protokol/pull/44), [#45](https://github.com/Domiono/Protokol/pull/45). Nie oznacza to audytu bezpieczeństwa zakończonego na zawsze. |
+| Kontakty telefoniczne i odsłony strony | **WDROŻONE W KODZIE** | Historia kliknięć kontaktu [#39](https://github.com/Domiono/Protokol/pull/39); przeglądarkowe potwierdzanie odsłon ogranicza liczenie samych żądań HTTP [#40](https://github.com/Domiono/Protokol/pull/40). Statystyki własne nie muszą być równe Google Analytics — dalsza kontrola botów jest osobnym tematem. |
+| Zdjęcia ofert i aparat Android | **WDROŻONE W KODZIE / CZĘŚCIOWO** | Aparat, galeria wielu zdjęć, miniatury, usuwanie/przesuwanie **istniejących** zdjęć, maks. 6, prywatne pliki aparatu, przywracanie formularza po przerwaniu aparatu. [#48](https://github.com/Domiono/Protokol/pull/48). Brakuje potwierdzenia przyjęcia *każdego* zdjęcia i pełnego zarządzania kolejnością nowych względem starych. |
+| Wiadomości klientów | **WDROŻONE W KODZIE / CZĘŚCIOWO** | Formularz WWW → skrzynka w Androidzie, Firebase + awaryjne sprawdzanie, odczyt offline i lokalny status przeczytania. Koperta w **prawym górnym rogu strony głównej Androida** z licznikiem w **1.7.13**: [#49](https://github.com/Domiono/Protokol/pull/49). Brak wspólnego, serwerowego statusu „przeczytane” na wielu urządzeniach. |
+| Kopie, zdjęcia i monitoring | **WDROŻONE W KODZIE; KONTROLE OPERACYJNE** | Prywatne kopie JSON, archiwizacja zdjęć, monitoring publicznej strony/API, retencja i usprawnienia workflow: [#42](https://github.com/Domiono/Protokol/pull/42), [#45](https://github.com/Domiono/Protokol/pull/45), [#46](https://github.com/Domiono/Protokol/pull/46), [#47](https://github.com/Domiono/Protokol/pull/47). Przed twierdzeniem o świeżej kopii / możliwości odtworzenia sprawdź konkretny run i ewentualny test przywracania. |
+| SEO, przekierowania, poradniki | **WDROŻONE W KODZIE** | Przyjazne URL-e, canonical, mapa witryny, treści lokalne, poradniki WT20i/Puzzi/żyrafa, oferta zagęszczarki. [#21](https://github.com/Domiono/Protokol/pull/21), [#22](https://github.com/Domiono/Protokol/pull/22), [#24](https://github.com/Domiono/Protokol/pull/24), [#34](https://github.com/Domiono/Protokol/pull/34), [#35](https://github.com/Domiono/Protokol/pull/35). Indeksacja w Google wymaga osobnej kontroli GSC — sama publikacja nie gwarantuje indeksacji. |
+| Szybkość RentMor.pl | **WDROŻONE W KODZIE; DALSZA OPTYMALIZACJA MOŻLIWA** | Statyczny CSS zamiast Tailwind CDN, WebP/responsive images, lazy-load galerii, kompaktowy favicon i nieblokujące fonty. [#25–#32](https://github.com/Domiono/Protokol/pulls?q=is%3Apr+is%3Amerged+performance). Ostatni udokumentowany test laboratoryjny w [raporcie](MOBILE-PERFORMANCE-2026-10-26.md) wykazał poprawę FCP; **nie** wykazał stabilnej poprawy LCP. |
+
+## Otwarte luki — nie proponować jako „nowych funkcji”, tylko jako dokończenie
+
+| ID | Priorytet | Stan i konkretna luka | Weryfikacja w kodzie |
+|---|---|---|---|
+| R-01 | Wysoki | **CZĘŚCIOWO.** Serwer wykrywa ponowne `op_id` protokołów, ale `product_save` nowej oferty generuje identyfikator na serwerze i nie zapewnia pełnej idempotencji. Przy utraconym potwierdzeniu ponowiona kolejka może zduplikować produkt/zdjęcia. Dokończyć bezpieczne rozpoznawanie ponowionej operacji. | `server/protocol_sync.php` — `product_save`, `create`; `SyncManager.applyAcknowledgements`. |
+| R-02 | Wysoki | **CZĘŚCIOWO.** Android i API weryfikują format/wymiary/limit zdjęć i sprzątają osierocone pliki przy błędzie zapisu katalogu. API może jednak pominąć niepoprawne/za duże zdjęcie i zwrócić powodzenie całej oferty. Potrzebne jawne wyniki dla zdjęć, kompletność albo czytelny błąd bez utraty możliwości naprawy. | `server/protocol_sync.php` — pętla `photos_base64`; [#48](https://github.com/Domiono/Protokol/pull/48). |
+| R-03 | Średni | **CZĘŚCIOWO.** Zdjęcia usunięte *z edytowanej oferty* są sprzątane po udanym zapisie; panel WWW sprząta też zdjęcia po usunięciu oferty. W API Android `product_delete` usuwa wpis z katalogu, ale nie usuwa już nieużywanych plików. Dokończyć bezpieczne sprzątanie z kontrolą referencji. | `server/admin.php` — `delete`; `server/protocol_sync.php` — `product_delete`. |
+| R-04 | Średni | **CZĘŚCIOWO.** Odczyt wiadomości zapisuje się lokalnie i nie znika po zwykłej synchronizacji *tego samego urządzenia*. Brak uzgodnienia statusu między kilkoma telefonami/tabletami. Wymaga modelu serwerowego z uprawnieniami administratora i testami synchronizacji. | `MessageInbox.java`, `LocalStore.markMessageRead`, `protocol_sync.php?view=messages`. |
+| R-05 | Średni | **CZĘŚCIOWO.** Formularze protokołu/oferty zapisują robocze dane przed otwarciem aparatu i potrafią je odtwarzać. Nie ma regularnego autozapisu każdej edycji formularza/podpisu. Zbadać zakres i wdrożyć zapis bez ujawniania danych klientów poza prywatnym magazynem aplikacji. | `MainActivity.issueDraftWriter`, `productDraftWriter`, `ProtocolCameraStore`, `ProductCameraStore`. |
+| R-06 | Niski | **DO ROZWAŻENIA.** Koperta wiadomości znajduje się w prawym górnym rogu **ekranu głównego**, ale nie jest globalnym paskiem widocznym we wszystkich widokach aplikacji. Decyzja produktowa, nie zgłoszona awaria. | `MainActivity.showHome`, `HomeInboxShortcut`. |
+| R-07 | Monitorować | **NIEUDOWODNIONE jako poprawione.** Wydajność LCP mobile pozostaje zmienna w ostatnim zapisanym audycie; nie podejmować optymalizacji bez nowego pomiaru i testu porównawczego. | [raport LCP](MOBILE-PERFORMANCE-2026-10-26.md). |
+
+**Przed pracą nad dowolnym R-xx:** sprawdź, czy od czasu tej daty ktoś już nie scalił rozwiązania. Zamknięcie statusu musi zawierać odnośnik do PR, testu i — przy zmianie publicznej/produkcyjnej — wdrożenia.
+
+## Historia postępów — chronologicznie
+
+| Data | Zakres ukończonych prac | Dowód |
+|---|---|---|
+| **28.10.2026** | Android **1.7.13**: koperta skrzynki w prawym górnym rogu i licznik, bez dolnego kafelka; test dostępu admina i licznika. Podpisany APK zbudowany. | [PR #49](https://github.com/Domiono/Protokol/pull/49), [Build APK — sukces](https://github.com/Domiono/Protokol/actions/runs/40734594910). |
+| **28.10.2026** | Android **1.7.12**: aparat w edycji ofert, galeria, podgląd, edycja istniejących zdjęć, zapis roboczy wokół aparatu; rozszerzenie API. | [PR #48](https://github.com/Domiono/Protokol/pull/48). |
+| **28.10.2026** | Audyt ochrony danych: spójna synchronizacja, prywatne kopie, zdjęcia, monitor, poprawki archiwizacji i retencji. | [PR #42](https://github.com/Domiono/Protokol/pull/42), [#44](https://github.com/Domiono/Protokol/pull/44), [#45](https://github.com/Domiono/Protokol/pull/45), [#46](https://github.com/Domiono/Protokol/pull/46), [#47](https://github.com/Domiono/Protokol/pull/47). |
+| **28.10.2026** | Formularze panelu: CSRF/bezpieczne zapisy; historia kontaktów telefonicznych; odsłony potwierdzane przez przeglądarkę. | [PR #41](https://github.com/Domiono/Protokol/pull/41), [#39](https://github.com/Domiono/Protokol/pull/39), [#40](https://github.com/Domiono/Protokol/pull/40). |
+| **27.10.2026** | Naprawa synchronizacji HTTP 500 przy starcie i konfliktu nazw egzemplarza; kontrola dostępności odkurzaczy. | [PR #38](https://github.com/Domiono/Protokol/pull/38), [#37](https://github.com/Domiono/Protokol/pull/37), [#36](https://github.com/Domiono/Protokol/pull/36). |
+| **26.10.2026** | Poprawki SEO zagęszczarki i przekierowań, edycja godzin rezerwacji, mobilne zdjęcia i szybsze renderowanie. | [PR #34](https://github.com/Domiono/Protokol/pull/34), [#35](https://github.com/Domiono/Protokol/pull/35), [#33](https://github.com/Domiono/Protokol/pull/33), [#32](https://github.com/Domiono/Protokol/pull/32). |
+| **25.10.2026** | SEO poradników i produktów; wydajność witryny; wersje aplikacji 1.7–1.7.8 z rezerwacjami, egzemplarzami, finansami i naprawami. | [PR #12–#32](https://github.com/Domiono/Protokol/pulls?q=is%3Apr+is%3Amerged). |
+| **21–23.10.2026** | Pierwsze poprawki godzin rezerwacji, widżetu i rentowności sprzętu. | [PR #4](https://github.com/Domiono/Protokol/pull/4), [#5](https://github.com/Domiono/Protokol/pull/5), [#6–#10](https://github.com/Domiono/Protokol/pulls?q=is%3Apr+is%3Amerged). |
+
+## Procedura uzupełniania po każdej zmianie
+
+1. **Na starcie:** przeczytaj ten plik, odpowiednie dokumenty techniczne i aktualny kod. Sprawdź najnowsze scalone PR; nie zakładaj, że historia rozmów jest kompletna.
+2. **Przed rekomendacją:** wyjaśnij, co już istnieje, co jest tylko częściowe, a czego brak. Przypnij do istniejącego R-xx albo dodaj osobną pozycję.
+3. **W tym samym PR co kod:** zaktualizuj status konkretnego obszaru, zamknij lub opisz resztę luki, dopisz zwięzły wiersz do historii z datą i linkiem do PR (gdy jego numer jest już znany).
+4. **Po testach i wydaniu:** dopisz wynik testów, wersję APK, link do runu publikacji / wdrożenia. Nie wpisuj „wdrożone na produkcji”, jeśli jest tylko merge lub test; w razie rozbieżności skoryguj wpis.
+5. **Higiena:** nie zapisuj tutaj kluczy, haseł, cookie, numerów klientów, umów ani danych osobowych. Wpisuj fakty i obserwacje, oddzielaj je od hipotez i pomysłów.
+6. **Kontynuacja na nowym czacie:** podaj nazwę repozytorium `Domiono/Protokol` i poproś o przeczytanie `AGENTS.md` oraz **tego** pliku. To trwały punkt startowy niezależny od historii pojedynczej rozmowy.
+
+## Dziennik kolejnych aktualizacji
+
+Dodawaj **nowe wpisy na początku**, zachowując historię. Każdy wpis powinien mieć datę, obszar, co faktycznie zmieniono, czego **nie** zrobiono, identyfikator R-xx, PR/commit, testy i potwierdzenie publikacji.
+
+- **28.10.2026 — rozpoczęcie centralnego rejestru.** Odtworzono stan na podstawie scalonych PR #4–#49, dokumentów technicznych i bieżącego kodu. Wskazano istniejące mechanizmy i rozdzielono je od luk R-01–R-07. [PR #50](https://github.com/Domiono/Protokol/pull/50). **Zmiana dokumentacyjna, bez modyfikowania aplikacji, witryny lub danych.**
