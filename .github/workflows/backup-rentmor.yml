@@ -102,8 +102,8 @@ jobs:
         run: python3 scripts/notify_health_failure.py
 
   photos:
-    # Weekly and manually, plus once on release to establish an initial copy.
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.schedule == '35 02 * * 0'
+    # Photos are archived weekly or manually; no repeated full copy on every deployment.
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '35 02 * * 0'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
