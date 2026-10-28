@@ -55,12 +55,10 @@ public final class RentalOperations {
     void open(JSONObject r){JSONObject p=protocolFor(r);if(p!=null)host.protocol(p);else host.issue(r);}
     public void today(){
         screen("Dzisiaj");String today=LocalDate.now().toString();JSONArray all=store.allReservations();
-        int issue=0,returns=0,late=0,missing=0;
+        int[] counts=HomeDaySummary.count(all,LocalDate.now());
+        int issue=counts[0],returns=counts[1],late=counts[2],missing=0;
         for(int i=0;i<all.length();i++){JSONObject r=all.optJSONObject(i);if(r==null||r.optBoolean("settled")||r.optBoolean("returned"))continue;
             if(r.optString("asset_id").isEmpty()||(RentalRules.needsVacuum(r)&&r.optString("vacuum_asset_id").isEmpty()))missing++;
-            if(!r.optBoolean("done")&&today.equals(r.optString("start_date")))issue++;
-            if(r.optBoolean("done")&&today.equals(r.optString("end_date")))returns++;
-            if(r.optBoolean("done")&&!r.optString("end_date").isEmpty()&&r.optString("end_date").compareTo(today)<0)late++;
         }
         text(page,LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("EEEE, d MMMM",new Locale("pl","PL"))),14,0xff607086);
         LinearLayout metrics=new LinearLayout(activity);page.addView(metrics);metric(metrics,"Wydania",issue,0xff245b91);metric(metrics,"Zwroty",returns,0xff16755b);metric(metrics,"Po terminie",late,late>0?0xffb53b3b:0xff607086);

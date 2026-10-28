@@ -2,6 +2,10 @@
 
 Repozytorium: **Domiono/Protokol**. Projekt obejmuje publiczną stronę RentMor.pl, panel WWW i natywną aplikację Android.
 
+## Dostęp do projektu
+
+Użytkownik pracuje na repozytorium `Domiono/Protokol`. Przy kontynuacji najpierw sprawdź dostępne połączenie GitHub i aktualny kod; nie proś o ponowne przesłanie ZIP-a bez sprawdzenia istniejącego dostępu. Uprawnienia sprawdzaj na bieżąco.
+
 ## Najpierw sprawdź historię
 
 1. **Przed audytem, rekomendacją lub zmianą przeczytaj [docs/RENTMOR-PROJECT-LOG.md](docs/RENTMOR-PROJECT-LOG.md).** To główny rejestr wdrożonych funkcji, częściowych realizacji, znanych luk i chronologii prac.
