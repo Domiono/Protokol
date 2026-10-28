@@ -342,6 +342,10 @@ if ($method === 'GET') {
     }
     $inventory = rm_read_json_file(__DIR__ . '/data.json', []);
     $siteStats = rm_read_json_file(__DIR__ . '/stats.json', []);
+    if ($role === 'admin') {
+        require_once __DIR__ . '/phone_events.php';
+        $siteStats['phone_events'] = rm_phone_events_read();
+    }
     // Count recent public-site heartbeats. A session expires 95 seconds after its last ping.
     $onlineSessions = rm_read_json_file(__DIR__ . '/online_sessions.json', []);
     $onlineCount = 0;

@@ -817,6 +817,7 @@ if (isset($_GET['edit_id'])) {
     <div class="max-w-6xl mx-auto p-4 py-8 admin-container">
 
         <?php if ($active_tab == 'dashboard'): ?>
+            <?php require __DIR__ . '/phone_events_view.php'; ?>
 
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-yellow-300 mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
