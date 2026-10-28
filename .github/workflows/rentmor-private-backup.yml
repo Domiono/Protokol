@@ -1,5 +1,10 @@
 name: RentMor private data backups
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/rentmor-private-backup.yml'
+      - 'scripts/backup_rentmor.py'
   schedule:
     - cron: '17 2 * * *'
   workflow_dispatch:
