@@ -155,5 +155,15 @@ with tempfile.TemporaryDirectory() as td:
   assert (p/'reservations.json').read_text()=='{damaged'
   (p/'reservations.json').write_text(original)
   assert call()['reservations']
+  asset_storage=(p/'rental_assets.php')
+  original_assets=asset_storage.read_text()
+  asset_storage.write_text('<?php http_response_code(404); exit; ?>\\n{damaged')
+  try:
+   call({'action':'asset_save','id':'must-not-erase','label':'Broken storage','equipment':'Puzzi'})
+   raise AssertionError('Damaged physical stock was silently replaced')
+  except urllib.error.HTTPError as error:
+   assert error.code==503
+  assert '{damaged' in asset_storage.read_text()
+  asset_storage.write_text(original_assets)
   print('Rental API bundle and standalone shared-stock checks passed (isolated test data)')
  finally:server.terminate();server.wait()
