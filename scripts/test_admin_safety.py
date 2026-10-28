@@ -21,7 +21,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 with tempfile.TemporaryDirectory() as directory:
     root = Path(directory)
     shutil.copytree(ROOT/'server', root, dirs_exist_ok=True)
-    (root/'seed.php').write_text("<?php session_start(); $_SESSION['logged_in']=true; $_SESSION['admin_csrf']='test-token'; $_SESSION['reservation_csrf']='booking-token'; echo 'ok';")
+    (root/'seed.php').write_text("<?php session_start(); $_SESSION['logged_in']=true; $_SESSION['admin_csrf']='test-token'; $_SESSION['reservation_csrf']='booking-token'; $_SESSION['customer_csrf']='customer-token'; echo 'ok';")
     (root/'data.json').write_text('[{"id":"p1","name":"Puzzi","phone_clicks":12,"images":[]}]')
     (root/'reservations.json').write_text('[]')
     (root/'rental_assets.php').write_text('<?php exit; ?>\n'+json.dumps([{'id':'a','equipment':'Puzzi','label':'Puzzi 1'}]))
@@ -33,7 +33,7 @@ with tempfile.TemporaryDirectory() as directory:
     base = f'http://127.0.0.1:{port}'
     def request(path, data=None):
         try:
-            response = client.open(base+path, data=urllib.parse.urlencode(data).encode() if data is not None else None)
+            response = client.open(base+path, data=urllib.parse.urlencode(data, doseq=True).encode() if data is not None else None)
         except urllib.error.HTTPError as error: response = error
         return response.code, response.read().decode()
     def post(**data): return request('/admin.php',data)[0]
@@ -68,6 +68,17 @@ with tempfile.TemporaryDirectory() as directory:
         before=(root/'reservations.json').read_text()
         assert post(action='reservation_toggle',reservation_csrf='booking-token',reservation_id='legacy',reservation_done='1') == 302
         assert (root/'reservations.json').read_text()==before
+        # Corrupt reservations are never overwritten by a fresh booking.
+        previous = (root/'reservations.json').read_text()
+        (root/'reservations.json').write_text('{broken')
+        assert post(**dict(booking,start_date='2030-05-01',end_date='2030-05-02')) == 503
+        assert (root/'reservations.json').read_text() == '{broken'
+        (root/'reservations.json').write_text(previous)
+        # Corrupt customer records must not be replaced by a new customer.
+        (root/'customers.json').write_text('{broken')
+        assert post(action='customer_save',customer_csrf='customer-token',phone='123456789',name='Test') == 503
+        assert (root/'customers.json').read_text() == '{broken'
+        (root/'customers.json').unlink()
         # Valid catalogue mutation is accepted; corrupt inventory is not silently reset.
         assert post(action='add',admin_csrf='test-token',name='Drabina',price='40') == 302
         assert len(json.loads((root/'data.json').read_text())) == 2
@@ -105,6 +116,30 @@ with tempfile.TemporaryDirectory() as directory:
         saved = json.loads((root/'data.json').read_text())
         assert len(saved[0]['images']) == 1
         assert (root/'uploads'/saved[0]['images'][0]).is_file()
+        # Reorder existing images and remove one without deleting the product.
+        first = saved[0]['images'][0]
+        second = 'existing-second.png'
+        (root/'uploads'/second).write_bytes(png)
+        saved[0]['images'] = [first,second]
+        (root/'data.json').write_text(json.dumps(saved))
+        product_id = saved[0]['id']
+        assert post(action='update',admin_csrf='test-token',id=product_id,name='Upload trial',
+                    price='40',existing_images__unused='') == 302
+        # Existing photos stay intact if a legacy client omits order controls.
+        same = json.loads((root/'data.json').read_text())
+        assert same[0]['images'] == [first,second]
+        assert post(**{'action':'update','admin_csrf':'test-token','id':product_id,'name':'Upload trial',
+                       'price':'40','existing_images[]':[second,first],
+                       'delete_images[]':[first]}) == 302
+        reordered = json.loads((root/'data.json').read_text())
+        assert reordered[0]['images'] == [second]
+        assert (root/'uploads'/second).is_file()
+        assert not (root/'uploads'/first).exists()
+        # Unknown filenames cannot be inserted or deleted.
+        assert post(**{'action':'update','admin_csrf':'test-token','id':product_id,'name':'Upload trial',
+                       'price':'40','existing_images[]':['../../bad.png',second],
+                       'delete_images[]':['../../bad.png']}) == 302
+        assert json.loads((root/'data.json').read_text())[0]['images'] == [second]
         # Failed JSON replacement must never redirect with a success message.
         (root/'terms.json').mkdir()
         assert post(action='save_terms',admin_csrf='test-token',terms_content='Test') == 503
