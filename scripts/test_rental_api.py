@@ -22,7 +22,11 @@ with tempfile.TemporaryDirectory() as td:
   originalProducts = call()['site_products']
   added = call({'action':'equipment_add','name':'Niepublikowana nowa maszyna'})['results'][0]
   assert added['ok'] and not added['exists']
-  assert 'Niepublikowana nowa maszyna' in call()['equipment']
+  try:
+   after_internal_add=call()
+  except urllib.error.HTTPError as error:
+   raise AssertionError('GET after internal equipment insert returned '+str(error.code)+': '+error.read().decode()) from error
+  assert 'Niepublikowana nowa maszyna' in after_internal_add['equipment']
   assert call()['site_products'] == originalProducts
   assert not (p/'data.json').exists(), 'Internal equipment name contaminated public offers'
   registry = p/'rental_equipment_names.php'
