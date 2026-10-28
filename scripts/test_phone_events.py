@@ -20,7 +20,7 @@ with tempfile.TemporaryDirectory() as directory:
     (root/'data.json').write_text(json.dumps([{'id':'p1','name':'Kärcher Puzzi'}]))
     (root/'read.php').write_text("<?php require 'phone_events.php'; echo json_encode(rm_phone_events_read());")
     sock=socket.socket();sock.bind(('127.0.0.1',0));port=sock.getsockname()[1];sock.close()
-    server=subprocess.Popen(['php','-S',f'127.0.0.1:{port}','-t',str(root)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    server=subprocess.Popen(['php','-d',f'session.save_path={root}','-S',f'127.0.0.1:{port}','-t',str(root)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     def request(path='/phone_event.php',method='POST',fields=None,extra=None):
         connection=http.client.HTTPConnection('127.0.0.1',port,timeout=10)
         headers={'User-Agent':'Mozilla/5.0','Content-Type':'application/x-www-form-urlencoded','Origin':'https://rentmor.pl'}
