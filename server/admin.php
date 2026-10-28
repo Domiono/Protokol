@@ -109,8 +109,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['act
             if ($lf) fclose($lf);
             $_SESSION['reservation_flash'] = 'Lista rezerwacji jest chwilowo zajęta.';
         } else {
-            $items = is_file($rf) ? json_decode((string)file_get_contents($rf), true) : [];
-            if (!is_array($items)) $items = [];
+            $items = rm_admin_read_json_list($rf);
             $id = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($_POST['reservation_id'] ?? ''));
             $found = false;
             if ($action === 'reservation_delete') {
@@ -160,7 +159,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? 
     } else {
         $id=preg_replace('/[^a-zA-Z0-9_-]/','',(string)($_POST['reservation_id']??''));$rf=__DIR__.'/reservations.json';$lf=fopen($rf.'.lock','c+');
         if(!$lf||!flock($lf,LOCK_EX)){if($lf)fclose($lf);$_SESSION['reservation_flash']='Historia jest chwilowo zajęta.';}
-        else{$items=is_file($rf)?json_decode((string)file_get_contents($rf),true):[];if(!is_array($items))$items=[];$before=count($items);$items=array_values(array_filter($items,function($r)use($id){return (string)($r['id']??'')!==$id;}));$tmp=$rf.'.'.bin2hex(random_bytes(6)).'.tmp';$json=json_encode($items,JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);$ok=$id!==''&&count($items)<$before&&$json!==false&&file_put_contents($tmp,$json,LOCK_EX)!==false&&rename($tmp,$rf);if(!$ok&&is_file($tmp))@unlink($tmp);$_SESSION['reservation_flash']=$ok?'Usunięto wybrany zapis z historii.':'Nie znaleziono wpisu lub nie udało się go usunąć.';flock($lf,LOCK_UN);fclose($lf);}
+        else{$items=rm_admin_read_json_list($rf);$before=count($items);$items=array_values(array_filter($items,function($r)use($id){return (string)($r['id']??'')!==$id;}));$tmp=$rf.'.'.bin2hex(random_bytes(6)).'.tmp';$json=json_encode($items,JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);$ok=$id!==''&&count($items)<$before&&$json!==false&&file_put_contents($tmp,$json,LOCK_EX)!==false&&rename($tmp,$rf);if(!$ok&&is_file($tmp))@unlink($tmp);$_SESSION['reservation_flash']=$ok?'Usunięto wybrany zapis z historii.':'Nie znaleziono wpisu lub nie udało się go usunąć.';flock($lf,LOCK_UN);fclose($lf);}
     }
     header('Location: admin.php?tab=reservations&month='.rawurlencode((string)($_POST['return_month']??date('Y-m'))));exit();
 }
@@ -180,8 +179,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? 
                 if ($lf) fclose($lf);
                 $_SESSION['reservation_flash'] = 'Lista rezerwacji jest chwilowo zajęta.';
             } else {
-                $items = is_file($rf) ? json_decode((string)file_get_contents($rf), true) : [];
-                if (!is_array($items)) $items = [];
+                $items = rm_admin_read_json_list($rf);
                 $found = false;
                 foreach ($items as &$item) {
                     if ((string)($item['id'] ?? '') !== $id) continue;
@@ -218,8 +216,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['act
             if ($lock) fclose($lock);
             $_SESSION['expense_flash'] = 'Lista kosztów jest chwilowo zajęta.';
         } else {
-            $items = is_file($cf) ? json_decode((string)file_get_contents($cf), true) : [];
-            if (!is_array($items)) $items = [];
+            $items = rm_admin_read_json_list($cf);
             $id = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($_POST['expense_id'] ?? ''));
             $ok = false;
             if (($_POST['action'] ?? '') === 'expense_delete') {
@@ -449,11 +446,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
     /* USUWANIE WIADOMOŚCI */
     if (($_POST['action'] ?? '') === 'delete_msg') {
-        $msgs = file_exists($msgs_file)
-            ? json_decode(file_get_contents($msgs_file), true)
-            : [];
-
-        if (!is_array($msgs)) rm_admin_storage_error();
+        $msgs = rm_admin_read_json_list($msgs_file);
 
         foreach ($msgs as $key => $m) {
             if (($m['id'] ?? '') === ($_POST['id'] ?? '')) {
@@ -536,7 +529,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? 
             $cf = __DIR__ . '/customers.json'; $lf = fopen($cf . '.lock', 'c+');
             if (!$lf || !flock($lf, LOCK_EX)) { if ($lf) fclose($lf); $_SESSION['customer_flash'] = 'Baza klientów jest chwilowo zajęta.'; }
             else {
-                $items = is_file($cf) ? json_decode((string)file_get_contents($cf), true) : []; if (!is_array($items)) $items = [];
+                $items = rm_admin_read_json_list($cf);
                 $item = ['id'=>$key,'phone'=>$phone,'phone_key'=>$key,'name'=>trim((string)($_POST['name'] ?? '')),'notes'=>trim((string)($_POST['notes'] ?? ''))];
                 $found = false; foreach ($items as &$saved) { if (rm_admin_phone_key($saved['phone'] ?? '') === $key) { $item['phone'] = $saved['phone'] ?? $phone; $saved = array_merge($saved, $item); $found = true; break; } } unset($saved); if (!$found) $items[] = $item;
                 $tmp = $cf . '.' . bin2hex(random_bytes(6)) . '.tmp'; $json = json_encode(array_values($items), JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
