@@ -1,0 +1,36 @@
+name: Audit traffic filter (read only)
+on:
+  push:
+    branches: [fix/traffic-filter]
+    paths: ['.github/workflows/audit-traffic-filter.yml']
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y lftp
+      - name: Inspect filter and aggregate counters without changing live data
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -eu
+          source scripts/secure_sftp_connection.sh
+          TMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TMP_DIR"' EXIT
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/index.php -o $TMP_DIR/index.php; get public_html/traffic_filter.php -o $TMP_DIR/traffic_filter.php; get public_html/stats.json -o $TMP_DIR/stats.json; bye"
+          python3 - "$TMP_DIR" <<'PY'
+          import pathlib,sys,json,hashlib
+          p=pathlib.Path(sys.argv[1]);source=(p/'index.php').read_text();stats=json.loads((p/'stats.json').read_text())
+          for key in ['session_start(', 'RentMor filtered statistics v1', 'rm_stats_count_pageview()', 'save_json_file($stats_file, $stats);', "$stats['total_views'] ="]:
+              print(key, 'occurrences:',source.count(key), 'first line:',source[:source.find(key)].count('\n')+1)
+          print('Filter matches repository:',(p/'traffic_filter.php').read_bytes()==pathlib.Path('server/traffic_filter.php').read_bytes())
+          print('Totals:',{k:stats.get(k) for k in ['total_views','unique_visitors']})
+          print('Last 14 daily counts:',sorted(stats.get('days',{}).items())[-14:])
+          print('Recent source aggregates:',sorted(stats.get('sources',{}).items())[-3:])
+          start=source.index('// RentMor filtered statistics v1')
+          end=source.index('save_json_file($stats_file, $stats);',start)+len('save_json_file($stats_file, $stats);')+2
+          print('Current counter block:\n'+source[start:end])
+          PY
