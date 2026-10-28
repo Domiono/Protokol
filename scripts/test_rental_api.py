@@ -143,5 +143,17 @@ with tempfile.TemporaryDirectory() as td:
   assert any(a['id']=='service-copy' for a in call()['assets'])
   try:urllib.request.urlopen('http://127.0.0.1:18723/rental_assets.php');raise AssertionError('asset storage publicly readable')
   except urllib.error.HTTPError as e:assert e.code==404
+  # Damaged JSON must never be treated as a new empty database by the API.
+  original=(p/'reservations.json').read_text()
+  (p/'reservations.json').write_text('{damaged')
+  import urllib.error
+  try:
+   call({'action':'reservation_save','id':'will-not-write','month':'2030-12','text':'No'})
+   raise AssertionError('Damaged reservations were silently accepted')
+  except urllib.error.HTTPError as error:
+   assert error.code==503
+  assert (p/'reservations.json').read_text()=='{damaged'
+  (p/'reservations.json').write_text(original)
+  assert call()['reservations']
   print('Rental API bundle and standalone shared-stock checks passed (isolated test data)')
  finally:server.terminate();server.wait()
