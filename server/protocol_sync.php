@@ -10,17 +10,21 @@ function rm_json_response(int $status, array $payload): never {
     exit;
 }
 function rm_read_json_file(string $path, array $fallback): array {
-    if (!is_file($path)) return $fallback;
-    $raw = file_get_contents($path);
-    $data = is_string($raw) ? json_decode($raw, true) : null;
-    return is_array($data) ? $data : $fallback;
+    if (!file_exists($path)) return $fallback;
+    if (!is_file($path)) rm_json_response(503, ['ok'=>false,'error'=>'Dane są chwilowo niedostępne. Zapis wstrzymany.']);
+    $raw = @file_get_contents($path);
+    $data = is_string($raw) && $raw !== '' ? json_decode($raw, true) : null;
+    // Never turn a malformed database into []: a later save would erase records.
+    if (!is_array($data)) rm_json_response(503, ['ok'=>false,'error'=>'Dane są uszkodzone lub nieczytelne. Zapis wstrzymany.']);
+    return $data;
 }
 function rm_write_json_atomic(string $path, array $data): bool {
     $json = json_encode(array_values($data), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($json === false) return false;
     $tmp = $path . '.' . bin2hex(random_bytes(6)) . '.tmp';
-    if (file_put_contents($tmp, $json, LOCK_EX) === false) return false;
-    return rename($tmp, $path);
+    if (@file_put_contents($tmp, $json, LOCK_EX) !== strlen($json)) { @unlink($tmp); return false; }
+    if (!@rename($tmp, $path)) { @unlink($tmp); return false; }
+    return true;
 }
 function rm_device_role(string $file): string {
     $token = (string)($_COOKIE['rm_protocol_device'] ?? '');
