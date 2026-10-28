@@ -14,6 +14,10 @@ on:
       - 'server/rental_inventory.php'
       - 'scripts/patch_catalog_filters.py'
       - 'scripts/test_admin_safety.py'
+      - 'scripts/backup_rentmor.py'
+      - 'scripts/test_backup_rentmor.py'
+      - 'scripts/monitor_public.py'
+      - 'scripts/notify_health_failure.py'
       - 'scripts/test_catalog_filters.cjs'
       - 'server/online.php'
       - 'server/traffic_filter.php'
@@ -102,6 +106,8 @@ jobs:
           php -l server/admin_safety.php
           php -l server/rental_inventory.php
           python3 scripts/test_admin_safety.py
+          python3 scripts/test_backup_rentmor.py
+          python3 scripts/monitor_public.py --self-test
           node scripts/test_catalog_filters.cjs
           php scripts/test_rental_rules.php
           python3 scripts/test_rental_api.py

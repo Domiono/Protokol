@@ -105,6 +105,24 @@ with tempfile.TemporaryDirectory() as directory:
         saved = json.loads((root/'data.json').read_text())
         assert len(saved[0]['images']) == 1
         assert (root/'uploads'/saved[0]['images'][0]).is_file()
+        # Individual photo removal must update only this offer and delete after commit.
+        photo_id = saved[0]['id']
+        photo_name = saved[0]['images'][0]
+        assert post(action='update',admin_csrf='test-token',id=photo_id,name='Upload trial',price='40',
+                    **{'photo_order[]':photo_name,'photo_remove[]':photo_name}) == 302
+        assert json.loads((root/'data.json').read_text())[0]['images'] == []
+        assert not (root/'uploads'/photo_name).exists()
+        # A forged image name must not be accepted or deleted.
+        previous = (root/'data.json').read_text()
+        assert post(action='update',admin_csrf='test-token',id=photo_id,name='Upload trial',price='40',
+                    **{'photo_remove[]':'unknown.jpg'}) == 422
+        assert (root/'data.json').read_text() == previous
+        # Corrupt reservation data must be refused, not overwritten as [].
+        reservations_before = (root/'reservations.json').read_text()
+        (root/'reservations.json').write_text('{damaged')
+        assert post(**booking) == 503
+        assert (root/'reservations.json').read_text() == '{damaged'
+        (root/'reservations.json').write_text(reservations_before)
         # Failed JSON replacement must never redirect with a success message.
         (root/'terms.json').mkdir()
         assert post(action='save_terms',admin_csrf='test-token',terms_content='Test') == 503

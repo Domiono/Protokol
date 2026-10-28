@@ -3,14 +3,25 @@ declare(strict_types=1);
 
 // A copy occupies both boundary dates; the calendar flags legacy unassigned bookings.
 function rm_read_assets(): array {
-    $path=__DIR__.'/rental_assets.php';if(!is_file($path))return [];
-    $raw=file_get_contents($path);$data=json_decode(substr((string)$raw,strpos((string)$raw,"\n")+1),true);return is_array($data)?$data:[];
+    $path = __DIR__ . '/rental_assets.php';
+    if (!file_exists($path)) return [];
+    $raw = is_file($path) ? @file_get_contents($path) : false;
+    $cut = is_string($raw) ? strpos($raw, "\n") : false;
+    $data = $cut === false ? null : json_decode(substr($raw, $cut + 1), true);
+    if (!is_array($data) || !array_is_list($data)) {
+        if (function_exists('rm_json_response')) rm_json_response(503, ['ok'=>false,'error'=>'Baza egzemplarzy jest nieczytelna. Zapis wstrzymany.']);
+        if (function_exists('rm_admin_storage_error')) rm_admin_storage_error();
+        http_response_code(503);
+        exit('Baza egzemplarzy jest nieczytelna. Zapis wstrzymany.');
+    }
+    return $data;
 }
 function rm_write_assets(array $assets): bool {
     $path=__DIR__.'/rental_assets.php';$tmp=$path.'.'.bin2hex(random_bytes(6)).'.php';
     $data=json_encode(array_values($assets),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
     if($data===false)return false;
-    $ok=file_put_contents($tmp,"<?php http_response_code(404); exit; ?>\n".$data,LOCK_EX)!==false&&rename($tmp,$path);
+    $contents="<?php http_response_code(404); exit; ?>\n".$data;
+    $ok=@file_put_contents($tmp,$contents,LOCK_EX)===strlen($contents)&&@rename($tmp,$path);
     if(!$ok&&is_file($tmp))unlink($tmp);return $ok;
 }
 function rm_inventory_normalize(string $name): string {

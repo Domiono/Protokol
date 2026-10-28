@@ -109,8 +109,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['act
             if ($lf) fclose($lf);
             $_SESSION['reservation_flash'] = 'Lista rezerwacji jest chwilowo zajęta.';
         } else {
-            $items = is_file($rf) ? json_decode((string)file_get_contents($rf), true) : [];
-            if (!is_array($items)) $items = [];
+            $items = rm_admin_read_json_list($rf);
             $id = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($_POST['reservation_id'] ?? ''));
             $found = false;
             if ($action === 'reservation_delete') {
@@ -160,7 +159,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? 
     } else {
         $id=preg_replace('/[^a-zA-Z0-9_-]/','',(string)($_POST['reservation_id']??''));$rf=__DIR__.'/reservations.json';$lf=fopen($rf.'.lock','c+');
         if(!$lf||!flock($lf,LOCK_EX)){if($lf)fclose($lf);$_SESSION['reservation_flash']='Historia jest chwilowo zajęta.';}
-        else{$items=is_file($rf)?json_decode((string)file_get_contents($rf),true):[];if(!is_array($items))$items=[];$before=count($items);$items=array_values(array_filter($items,function($r)use($id){return (string)($r['id']??'')!==$id;}));$tmp=$rf.'.'.bin2hex(random_bytes(6)).'.tmp';$json=json_encode($items,JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);$ok=$id!==''&&count($items)<$before&&$json!==false&&file_put_contents($tmp,$json,LOCK_EX)!==false&&rename($tmp,$rf);if(!$ok&&is_file($tmp))@unlink($tmp);$_SESSION['reservation_flash']=$ok?'Usunięto wybrany zapis z historii.':'Nie znaleziono wpisu lub nie udało się go usunąć.';flock($lf,LOCK_UN);fclose($lf);}
+        else{$items=rm_admin_read_json_list($rf);$before=count($items);$items=array_values(array_filter($items,function($r)use($id){return (string)($r['id']??'')!==$id;}));$tmp=$rf.'.'.bin2hex(random_bytes(6)).'.tmp';$json=json_encode($items,JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);$ok=$id!==''&&count($items)<$before&&$json!==false&&file_put_contents($tmp,$json,LOCK_EX)!==false&&rename($tmp,$rf);if(!$ok&&is_file($tmp))@unlink($tmp);$_SESSION['reservation_flash']=$ok?'Usunięto wybrany zapis z historii.':'Nie znaleziono wpisu lub nie udało się go usunąć.';flock($lf,LOCK_UN);fclose($lf);}
     }
     header('Location: admin.php?tab=reservations&month='.rawurlencode((string)($_POST['return_month']??date('Y-m'))));exit();
 }
@@ -180,8 +179,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? 
                 if ($lf) fclose($lf);
                 $_SESSION['reservation_flash'] = 'Lista rezerwacji jest chwilowo zajęta.';
             } else {
-                $items = is_file($rf) ? json_decode((string)file_get_contents($rf), true) : [];
-                if (!is_array($items)) $items = [];
+                $items = rm_admin_read_json_list($rf);
                 $found = false;
                 foreach ($items as &$item) {
                     if ((string)($item['id'] ?? '') !== $id) continue;
@@ -218,8 +216,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['act
             if ($lock) fclose($lock);
             $_SESSION['expense_flash'] = 'Lista kosztów jest chwilowo zajęta.';
         } else {
-            $items = is_file($cf) ? json_decode((string)file_get_contents($cf), true) : [];
-            if (!is_array($items)) $items = [];
+            $items = rm_admin_read_json_list($cf);
             $id = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($_POST['expense_id'] ?? ''));
             $ok = false;
             if (($_POST['action'] ?? '') === 'expense_delete') {
@@ -349,6 +346,22 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        // New and old photo changes are validated before any file is moved.
+        $removedPhotos = [];
+        if ($is_update) {
+            $originalPhotos = is_array($old_item['images'] ?? null) ? array_values($old_item['images']) : [];
+            $order = $_POST['photo_order'] ?? $originalPhotos;
+            $remove = $_POST['photo_remove'] ?? [];
+            if (!is_array($order) || !is_array($remove) ||
+                count($order) !== count($originalPhotos) ||
+                count(array_unique($order)) !== count($order) ||
+                array_diff($order, $originalPhotos) || array_diff($originalPhotos, $order) ||
+                array_diff($remove, $originalPhotos)) {
+                rm_admin_reject('Nieprawidłowa kolejność lub lista zdjęć.');
+            }
+            $removedPhotos = array_values(array_intersect($originalPhotos, $remove));
+            $images = array_values(array_diff($order, $removedPhotos));
+        }
         // Validate monetary values and *every* upload before mutating the catalogue.
         $price = rm_admin_money($_POST['price'] ?? null, true, 'Cena');
         $deposit = rm_admin_money(($_POST['deposit'] ?? '') === '' ? '0' : $_POST['deposit'], false, 'Kaucja');
@@ -403,6 +416,17 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
         rm_admin_inventory_write($inventoryHandle, array_values($current_data));
         $newFiles = []; // Commit complete: keep uploaded images.
+        // Delete removed files only after a successful commit, and never if shared.
+        $usedPhotos = [];
+        foreach ($current_data as $entry) {
+            foreach (($entry['images'] ?? []) as $photoName) $usedPhotos[(string)$photoName] = true;
+        }
+        foreach ($removedPhotos as $photoName) {
+            if (isset($usedPhotos[$photoName])) continue;
+            if (!preg_match('/^[a-zA-Z0-9_.-]+$/D', (string)$photoName)) continue;
+            $file = $upload_dir . $photoName;
+            if (is_file($file)) @unlink($file);
+        }
 
         header("Location: admin.php?tab=products");
         exit();
@@ -431,11 +455,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
     /* USUWANIE WIADOMOŚCI */
     if (($_POST['action'] ?? '') === 'delete_msg') {
-        $msgs = file_exists($msgs_file)
-            ? json_decode(file_get_contents($msgs_file), true)
-            : [];
-
-        if (!is_array($msgs)) rm_admin_storage_error();
+        $msgs = rm_admin_read_json_list($msgs_file);
 
         foreach ($msgs as $key => $m) {
             if (($m['id'] ?? '') === ($_POST['id'] ?? '')) {
@@ -518,7 +538,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? 
             $cf = __DIR__ . '/customers.json'; $lf = fopen($cf . '.lock', 'c+');
             if (!$lf || !flock($lf, LOCK_EX)) { if ($lf) fclose($lf); $_SESSION['customer_flash'] = 'Baza klientów jest chwilowo zajęta.'; }
             else {
-                $items = is_file($cf) ? json_decode((string)file_get_contents($cf), true) : []; if (!is_array($items)) $items = [];
+                $items = rm_admin_read_json_list($cf);
                 $item = ['id'=>$key,'phone'=>$phone,'phone_key'=>$key,'name'=>trim((string)($_POST['name'] ?? '')),'notes'=>trim((string)($_POST['notes'] ?? ''))];
                 $found = false; foreach ($items as &$saved) { if (rm_admin_phone_key($saved['phone'] ?? '') === $key) { $item['phone'] = $saved['phone'] ?? $phone; $saved = array_merge($saved, $item); $found = true; break; } } unset($saved); if (!$found) $items[] = $item;
                 $tmp = $cf . '.' . bin2hex(random_bytes(6)) . '.tmp'; $json = json_encode(array_values($items), JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
@@ -1394,9 +1414,33 @@ if (isset($_GET['edit_id'])) {
                         </p>
 
                         <?php if ($edit_mode && !empty($edit_item['images'])): ?>
-                            <p class="text-xs text-gray-500 mt-2">
-                                Dotychczasowe zdjęcia zostaną zachowane. Nowe zostaną dodane.
-                            </p>
+                            <p class="text-sm font-bold mt-4 mb-2">Kolejność zdjęć — pierwsze jest okładką oferty</p>
+                            <div id="rm-existing-photos" class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">
+                                <?php foreach ($edit_item['images'] as $existingPhoto): ?>
+                                    <div class="rm-existing-photo rounded-xl border bg-white p-2">
+                                        <img src="uploads/<?php echo e_admin(basename((string)$existingPhoto)); ?>" alt="Zdjęcie oferty" class="w-full h-24 object-cover rounded-lg" loading="lazy">
+                                        <input type="hidden" name="photo_order[]" value="<?php echo e_admin($existingPhoto); ?>">
+                                        <div class="flex items-center justify-between mt-2 gap-1">
+                                            <button type="button" onclick="rmMovePhoto(this,-1)" class="border rounded-lg px-2 py-1 text-xs" title="Przesuń w lewo" aria-label="Przenieś zdjęcie wcześniej">←</button>
+                                            <button type="button" onclick="rmMovePhoto(this,1)" class="border rounded-lg px-2 py-1 text-xs" title="Przesuń w prawo" aria-label="Przenieś zdjęcie później">→</button>
+                                        </div>
+                                        <label class="text-xs block mt-2"><input type="checkbox" name="photo_remove[]" value="<?php echo e_admin($existingPhoto); ?>" onchange="this.closest('.rm-existing-photo').style.opacity=this.checked?'0.45':'1'"> Usuń zdjęcie</label>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">Zmień kolejność strzałkami. Zaznaczone zdjęcia znikną dopiero po zapisaniu zmian.</p>
+                            <script>
+                            function rmMovePhoto(button, direction) {
+                                const card = button.closest('.rm-existing-photo');
+                                const container = card && card.parentNode;
+                                if (!container) return;
+                                if (direction < 0 && card.previousElementSibling) {
+                                    container.insertBefore(card, card.previousElementSibling);
+                                } else if (direction > 0 && card.nextElementSibling) {
+                                    container.insertBefore(card.nextElementSibling, card);
+                                }
+                            }
+                            </script>
                         <?php endif; ?>
                     </div>
 

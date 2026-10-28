@@ -1,0 +1,82 @@
+name: Private RentMor daily backup
+
+on:
+  schedule:
+    - cron: '15 02 * * *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/backup-rentmor.yml'
+      - 'scripts/backup_rentmor.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rentmor-private-backup
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+      FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+      LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SFTP client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lftp
+      - name: Test backup validation before downloading private data
+        run: python3 scripts/test_backup_rentmor.py
+      - name: Copy, validate and privately archive rental data
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$FTP_SERVER" && test -n "$FTP_USERNAME" && test -n "$LFTP_PASSWORD" || {
+            echo "::error::SFTP credentials unavailable; no snapshot was made."
+            exit 1
+          }
+          source scripts/secure_sftp_connection.sh
+          SNAPSHOT="$RUNNER_TEMP/rentmor-snapshot"
+          mkdir -p "$SNAPSHOT"
+          chmod 700 "$SNAPSHOT"
+          # No user data goes into GitHub artifacts, commits or logs.
+          essential="data.json reservations.json protocols.json customers.json costs.json"
+          optional="messages.json terms.json protocol_devices.json stats.json rental_assets.php"
+          for name in $essential $optional; do
+            if lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
+              -e "$SFTP_CONNECT_SETUP; get public_html/$name -o $SNAPSHOT/$name; bye" \
+              >/dev/null 2>&1; then
+              chmod 600 "$SNAPSHOT/$name"
+            elif [[ " $essential " == *" $name "* ]]; then
+              echo "::error::Cannot read required backup source: $name"
+              exit 1
+            else
+              echo "Optional source absent: $name"
+            fi
+          done
+          python3 scripts/backup_rentmor.py "$SNAPSHOT"
+          STAMP="$(date -u +%Y-%m-%d)"
+          DEST="rentmor-private/backups/$STAMP"
+          # Outside public_html. No public URL, no GitHub artifact.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
+            -e "$SFTP_CONNECT_SETUP; cd public_html; cd ..; set cmd:fail-exit no; mkdir -p rentmor-private/backups/$STAMP; set cmd:fail-exit yes; cd $DEST; bye" >/dev/null
+          for name in $essential $optional; do
+            test -f "$SNAPSHOT/$name" || continue
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
+              -e "$SFTP_CONNECT_SETUP; put $SNAPSHOT/$name -o $DEST/$name; get $DEST/$name -o $SNAPSHOT/verified-$name; bye" >/dev/null
+            cmp "$SNAPSHOT/$name" "$SNAPSHOT/verified-$name"
+            rm -f "$SNAPSHOT/verified-$name"
+          done
+          echo "Private backup verified outside public_html ($STAMP). No personal data published."
+      - name: Alert on backup failure (Telegram optional)
+        if: failure()
+        env:
+          RENTMOR_MONITOR_TELEGRAM_BOT_TOKEN: ${{ secrets.RENTMOR_MONITOR_TELEGRAM_BOT_TOKEN }}
+          RENTMOR_MONITOR_TELEGRAM_CHAT_ID: ${{ secrets.RENTMOR_MONITOR_TELEGRAM_CHAT_ID }}
+        run: python3 scripts/notify_health_failure.py
