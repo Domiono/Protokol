@@ -2,6 +2,8 @@ import tempfile,shutil,json,hashlib,subprocess,urllib.request,time,pathlib,os
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory() as td:
  p=pathlib.Path(td);shutil.copy(ROOT/'server/protocol_sync.php',p/'protocol_sync.php')
+ shutil.copy(ROOT/'server/phone_events.php',p/'phone_events.php')
+ (p/'phone_events_data.php').write_text('<?php exit; ?>\n'+json.dumps({'at':'2026-10-28 09:00:00','action':'call','source_id':'home','source':'Strona główna'})+'\n')
  (p/'protocol_devices.json').write_text(json.dumps({'devices':[{'active':True,'token_hash':hashlib.sha256(b'test-admin').hexdigest(),'role':'admin'},{'active':True,'token_hash':hashlib.sha256(b'test-assistant').hexdigest(),'role':'assistant'}]}))
  server=subprocess.Popen([os.environ.get('PHP_BINARY','php'),'-n','-S','127.0.0.1:18723','-t',td],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
  try:
@@ -13,6 +15,8 @@ with tempfile.TemporaryDirectory() as td:
    if op:op=dict(op,op_id='op'+str(seq))
    req=urllib.request.Request('http://127.0.0.1:18723/protocol_sync.php',data=json.dumps({'operations':[op]}).encode() if op else None,headers={'Cookie':'rm_protocol_device=test-'+role,'Content-Type':'application/json','X-RentMor-Sync':'1'})
    return json.load(urllib.request.urlopen(req))
+  assert len(call()['site_stats']['phone_events'])==1
+  assert call(role='assistant')['site_stats']==[]
   asset={'action':'asset_save','id':'a','label':'Puzzi 01','equipment':'Puzzi','in_service':False}
   assert call(asset)['results'][0]['ok']
   # Old bookings may be linked to the same physical unit under a former offer title.
