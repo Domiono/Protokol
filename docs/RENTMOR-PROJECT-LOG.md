@@ -73,4 +73,6 @@ Ostatnia weryfikacja: **28.10.2026**. Stan kodu: gałąź `main`, commit `164bc4
 
 Dodawaj **nowe wpisy na początku**, zachowując historię. Każdy wpis powinien mieć datę, obszar, co faktycznie zmieniono, czego **nie** zrobiono, identyfikator R-xx, PR/commit, testy i potwierdzenie publikacji.
 
+- **28.10.2026 — nowy ekran główny Androida, 1.7.14 / 29.** Przygotowano kompaktowy nagłówek i status synchronizacji, liczniki wydań/zwrotów/zaległości z tej samej definicji co plan dnia, wyróżnione wydanie i zwrot, mniejsze kafle, wektorowe ikony oraz rozwijane narzędzia. Zachowano role i kopertę z licznikiem. Liczniki odświeżają się po synchronizacji i wznowieniu aplikacji. Dodano testy definicji liczników; istniejące testy sprawdzają role oraz skrzynkę. PR, pełne testy Gradle i publikacja APK: **do potwierdzenia**. Bez zmian API i danych klientów. Uzupełniono AGENTS.md o sprawdzanie istniejącego dostępu przed prośbą o ZIP.
+
 - **28.10.2026 — rozpoczęcie centralnego rejestru.** Odtworzono stan na podstawie scalonych PR #4–#49, dokumentów technicznych i bieżącego kodu. Wskazano istniejące mechanizmy i rozdzielono je od luk R-01–R-07. [PR #50](https://github.com/Domiono/Protokol/pull/50). **Zmiana dokumentacyjna, bez modyfikowania aplikacji, witryny lub danych.**

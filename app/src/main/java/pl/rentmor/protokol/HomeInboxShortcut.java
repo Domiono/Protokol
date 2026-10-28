@@ -21,7 +21,7 @@ public final class HomeInboxShortcut extends FrameLayout {
         setBackground(roundBackground(0xffffe8a2, 13));
 
         ImageView envelope = new ImageView(context);
-        envelope.setImageResource(android.R.drawable.ic_dialog_email);
+        envelope.setImageResource(R.drawable.home_mail);
         envelope.setColorFilter(0xff172235);
         envelope.setContentDescription(null);
         LayoutParams iconParams = new LayoutParams(dp(25), dp(25), Gravity.CENTER);
