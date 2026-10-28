@@ -1,5 +1,10 @@
 name: RentMor public uptime and API guard monitor
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/rentmor-health-monitor.yml'
+      - 'scripts/monitor_rentmor.py'
   schedule:
     - cron: '13,43 * * * *'
   workflow_dispatch:
