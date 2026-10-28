@@ -1,0 +1,52 @@
+name: RentMor public uptime and API guard monitor
+on:
+  schedule:
+    - cron: '13,43 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: rentmor-health-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check public site and unauthenticated API
+        id: health
+        continue-on-error: true
+        run: python3 scripts/monitor_rentmor.py
+
+      # A new issue notifies the repository owner when GitHub issue notifications
+      # are enabled. On recovery close only the exact matching monitoring issue.
+      - name: Notify on failure and resolve when healthy
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          OUTCOME: ${{ steps.health.outcome }}
+          RUN_LINK: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO_OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          TITLE='RentMor monitoring: awaria'
+          EXISTING="$(gh issue list --state open --limit 100 --json title,number --jq ".[] | select(.title == \"$TITLE\") | .number" | head -n1)"
+          if [[ "$OUTCOME" != "success" ]]; then
+            if [[ -z "$EXISTING" ]]; then
+              gh issue create --title "$TITLE" --assignee "$REPO_OWNER" --body "Automatyczny odczyt RentMor.pl lub bramki API wykazał problem. Szczegóły: $RUN_LINK. Monitoring wykonuje tylko bezpieczne odczyty i nie przesyła żadnych danych klientów."
+            else
+              echo "Existing outage issue #$EXISTING; avoiding duplicate."
+            fi
+            exit 1
+          fi
+          if [[ -n "$EXISTING" ]]; then
+            gh issue comment "$EXISTING" --body "Automatyczny test powrócił do normy: $RUN_LINK"
+            gh issue close "$EXISTING" --reason completed
+          fi
+          echo "RentMor public endpoints healthy."
