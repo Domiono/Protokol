@@ -10,6 +10,11 @@ on:
       - 'scripts/diagnose_push_registry.py'
       - 'scripts/fcm_runtime_installer.php.template'
       - 'server/admin.php'
+      - 'server/admin_safety.php'
+      - 'server/rental_inventory.php'
+      - 'scripts/patch_catalog_filters.py'
+      - 'scripts/test_admin_safety.py'
+      - 'scripts/test_catalog_filters.cjs'
       - 'server/online.php'
       - 'server/traffic_filter.php'
       - 'server/browser_stats.php'
@@ -94,6 +99,12 @@ jobs:
       - name: Test SEO patches without production credentials
         run: |
           set -eu
+          php -l server/admin_safety.php
+          php -l server/rental_inventory.php
+          python3 scripts/test_admin_safety.py
+          node scripts/test_catalog_filters.cjs
+          php scripts/test_rental_rules.php
+          python3 scripts/test_rental_api.py
           php -l server/browser_stats.php
           php -l server/pageview.php
           python3 scripts/test_browser_stats.py
@@ -247,6 +258,7 @@ jobs:
           python3 scripts/patch_canonical_host.py "$TEMP_DIR/.htaccess"
           python3 scripts/patch_image_cache.py "$TEMP_DIR/.htaccess"
           python3 scripts/patch_static_css_cache.py "$TEMP_DIR/.htaccess"
+          python3 scripts/patch_catalog_filters.py "$TEMP_DIR/index.php"
           python3 scripts/patch_statistics_filter.py "$TEMP_DIR/index.php"
           python3 scripts/inject_online_tracker.py "$TEMP_DIR/index.php"
           python3 scripts/patch_public_product_layout.py "$TEMP_DIR/index.php"
@@ -295,7 +307,7 @@ jobs:
           # Pass credentials as process arguments, not by interpolating them
           # into lftp's command language. This avoids quote/shell parsing issues.
           source scripts/secure_sftp_connection.sh
-          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/phone_events.php -o public_html/phone_events.php; put server/rental_offer_details.php -o public_html/rental_offer_details.php; put server/rentmor-gallery.js -o public_html/rentmor-gallery.js; put server/performance_images.php -o public_html/performance_images.php; put server/traffic_filter.php -o public_html/traffic_filter.php; put server/browser_stats.php -o public_html/browser_stats.php; put server/pageview.php -o public_html/pageview.php; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/push_bridge.php -o public_html/push_bridge.php; put server/online.php -o public_html/online.php; put server/phone_event.php -o public_html/phone_event.php; put server/phone_events_view.php -o public_html/phone_events_view.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/poradnik-jaki-papier-scierny-do-zyrafy.php -o public_html/poradnik-jaki-papier-scierny-do-zyrafy.php; put server/poradnik-pranie-tapicerki-karcher-puzzi.php -o public_html/poradnik-pranie-tapicerki-karcher-puzzi.php; put server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php -o public_html/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
+          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/rental_inventory.php -o public_html/rental_inventory.php; put server/admin_safety.php -o public_html/admin_safety.php; put server/phone_events.php -o public_html/phone_events.php; put server/rental_offer_details.php -o public_html/rental_offer_details.php; put server/rentmor-gallery.js -o public_html/rentmor-gallery.js; put server/performance_images.php -o public_html/performance_images.php; put server/traffic_filter.php -o public_html/traffic_filter.php; put server/browser_stats.php -o public_html/browser_stats.php; put server/pageview.php -o public_html/pageview.php; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/push_bridge.php -o public_html/push_bridge.php; put server/online.php -o public_html/online.php; put server/phone_event.php -o public_html/phone_event.php; put server/phone_events_view.php -o public_html/phone_events_view.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/poradnik-jaki-papier-scierny-do-zyrafy.php -o public_html/poradnik-jaki-papier-scierny-do-zyrafy.php; put server/poradnik-pranie-tapicerki-karcher-puzzi.php -o public_html/poradnik-pranie-tapicerki-karcher-puzzi.php; put server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php -o public_html/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
           if [ -f server/admin.php ]; then
             LFTP_COMMAND="$LFTP_COMMAND; put server/admin.php -o public_html/admin.php"
           else

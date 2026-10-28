@@ -1,6 +1,6 @@
-
 <?php
 session_start();
+require_once __DIR__ . '/admin_safety.php';
 
 $hasz_hasla = '$2y$12$e7EQuw7V0ssM3OwS6h7RE.D1Fv76de7iB1lSTh3Qr1cZ3u5PVtDKW';
 
@@ -66,6 +66,22 @@ $is_logged = !empty($_SESSION['logged_in']);
 require_once __DIR__ . '/traffic_filter.php';
 if ($is_logged) rm_stats_remember_owner();
 
+// Protect legacy mutations as well as the individually protected newer forms.
+if ($is_logged && empty($_SESSION['admin_csrf'])) $_SESSION['admin_csrf'] = bin2hex(random_bytes(32));
+if ($is_logged && isset($_GET['reset_phones'])) { http_response_code(405); exit('Użyj przycisku resetowania w panelu.'); }
+$legacyActions = ['save_terms','add','update','delete','delete_msg','reset_phones'];
+if ($is_logged && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && in_array($_POST['action'] ?? '', $legacyActions, true)) {
+    if (!is_string($_POST['admin_csrf'] ?? null) || !hash_equals($_SESSION['admin_csrf'], $_POST['admin_csrf'])) {
+        http_response_code(403); exit('Sesja wygasła. Odśwież formularz i spróbuj ponownie.');
+    }
+}
+$inventoryHandle = null;
+if ($is_logged && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && in_array($_POST['action'] ?? '', ['add','update','delete','reset_phones'], true)) {
+    // Hold the same file lock across the entire read/modify/write transaction.
+    $inventoryHandle = rm_admin_inventory_open($data_file);
+    register_shutdown_function(static function () use ($inventoryHandle) { flock($inventoryHandle, LOCK_UN); fclose($inventoryHandle); });
+}
+
 // Rozliczanie rezerwacji – dane współdzielone z aplikacją Android.
 if ($is_logged && empty($_SESSION['reservation_csrf'])) $_SESSION['reservation_csrf'] = bin2hex(random_bytes(32));
 if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['action'] ?? ''), ['reservation_add','reservation_update','reservation_delete','reservation_toggle'], true)) {
@@ -88,7 +104,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['act
                 $items = array_values(array_filter($items, function($r) use ($id) { return (string)($r['id'] ?? '') !== $id; }));
                 $found = $id !== '' && count($items) < $before;
             } elseif ($action === 'reservation_toggle') {
-                foreach ($items as &$r) if ((string)($r['id'] ?? '') === $id) { $r['done'] = !empty($_POST['reservation_done']); $found = true; break; }
+                foreach ($items as &$r) if ((string)($r['id'] ?? '') === $id) { $candidate=$r; $candidate['done']=!empty($_POST['reservation_done']); $reason=$candidate['done']?rm_admin_assign_reservation($candidate,$items):''; if($reason===''){$r=$candidate;$found=true;}else{$_SESSION['reservation_flash']=$reason;} break; }
                 unset($r);
             } else {
                 $start = trim((string)($_POST['start_date'] ?? ''));
@@ -98,18 +114,18 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['act
                 $phone = trim((string)($_POST['phone'] ?? ''));
                 $customerName = trim((string)($_POST['customer_name'] ?? ''));
                 $legacyText = trim((string)($_POST['reservation_text'] ?? ''));
-                $validDates = preg_match('/^\d{4}-\d{2}-\d{2}$/', $start) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $finish) && $finish >= $start;
-                if (!$validDates || ($equipment === '' && $legacyText === '') || strlen($equipment)>200 || strlen($phone)>100 || ($time !== '' && !preg_match('/^\d{1,2}:[0-5]\d$/', $time))) {
+                $validDates = rm_valid_reservation_dates(['start_date'=>$start,'end_date'=>$finish]);
+                if (!$validDates || ($equipment === '' && $legacyText === '') || strlen($equipment)>200 || strlen($phone)>100 || ($time !== '' && !rm_admin_valid_time($time))) {
                     $_SESSION['reservation_flash'] = 'Uzupełnij sprzęt i prawidłowy zakres dat. Godzina powinna mieć format 18:00.';
                 } else {
                     $month = substr($start,0,7);
                     $text = $legacyText !== '' && $equipment === '' ? $legacyText : $start . ' – ' . $finish . ($time !== '' ? ' '.$time : '') . ' • ' . $equipment . ($phone !== '' ? ' • '.$phone : '');
                     $item = ['id'=>($action==='reservation_update'?$id:bin2hex(random_bytes(12))),'month'=>$month,'text'=>$text,'equipment'=>$equipment,'day'=>(int)substr($start,8,2),'start_date'=>$start,'end_date'=>$finish,'end_day'=>(int)substr($finish,8,2),'end_month'=>substr($finish,0,7),'time'=>$time,'phone'=>$phone,'customer_name'=>$customerName,'done'=>!empty($_POST['reservation_done']),'settled'=>false];
                     if ($action === 'reservation_update') {
-                        foreach ($items as &$saved) if ((string)($saved['id'] ?? '') === $id) { foreach (['settled','income','loss','loss_note','settled_at','created_at'] as $field) if (array_key_exists($field,$saved)) $item[$field]=$saved[$field]; $item=array_merge($saved,$item); if(($saved['equipment']??'')!==$equipment){$item['asset_id']='';$item['asset_label']='';$item['vacuum_asset_id']='';$item['vacuum_asset_label']='';unset($item['needs_vacuum']);} $saved=$item; $found=true; break; }
+                        foreach ($items as &$saved) if ((string)($saved['id'] ?? '') === $id) { foreach (['settled','income','loss','loss_note','settled_at','created_at'] as $field) if (array_key_exists($field,$saved)) $item[$field]=$saved[$field]; $item=array_merge($saved,$item); if(($saved['equipment']??'')!==$equipment){$item['asset_id']='';$item['asset_label']='';$item['vacuum_asset_id']='';$item['vacuum_asset_label']='';unset($item['needs_vacuum']);} $reason=rm_admin_assign_reservation($item,$items); if($reason!==''){$_SESSION['reservation_flash']=$reason;break;} $saved=$item; $found=true; break; }
                         unset($saved);
-                        if (!$found) $_SESSION['reservation_flash']='Nie znaleziono rezerwacji do edycji.';
-                    } else { $item['created_at']=date('Y-m-d H:i:s'); $items[]=$item; $found=true; }
+                        if (!$found && !isset($_SESSION['reservation_flash'])) $_SESSION['reservation_flash']='Nie znaleziono rezerwacji do edycji.';
+                    } else { $item['created_at']=date('Y-m-d H:i:s'); $reason=rm_admin_assign_reservation($item,$items); if($reason===''){$items[]=$item; $found=true;}else{$_SESSION['reservation_flash']=$reason;} }
                 }
             }
             if ($found) {
@@ -291,9 +307,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: admin.php?tab=terms&saved=1');
         exit();
     }
-    $current_data = file_exists($data_file)
-        ? json_decode(file_get_contents($data_file), true)
-        : [];
+    $current_data = $inventoryHandle ? rm_admin_inventory_read($inventoryHandle) : [];
 
     if (!is_array($current_data)) {
         $current_data = [];
@@ -387,14 +401,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
             array_unshift($current_data, $item_data);
         }
 
-        file_put_contents(
-            $data_file,
-            json_encode(
-                array_values($current_data),
-                JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-            ),
-            LOCK_EX
-        );
+        rm_admin_inventory_write($inventoryHandle, array_values($current_data));
 
         header("Location: admin.php?tab=products");
         exit();
@@ -416,14 +423,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        file_put_contents(
-            $data_file,
-            json_encode(
-                array_values($current_data),
-                JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-            ),
-            LOCK_EX
-        );
+        rm_admin_inventory_write($inventoryHandle, array_values($current_data));
 
         header("Location: admin.php?tab=products");
         exit();
@@ -461,10 +461,8 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 /* RESET LICZNIKÓW TELEFONÓW */
-if ($is_logged && isset($_GET['reset_phones'])) {
-    $current_data = file_exists($data_file)
-        ? json_decode(file_get_contents($data_file), true)
-        : [];
+if ($is_logged && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['action'] ?? '') === 'reset_phones') {
+    $current_data = $inventoryHandle ? rm_admin_inventory_read($inventoryHandle) : [];
 
     if (!is_array($current_data)) {
         $current_data = [];
@@ -475,14 +473,7 @@ if ($is_logged && isset($_GET['reset_phones'])) {
     }
     unset($p);
 
-    file_put_contents(
-        $data_file,
-        json_encode(
-            $current_data,
-            JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-        ),
-        LOCK_EX
-    );
+    rm_admin_inventory_write($inventoryHandle, $current_data);
 
     header("Location: admin.php?tab=products");
     exit();
@@ -729,7 +720,7 @@ if (isset($_GET['edit_id'])) {
 <?php if (!$is_logged): ?>
 
     <div class="min-h-screen flex items-center justify-center p-4">
-        <form method="POST" class="bg-white p-8 sm:p-10 rounded-3xl shadow-2xl w-full max-w-sm text-center">
+        <form method="POST" class="bg-white p-8 sm:p-10 rounded-3xl shadow-2xl w-full max-w-sm text-center"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>">
             <h2 class="text-2xl font-black mb-6 uppercase">Admin RentMor</h2>
 
             <?php if (isset($error)): ?>
@@ -999,7 +990,7 @@ if (isset($_GET['edit_id'])) {
                 <?php if (isset($_GET['saved'])): ?>
                     <div class="bg-green-50 text-green-700 p-3 rounded-xl mb-4 font-bold">Zasady zostały zapisane.</div>
                 <?php endif; ?>
-                <form method="POST" class="space-y-4">
+                <form method="POST" class="space-y-4"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>">
                     <input type="hidden" name="action" value="save_terms">
                     <label class="block text-sm font-bold text-gray-700">Treść zasad (zachowaj podział na akapity i nagłówki)</label>
                     <textarea name="terms_content" rows="24" class="w-full border border-gray-200 rounded-2xl p-4 text-sm leading-7 focus:outline-none focus:border-yellow-400" required><?php echo e_admin($terms_content); ?></textarea>
@@ -1040,7 +1031,7 @@ if (isset($_GET['edit_id'])) {
                 <?php if (!empty($_SESSION['reservation_flash'])): ?><div class="rounded-xl p-4 bg-blue-50 text-blue-800 font-bold"><?php echo e_admin($_SESSION['reservation_flash']); unset($_SESSION['reservation_flash']); ?></div><?php endif; ?>
                 <?php $inventory = is_file(__DIR__.'/data.json') ? json_decode((string)file_get_contents(__DIR__.'/data.json'), true) : []; if (!is_array($inventory)) $inventory=[]; $equipment_names=[]; foreach($inventory as $product){$nm=trim((string)($product['name']??''));if($nm!=='')$equipment_names[$nm]=true;} $equipment_names=array_keys($equipment_names); ?>
                 <section class="bg-white rounded-3xl p-5 sm:p-7 shadow-sm"><h3 class="text-xl font-black mb-3">Dodaj rezerwację</h3>
-                    <form method="POST" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 items-end"><input type="hidden" name="action" value="reservation_add"><input type="hidden" name="reservation_csrf" value="<?php echo e_admin($_SESSION['reservation_csrf']); ?>"><input type="hidden" name="return_month" value="<?php echo e_admin($reservation_month); ?>">
+                    <form method="POST" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 items-end"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>"><input type="hidden" name="action" value="reservation_add"><input type="hidden" name="reservation_csrf" value="<?php echo e_admin($_SESSION['reservation_csrf']); ?>"><input type="hidden" name="return_month" value="<?php echo e_admin($reservation_month); ?>">
                         <label class="text-xs font-bold">Data OD<input type="date" name="start_date" value="<?php echo e_admin($reservation_month.'-01'); ?>" required class="block w-full border rounded-xl p-3 mt-1"></label>
                         <label class="text-xs font-bold">Data DO<input type="date" name="end_date" value="<?php echo e_admin($reservation_month.'-01'); ?>" required class="block w-full border rounded-xl p-3 mt-1"></label>
                         <label class="text-xs font-bold">Sprzęt<select name="equipment" required class="block w-full border rounded-xl p-3 mt-1"><option value="">— Wybierz sprzęt —</option><?php foreach($equipment_names as $nm): ?><option value="<?php echo e_admin($nm); ?>"><?php echo e_admin($nm); ?></option><?php endforeach; ?></select></label>
@@ -1066,17 +1057,17 @@ if (isset($_GET['edit_id'])) {
                     <div class="space-y-4"><?php foreach ($active_reservations as $r): $rid=(string)($r['id']??''); $sd=(string)($r['start_date']??''); $ed=(string)($r['end_date']??''); $eq=(string)($r['equipment']??''); $tm=(string)($r['time']??''); $ph=(string)($r['phone']??''); ?>
                         <div class="border rounded-2xl p-4"><div class="font-bold mb-2"><?php echo e_admin($eq!==''?$eq:($r['text']??'Rezerwacja')); ?> <span class="text-xs <?php echo !empty($r['done'])?'text-green-700':'text-amber-700'; ?>">· <?php echo !empty($r['done'])?'WYDANE':'DO WYDANIA'; ?></span></div>
                             <p class="text-sm text-gray-600 mb-3"><?php echo e_admin($sd?:'—'); ?> → <?php echo e_admin($ed?:'—'); ?><?php echo $tm?' · '.e_admin($tm):''; ?><?php echo $ph?' · '.e_admin($ph):''; ?></p>
-                            <form method="POST" class="mb-3"><input type="hidden" name="action" value="reservation_toggle"><input type="hidden" name="reservation_csrf" value="<?php echo e_admin($_SESSION['reservation_csrf']); ?>"><input type="hidden" name="reservation_id" value="<?php echo e_admin($rid); ?>"><input type="hidden" name="reservation_done" value="<?php echo !empty($r['done'])?'0':'1'; ?>"><input type="hidden" name="return_month" value="<?php echo e_admin($reservation_month); ?>"><button class="<?php echo !empty($r['done'])?'bg-green-100 text-green-800':'bg-red-100 text-red-800'; ?> rounded-xl px-4 py-3 font-black w-full sm:w-auto"><?php echo !empty($r['done'])?'COFNIJ WYDANIE':'WYDANO — OZNACZ JAKO WYDANE'; ?></button></form>
+                            <form method="POST" class="mb-3"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>"><input type="hidden" name="action" value="reservation_toggle"><input type="hidden" name="reservation_csrf" value="<?php echo e_admin($_SESSION['reservation_csrf']); ?>"><input type="hidden" name="reservation_id" value="<?php echo e_admin($rid); ?>"><input type="hidden" name="reservation_done" value="<?php echo !empty($r['done'])?'0':'1'; ?>"><input type="hidden" name="return_month" value="<?php echo e_admin($reservation_month); ?>"><button class="<?php echo !empty($r['done'])?'bg-green-100 text-green-800':'bg-red-100 text-red-800'; ?> rounded-xl px-4 py-3 font-black w-full sm:w-auto"><?php echo !empty($r['done'])?'COFNIJ WYDANIE':'WYDANO — OZNACZ JAKO WYDANE'; ?></button></form>
                             <?php if($ph!==''): ?><div class="flex flex-wrap gap-2 mb-3"><a class="bg-yellow-100 rounded-lg px-3 py-2 text-sm font-bold" href="tel:<?php echo e_admin(preg_replace('/[^0-9+]/','',$ph)); ?>">ZADZWOŃ</a><a class="bg-blue-100 rounded-lg px-3 py-2 text-sm font-bold" href="sms:<?php echo e_admin(preg_replace('/[^0-9+]/','',$ph)); ?>?body=<?php echo rawurlencode('Dzień dobry, kontaktuję się w sprawie rezerwacji sprzętu RentMor.'); ?>">WYŚLIJ WIADOMOŚĆ</a></div><?php endif; ?>
-                            <details class="mb-3"><summary class="cursor-pointer font-bold text-sm">Edytuj rezerwację</summary><form method="POST" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-3"><input type="hidden" name="action" value="reservation_update"><input type="hidden" name="reservation_csrf" value="<?php echo e_admin($_SESSION['reservation_csrf']); ?>"><input type="hidden" name="reservation_id" value="<?php echo e_admin($rid); ?>"><input type="hidden" name="return_month" value="<?php echo e_admin($reservation_month); ?>"><label class="text-xs font-bold">Data OD<input type="date" name="start_date" value="<?php echo e_admin($sd); ?>" required class="block w-full border rounded-lg p-2 mt-1"></label><label class="text-xs font-bold">Data DO<input type="date" name="end_date" value="<?php echo e_admin($ed); ?>" required class="block w-full border rounded-lg p-2 mt-1"></label><label class="text-xs font-bold">Sprzęt<select name="equipment" required class="block w-full border rounded-lg p-2 mt-1"><option value="">— Wybierz —</option><?php foreach($equipment_names as $nm): ?><option value="<?php echo e_admin($nm); ?>" <?php echo $eq===$nm?'selected':''; ?>><?php echo e_admin($nm); ?></option><?php endforeach; ?><?php if($eq!==''&&!in_array($eq,$equipment_names,true)): ?><option selected value="<?php echo e_admin($eq); ?>"><?php echo e_admin($eq); ?></option><?php endif; ?></select></label><label class="text-xs font-bold">Godzina<input type="time" name="time" value="<?php echo e_admin($tm); ?>" class="block w-full border rounded-lg p-2 mt-1"></label><label class="text-xs font-bold">Telefon / nick OLX<input name="phone" value="<?php echo e_admin($ph); ?>" maxlength="100" class="block w-full border rounded-lg p-2 mt-1"></label><label class="text-xs font-bold">Nazwa klienta<input name="customer_name" value="<?php echo e_admin($r['customer_name']??''); ?>" maxlength="200" class="block w-full border rounded-lg p-2 mt-1"></label><label class="flex items-center gap-2 text-sm"><input type="checkbox" name="reservation_done" value="1" <?php echo !empty($r['done'])?'checked':''; ?>> Wydane</label><button class="bg-gray-900 text-white rounded-xl p-3 font-bold sm:col-span-2 lg:col-span-3">ZAPISZ ZMIANY</button></form></details>
-                            <div class="grid sm:grid-cols-2 gap-2"><form method="POST" class="grid sm:grid-cols-3 gap-2 items-end"><input type="hidden" name="action" value="reservation_settle"><input type="hidden" name="reservation_id" value="<?php echo e_admin($rid); ?>"><input type="hidden" name="reservation_csrf" value="<?php echo e_admin($_SESSION['reservation_csrf']); ?>"><label class="text-xs font-bold">Zarobek (zł)<input type="number" name="income" min="0" step="0.01" value="0" required class="block w-full border rounded-lg p-2 mt-1"></label><label class="text-xs font-bold">Strata / koszt (zł)<input type="number" name="loss" min="0" step="0.01" value="0" required class="block w-full border rounded-lg p-2 mt-1"></label><label class="text-xs font-bold">Opis straty<input name="loss_note" maxlength="300" class="block w-full border rounded-lg p-2 mt-1"></label><button class="bg-yellow-400 rounded-xl p-3 font-black sm:col-span-3">ROZLICZ NAJEM</button></form><form method="POST" onsubmit="return confirm('Usunąć tę rezerwację?');" class="self-end"><input type="hidden" name="action" value="reservation_delete"><input type="hidden" name="reservation_id" value="<?php echo e_admin($rid); ?>"><input type="hidden" name="reservation_csrf" value="<?php echo e_admin($_SESSION['reservation_csrf']); ?>"><input type="hidden" name="return_month" value="<?php echo e_admin($reservation_month); ?>"><button class="bg-red-600 text-white rounded-xl p-3 font-black w-full">USUŃ REZERWACJĘ</button></form></div>
+                            <details class="mb-3"><summary class="cursor-pointer font-bold text-sm">Edytuj rezerwację</summary><form method="POST" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-3"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>"><input type="hidden" name="action" value="reservation_update"><input type="hidden" name="reservation_csrf" value="<?php echo e_admin($_SESSION['reservation_csrf']); ?>"><input type="hidden" name="reservation_id" value="<?php echo e_admin($rid); ?>"><input type="hidden" name="return_month" value="<?php echo e_admin($reservation_month); ?>"><label class="text-xs font-bold">Data OD<input type="date" name="start_date" value="<?php echo e_admin($sd); ?>" required class="block w-full border rounded-lg p-2 mt-1"></label><label class="text-xs font-bold">Data DO<input type="date" name="end_date" value="<?php echo e_admin($ed); ?>" required class="block w-full border rounded-lg p-2 mt-1"></label><label class="text-xs font-bold">Sprzęt<select name="equipment" required class="block w-full border rounded-lg p-2 mt-1"><option value="">— Wybierz —</option><?php foreach($equipment_names as $nm): ?><option value="<?php echo e_admin($nm); ?>" <?php echo $eq===$nm?'selected':''; ?>><?php echo e_admin($nm); ?></option><?php endforeach; ?><?php if($eq!==''&&!in_array($eq,$equipment_names,true)): ?><option selected value="<?php echo e_admin($eq); ?>"><?php echo e_admin($eq); ?></option><?php endif; ?></select></label><label class="text-xs font-bold">Godzina<input type="time" name="time" value="<?php echo e_admin($tm); ?>" class="block w-full border rounded-lg p-2 mt-1"></label><label class="text-xs font-bold">Telefon / nick OLX<input name="phone" value="<?php echo e_admin($ph); ?>" maxlength="100" class="block w-full border rounded-lg p-2 mt-1"></label><label class="text-xs font-bold">Nazwa klienta<input name="customer_name" value="<?php echo e_admin($r['customer_name']??''); ?>" maxlength="200" class="block w-full border rounded-lg p-2 mt-1"></label><label class="flex items-center gap-2 text-sm"><input type="checkbox" name="reservation_done" value="1" <?php echo !empty($r['done'])?'checked':''; ?>> Wydane</label><button class="bg-gray-900 text-white rounded-xl p-3 font-bold sm:col-span-2 lg:col-span-3">ZAPISZ ZMIANY</button></form></details>
+                            <div class="grid sm:grid-cols-2 gap-2"><form method="POST" class="grid sm:grid-cols-3 gap-2 items-end"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>"><input type="hidden" name="action" value="reservation_settle"><input type="hidden" name="reservation_id" value="<?php echo e_admin($rid); ?>"><input type="hidden" name="reservation_csrf" value="<?php echo e_admin($_SESSION['reservation_csrf']); ?>"><label class="text-xs font-bold">Zarobek (zł)<input type="number" name="income" min="0" step="0.01" value="0" required class="block w-full border rounded-lg p-2 mt-1"></label><label class="text-xs font-bold">Strata / koszt (zł)<input type="number" name="loss" min="0" step="0.01" value="0" required class="block w-full border rounded-lg p-2 mt-1"></label><label class="text-xs font-bold">Opis straty<input name="loss_note" maxlength="300" class="block w-full border rounded-lg p-2 mt-1"></label><button class="bg-yellow-400 rounded-xl p-3 font-black sm:col-span-3">ROZLICZ NAJEM</button></form><form method="POST" onsubmit="return confirm('Usunąć tę rezerwację?');" class="self-end"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>"><input type="hidden" name="action" value="reservation_delete"><input type="hidden" name="reservation_id" value="<?php echo e_admin($rid); ?>"><input type="hidden" name="reservation_csrf" value="<?php echo e_admin($_SESSION['reservation_csrf']); ?>"><input type="hidden" name="return_month" value="<?php echo e_admin($reservation_month); ?>"><button class="bg-red-600 text-white rounded-xl p-3 font-black w-full">USUŃ REZERWACJĘ</button></form></div>
                         </div>
                     <?php endforeach; ?></div>
                 </section>
                 <section class="bg-white rounded-3xl p-5 sm:p-7 shadow-sm"><h3 class="text-xl font-black mb-4">Historia rozliczeń <span class="text-sm text-gray-400">(<?php echo count($history_reservations); ?>)</span></h3>
                     <?php if (!$history_reservations): ?><p class="text-sm text-gray-500">Nie ma jeszcze rozliczeń w tym miesiącu.</p><?php else: ?>
                     <div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left border-b"><th class="p-2">Wpis</th><th class="p-2">Przychód</th><th class="p-2">Strata</th><th class="p-2">Wynik</th><th class="p-2">Opis straty</th><th class="p-2">Akcja</th></tr></thead><tbody>
-                    <?php foreach ($history_reservations as $r): $inc=(float)($r['income']??0); $loss=(float)($r['loss']??0); $net=$inc-$loss; ?><tr class="border-b"><td class="p-2 font-semibold"><?php echo e_admin($r['equipment']??$r['text']??''); ?><div class="text-xs text-gray-500"><?php echo e_admin($r['start_date']??''); ?><?php echo !empty($r['end_date'])?' → '.e_admin($r['end_date']):''; ?><?php echo !empty($r['phone'])?' · '.e_admin($r['phone']):''; ?></div></td><td class="p-2"><?php echo number_format($inc,2,',',' '); ?> zł</td><td class="p-2 text-red-600"><?php echo number_format($loss,2,',',' '); ?> zł</td><td class="p-2 font-black <?php echo $net<0?'text-red-600':'text-green-700'; ?>"><?php echo number_format($net,2,',',' '); ?> zł</td><td class="p-2"><?php echo e_admin($r['loss_note']??''); ?></td><td class="p-2"><form method="POST" onsubmit="return confirm('Usunąć ten zapis z historii? Tej operacji nie można cofnąć.');"><input type="hidden" name="action" value="reservation_history_delete"><input type="hidden" name="reservation_id" value="<?php echo e_admin($r['id']??''); ?>"><input type="hidden" name="reservation_csrf" value="<?php echo e_admin($_SESSION['reservation_csrf']); ?>"><input type="hidden" name="return_month" value="<?php echo e_admin($reservation_month); ?>"><button class="bg-red-600 text-white rounded-lg px-3 py-2 text-xs font-bold">USUŃ</button></form></td></tr><?php endforeach; ?>
+                    <?php foreach ($history_reservations as $r): $inc=(float)($r['income']??0); $loss=(float)($r['loss']??0); $net=$inc-$loss; ?><tr class="border-b"><td class="p-2 font-semibold"><?php echo e_admin($r['equipment']??$r['text']??''); ?><div class="text-xs text-gray-500"><?php echo e_admin($r['start_date']??''); ?><?php echo !empty($r['end_date'])?' → '.e_admin($r['end_date']):''; ?><?php echo !empty($r['phone'])?' · '.e_admin($r['phone']):''; ?></div></td><td class="p-2"><?php echo number_format($inc,2,',',' '); ?> zł</td><td class="p-2 text-red-600"><?php echo number_format($loss,2,',',' '); ?> zł</td><td class="p-2 font-black <?php echo $net<0?'text-red-600':'text-green-700'; ?>"><?php echo number_format($net,2,',',' '); ?> zł</td><td class="p-2"><?php echo e_admin($r['loss_note']??''); ?></td><td class="p-2"><form method="POST" onsubmit="return confirm('Usunąć ten zapis z historii? Tej operacji nie można cofnąć.');"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>"><input type="hidden" name="action" value="reservation_history_delete"><input type="hidden" name="reservation_id" value="<?php echo e_admin($r['id']??''); ?>"><input type="hidden" name="reservation_csrf" value="<?php echo e_admin($_SESSION['reservation_csrf']); ?>"><input type="hidden" name="return_month" value="<?php echo e_admin($reservation_month); ?>"><button class="bg-red-600 text-white rounded-lg px-3 py-2 text-xs font-bold">USUŃ</button></form></td></tr><?php endforeach; ?>
                     </tbody></table></div><?php endif; ?>
                 </section>
             </div>
@@ -1095,7 +1086,7 @@ if (isset($_GET['edit_id'])) {
             <div class="space-y-5"><div><h2 class="text-2xl font-black">Klienci</h2><p class="text-sm text-gray-500">Karty tworzą się automatycznie na podstawie rezerwacji i protokołów. Numer telefonu łączy historię klienta.</p></div>
             <?php if (!empty($_SESSION['customer_flash'])): ?><div class="rounded-xl p-4 bg-blue-50 text-blue-800 font-bold"><?php echo e_admin($_SESSION['customer_flash']); unset($_SESSION['customer_flash']); ?></div><?php endif; ?>
             <div class="grid gap-4"><?php foreach($customers as $c): ?><section class="bg-white rounded-2xl p-5 shadow-sm"><div class="flex flex-wrap justify-between gap-2"><div><h3 class="font-black text-lg"><?php echo e_admin($c['name']?:'Klient bez nazwy'); ?></h3><p class="text-sm text-gray-600"><?php echo e_admin($c['phone']); ?></p></div><div class="text-xs text-gray-500">Rezerwacje: <?php echo count($c['reservations']); ?> · Protokoły: <?php echo count($c['protocols']); ?></div></div>
-            <form method="POST" class="grid sm:grid-cols-2 gap-3 mt-4"><input type="hidden" name="action" value="customer_save"><input type="hidden" name="customer_csrf" value="<?php echo e_admin($_SESSION['customer_csrf']); ?>"><input type="hidden" name="phone" value="<?php echo e_admin($c['phone']); ?>"><label class="text-xs font-bold">Imię i nazwisko<input name="name" maxlength="200" value="<?php echo e_admin($c['name']??''); ?>" class="block w-full border rounded-lg p-3 mt-1"></label><label class="text-xs font-bold sm:row-span-2">Notatki<textarea name="notes" maxlength="4000" rows="3" class="block w-full border rounded-lg p-3 mt-1"><?php echo e_admin($c['notes']??''); ?></textarea></label><button class="bg-yellow-400 rounded-xl p-3 font-black">ZAPISZ KARTĘ</button></form>
+            <form method="POST" class="grid sm:grid-cols-2 gap-3 mt-4"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>"><input type="hidden" name="action" value="customer_save"><input type="hidden" name="customer_csrf" value="<?php echo e_admin($_SESSION['customer_csrf']); ?>"><input type="hidden" name="phone" value="<?php echo e_admin($c['phone']); ?>"><label class="text-xs font-bold">Imię i nazwisko<input name="name" maxlength="200" value="<?php echo e_admin($c['name']??''); ?>" class="block w-full border rounded-lg p-3 mt-1"></label><label class="text-xs font-bold sm:row-span-2">Notatki<textarea name="notes" maxlength="4000" rows="3" class="block w-full border rounded-lg p-3 mt-1"><?php echo e_admin($c['notes']??''); ?></textarea></label><button class="bg-yellow-400 rounded-xl p-3 font-black">ZAPISZ KARTĘ</button></form>
             <?php if(!empty($c['reservations'])||!empty($c['protocols'])): ?><details class="mt-4"><summary class="cursor-pointer text-sm font-bold">Historia klienta</summary><div class="mt-2 space-y-2 text-sm"><?php foreach($c['reservations'] as $r): ?><div class="border-b py-2"><b>Rezerwacja:</b> <?php echo e_admin($r['equipment']??$r['text']??''); ?> · <?php echo e_admin($r['start_date']??''); ?><?php if(!empty($r['end_date'])) echo ' → '.e_admin($r['end_date']); ?></div><?php endforeach; ?><?php foreach($c['protocols'] as $p): ?><div class="border-b py-2"><b>Protokół:</b> <?php echo e_admin($p['number']??''); ?> · <?php echo e_admin($p['equipment']??''); ?> · <?php echo e_admin($p['rental_date']??$p['created_at']??''); ?></div><?php endforeach; ?></div></details><?php endif; ?></section><?php endforeach; ?><?php if(!$customers): ?><p class="bg-white rounded-xl p-5">Nie ma jeszcze klientów z prawidłowym numerem telefonu.</p><?php endif; ?></div></div>
         <?php endif; ?>
 
@@ -1130,7 +1121,7 @@ if (isset($_GET['edit_id'])) {
                     <div class="bg-white rounded-2xl p-4 shadow-sm"><p class="text-xs font-bold text-gray-500">WYNIK PO KOSZTACH</p><p class="text-xl font-black mt-1 <?php echo $final_result < 0 ? 'text-red-600' : 'text-green-700'; ?>"><?php echo number_format($final_result,2,',',' '); ?> zł</p></div>
                 </div>
                 <section class="bg-white rounded-3xl p-5 sm:p-7 shadow-sm"><h3 class="text-xl font-black mb-4">Dodaj koszt lub zakup sprzętu</h3>
-                    <form method="POST" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 items-end">
+                    <form method="POST" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 items-end"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>">
                         <input type="hidden" name="action" value="expense_save"><input type="hidden" name="expense_csrf" value="<?php echo e_admin($_SESSION['expense_csrf']); ?>"><input type="hidden" name="return_month" value="<?php echo e_admin($cost_month); ?>">
                         <label class="text-xs font-bold">Nazwa<input name="expense_name" maxlength="160" required placeholder="Np. paliwo, naprawa, reklama" class="block w-full border rounded-xl p-3 mt-1"></label>
                         <label class="text-xs font-bold">Kwota (zł)<input type="number" name="expense_amount" min="0.01" step="0.01" required class="block w-full border rounded-xl p-3 mt-1"></label>
@@ -1143,8 +1134,8 @@ if (isset($_GET['edit_id'])) {
                 <section class="bg-white rounded-3xl p-5 sm:p-7 shadow-sm"><h3 class="text-xl font-black mb-4">Wpisy za wybrany miesiąc (<?php echo count($month_costs); ?>)</h3>
                     <?php if (!$month_costs): ?><p class="text-sm text-gray-500">Brak kosztów i inwestycji w tym miesiącu.</p><?php else: ?>
                     <div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left border-b"><th class="p-2">Data</th><th class="p-2">Nazwa</th><th class="p-2">Rodzaj</th><th class="p-2">Kwota</th><th class="p-2">Opis</th><th class="p-2">Akcje</th></tr></thead><tbody>
-                    <?php foreach ($month_costs as $x): ?><tr class="border-b"><td class="p-2 whitespace-nowrap"><?php echo e_admin($x['date'] ?? ''); ?></td><td class="p-2 font-semibold"><?php echo e_admin($x['name'] ?? ''); ?></td><td class="p-2"><?php echo (($x['type'] ?? 'expense') === 'investment') ? 'Inwestycja' : 'Koszt bieżący'; ?></td><td class="p-2 font-black whitespace-nowrap"><?php echo number_format((float)($x['amount'] ?? 0),2,',',' '); ?> zł</td><td class="p-2"><?php echo e_admin($x['note'] ?? ''); ?></td><td class="p-2"><div class="flex gap-2"><button type="button" class="text-blue-700 font-bold" onclick="const f=this.closest('tr').querySelector('.edit-expense');f.classList.toggle('hidden')">Edytuj</button><form method="POST" onsubmit="return confirm('Usunąć ten wpis?')"><input type="hidden" name="action" value="expense_delete"><input type="hidden" name="expense_csrf" value="<?php echo e_admin($_SESSION['expense_csrf']); ?>"><input type="hidden" name="expense_id" value="<?php echo e_admin($x['id'] ?? ''); ?>"><input type="hidden" name="return_month" value="<?php echo e_admin($cost_month); ?>"><button class="text-red-700 font-bold">Usuń</button></form></div></td></tr>
-                    <tr class="hidden edit-expense bg-gray-50"><td colspan="6" class="p-3"><form method="POST" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2"><input type="hidden" name="action" value="expense_save"><input type="hidden" name="expense_csrf" value="<?php echo e_admin($_SESSION['expense_csrf']); ?>"><input type="hidden" name="expense_id" value="<?php echo e_admin($x['id'] ?? ''); ?>"><input type="hidden" name="return_month" value="<?php echo e_admin($cost_month); ?>"><label class="text-xs font-bold">Nazwa<input name="expense_name" maxlength="160" required value="<?php echo e_admin($x['name'] ?? ''); ?>" class="block w-full border rounded-lg p-2 mt-1"></label><label class="text-xs font-bold">Kwota<input type="number" name="expense_amount" min="0.01" step="0.01" required value="<?php echo e_admin($x['amount'] ?? 0); ?>" class="block w-full border rounded-lg p-2 mt-1"></label><label class="text-xs font-bold">Data<input type="date" name="expense_date" required value="<?php echo e_admin($x['date'] ?? ''); ?>" class="block w-full border rounded-lg p-2 mt-1"></label><label class="text-xs font-bold">Rodzaj<select name="expense_type" class="block w-full border rounded-lg p-2 mt-1"><option value="expense" <?php echo (($x['type'] ?? 'expense') !== 'investment') ? 'selected' : ''; ?>>Koszt bieżący</option><option value="investment" <?php echo (($x['type'] ?? '') === 'investment') ? 'selected' : ''; ?>>Inwestycja</option></select></label><label class="text-xs font-bold lg:col-span-2">Opis<input name="expense_note" maxlength="1000" value="<?php echo e_admin($x['note'] ?? ''); ?>" class="block w-full border rounded-lg p-2 mt-1"></label><button class="bg-gray-900 text-white rounded-lg p-2 font-bold">ZAPISZ ZMIANY</button></form></td></tr><?php endforeach; ?>
+                    <?php foreach ($month_costs as $x): ?><tr class="border-b"><td class="p-2 whitespace-nowrap"><?php echo e_admin($x['date'] ?? ''); ?></td><td class="p-2 font-semibold"><?php echo e_admin($x['name'] ?? ''); ?></td><td class="p-2"><?php echo (($x['type'] ?? 'expense') === 'investment') ? 'Inwestycja' : 'Koszt bieżący'; ?></td><td class="p-2 font-black whitespace-nowrap"><?php echo number_format((float)($x['amount'] ?? 0),2,',',' '); ?> zł</td><td class="p-2"><?php echo e_admin($x['note'] ?? ''); ?></td><td class="p-2"><div class="flex gap-2"><button type="button" class="text-blue-700 font-bold" onclick="const f=this.closest('tr').querySelector('.edit-expense');f.classList.toggle('hidden')">Edytuj</button><form method="POST" onsubmit="return confirm('Usunąć ten wpis?')"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>"><input type="hidden" name="action" value="expense_delete"><input type="hidden" name="expense_csrf" value="<?php echo e_admin($_SESSION['expense_csrf']); ?>"><input type="hidden" name="expense_id" value="<?php echo e_admin($x['id'] ?? ''); ?>"><input type="hidden" name="return_month" value="<?php echo e_admin($cost_month); ?>"><button class="text-red-700 font-bold">Usuń</button></form></div></td></tr>
+                    <tr class="hidden edit-expense bg-gray-50"><td colspan="6" class="p-3"><form method="POST" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>"><input type="hidden" name="action" value="expense_save"><input type="hidden" name="expense_csrf" value="<?php echo e_admin($_SESSION['expense_csrf']); ?>"><input type="hidden" name="expense_id" value="<?php echo e_admin($x['id'] ?? ''); ?>"><input type="hidden" name="return_month" value="<?php echo e_admin($cost_month); ?>"><label class="text-xs font-bold">Nazwa<input name="expense_name" maxlength="160" required value="<?php echo e_admin($x['name'] ?? ''); ?>" class="block w-full border rounded-lg p-2 mt-1"></label><label class="text-xs font-bold">Kwota<input type="number" name="expense_amount" min="0.01" step="0.01" required value="<?php echo e_admin($x['amount'] ?? 0); ?>" class="block w-full border rounded-lg p-2 mt-1"></label><label class="text-xs font-bold">Data<input type="date" name="expense_date" required value="<?php echo e_admin($x['date'] ?? ''); ?>" class="block w-full border rounded-lg p-2 mt-1"></label><label class="text-xs font-bold">Rodzaj<select name="expense_type" class="block w-full border rounded-lg p-2 mt-1"><option value="expense" <?php echo (($x['type'] ?? 'expense') !== 'investment') ? 'selected' : ''; ?>>Koszt bieżący</option><option value="investment" <?php echo (($x['type'] ?? '') === 'investment') ? 'selected' : ''; ?>>Inwestycja</option></select></label><label class="text-xs font-bold lg:col-span-2">Opis<input name="expense_note" maxlength="1000" value="<?php echo e_admin($x['note'] ?? ''); ?>" class="block w-full border rounded-lg p-2 mt-1"></label><button class="bg-gray-900 text-white rounded-lg p-2 font-bold">ZAPISZ ZMIANY</button></form></td></tr><?php endforeach; ?>
                     </tbody></table></div><?php endif; ?>
                 </section>
             </div>
@@ -1190,7 +1181,7 @@ if (isset($_GET['edit_id'])) {
                     <form method="GET" class="flex items-center gap-2"><input type="hidden" name="tab" value="profitability"><select name="year" class="border rounded-xl p-3 bg-white"><option value="all" <?php echo $profit_year==='all'?'selected':''; ?>>Cała historia</option><?php for($yy=(int)date('Y');$yy>=2020;$yy--): ?><option value="<?php echo $yy; ?>" <?php echo $profit_year===(string)$yy?'selected':''; ?>><?php echo $yy; ?></option><?php endfor; ?></select><button class="bg-gray-900 text-white rounded-xl px-4 py-3 font-bold">Pokaż</button></form></div>
                 <div class="grid sm:grid-cols-2 gap-3"><div class="bg-white rounded-2xl p-4 shadow-sm"><p class="text-xs font-bold text-gray-500">PRZYCHÓD Z NAJMU</p><p class="text-2xl font-black mt-1"><?php echo number_format($totalIncome,2,',',' '); ?> zł</p></div><div class="bg-white rounded-2xl p-4 shadow-sm"><p class="text-xs font-bold text-gray-500">WYNIK PO KOSZTACH SPRZĘTU</p><p class="text-2xl font-black mt-1 <?php echo $totalNet<0?'text-red-600':'text-green-700'; ?>"><?php echo number_format($totalNet,2,',',' '); ?> zł</p></div></div>
                 <?php if(!empty($_SESSION['expense_flash'])): ?><div class="rounded-xl p-4 bg-blue-50 text-blue-800 font-bold"><?php echo e_admin($_SESSION['expense_flash']); unset($_SESSION['expense_flash']); ?></div><?php endif; ?>
-                <section class="bg-white rounded-3xl p-5 shadow-sm"><h3 class="text-lg font-black mb-3">Dodaj koszt do modelu</h3><form method="POST" class="grid sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end"><input type="hidden" name="action" value="equipment_cost_save"><input type="hidden" name="expense_csrf" value="<?php echo e_admin($_SESSION['expense_csrf']); ?>"><input type="hidden" name="return_year" value="<?php echo e_admin($profit_year); ?>">
+                <section class="bg-white rounded-3xl p-5 shadow-sm"><h3 class="text-lg font-black mb-3">Dodaj koszt do modelu</h3><form method="POST" class="grid sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>"><input type="hidden" name="action" value="equipment_cost_save"><input type="hidden" name="expense_csrf" value="<?php echo e_admin($_SESSION['expense_csrf']); ?>"><input type="hidden" name="return_year" value="<?php echo e_admin($profit_year); ?>">
                     <label class="text-xs font-bold lg:col-span-2">Model sprzętu<select name="equipment_name" required class="block w-full border rounded-xl p-3 mt-1"><option value="">Wybierz model</option><?php foreach($equipment_options as $nm): ?><option value="<?php echo e_admin($nm); ?>"><?php echo e_admin($nm); ?></option><?php endforeach; ?></select></label>
                     <label class="text-xs font-bold">Rodzaj<select name="expense_type" class="block w-full border rounded-xl p-3 mt-1"><option value="investment">Zakup (łączny koszt)</option><option value="expense">Naprawa / serwis</option></select></label>
                     <label class="text-xs font-bold">Kwota (zł)<input type="number" name="expense_amount" min="0.01" step="0.01" required class="block w-full border rounded-xl p-3 mt-1"></label>
@@ -1220,7 +1211,7 @@ if (isset($_GET['edit_id'])) {
                             <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('activationLink').value).then(()=>alert('Skopiowano link.')).catch(()=>{document.getElementById('activationLink').select();alert('Skopiuj zaznaczony link.');})" class="mt-2 bg-gray-900 text-white px-4 py-3 rounded-xl text-sm font-black">KOPIUJ LINK</button>
                         </div>
                     <?php endif; ?>
-                    <form method="POST" class="grid sm:grid-cols-2 gap-3 mt-6">
+                    <form method="POST" class="grid sm:grid-cols-2 gap-3 mt-6"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>">
                         <input type="hidden" name="action" value="protocol_create_code">
                         <input type="hidden" name="protocol_devices_csrf" value="<?php echo e_admin($_SESSION['protocol_devices_csrf']); ?>">
                         <div><label class="block text-xs font-black mb-2">ROLA URZĄDZENIA</label><select name="device_role" class="w-full border rounded-xl p-3"><option value="admin">Administrator – pełne uprawnienia</option><option value="assistant">Pomocnik – bez usuwania</option></select></div>
@@ -1236,7 +1227,7 @@ if (isset($_GET['edit_id'])) {
                         <?php foreach ($active_devices as $device): ?>
                             <div class="border rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
                                 <div><p class="font-black"><?php echo e_admin($device['name'] ?? 'Urządzenie'); ?></p><p class="text-xs text-gray-500 mt-1">Rola: <?php echo ($device['role'] ?? '') === 'assistant' ? 'Pomocnik' : 'Administrator'; ?> · Aktywowano: <?php echo e_admin($device['created_at'] ?? ''); ?></p></div>
-                                <form method="POST" onsubmit="return confirm('Odebrać dostęp temu urządzeniu?');"><input type="hidden" name="action" value="protocol_revoke_device"><input type="hidden" name="device_id" value="<?php echo e_admin($device['id'] ?? ''); ?>"><input type="hidden" name="protocol_devices_csrf" value="<?php echo e_admin($_SESSION['protocol_devices_csrf']); ?>"><button class="bg-red-600 text-white rounded-xl px-4 py-3 text-xs font-black">ODBIERZ DOSTĘP</button></form>
+                                <form method="POST" onsubmit="return confirm('Odebrać dostęp temu urządzeniu?');"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>"><input type="hidden" name="action" value="protocol_revoke_device"><input type="hidden" name="device_id" value="<?php echo e_admin($device['id'] ?? ''); ?>"><input type="hidden" name="protocol_devices_csrf" value="<?php echo e_admin($_SESSION['protocol_devices_csrf']); ?>"><button class="bg-red-600 text-white rounded-xl px-4 py-3 text-xs font-black">ODBIERZ DOSTĘP</button></form>
                             </div>
                         <?php endforeach; ?>
                         </div>
@@ -1275,7 +1266,7 @@ if (isset($_GET['edit_id'])) {
                             </div>
                         </div>
 
-                        <form method="POST">
+                        <form method="POST"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>">
                             <input type="hidden" name="action" value="delete_msg">
                             <input type="hidden" name="id" value="<?php echo e_admin($m['id'] ?? ''); ?>">
                             <button type="submit" class="text-red-200 hover:text-red-500 p-2">
@@ -1298,7 +1289,7 @@ if (isset($_GET['edit_id'])) {
                     <?php echo $edit_mode ? 'Edytuj' : 'Dodaj'; ?> Sprzęt
                 </h3>
 
-                <form method="POST" enctype="multipart/form-data" class="grid gap-4">
+                <form method="POST" enctype="multipart/form-data" class="grid gap-4"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>">
 
                     <input type="hidden" name="action" value="<?php echo $edit_mode ? 'update' : 'add'; ?>">
 
@@ -1438,13 +1429,10 @@ if (isset($_GET['edit_id'])) {
                     Twoja baza ogłoszeń
                 </h3>
 
-                <a
-                    href="?tab=products&reset_phones=1"
-                    onclick="return confirm('Czy na pewno wyzerować liczniki telefonów?');"
-                    class="bg-white px-3 py-2 rounded-xl text-[10px] font-black uppercase text-red-500 shadow-sm border"
-                >
-                    Resetuj liczniki tel. 📞
-                </a>
+                <form method="POST" onsubmit="return confirm('Czy na pewno wyzerować liczniki telefonów?');"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>">
+                    <input type="hidden" name="action" value="reset_phones">
+                    <button type="submit" class="bg-white px-3 py-2 rounded-xl text-[10px] font-black uppercase text-red-500 shadow-sm border">Resetuj liczniki tel. 📞</button>
+                </form>
             </div>
 
             <div class="space-y-4">
@@ -1497,7 +1485,7 @@ if (isset($_GET['edit_id'])) {
                                 EDYTUJ
                             </a>
 
-                            <form method="POST" onsubmit="return confirm('Czy na pewno usunąć ten sprzęt?');">
+                            <form method="POST" onsubmit="return confirm('Czy na pewno usunąć ten sprzęt?');"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>">
                                 <input type="hidden" name="action" value="delete">
                                 <input type="hidden" name="id" value="<?php echo e_admin($p['id'] ?? ''); ?>">
 
