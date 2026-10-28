@@ -82,6 +82,10 @@ $role = rm_device_role(__DIR__ . '/protocol_devices.json');
 if ($role === '') rm_json_response(401, ['ok'=>false, 'error'=>'Urządzenie nieaktywne. Połącz się z internetem i aktywuj je ponownie.']);
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+if (($_GET['view'] ?? '') === 'notebook') {
+    require_once __DIR__ . '/notebook_sync.php';
+    rm_notebook_handle($role,$method);
+}
 // Token registration never returns Firebase credentials or other devices' tokens.
 if (($_GET['view'] ?? '') === 'push_token') {
     if ($method !== 'POST') rm_json_response(405,['ok'=>false,'error'=>'Niedozwolona metoda.']);

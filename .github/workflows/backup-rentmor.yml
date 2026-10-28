@@ -11,6 +11,8 @@ on:
       - 'scripts/backup_rentmor.py'
       - 'scripts/backup_photos.py'
       - 'scripts/backup_retention.py'
+      - 'server/notebook_sync.php'
+      - 'scripts/test_notebook_sync.php'
   workflow_dispatch:
 
 permissions:
@@ -63,6 +65,23 @@ jobs:
               echo "Optional source absent: $name"
             fi
           done
+          # Listing distinguishes a not-yet-initialized notebook from a failed read.
+          # Never claim that a complete backup exists if an initialized notebook is inaccessible.
+          PRIVATE_NAMES="$(lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
+            -e "$SFTP_CONNECT_SETUP; cls -1 rentmor-private; bye" 2>/dev/null)" || {
+            echo "::error::Cannot inspect private notebook backup directory."
+            exit 1
+          }
+          if printf '%s\n' "$PRIVATE_NAMES" | grep -qx 'notebook.json'; then
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
+              -e "$SFTP_CONNECT_SETUP; get rentmor-private/notebook.json -o $SNAPSHOT/notebook.json; bye" >/dev/null 2>&1 || {
+              echo "::error::Private notebook exists but cannot be backed up."
+              exit 1
+            }
+            chmod 600 "$SNAPSHOT/notebook.json"
+          else
+            echo "Private notebook has not been initialized; no notebook data yet."
+          fi
           python3 scripts/backup_rentmor.py "$SNAPSHOT"
           STAMP="$(date -u +%Y-%m-%d)"
           # Never overwrite a completed snapshot from an earlier run.
@@ -72,7 +91,7 @@ jobs:
           # Create the exact unique destination, not the old date-only directory.
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
             -e "$SFTP_CONNECT_SETUP; mkdir -p $DEST; bye" >/dev/null
-          for name in $essential $optional; do
+          for name in $essential $optional notebook.json; do
             test -f "$SNAPSHOT/$name" || continue
             lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
               -e "$SFTP_CONNECT_SETUP; put $SNAPSHOT/$name -o $DEST/$name; get $DEST/$name -o $SNAPSHOT/verified-$name; bye" >/dev/null

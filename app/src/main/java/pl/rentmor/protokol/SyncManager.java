@@ -97,6 +97,26 @@ public class SyncManager {
         if(items==null)throw new IOException("Brak poprawnej listy wiadomości.");
         return items;
     }
+    /** Admin-only notes: fetch remote revisions before applying queued local mutations. */
+    public synchronized int syncNotebook(NotebookStore notebook) throws Exception {
+        // Send stable UUID operations first: if an earlier POST succeeded but its
+        // acknowledgement was lost, the server can safely acknowledge the replay.
+        // Reading remote changes first would incorrectly mark that case as a conflict.
+        JSONArray ops=notebook.pending();
+        if(ops.length()>0){
+            JSONObject body=new JSONObject();body.put("operations",ops);
+            JSONObject response=request(API+"?view=notebook","POST",body);
+            JSONArray results=response.optJSONArray("results");
+            if(results==null)throw new IOException("Serwer nie potwierdził zmian notatnika.");
+            notebook.acknowledgements(ops,results);
+        }
+        JSONObject refreshed=request(API+"?view=notebook","GET",null);
+        if(!"admin".equals(refreshed.optString("role")))throw new SecurityException("Notatnik można synchronizować tylko jako administrator.");
+        JSONArray updated=refreshed.optJSONArray("notes");
+        if(updated==null)throw new IOException("Serwer nie zwrócił aktualnego notatnika.");
+        notebook.mergeRemote(updated);
+        return notebook.conflicts();
+    }
     /** The server may have committed later operations even when an earlier one failed. */
     static void applyAcknowledgements(LocalStore store,JSONArray pending,JSONArray results) throws Exception {
         java.util.HashSet<String> submitted=new java.util.HashSet<>();
