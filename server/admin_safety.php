@@ -26,29 +26,33 @@ function rm_admin_storage_error(): never {
     http_response_code(503);
     exit('Nie udało się zapisać danych. Odśwież panel i spróbuj ponownie.');
 }
+// The Android API locks <data>.lock and atomically renames <data>.
+// Admin MUST lock the same sidecar (locking the replaced data inode is unsafe).
 function rm_admin_inventory_open(string $path) {
-    $fp = @fopen($path, 'c+');
-    if (!$fp || !flock($fp, LOCK_EX)) rm_admin_storage_error();
+    $fp = @fopen($path . '.lock', 'c+');
+    if (!$fp || !@flock($fp, LOCK_EX)) rm_admin_storage_error();
     return $fp;
 }
-function rm_admin_inventory_read($fp): array {
-    rewind($fp);
-    $raw = stream_get_contents($fp);
-    if ($raw === '') return [];
-    $data = is_string($raw) ? json_decode($raw, true) : null;
-    if (!is_array($data)) rm_admin_storage_error();
+function rm_admin_inventory_path($fp): string {
+    $meta = stream_get_meta_data($fp);
+    $uri = (string)($meta['uri'] ?? '');
+    if (!str_ends_with($uri, '.lock')) rm_admin_storage_error();
+    return substr($uri, 0, -5);
+}
+function rm_admin_read_json_list(string $path): array {
+    if (!file_exists($path)) return [];
+    if (!is_file($path)) rm_admin_storage_error();
+    $raw = @file_get_contents($path);
+    if (!is_string($raw) || $raw === '') rm_admin_storage_error();
+    $data = json_decode($raw, true);
+    if (!is_array($data) || !array_is_list($data)) rm_admin_storage_error();
     return $data;
 }
+function rm_admin_inventory_read($fp): array {
+    return rm_admin_read_json_list(rm_admin_inventory_path($fp));
+}
 function rm_admin_inventory_write($fp, array $data): void {
-    $json = json_encode(array_values($data), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    if ($json === false) rm_admin_storage_error();
-    rewind($fp);
-    $original = stream_get_contents($fp);
-    rewind($fp);
-    if (fwrite($fp, $json) !== strlen($json) || !ftruncate($fp, strlen($json)) || !fflush($fp)) {
-        if (is_string($original)) { rewind($fp); fwrite($fp, $original); ftruncate($fp, strlen($original)); fflush($fp); }
-        rm_admin_storage_error();
-    }
+    rm_admin_write_json_file(rm_admin_inventory_path($fp), array_values($data));
 }
 
 /**
