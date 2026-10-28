@@ -97,6 +97,27 @@ public class SyncManager {
         if(items==null)throw new IOException("Brak poprawnej listy wiadomości.");
         return items;
     }
+    /** Admin-only notes: fetch remote revisions before applying queued local mutations. */
+    public synchronized int syncNotebook(NotebookStore notebook) throws Exception {
+        JSONObject initial=request(API+"?view=notebook","GET",null);
+        if(!"admin".equals(initial.optString("role")))throw new SecurityException("Notatnik można synchronizować tylko jako administrator.");
+        JSONArray notes=initial.optJSONArray("notes");
+        if(notes==null)throw new IOException("Brak prawidłowych danych notatnika");
+        notebook.mergeRemote(notes);
+        JSONArray ops=notebook.pending();
+        if(ops.length()>0){
+            JSONObject body=new JSONObject();body.put("operations",ops);
+            JSONObject response=request(API+"?view=notebook","POST",body);
+            JSONArray results=response.optJSONArray("results");
+            if(results==null)throw new IOException("Serwer nie potwierdził zmian notatnika.");
+            notebook.acknowledgements(ops,results);
+        }
+        JSONObject refreshed=request(API+"?view=notebook","GET",null);
+        JSONArray updated=refreshed.optJSONArray("notes");
+        if(updated==null)throw new IOException("Serwer nie zwrócił aktualnego notatnika.");
+        notebook.mergeRemote(updated);
+        return notebook.conflicts();
+    }
     /** The server may have committed later operations even when an earlier one failed. */
     static void applyAcknowledgements(LocalStore store,JSONArray pending,JSONArray results) throws Exception {
         java.util.HashSet<String> submitted=new java.util.HashSet<>();
