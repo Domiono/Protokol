@@ -108,13 +108,14 @@ final class NotebookPage {
         ScrollView scroll=new ScrollView(activity);scroll.addView(form);
         AlertDialog dialog=new AlertDialog.Builder(activity).setTitle(entry==null?"Nowy wpis":"Edytuj wpis")
             .setView(scroll).setNegativeButton("Anuluj",null).setPositiveButton("Zapisz",null).create();
-        dialog.setOnShowListener(d->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
+        dialog.show();
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
             try{
                 store.save(entry==null?null:entry.id,input.getText().toString(),type.getSelectedItem().toString());
                 dialog.dismiss();render();
             }catch(IllegalArgumentException error){input.setError(error.getMessage());}
             catch(Exception error){error(error);}
-        }));dialog.show();
+        });
     }
     private void error(Exception error){Toast.makeText(activity,"Nie udało się zapisać lub odczytać wpisu. "+error.getMessage(),Toast.LENGTH_LONG).show();}
 }

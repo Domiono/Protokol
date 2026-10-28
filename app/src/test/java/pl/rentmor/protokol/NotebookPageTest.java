@@ -30,29 +30,33 @@ public class NotebookPageTest {
         }
         return null;
     }
+    private void click(View view){
+        view.performClick();
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
+    }
     @Test public void addValidateEditCompleteRestoreAndConfirmDeletion(){
         Activity activity=Robolectric.buildActivity(Activity.class).setup().get();
         activity.deleteDatabase("rentmor_notebook.db");
         NotebookStore store=new NotebookStore(activity);
         LinearLayout root=new LinearLayout(activity);root.setOrientation(1);activity.setContentView(root);
         new NotebookPage(activity,root,store,()->{}).show();
-        named(root,"＋ Dodaj wpis").performClick();
+        click(named(root,"＋ Dodaj wpis"));
         AlertDialog dialog=ShadowAlertDialog.getLatestAlertDialog();
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+        click(dialog.getButton(AlertDialog.BUTTON_POSITIVE));
         assertTrue(dialog.isShowing());assertEquals(0,store.pendingCount());
         EditText edit=input(dialog.getWindow().getDecorView());edit.setText("Kupić worki");
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+        click(dialog.getButton(AlertDialog.BUTTON_POSITIVE));
         assertEquals(1,store.pendingCount());assertNotNull(named(root,"Kupić worki"));
-        named(root,"Edytuj").performClick();dialog=ShadowAlertDialog.getLatestAlertDialog();
-        input(dialog.getWindow().getDecorView()).setText("Kupić 10 worków");dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+        click(named(root,"Edytuj"));dialog=ShadowAlertDialog.getLatestAlertDialog();
+        input(dialog.getWindow().getDecorView()).setText("Kupić 10 worków");click(dialog.getButton(AlertDialog.BUTTON_POSITIVE));
         ((CheckBox)named(root,"Kupić 10 worków")).setChecked(true);assertEquals(0,store.pendingCount());
         ((CheckBox)named(root,"Pokaż zrobione")).setChecked(true);
         ((CheckBox)named(root,"Kupić 10 worków")).setChecked(false);assertEquals(1,store.pendingCount());
         ((CheckBox)named(root,"Pokaż zrobione")).setChecked(false);
-        named(root,"Usuń").performClick();dialog=ShadowAlertDialog.getLatestAlertDialog();
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).performClick();assertEquals(1,store.pendingCount());
-        named(root,"Usuń").performClick();dialog=ShadowAlertDialog.getLatestAlertDialog();
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();assertEquals(0,store.pendingCount());
+        click(named(root,"Usuń"));dialog=ShadowAlertDialog.getLatestAlertDialog();
+        click(dialog.getButton(AlertDialog.BUTTON_NEGATIVE));assertEquals(1,store.pendingCount());
+        click(named(root,"Usuń"));dialog=ShadowAlertDialog.getLatestAlertDialog();
+        click(dialog.getButton(AlertDialog.BUTTON_POSITIVE));assertEquals(0,store.pendingCount());
         store.close();activity.finish();activity.deleteDatabase("rentmor_notebook.db");
     }
 }
