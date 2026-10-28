@@ -73,4 +73,4 @@ Ostatnia weryfikacja: **28.10.2026**. Stan kodu: gałąź `main`, commit `164bc4
 
 Dodawaj **nowe wpisy na początku**, zachowując historię. Każdy wpis powinien mieć datę, obszar, co faktycznie zmieniono, czego **nie** zrobiono, identyfikator R-xx, PR/commit, testy i potwierdzenie publikacji.
 
-- **28.10.2026 — rozpoczęcie centralnego rejestru.** Odtworzono stan na podstawie scalonych PR #4–#49, dokumentów technicznych i bieżącego kodu. Wskazano istniejące mechanizmy i rozdzielono je od luk R-01–R-07. **Zmiana dokumentacyjna, bez modyfikowania aplikacji, witryny lub danych.**
+- **28.10.2026 — rozpoczęcie centralnego rejestru.** Odtworzono stan na podstawie scalonych PR #4–#49, dokumentów technicznych i bieżącego kodu. Wskazano istniejące mechanizmy i rozdzielono je od luk R-01–R-07. [PR #50](https://github.com/Domiono/Protokol/pull/50). **Zmiana dokumentacyjna, bez modyfikowania aplikacji, witryny lub danych.**
