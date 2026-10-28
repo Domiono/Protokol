@@ -1,0 +1,80 @@
+name: RentMor private data backups
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Create a backup or prepare a verified restore candidate
+        required: true
+        type: choice
+        default: backup
+        options: [backup, prepare_restore]
+      snapshot:
+        description: Snapshot filename from the backup log, for prepare_restore only
+        required: false
+        type: string
+      file:
+        description: Exact filename to stage for recovery
+        required: false
+        type: choice
+        default: reservations.json
+        options:
+          - reservations.json
+          - data.json
+          - customers.json
+          - costs.json
+          - protocols.json
+          - messages.json
+          - stats.json
+          - terms.json
+          - protocol_devices.json
+          - rental_assets.php
+          - rental_addons.json
+      confirmation:
+        description: Enter STAGE to prepare a recovery copy; live data will not be overwritten
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rentmor-private-sftp-backup
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SFTP client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y lftp
+      - name: Verify private backup or stage recovery
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          MODE: ${{ inputs.mode }}
+          SNAPSHOT: ${{ inputs.snapshot }}
+          RECOVERY_FILE: ${{ inputs.file }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          : "${FTP_SERVER:?Missing FTP_SERVER}"
+          : "${FTP_USERNAME:?Missing FTP_USERNAME}"
+          : "${LFTP_PASSWORD:?Missing FTP_PASSWORD}"
+          source scripts/secure_sftp_connection.sh
+          export SFTP_CONNECT_SETUP
+          if [[ "${MODE:-backup}" == "prepare_restore" ]]; then
+            if [[ "${CONFIRMATION:-}" != "STAGE" ]]; then
+              echo "Type STAGE to stage a recovery candidate; production is unchanged." >&2
+              exit 1
+            fi
+            python3 scripts/backup_rentmor.py --stage-restore "${SNAPSHOT}" --file "${RECOVERY_FILE}"
+          else
+            python3 scripts/backup_rentmor.py
+          fi
