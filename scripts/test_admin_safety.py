@@ -123,6 +123,22 @@ with tempfile.TemporaryDirectory() as directory:
         assert post(**booking) == 503
         assert (root/'reservations.json').read_text() == '{damaged'
         (root/'reservations.json').write_text(reservations_before)
+        # Deleting one offer must not unlink an image shared by a second offer.
+        shared = 'same-photo.png'
+        (root/'uploads').mkdir(exist_ok=True)
+        (root/'uploads'/shared).write_bytes(png)
+        catalogue=json.loads((root/'data.json').read_text())
+        catalogue.extend([
+            {'id':'share-a','name':'First sharing offer','price':'80','images':[shared]},
+            {'id':'share-b','name':'Second sharing offer','price':'80','images':[shared]},
+        ])
+        (root/'data.json').write_text(json.dumps(catalogue))
+        assert post(action='delete',admin_csrf='test-token',id='share-a') == 302
+        assert (root/'uploads'/shared).exists(), 'Deleting a shared photo broke the other offer'
+        remaining=json.loads((root/'data.json').read_text())
+        assert any(item.get('id')=='share-b' and shared in item.get('images',[]) for item in remaining)
+        assert post(action='delete',admin_csrf='test-token',id='share-b') == 302
+        assert not (root/'uploads'/shared).exists(), 'Last image reference should be cleaned up'
         # Failed JSON replacement must never redirect with a success message.
         (root/'terms.json').mkdir()
         assert post(action='save_terms',admin_csrf='test-token',terms_content='Test') == 503
