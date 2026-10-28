@@ -165,5 +165,21 @@ with tempfile.TemporaryDirectory() as td:
    assert error.code==503
   assert '{damaged' in asset_storage.read_text()
   asset_storage.write_text(original_assets)
+  # All protocol mutations must refuse a damaged existing database.
+  protocol_file=p/'protocols.json'
+  correct=protocol_file.read_bytes()
+  protocol_file.write_bytes(b'{broken')
+  try:
+   call({'action':'asset_save','id':'service-copy','label':'Puzzi Repaired','equipment':'Puzzi'})
+  except urllib.error.HTTPError as error:
+   assert error.code==503
+   response=json.loads(error.read())
+   assert response['ok'] is False
+  else:
+   raise AssertionError('Corrupt protocol database was silently reset')
+  assert protocol_file.read_bytes()==b'{broken'
+  protocol_file.write_bytes(correct)
+  assert call({'action':'asset_save','id':'service-copy','label':'Puzzi Repaired','equipment':'Puzzi'})['results'][0]['ok']
+  assert (p/'rental_assets.php.lock').is_file(), 'Physical asset writes must hold a common lock'
   print('Rental API bundle and standalone shared-stock checks passed (isolated test data)')
  finally:server.terminate();server.wait()
