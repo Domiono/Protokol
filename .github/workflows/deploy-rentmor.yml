@@ -83,6 +83,7 @@ on:
       - 'scripts/patch_seo_titles.py'
       - 'scripts/patch_canonical_host.py'
       - 'scripts/test_seo_improvements.py'
+      - 'scripts/test_offer_details.php'
       - 'scripts/verify_seo_improvements.py'
       - 'scripts/inject_online_tracker.py'
       - 'scripts/secure_sftp_connection.sh'
@@ -144,6 +145,7 @@ jobs:
           python3 -m py_compile scripts/build_public_tailwind.py scripts/patch_static_tailwind.py scripts/verify_static_tailwind.py scripts/patch_static_css_cache.py
           python3 -m py_compile scripts/patch_seo_template.py scripts/patch_seo_titles.py scripts/patch_canonical_host.py scripts/verify_seo_improvements.py
           php -l server/rental_offer_details.php
+          php scripts/test_offer_details.php
 
   deploy-api:
     needs: seo-preflight
@@ -193,6 +195,7 @@ jobs:
           node --check server/rentmor-gallery.js
           python3 -m py_compile scripts/optimize_favicon.py scripts/verify_fast_gallery.py
           php -l server/rental_offer_details.php
+          php scripts/test_offer_details.php
           python3 scripts/test_inject_local_seo.py
           python3 scripts/test_inject_airless_guide_link.py
           php -l server/traffic_filter.php
