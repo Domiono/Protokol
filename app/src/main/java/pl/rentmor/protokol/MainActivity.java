@@ -1058,7 +1058,7 @@ public class MainActivity extends Activity {
                 finally{if(connection!=null)connection.disconnect();}
                 final Bitmap loaded=bitmap;
                 runOnUiThread(()->{
-                    if(container!=productExistingPhotoContainer || thumbnail.getParent()!=tile ||
+                    if(container!=productExistingPhotoContainer || tile.getParent()!=container || thumbnail.getParent()!=tile ||
                        !productExistingImages.contains(filename)){
                         if(loaded!=null)loaded.recycle();return;
                     }
