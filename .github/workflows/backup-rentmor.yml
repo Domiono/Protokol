@@ -68,8 +68,10 @@ jobs:
           # Never overwrite a completed snapshot from an earlier run.
           DEST="rentmor-private/backups/$STAMP-run-$GITHUB_RUN_ID"
           # Outside public_html. No public URL, no GitHub artifact.
+          # SFTP mkdir -p sometimes reports failure for an already-existing parent.
+          # Create the exact unique destination, not the old date-only directory.
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
-            -e "$SFTP_CONNECT_SETUP; cd public_html; cd ..; set cmd:fail-exit no; mkdir -p rentmor-private/backups/$STAMP; set cmd:fail-exit yes; cd $DEST; bye" >/dev/null
+            -e "$SFTP_CONNECT_SETUP; mkdir -p $DEST; bye" >/dev/null
           for name in $essential $optional; do
             test -f "$SNAPSHOT/$name" || continue
             lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
