@@ -2136,6 +2136,7 @@ public class MainActivity extends Activity {
 
     private JSONObject findReservation(JSONArray reservations,String id){for(int i=0;i<reservations.length();i++){JSONObject r=reservations.optJSONObject(i);if(r!=null&&id.equals(r.optString("id")))return r;}return null;}
     private void protocolPage(String title,String subtitle) {
+        stopFormAutosave();
         protocolBackAction=null;
         if(siteLiveHandler!=null && siteLiveRefresh!=null)siteLiveHandler.removeCallbacks(siteLiveRefresh);
         LinearLayout screen=new LinearLayout(this);screen.setOrientation(1);screen.setBackgroundColor(0xfff4f6fa);
@@ -2169,9 +2170,9 @@ public class MainActivity extends Activity {
     }
     private void newIssue(){
         issuePhotos.clear(); signatureView=null;
-        if(pendingProtocolPhoto==null)new File(getCacheDir(),"protocol-camera-draft.json").delete();
+        // Preserve any unfinished local draft until explicit discard or save.
         protocolPage("Nowy protokół wydania","Uzupełnij dane, sprawdź stan sprzętu i dodaj podpis. Pola z * są wymagane.");
-        protocolBackAction=()->new AlertDialog.Builder(this).setTitle("Opuścić formularz?").setMessage("Niezapisany protokół zostanie odrzucony.").setNegativeButton("Zostań",null).setPositiveButton("Opuść",(d,w)->showHome()).show();
+        protocolBackAction=()->new AlertDialog.Builder(this).setTitle("Opuścić formularz?").setMessage("Odrzucić automatyczny szkic protokołu?").setNegativeButton("Zostań",null).setPositiveButton("Odrzuć",(d,w)->{stopFormAutosave();new ProtocolCameraStore(this).clearDraft();showHome();}).show();
         LinearLayout customerCard=protocolSection("1. Klient");
         EditText client=protocolField(customerCard,"Imię i nazwisko / firma *",false);EditText phone=protocolField(customerCard,"Telefon",false);phone.setInputType(android.text.InputType.TYPE_CLASS_PHONE);
         TextView reservationLabel=new TextView(this);reservationLabel.setText("Powiąż z rezerwacją (opcjonalnie)");reservationLabel.setTextColor(0xff526174);reservationLabel.setPadding(0,10,0,2);root.addView(reservationLabel);
@@ -2215,19 +2216,31 @@ public class MainActivity extends Activity {
         addButton("ZAPISZ PROTOKÓŁ W TELEFONIE",()->{if(client.getText().toString().trim().isEmpty()||equipment.getSelectedItem()==null||equipment.getSelectedItemPosition()==0){if(client.getText().toString().trim().isEmpty()){client.setError("Wpisz nazwę klienta");client.requestFocus();}toast("Uzupełnij klienta i wybierz sprzęt.");return;}
             try{String id=UUID.randomUUID().toString();JSONObject p=new JSONObject();p.put("id",id);p.put("number","RM-"+new SimpleDateFormat("yyyyMMdd-HHmmss",Locale.US).format(new Date()));p.put("client",client.getText());p.put("phone",phone.getText());p.put("reservation_id",reservationIds.get(reservationSpinner.getSelectedItemPosition()));p.put("equipment",equipment.getSelectedItem().toString());p.put("rental_date",date.getText());p.put("condition",condition.getText());p.put("accessories",accessories.getText());p.put("notes",notes.getText());p.put("status","wydany");JSONObject linked=findReservation(store.allReservations(),p.optString("reservation_id"));
                 if(linked!=null){if(!linked.optString("equipment").equals(p.optString("equipment")))throw new IllegalArgumentException("Sprzęt nie zgadza się z rezerwacją");if(linked.optBoolean("settled")||linked.optBoolean("returned"))throw new IllegalArgumentException("Ten najem jest zakończony");String conflict=RentalRules.conflict(linked,store.allReservations(),store.assets());if(!conflict.isEmpty())throw new IllegalArgumentException(conflict);p.put("asset_id",linked.optString("asset_id"));p.put("asset_label",linked.optString("asset_label"));if(RentalRules.needsVacuum(linked)){p.put("vacuum_asset_id",linked.optString("vacuum_asset_id"));p.put("vacuum_asset_label",linked.optString("vacuum_asset_label"));}}
-                JSONArray photos=new JSONArray();for(Bitmap photo:issuePhotos)photos.put(bitmapBase64(photo,1920,85));if(photos.length()>0)p.put("photos_base64",photos);if(signatureView!=null&&signatureView.hasInk())p.put("signature_base64",bitmapBase64(signatureView.image(),900,85));store.enqueue("create",p);if(linked!=null){linked.put("done",true);store.saveRentalOperation(linked,"reservation_save");}new File(getCacheDir(),"protocol-camera-draft.json").delete();toast("Protokół zapisany w telefonie. Gotowy do synchronizacji.");showProtocolDetail(p);}catch(Exception ex){toast("Błąd zapisu: "+ex.getMessage());}});
+                JSONArray photos=new JSONArray();for(Bitmap photo:issuePhotos)photos.put(bitmapBase64(photo,1920,85));if(photos.length()>0)p.put("photos_base64",photos);if(signatureView!=null&&signatureView.hasInk())p.put("signature_base64",bitmapBase64(signatureView.image(),900,85));store.enqueue("create",p);if(linked!=null){linked.put("done",true);store.saveRentalOperation(linked,"reservation_save");}stopFormAutosave();new ProtocolCameraStore(this).clearDraft();toast("Protokół zapisany w telefonie. Gotowy do synchronizacji.");showProtocolDetail(p);}catch(Exception ex){toast("Błąd zapisu: "+ex.getMessage());}});
         issueDraftWriter=()->{try{
-            JSONObject draft=new JSONObject();draft.put("client",client.getText().toString());draft.put("phone",phone.getText().toString());draft.put("date",date.getText().toString());draft.put("condition",condition.getText().toString());draft.put("accessories",accessories.getText().toString());draft.put("notes",notes.getText().toString());draft.put("equipment",equipment.getSelectedItemPosition());draft.put("reservation",reservationSpinner.getSelectedItemPosition());
+            JSONObject draft=new JSONObject();draft.put("kind","issue");draft.put("client",client.getText().toString());draft.put("phone",phone.getText().toString());draft.put("date",date.getText().toString());draft.put("condition",condition.getText().toString());draft.put("accessories",accessories.getText().toString());draft.put("notes",notes.getText().toString());draft.put("equipment",equipment.getSelectedItemPosition());draft.put("reservation",reservationSpinner.getSelectedItemPosition());
             JSONArray images=new JSONArray();for(Bitmap image:issuePhotos)images.put(bitmapBase64(image,1920,85));draft.put("photos",images);if(signatureView!=null&&signatureView.hasInk())draft.put("signature",bitmapBase64(signatureView.image(),1200,90));
-            try(FileOutputStream out=new FileOutputStream(new File(getCacheDir(),"protocol-camera-draft.json"))){out.write(draft.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));}
+            new ProtocolCameraStore(this).saveDraft(draft.toString());
         }catch(Exception ex){throw new RuntimeException("Nie można zabezpieczyć formularza przed otwarciem aparatu",ex);}};
-        if(pendingProtocolPhoto!=null){try{
-            String raw=new String(java.nio.file.Files.readAllBytes(new File(getCacheDir(),"protocol-camera-draft.json").toPath()),java.nio.charset.StandardCharsets.UTF_8);JSONObject draft=new JSONObject(raw);
+        if(new ProtocolCameraStore(this).draftFile().isFile()){try{
+            String raw=new String(java.nio.file.Files.readAllBytes(new ProtocolCameraStore(this).draftFile().toPath()),java.nio.charset.StandardCharsets.UTF_8);JSONObject draft=new JSONObject(raw);
+            if("return".equals(draft.optString("kind")))throw new IOException("To szkic zwrotu.");
             client.setText(draft.optString("client"));phone.setText(draft.optString("phone"));date.setText(draft.optString("date"));condition.setText(draft.optString("condition"));accessories.setText(draft.optString("accessories"));notes.setText(draft.optString("notes"));
             int eq=draft.optInt("equipment");if(eq>=0&&eq<equipment.getCount())equipment.setSelection(eq);int rs=draft.optInt("reservation");if(rs>=0&&rs<reservationSpinner.getCount())reservationSpinner.setSelection(rs);
             JSONArray images=draft.optJSONArray("photos");if(images!=null)for(int i=0;i<images.length();i++){byte[] bytes=Base64.decode(images.optString(i),Base64.DEFAULT);Bitmap image=BitmapFactory.decodeByteArray(bytes,0,bytes.length);if(image!=null)issuePhotos.add(image);}
             Bitmap sign=bitmapFrom(draft,"signature");if(sign!=null){SignatureView target=signatureView;target.post(()->{target.restore(sign);sign.recycle();});}updateIssuePhotoThumbnails();
         }catch(Exception ex){toast("Nie udało się odtworzyć formularza. Sprawdź dane przed zapisem.");}}
+        formAutosave=new FormAutosave(()->{
+            try{if(issueDraftWriter!=null)issueDraftWriter.run();}
+            catch(Exception ex){toast("Nie udało się automatycznie zapisać protokołu.");}
+        });
+        formAutosave.watch(client,phone,date,condition,accessories,notes);
+        equipment.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            public void onItemSelected(android.widget.AdapterView<?> parent,View view,int position,long id){
+                if(formAutosave!=null)formAutosave.schedule();
+            }
+            public void onNothingSelected(android.widget.AdapterView<?> parent){}
+        });
         addButton("ANULUJ",()->protocolBackAction.run());
     }
     private void protocolList(){
@@ -2412,7 +2425,7 @@ public class MainActivity extends Activity {
         addButton("WRÓĆ",()->showHome());
     }
     private void restoreCameraForm(){
-        try{JSONObject draft=new JSONObject(new String(java.nio.file.Files.readAllBytes(new File(getCacheDir(),"protocol-camera-draft.json").toPath()),java.nio.charset.StandardCharsets.UTF_8));
+        try{JSONObject draft=new JSONObject(new String(java.nio.file.Files.readAllBytes(new ProtocolCameraStore(this).draftFile().toPath()),java.nio.charset.StandardCharsets.UTF_8));
             if("return".equals(draft.optString("kind"))){JSONObject original=draft.getJSONObject("original");returnForm(original);return;}
         }catch(Exception ignored){}newIssue();
     }
@@ -2436,11 +2449,24 @@ public class MainActivity extends Activity {
         LinearLayout photosCard=protocolSection("Zdjęcia przy zwrocie");photoCount=new TextView(this);photosCard.addView(photoCount);HorizontalScrollView photoScroll=new HorizontalScrollView(this);issuePhotoThumbnails=new LinearLayout(this);photoScroll.addView(issuePhotoThumbnails);photosCard.addView(photoScroll);
         Button camera=new Button(this);camera.setText("ZRÓB ZDJĘCIA ZWROTU");camera.setOnClickListener(v->pickPhoto());photosCard.addView(camera);
         protocolSignature();
-        try{JSONObject draft=new JSONObject(new String(java.nio.file.Files.readAllBytes(new File(getCacheDir(),"protocol-camera-draft.json").toPath()),java.nio.charset.StandardCharsets.UTF_8));if("return".equals(draft.optString("kind"))&&original.optString("id").equals(draft.getJSONObject("original").optString("id"))){date.setText(draft.optString("date"));condition.setText(draft.optString("condition"));notes.setText(draft.optString("notes"));JSONArray images=draft.optJSONArray("photos");if(images!=null)for(int i=0;i<images.length();i++){byte[] raw=Base64.decode(images.optString(i),Base64.DEFAULT);Bitmap bm=BitmapFactory.decodeByteArray(raw,0,raw.length);if(bm!=null)issuePhotos.add(bm);}Bitmap savedSignature=bitmapFrom(draft,"return_signature_base64");if(savedSignature!=null)signatureView.post(()->signatureView.restore(savedSignature));JSONArray states=draft.optJSONArray("checks");if(states!=null)for(int i=0;i<checks.size();i++)checks.get(i).setChecked(states.optBoolean(i));}}catch(Exception ignored){}
+        try{JSONObject draft=new JSONObject(new String(java.nio.file.Files.readAllBytes(new ProtocolCameraStore(this).draftFile().toPath()),java.nio.charset.StandardCharsets.UTF_8));if("return".equals(draft.optString("kind"))&&original.optString("id").equals(draft.getJSONObject("original").optString("id"))){date.setText(draft.optString("date"));condition.setText(draft.optString("condition"));notes.setText(draft.optString("notes"));JSONArray images=draft.optJSONArray("photos");if(images!=null)for(int i=0;i<images.length();i++){byte[] raw=Base64.decode(images.optString(i),Base64.DEFAULT);Bitmap bm=BitmapFactory.decodeByteArray(raw,0,raw.length);if(bm!=null)issuePhotos.add(bm);}Bitmap savedSignature=bitmapFrom(draft,"return_signature_base64");if(savedSignature!=null)signatureView.post(()->signatureView.restore(savedSignature));JSONArray states=draft.optJSONArray("checks");if(states!=null)for(int i=0;i<checks.size();i++)checks.get(i).setChecked(states.optBoolean(i));}}catch(Exception ignored){}
         updateIssuePhotoThumbnails();
-        issueDraftWriter=()->{try{JSONObject draft=new JSONObject();draft.put("kind","return");if(signatureView!=null&&signatureView.hasInk())draft.put("return_signature_base64",bitmapBase64(signatureView.image(),900,85));draft.put("original",original);draft.put("date",date.getText().toString());draft.put("condition",condition.getText().toString());draft.put("notes",notes.getText().toString());JSONArray images=new JSONArray();for(Bitmap bm:issuePhotos)images.put(bitmapBase64(bm,1920,85));draft.put("photos",images);JSONArray states=new JSONArray();for(CheckBox check:checks)states.put(check.isChecked());draft.put("checks",states);java.nio.file.Files.write(new File(getCacheDir(),"protocol-camera-draft.json").toPath(),draft.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));}catch(Exception e){throw new RuntimeException(e);}};
-        addButton("ZAPISZ ZWROT",()->{try{JSONObject p=new JSONObject(original.toString());p.put("status","zwrócony");p.put("return_date",date.getText().toString());p.put("return_condition",condition.getText().toString());p.put("return_notes",notes.getText().toString());JSONArray checklist=new JSONArray();StringBuilder missing=new StringBuilder();for(CheckBox check:checks){JSONObject entry=new JSONObject();entry.put("name",check.getText().toString());entry.put("returned",check.isChecked());checklist.put(entry);if(!check.isChecked())missing.append(check.getText()).append("; ");}p.put("return_checklist",checklist);if(missing.length()>0)p.put("return_notes",notes.getText().toString()+"\nNiepotwierdzony zwrot akcesoriów: "+missing);if(signatureView!=null&&signatureView.hasInk())p.put("return_signature_base64",bitmapBase64(signatureView.image(),900,85));JSONArray returnPhotos=new JSONArray();for(Bitmap bm:issuePhotos)returnPhotos.put(bitmapBase64(bm,1920,85));p.put("return_photos_base64",returnPhotos);store.enqueue("return",p);store.saveProtocol(p);new File(getCacheDir(),"protocol-camera-draft.json").delete();issueDraftWriter=null;JSONObject linked=findReservation(store.allReservations(),p.optString("reservation_id"));if(linked!=null){linked.put("returned",true);linked.put("actual_return",new SimpleDateFormat("yyyy-MM-dd",Locale.US).format(new SimpleDateFormat("dd.MM.yyyy",Locale.US).parse(date.getText().toString())));store.saveRentalOperation(linked,"reservation_save");}toast("Zwrot zapisany w telefonie. Gotowy do synchronizacji.");showProtocolDetail(p);}catch(Exception e){toast("Błąd zwrotu: "+e.getMessage());}});
-        addButton("ANULUJ",()->protocolBackAction.run());
+        issueDraftWriter=()->{try{JSONObject draft=new JSONObject();draft.put("kind","return");if(signatureView!=null&&signatureView.hasInk())draft.put("return_signature_base64",bitmapBase64(signatureView.image(),900,85));draft.put("original",original);draft.put("date",date.getText().toString());draft.put("condition",condition.getText().toString());draft.put("notes",notes.getText().toString());JSONArray images=new JSONArray();for(Bitmap bm:issuePhotos)images.put(bitmapBase64(bm,1920,85));draft.put("photos",images);JSONArray states=new JSONArray();for(CheckBox check:checks)states.put(check.isChecked());draft.put("checks",states);new ProtocolCameraStore(this).saveDraft(draft.toString());}catch(Exception e){throw new RuntimeException(e);}};
+        addButton("ZAPISZ ZWROT",()->{try{JSONObject p=new JSONObject(original.toString());p.put("status","zwrócony");p.put("return_date",date.getText().toString());p.put("return_condition",condition.getText().toString());p.put("return_notes",notes.getText().toString());JSONArray checklist=new JSONArray();StringBuilder missing=new StringBuilder();for(CheckBox check:checks){JSONObject entry=new JSONObject();entry.put("name",check.getText().toString());entry.put("returned",check.isChecked());checklist.put(entry);if(!check.isChecked())missing.append(check.getText()).append("; ");}p.put("return_checklist",checklist);if(missing.length()>0)p.put("return_notes",notes.getText().toString()+"\nNiepotwierdzony zwrot akcesoriów: "+missing);if(signatureView!=null&&signatureView.hasInk())p.put("return_signature_base64",bitmapBase64(signatureView.image(),900,85));JSONArray returnPhotos=new JSONArray();for(Bitmap bm:issuePhotos)returnPhotos.put(bitmapBase64(bm,1920,85));p.put("return_photos_base64",returnPhotos);store.enqueue("return",p);store.saveProtocol(p);stopFormAutosave();new ProtocolCameraStore(this).clearDraft();issueDraftWriter=null;JSONObject linked=findReservation(store.allReservations(),p.optString("reservation_id"));if(linked!=null){linked.put("returned",true);linked.put("actual_return",new SimpleDateFormat("yyyy-MM-dd",Locale.US).format(new SimpleDateFormat("dd.MM.yyyy",Locale.US).parse(date.getText().toString())));store.saveRentalOperation(linked,"reservation_save");}toast("Zwrot zapisany w telefonie. Gotowy do synchronizacji.");showProtocolDetail(p);}catch(Exception e){toast("Błąd zwrotu: "+e.getMessage());}});
+        formAutosave=new FormAutosave(()->{
+            try{if(issueDraftWriter!=null)issueDraftWriter.run();}
+            catch(Exception ex){toast("Nie udało się automatycznie zapisać zwrotu.");}
+        });
+        formAutosave.watch(date,condition,notes);
+        for(CheckBox check:checks)check.setOnCheckedChangeListener((v,checked)->{
+            if(formAutosave!=null)formAutosave.schedule();
+        });
+        addButton("ANULUJ",()->new AlertDialog.Builder(this)
+            .setTitle("Odrzucić formularz zwrotu?")
+            .setNegativeButton("Zostań",null)
+            .setPositiveButton("Odrzuć",(d,w)->{
+                stopFormAutosave();new ProtocolCameraStore(this).clearDraft();showProtocolDetail(original);
+            }).show());
     }
     private class SignatureView extends View {
         private Bitmap bitmap; private Canvas canvas; private Paint pen=new Paint(3); private float lx,ly; private boolean drawing=false,hasInk=false;
