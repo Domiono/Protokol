@@ -179,8 +179,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? 
                 if ($lf) fclose($lf);
                 $_SESSION['reservation_flash'] = 'Lista rezerwacji jest chwilowo zajęta.';
             } else {
-                $items = is_file($rf) ? json_decode((string)file_get_contents($rf), true) : [];
-                if (!is_array($items)) $items = [];
+                $items = rm_admin_read_json_list($rf);
                 $found = false;
                 foreach ($items as &$item) {
                     if ((string)($item['id'] ?? '') !== $id) continue;
