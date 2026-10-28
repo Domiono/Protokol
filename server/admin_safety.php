@@ -151,3 +151,22 @@ function rm_admin_write_json_file(string $path, array $data): void {
         rm_admin_storage_error();
     }
 }
+
+/** Reorder only previously stored filenames; form input never injects new paths. */
+function rm_admin_reorder_images(array $existing, array $ordered, array $removed): array {
+    $known = [];
+    foreach ($existing as $filename) {
+        if (is_string($filename) && $filename !== '' && basename($filename) === $filename) $known[$filename] = true;
+    }
+    $deleted = [];
+    foreach ($removed as $filename) {
+        if (is_string($filename) && isset($known[$filename])) $deleted[$filename] = true;
+    }
+    $result = [];
+    foreach (array_merge($ordered, $existing) as $filename) {
+        if (is_string($filename) && isset($known[$filename]) && !isset($deleted[$filename])) {
+            $result[$filename] = $filename;
+        }
+    }
+    return array_values($result);
+}
