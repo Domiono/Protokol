@@ -24,7 +24,7 @@ JS = '''        // RentMor combined catalogue filters v2
         function clearSearchFilters() {
             document.getElementById('searchInput').value = '';
             const buttons = Array.from(document.querySelectorAll('.filter-btn'));
-            const all = buttons.find(b => /filterProducts\\(['"]all['"]/.test(b.getAttribute('onclick') || '')) || buttons[0];
+            const all = buttons.find(b => /filterProducts\(['"]all['"]/.test(b.getAttribute('onclick') || '')) || buttons[0];
             selectedCategory = 'all';
             buttons.forEach(b => {
                 const active = b === all;
@@ -75,10 +75,10 @@ def patch(source):
     if OLD_MARKER in source:
         if source.count(OLD_MARKER) != 1 or source.count('oninput="searchProducts()"') != 1:
             raise ValueError('Unexpected v1 catalogue structure')
-        pattern = r'        // RentMor combined catalogue filters v1.*?(?=        function filterItems\\(search, cat\\))'
+        pattern = r'        // RentMor combined catalogue filters v1.*?(?=        function filterItems\(search, cat\))'
         source, count = re.subn(pattern, lambda m: JS, source, flags=re.S)
     else:
-        pattern = r'        function searchProducts\\(\\)\\s*\\{.*?(?=        function filterItems\\(search, cat\\))'
+        pattern = r'        function searchProducts\(\)\s*\{.*?(?=        function filterItems\(search, cat\))'
         source, count = re.subn(pattern, lambda m: JS, source, flags=re.S)
         if count == 1 and source.count('onkeyup="searchProducts()"') == 1:
             source = source.replace('onkeyup="searchProducts()"', 'oninput="searchProducts()"', 1)
