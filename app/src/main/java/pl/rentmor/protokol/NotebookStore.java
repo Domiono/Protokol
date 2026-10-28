@@ -123,7 +123,15 @@ final class NotebookStore extends SQLiteOpenHelper {
                 if(result.optBoolean("ok")) {update.put("dirty",0);update.put("conflict",0);update.put("remote_text","");update.put("remote_category","");update.put("remote_deleted",0);}
                 else if(result.optBoolean("conflict")){update.put("conflict",1);}
                 else throw new IllegalStateException("Serwer odrzucił zmianę notatki");
-                db.update("notes",update,"id=? AND op_id=?",new String[]{op.getString("id"),op.getString("op_id")});
+                int applied=db.update("notes",update,"id=? AND op_id=?",new String[]{op.getString("id"),op.getString("op_id")});
+                if(applied==0 && result.optBoolean("ok")){
+                    // User edited the note again during HTTP sync. Rebase the newer
+                    // queued edit on our own acknowledged revision without clearing it.
+                    ContentValues rebase=new ContentValues();
+                    rebase.put("server_revision",result.getLong("revision"));
+                    db.update("notes",rebase,"id=? AND dirty=1 AND server_revision=?",
+                        new String[]{op.getString("id"),String.valueOf(op.getLong("base_revision"))});
+                }
             }
             db.setTransactionSuccessful();
         }finally{db.endTransaction();}
