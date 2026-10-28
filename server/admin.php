@@ -338,7 +338,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
             foreach ($current_data as $p) {
                 if (($p['id'] ?? '') === ($_POST['id'] ?? '')) {
                     $old_item = $p;
-                    $images = $p['images'] ?? [];
+                    $images = is_array($p['images'] ?? null) ? $p['images'] : [];
                     break;
                 }
             }
@@ -349,6 +349,15 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        // Reorder/remove only images belonging to the edited product.
+        $imagesToRemove = [];
+        if ($is_update) {
+            $order = is_array($_POST['existing_images'] ?? null) ? $_POST['existing_images'] : [];
+            $requestedRemoval = is_array($_POST['delete_images'] ?? null) ? $_POST['delete_images'] : [];
+            $retained = rm_admin_reorder_images($images, $order, $requestedRemoval);
+            $imagesToRemove = array_values(array_diff($images, $retained));
+            $images = $retained;
+        }
         // Validate monetary values and *every* upload before mutating the catalogue.
         $price = rm_admin_money($_POST['price'] ?? null, true, 'Cena');
         $deposit = rm_admin_money(($_POST['deposit'] ?? '') === '' ? '0' : $_POST['deposit'], false, 'Kaucja');
@@ -403,7 +412,16 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
         rm_admin_inventory_write($inventoryHandle, array_values($current_data));
         $newFiles = []; // Commit complete: keep uploaded images.
-
+        // Do not remove a shared file still referenced by another offer.
+        foreach ($imagesToRemove as $oldImage) {
+            $referenced = false;
+            foreach ($current_data as $otherProduct) {
+                if (in_array($oldImage, $otherProduct['images'] ?? [], true)) { $referenced = true; break; }
+            }
+            if (!$referenced && is_string($oldImage) && basename($oldImage) === $oldImage) {
+                @unlink($upload_dir . $oldImage);
+            }
+        }
         header("Location: admin.php?tab=products");
         exit();
     }
@@ -1394,9 +1412,36 @@ if (isset($_GET['edit_id'])) {
                         </p>
 
                         <?php if ($edit_mode && !empty($edit_item['images'])): ?>
-                            <p class="text-xs text-gray-500 mt-2">
-                                Dotychczasowe zdjęcia zostaną zachowane. Nowe zostaną dodane.
-                            </p>
+                            <p class="text-xs text-gray-600 mt-3">Ustaw kolejność strzałkami lub zaznacz zdjęcia do usunięcia. Zmiany zostaną zastosowane dopiero po zapisaniu oferty.</p>
+                            <div id="rentmor-photo-order" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3 text-left">
+                                <?php foreach ($edit_item['images'] as $img): if (!is_string($img) || basename($img) !== $img) continue; ?>
+                                <div class="rentmor-photo-row bg-white rounded-xl border p-3 flex items-center gap-3">
+                                    <input type="hidden" name="existing_images[]" value="<?php echo e_admin($img); ?>">
+                                    <img src="uploads/<?php echo rawurlencode($img); ?>" alt="Zdjęcie sprzętu" class="w-16 h-16 object-cover rounded-lg border" loading="lazy">
+                                    <div class="flex flex-col gap-2 min-w-0">
+                                        <div class="flex gap-1">
+                                            <button type="button" aria-label="Przenieś zdjęcie w lewo" onclick="rentmorMovePhoto(this,-1)" class="rounded-lg bg-slate-100 px-3 py-2 font-bold">←</button>
+                                            <button type="button" aria-label="Przenieś zdjęcie w prawo" onclick="rentmorMovePhoto(this,1)" class="rounded-lg bg-slate-100 px-3 py-2 font-bold">→</button>
+                                        </div>
+                                        <label class="text-xs font-semibold text-red-700 flex gap-2 items-center">
+                                            <input type="checkbox" name="delete_images[]" value="<?php echo e_admin($img); ?>"> Usuń zdjęcie
+                                        </label>
+                                    </div>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <script>
+                            function rentmorMovePhoto(button, direction) {
+                                const current = button.closest('.rentmor-photo-row');
+                                const container = document.getElementById('rentmor-photo-order');
+                                if (!current || !container) return;
+                                if (direction < 0 && current.previousElementSibling) {
+                                    container.insertBefore(current, current.previousElementSibling);
+                                } else if (direction > 0 && current.nextElementSibling) {
+                                    container.insertBefore(current.nextElementSibling, current);
+                                }
+                            }
+                            </script>
                         <?php endif; ?>
                     </div>
 
