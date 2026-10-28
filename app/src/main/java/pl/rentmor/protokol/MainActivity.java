@@ -206,7 +206,7 @@ public class MainActivity extends Activity {
                 0xffedf0f5,()->protocolList());
         }
 
-        homeMenuItem(page,android.R.drawable.ic_menu_edit,"Notatki i zadania",
+        if(isAdmin()) homeMenuItem(page,android.R.drawable.ic_menu_edit,"Notatki i zadania",
             "Do zrobienia: "+notebook.pendingCount()+" • Zakupy, umowy i inne",0xffffe8a2,()->{
                 protocolBackAction=null;
                 new NotebookPage(this,root,notebook,sync,()->showHome()).show();
