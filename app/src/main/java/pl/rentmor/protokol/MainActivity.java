@@ -37,10 +37,6 @@ public class MainActivity extends Activity {
     private void stopFormAutosave(){
         if(formAutosave!=null){formAutosave.stop();formAutosave=null;}
     }
-    @Override protected void onPause(){
-        if(formAutosave!=null)formAutosave.flush();
-        super.onPause();
-    }
     private void promptDraftRecovery(){
         ProductCameraStore product=new ProductCameraStore(this);
         ProtocolCameraStore protocol=new ProtocolCameraStore(this);
@@ -100,6 +96,7 @@ public class MainActivity extends Activity {
         messagePollHandler.postDelayed(messagePollTask,60000);
     }
     @Override protected void onPause(){
+        if(formAutosave!=null)formAutosave.flush();
         messagePollHandler.removeCallbacks(messagePollTask);
         super.onPause();
     }
