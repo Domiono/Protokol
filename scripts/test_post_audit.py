@@ -46,4 +46,26 @@ deleted=expired(names,"data",today=date(2026,10,28))
 assert deleted==["2026-09-01-run-40712345678","2026-09-02-run-40712345679"],deleted
 photos=["2026-09-01-run-40712345678.tar.gz","2026-09-02-run-40712345679.tar.gz","2026-10-20-run-40712345680.tar.gz"]
 assert expired(photos,"photos",today=date(2026,10,28))==["2026-09-01-run-40712345678.tar.gz"]
+# Corrupt push-token records must be preserved, never reset to an empty list.
+import shutil
+import subprocess
+with tempfile.TemporaryDirectory() as td:
+    base=Path(td)
+    web=base/"web"
+    web.mkdir()
+    private=base/"rentmor-private"
+    private.mkdir()
+    shutil.copy(Path(__file__).resolve().parents[1]/"server"/"push_bridge.php",web/"push_bridge.php")
+    registry=private/"fcm-tokens.json"
+    registry.write_text("{broken",encoding="utf-8")
+    probe=subprocess.run(["php","-n","-r",
+        'require $argv[1]; echo rm_push_register(str_repeat("a",64), "push-token-sample", true) ? "written":"blocked";',
+        str(web/"push_bridge.php")],capture_output=True,text=True,check=True)
+    assert probe.stdout=="blocked" and registry.read_text()=="{broken"
+    registry.unlink()
+    probe=subprocess.run(["php","-n","-r",
+        'require $argv[1]; echo rm_push_register(str_repeat("a",64), "push-token-sample", true) ? "written":"blocked";',
+        str(web/"push_bridge.php")],capture_output=True,text=True,check=True)
+    assert probe.stdout=="written" and len(json.loads(registry.read_text()))==1
+
 print("Private access rules, photo integrity, registry backup and retention tests passed.")
