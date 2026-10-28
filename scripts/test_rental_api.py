@@ -157,7 +157,7 @@ with tempfile.TemporaryDirectory() as td:
   assert call()['reservations']
   asset_storage=(p/'rental_assets.php')
   original_assets=asset_storage.read_text()
-  asset_storage.write_text('<?php http_response_code(404); exit; ?>\\n{damaged')
+  asset_storage.write_text('<?php http_response_code(404); exit; ?>\n{damaged')
   try:
    call({'action':'asset_save','id':'must-not-erase','label':'Broken storage','equipment':'Puzzi'})
    raise AssertionError('Damaged physical stock was silently replaced')
