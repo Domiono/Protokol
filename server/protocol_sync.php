@@ -386,9 +386,9 @@ foreach ($operations as $op) {
             if(array_key_exists('keep_images',$op)){
                 $keep=$op['keep_images'];
                 if(!is_array($keep) || !array_is_list($keep) || count($keep)>6 ||
+                   count(array_filter($keep,fn($v)=>!is_string($v)))>0 ||
                    count(array_unique($keep))!==count($keep) ||
-                   count(array_diff($keep,$oldImages))>0 ||
-                   count(array_filter($keep,fn($v)=>!is_string($v)))>0){
+                   count(array_diff($keep,$oldImages))>0){
                     flock($lock,LOCK_UN);fclose($lock);
                     $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nieprawidłowa lista zdjęć do zachowania.'];
                     continue;
