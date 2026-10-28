@@ -15,6 +15,7 @@ import static org.junit.Assert.*;
 public class NotebookSyncTest {
     @Test public void offlineChangesSyncAndDeleteWithoutResurrection() throws Exception {
         Activity context=Robolectric.buildActivity(Activity.class).setup().get();
+        context.deleteDatabase("rentmor_notebook.db");
         NotebookStore notes=new NotebookStore(context);
         String id=notes.save(null,"Kup papier","Zakupy");
         JSONArray pending=notes.pending();
@@ -37,7 +38,7 @@ public class NotebookSyncTest {
             .put("text","Kup papier").put("category","Zakupy").put("done",false)
             .put("deleted",true).put("revision",2)));
         assertEquals(0,notes.entries(null,false).size());
-        notes.close();
+        notes.close();context.deleteDatabase("rentmor_notebook.db");
     }
 
     @Test public void detectsConflictsInsteadOfOverwritingOfflineEdits() throws Exception {
