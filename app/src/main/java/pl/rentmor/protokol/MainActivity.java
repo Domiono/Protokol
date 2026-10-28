@@ -728,7 +728,7 @@ public class MainActivity extends Activity {
             existingScroll.setHorizontalScrollBarEnabled(false);
             productExistingPhotoContainer=new LinearLayout(this);productExistingPhotoContainer.setOrientation(0);
             existingScroll.addView(productExistingPhotoContainer);
-            photos.addView(existingScroll,new LinearLayout.LayoutParams(-1,dp(181)));
+            photos.addView(existingScroll,new LinearLayout.LayoutParams(-1,dp(209)));
             showExistingProductPhotos(new JSONArray(productExistingImages),productExistingPhotoContainer);
         }
         productPhotoPickButton=new Button(this);productPhotoPickButton.setText("＋ DODAJ ZDJĘCIA");
