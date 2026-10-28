@@ -216,6 +216,7 @@ if ($method === 'GET') {
         $name = trim((string)($product['name'] ?? ''));
         if ($name !== '') $equipment[$name] = true;
     }
+    foreach (rm_read_equipment_names() as $name) $equipment[$name]=true;
     rm_json_response(200, [
         'ok'=>true, 'role'=>$role, 'server_time'=>date(DATE_ATOM),
         'assets'=>array_map(function($a)use($role){if($role!=='admin')foreach(($a['repairs']??[]) as $i=>$r)unset($a['repairs'][$i]['cost']);return $a;},rm_read_assets()),
@@ -378,16 +379,23 @@ foreach ($operations as $op) {
             if($id==='') $id=bin2hex(random_bytes(10));
             $old=$found>=0?$items[$found]:[];
             $images=is_array($old['images']??null)?$old['images']:[];
+            $newPhotoFiles=[];
             $photoData=$op['photos_base64']??[];
             if(is_array($photoData)) foreach(array_slice($photoData,0,6) as $encoded) {
                 if(!is_string($encoded) || strlen($encoded)>4000000) continue;
                 $binary=base64_decode($encoded,true); if($binary===false || strlen($binary)>2800000) continue;
                 $info=@getimagesizefromstring($binary);
-                if(!$info || !in_array($info['mime'],['image/jpeg','image/png','image/webp'],true)) continue;
+                if(!$info || !in_array($info['mime'],['image/jpeg','image/png','image/webp'],true)
+                   || ($info[0]??0)<1 || ($info[1]??0)<1 ||
+                   $info[0]>8000 || $info[1]>8000 || $info[0]*$info[1]>24000000) continue;
                 $ext=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'][$info['mime']];
                 $dir=__DIR__.'/uploads'; if(!is_dir($dir) && !mkdir($dir,0755,true)) continue;
                 $filename='sprzet_'.bin2hex(random_bytes(12)).'.'.$ext;
-                if(file_put_contents($dir.'/'.$filename,$binary,LOCK_EX)!==false) $images[]=$filename;
+                $destination=$dir.'/'.$filename;
+                if(@file_put_contents($destination,$binary,LOCK_EX)===strlen($binary)) {
+                    $images[]=$filename;
+                    $newPhotoFiles[]=$destination;
+                } else @unlink($destination);
             }
             $item=['id'=>$id,'name'=>htmlspecialchars($name,ENT_QUOTES,'UTF-8'),'category'=>$category,
                 'desc'=>htmlspecialchars($desc,ENT_QUOTES,'UTF-8'),'seo_title'=>rm_text($op,'seo_title',180),
@@ -398,6 +406,8 @@ foreach ($operations as $op) {
             $ok=true;
         }
         $ok=$ok && rm_write_json_atomic($file,$items);
+        // Never strand images if the catalogue write fails.
+        if (!$ok) foreach(($newPhotoFiles ?? []) as $created) @unlink($created);
         flock($lock,LOCK_UN); fclose($lock);
         $results[]=$ok?['op_id'=>$opId,'ok'=>true,'id'=>$id]:['op_id'=>$opId,'ok'=>false,'error'=>'Nie udało się zapisać oferty sprzętu.'];
         continue;
@@ -407,16 +417,23 @@ foreach ($operations as $op) {
         if ($role !== 'admin') { $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Dodawanie sprzętu jest dostępne tylko dla administratora.']; continue; }
         $name = rm_text($op, 'name', 120);
         if ($name === '') { $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Podaj nazwę sprzętu.']; continue; }
-        $file = __DIR__ . '/data.json';
-        $lock = fopen($file . '.lock', 'c+');
-        if (!$lock || !flock($lock, LOCK_EX)) { if ($lock) fclose($lock); $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Lista sprzętu jest chwilowo zajęta.']; continue; }
-        $inventory = rm_read_json_file($file, []);
-        $exists = false;
-        foreach ($inventory as $product) if (isset($product['name']) && mb_strtolower(trim((string)$product['name']), 'UTF-8') === mb_strtolower($name, 'UTF-8')) { $exists=true; break; }
-        if (!$exists) { $inventory[] = ['name'=>$name]; $ok = rm_write_json_atomic($file, $inventory); }
-        else $ok = true;
-        flock($lock, LOCK_UN); fclose($lock);
-        $results[]=$ok?['op_id'=>$opId,'ok'=>true,'name'=>$name,'exists'=>$exists]:['op_id'=>$opId,'ok'=>false,'error'=>'Nie udało się zapisać wspólnej listy sprzętu.'];
+        // The app uses this name for planning reservations, but it is NOT
+        // a complete product and must not be saved into public data.json.
+        $file=rm_equipment_names_path();
+        $lock=@fopen($file.'.lock','c+');
+        if (!$lock || !@flock($lock,LOCK_EX)) {
+            if($lock)fclose($lock);
+            $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Lista sprzętu jest chwilowo zajęta.'];continue;
+        }
+        $inventory=rm_read_json_file(__DIR__.'/data.json',[]);
+        $names=rm_read_equipment_names();
+        $compare=fn($text)=>rm_inventory_normalize(trim((string)$text));
+        $exists=false;
+        foreach ($inventory as $product) if($compare($product['name']??'')===$compare($name)) {$exists=true;break;}
+        if (!$exists) foreach ($names as $other) if($compare($other)===$compare($name)) {$exists=true;break;}
+        $ok=$exists || rm_write_equipment_names(array_merge($names,[$name]));
+        flock($lock,LOCK_UN);fclose($lock);
+        $results[]=$ok?['op_id'=>$opId,'ok'=>true,'name'=>$name,'exists'=>$exists]:['op_id'=>$opId,'ok'=>false,'error'=>'Nie udało się zapisać wewnętrznej listy sprzętu.'];
         continue;
     }
 
