@@ -28,7 +28,7 @@ with tempfile.TemporaryDirectory() as directory:
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0)); port = sock.getsockname()[1]
     log = open(root/'server.log', 'w+')
-    server = subprocess.Popen([PHP,'-n','-d',f'session.save_path={root}','-S',f'127.0.0.1:{port}','-t',str(root)],stdout=log,stderr=log,cwd=root)
+    server = subprocess.Popen([PHP,'-n','-d','post_max_size=20M','-d','upload_max_filesize=16M','-d',f'session.save_path={root}','-S',f'127.0.0.1:{port}','-t',str(root)],stdout=log,stderr=log,cwd=root)
     client = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()), NoRedirect())
     base = f'http://127.0.0.1:{port}'
     def request(path, data=None):
