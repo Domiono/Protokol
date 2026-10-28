@@ -26,6 +26,10 @@ final class NotebookPage {
     private TextView summary;
     private String category;
     private boolean completed;
+    /** Compatibility constructor for offline previews and existing tests. */
+    NotebookPage(Activity activity,LinearLayout root,NotebookStore store,Runnable home){
+        this(activity,root,store,null,home);
+    }
     NotebookPage(Activity activity,LinearLayout root,NotebookStore store,SyncManager sync,Runnable home){
         this.activity=activity;this.root=root;this.store=store;this.sync=sync;this.home=home;
     }
@@ -127,6 +131,7 @@ final class NotebookPage {
         });
     }
     private void syncNow(){
+        if(sync==null)return;
         if(syncing){again=true;return;}
         syncing=true;
         new Thread(()->{
