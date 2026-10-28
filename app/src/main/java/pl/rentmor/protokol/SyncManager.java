@@ -99,11 +99,9 @@ public class SyncManager {
     }
     /** Admin-only notes: fetch remote revisions before applying queued local mutations. */
     public synchronized int syncNotebook(NotebookStore notebook) throws Exception {
-        JSONObject initial=request(API+"?view=notebook","GET",null);
-        if(!"admin".equals(initial.optString("role")))throw new SecurityException("Notatnik można synchronizować tylko jako administrator.");
-        JSONArray notes=initial.optJSONArray("notes");
-        if(notes==null)throw new IOException("Brak prawidłowych danych notatnika");
-        notebook.mergeRemote(notes);
+        // Send stable UUID operations first: if an earlier POST succeeded but its
+        // acknowledgement was lost, the server can safely acknowledge the replay.
+        // Reading remote changes first would incorrectly mark that case as a conflict.
         JSONArray ops=notebook.pending();
         if(ops.length()>0){
             JSONObject body=new JSONObject();body.put("operations",ops);
@@ -113,6 +111,7 @@ public class SyncManager {
             notebook.acknowledgements(ops,results);
         }
         JSONObject refreshed=request(API+"?view=notebook","GET",null);
+        if(!"admin".equals(refreshed.optString("role")))throw new SecurityException("Notatnik można synchronizować tylko jako administrator.");
         JSONArray updated=refreshed.optJSONArray("notes");
         if(updated==null)throw new IOException("Serwer nie zwrócił aktualnego notatnika.");
         notebook.mergeRemote(updated);
