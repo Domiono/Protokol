@@ -68,4 +68,10 @@ with tempfile.TemporaryDirectory() as td:
         str(web/"push_bridge.php")],capture_output=True,text=True,check=True)
     assert probe.stdout=="written" and len(json.loads(registry.read_text()))==1
 
+# An empty expiry list must have zero lines; a blank line causes the SFTP
+# pruning shell loop to treat it as an invalid name and fail the backup job.
+empty=subprocess.run(["python3",str(Path(__file__).parent/"backup_retention.py"),"data"],
+                     input="2026-10-28-run-40722445238/\n",capture_output=True,text=True,check=True)
+assert empty.stdout=="", repr(empty.stdout)
+
 print("Private access rules, photo integrity, registry backup and retention tests passed.")
