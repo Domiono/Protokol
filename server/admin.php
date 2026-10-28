@@ -2,6 +2,14 @@
 session_start();
 require_once __DIR__ . '/admin_safety.php';
 
+// PHP may discard the entire POST when post_max_size is exceeded.
+// Never silently re-render a form as if an oversized upload had succeeded.
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0
+    && empty($_POST) && empty($_FILES)) {
+    http_response_code(413);
+    exit('Zbyt duży formularz lub zdjęcia. Zmniejsz pliki i spróbuj ponownie.');
+}
+
 $hasz_hasla = '$2y$12$e7EQuw7V0ssM3OwS6h7RE.D1Fv76de7iB1lSTh3Qr1cZ3u5PVtDKW';
 
 $data_file = 'data.json';
@@ -48,11 +56,17 @@ function rm_admin_phone_key($value) {
 }
 
 if (isset($_POST['login_pass'])) {
-    if (password_verify($_POST['login_pass'], $hasz_hasla)) {
+    // Persistent, IP-based throttle; not reset by starting a new browser session.
+    $loginAttempt = rm_admin_check_password(is_string($_POST['login_pass']) ? $_POST['login_pass'] : '', $hasz_hasla);
+    if ($loginAttempt['retry_after'] > 0) {
+        http_response_code(429);
+        header('Retry-After: ' . $loginAttempt['retry_after']);
+        $error = 'Zbyt wiele prób logowania. Spróbuj ponownie za około 15 minut.';
+    } elseif ($loginAttempt['ok']) {
         session_regenerate_id(true);
         $_SESSION['logged_in'] = true;
     } else {
-        $error = "Błędne hasło!";
+        $error = 'Błędne hasło!';
     }
 }
 
@@ -258,14 +272,12 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['act
 $protocol_devices_file = __DIR__ . '/protocol_devices.json';
 function admin_load_protocol_devices($file) {
     if (!is_file($file)) return ['devices' => [], 'codes' => []];
-    $data = json_decode(file_get_contents($file), true);
-    if (!is_array($data)) $data = [];
+    $data = json_decode((string)file_get_contents($file), true);
+    if (!is_array($data)) rm_admin_storage_error();
     return ['devices' => is_array($data['devices'] ?? null) ? $data['devices'] : [], 'codes' => is_array($data['codes'] ?? null) ? $data['codes'] : []];
 }
 function admin_save_protocol_devices($file, $data) {
-    $tmp = $file . '.tmp';
-    file_put_contents($tmp, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
-    rename($tmp, $file);
+    rm_admin_write_json_file($file, $data);
 }
 if ($is_logged && empty($_SESSION['protocol_devices_csrf'])) $_SESSION['protocol_devices_csrf'] = bin2hex(random_bytes(32));
 
@@ -303,7 +315,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
             'content' => $terms,
             'updated_at' => date('Y-m-d H:i:s')
         ];
-        file_put_contents('terms.json', json_encode($terms_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+        rm_admin_write_json_file('terms.json', $terms_data);
         header('Location: admin.php?tab=terms&saved=1');
         exit();
     }
@@ -337,36 +349,24 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        /* DODAWANIE ZDJĘĆ */
-        if (isset($_FILES['photos']['name']) && is_array($_FILES['photos']['name'])) {
-            foreach ($_FILES['photos']['name'] as $i => $name) {
-                if (
-                    !isset($_FILES['photos']['error'][$i]) ||
-                    $_FILES['photos']['error'][$i] !== UPLOAD_ERR_OK
-                ) {
-                    continue;
-                }
-
-                $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-                $allowed_extensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
-
-                if (!in_array($extension, $allowed_extensions, true)) {
-                    continue;
-                }
-
-                if (!is_dir($upload_dir)) {
-                    mkdir($upload_dir, 0755, true);
-                }
-
-                $new_name = uniqid('sprzet_', true) . '.' . $extension;
-
-                if (move_uploaded_file(
-                    $_FILES['photos']['tmp_name'][$i],
-                    $upload_dir . $new_name
-                )) {
-                    $images[] = $new_name;
-                }
-            }
+        // Validate monetary values and *every* upload before mutating the catalogue.
+        $price = rm_admin_money($_POST['price'] ?? null, true, 'Cena');
+        $deposit = rm_admin_money(($_POST['deposit'] ?? '') === '' ? '0' : $_POST['deposit'], false, 'Kaucja');
+        $validatedPhotos = rm_admin_validate_photos($_FILES['photos'] ?? []);
+        $newFiles = [];
+        register_shutdown_function(static function () use (&$newFiles) {
+            // Never leave orphaned uploads behind when a later step fails.
+            foreach ($newFiles as $file) @unlink($file);
+        });
+        if ($validatedPhotos && !is_dir($upload_dir) && !@mkdir($upload_dir, 0755, true) && !is_dir($upload_dir)) {
+            rm_admin_storage_error();
+        }
+        foreach ($validatedPhotos as $photo) {
+            $name = 'sprzet_' . bin2hex(random_bytes(12)) . '.' . $photo['extension'];
+            $dest = $upload_dir . $name;
+            if (!move_uploaded_file($photo['tmp'], $dest)) rm_admin_storage_error();
+            $newFiles[] = $dest;
+            $images[] = $name;
         }
 
         $item_data = [
@@ -379,8 +379,8 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
             'seo_title' => trim($_POST['seo_title'] ?? ''),
             'seo_description' => trim($_POST['seo_description'] ?? ''),
 
-            'price' => $_POST['price'] ?? 0,
-            'deposit' => $_POST['deposit'] ?? 0,
+            'price' => $price,
+            'deposit' => $deposit,
             'olx' => trim($_POST['olx'] ?? ''),
             'images' => $images,
             'date' => date('Y-m-d H:i'),
@@ -402,6 +402,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         rm_admin_inventory_write($inventoryHandle, array_values($current_data));
+        $newFiles = []; // Commit complete: keep uploaded images.
 
         header("Location: admin.php?tab=products");
         exit();
@@ -409,22 +410,21 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
     /* USUWANIE SPRZĘTU */
     if (($_POST['action'] ?? '') === 'delete') {
+        $imagesToDelete = [];
         foreach ($current_data as $key => $item) {
             if (($item['id'] ?? '') === ($_POST['id'] ?? '')) {
-                foreach (($item['images'] ?? []) as $img) {
-                    $file = $upload_dir . basename($img);
-                    if (is_file($file)) {
-                        unlink($file);
-                    }
-                }
-
+                $imagesToDelete = $item['images'] ?? [];
                 unset($current_data[$key]);
                 break;
             }
         }
 
         rm_admin_inventory_write($inventoryHandle, array_values($current_data));
-
+        // Only delete photos once the catalogue transaction has succeeded.
+        foreach ($imagesToDelete as $img) {
+            $file = $upload_dir . basename((string)$img);
+            if (is_file($file)) @unlink($file);
+        }
         header("Location: admin.php?tab=products");
         exit();
     }
@@ -435,9 +435,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
             ? json_decode(file_get_contents($msgs_file), true)
             : [];
 
-        if (!is_array($msgs)) {
-            $msgs = [];
-        }
+        if (!is_array($msgs)) rm_admin_storage_error();
 
         foreach ($msgs as $key => $m) {
             if (($m['id'] ?? '') === ($_POST['id'] ?? '')) {
@@ -446,14 +444,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        file_put_contents(
-            $msgs_file,
-            json_encode(
-                array_values($msgs),
-                JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
-            ),
-            LOCK_EX
-        );
+        rm_admin_write_json_file($msgs_file, array_values($msgs));
 
         header("Location: admin.php?tab=messages");
         exit();
@@ -1313,6 +1304,7 @@ if (isset($_GET['edit_id'])) {
                             placeholder="Cena za dobę"
                             value="<?php echo e_admin($edit_item['price'] ?? ''); ?>"
                             class="p-4 border rounded-xl bg-slate-50"
+                            min="0.01" step="0.01" max="999999.99"
                             required
                         >
 
@@ -1380,6 +1372,7 @@ if (isset($_GET['edit_id'])) {
                             name="deposit"
                             placeholder="Kaucja"
                             value="<?php echo e_admin($edit_item['deposit'] ?? ''); ?>"
+                            min="0" step="0.01" max="999999.99"
                             class="p-4 border rounded-xl bg-slate-50"
                         >
 
@@ -1393,7 +1386,8 @@ if (isset($_GET['edit_id'])) {
                     </div>
 
                     <div class="bg-yellow-50 p-4 rounded-xl border-2 border-dashed border-yellow-200 text-center">
-                        <input type="file" name="photos[]" multiple accept=".jpg,.jpeg,.png,.webp,.gif">
+                        <input type="file" name="photos[]" multiple accept="image/jpeg,image/png,image/webp,image/gif">
+                        <p class="text-xs text-gray-600 mt-2">JPG, PNG, WebP lub GIF, do 8 MB i 24 MP na zdjęcie (maks. 12 plików).</p>
 
                         <p class="text-[10px] font-black uppercase text-yellow-600 mt-2">
                             Wybierz zdjęcia sprzętu
