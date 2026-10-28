@@ -11,16 +11,23 @@ function rm_json_response(int $status, array $payload): never {
 }
 function rm_read_json_file(string $path, array $fallback): array {
     if (!is_file($path)) return $fallback;
-    $raw = file_get_contents($path);
+    $raw = @file_get_contents($path);
     $data = is_string($raw) ? json_decode($raw, true) : null;
-    return is_array($data) ? $data : $fallback;
+    // Never turn an unreadable or corrupt database into an empty list:
+    // the next write could otherwise erase the actual inventory/history.
+    if (!is_array($data)) rm_json_response(503, ['ok'=>false, 'error'=>'Uszkodzona lub niedostępna baza danych. Zapis został zablokowany.']);
+    return $data;
 }
 function rm_write_json_atomic(string $path, array $data): bool {
     $json = json_encode(array_values($data), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($json === false) return false;
     $tmp = $path . '.' . bin2hex(random_bytes(6)) . '.tmp';
-    if (file_put_contents($tmp, $json, LOCK_EX) === false) return false;
-    return rename($tmp, $path);
+    $written = @file_put_contents($tmp, $json, LOCK_EX);
+    if ($written !== strlen($json) || !@rename($tmp, $path)) {
+        @unlink($tmp);
+        return false;
+    }
+    return true;
 }
 function rm_device_role(string $file): string {
     $token = (string)($_COOKIE['rm_protocol_device'] ?? '');
@@ -349,23 +356,30 @@ foreach ($operations as $op) {
             if(!in_array($category,['budowlane','ogrodnicze','czyszczace'],true)) $category='budowlane';
             $price=filter_var(str_replace(',','.',(string)($op['price']??'')),FILTER_VALIDATE_FLOAT);
             $deposit=filter_var(str_replace(',','.',(string)($op['deposit']??'0')),FILTER_VALIDATE_FLOAT);
-            if($name==='' || $price===false || $price<0 || $deposit===false || $deposit<0) {
+            if($name==='' || $price===false || !is_finite((float)$price) || $price<=0 || $price>999999.99
+                || $deposit===false || !is_finite((float)$deposit) || $deposit<0 || $deposit>999999.99) {
                 flock($lock,LOCK_UN); fclose($lock); $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Podaj nazwę oraz prawidłową cenę i kaucję.']; continue;
             }
             $found=-1; foreach($items as $idx=>$p) if((string)($p['id']??'')===$id && $id!=='') {$found=$idx;break;}
             if($id==='') $id=bin2hex(random_bytes(10));
             $old=$found>=0?$items[$found]:[];
             $images=is_array($old['images']??null)?$old['images']:[];
+            $newPhotoFiles=[];
             $photoData=$op['photos_base64']??[];
             if(is_array($photoData)) foreach(array_slice($photoData,0,6) as $encoded) {
                 if(!is_string($encoded) || strlen($encoded)>4000000) continue;
                 $binary=base64_decode($encoded,true); if($binary===false || strlen($binary)>2800000) continue;
                 $info=@getimagesizefromstring($binary);
-                if(!$info || !in_array($info['mime'],['image/jpeg','image/png','image/webp'],true)) continue;
+                if(!$info || !in_array($info['mime'],['image/jpeg','image/png','image/webp'],true)
+                    || ($info[0]??0)<1 || ($info[1]??0)<1
+                    || $info[0]>8000 || $info[1]>8000 || $info[0]*$info[1]>24000000) continue;
                 $ext=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'][$info['mime']];
                 $dir=__DIR__.'/uploads'; if(!is_dir($dir) && !mkdir($dir,0755,true)) continue;
                 $filename='sprzet_'.bin2hex(random_bytes(12)).'.'.$ext;
-                if(file_put_contents($dir.'/'.$filename,$binary,LOCK_EX)!==false) $images[]=$filename;
+                if(@file_put_contents($dir.'/'.$filename,$binary,LOCK_EX)===strlen($binary)) {
+                    $images[]=$filename;
+                    $newPhotoFiles[]=$dir.'/'.$filename;
+                } else @unlink($dir.'/'.$filename);
             }
             $item=['id'=>$id,'name'=>htmlspecialchars($name,ENT_QUOTES,'UTF-8'),'category'=>$category,
                 'desc'=>htmlspecialchars($desc,ENT_QUOTES,'UTF-8'),'seo_title'=>rm_text($op,'seo_title',180),
@@ -376,6 +390,7 @@ foreach ($operations as $op) {
             $ok=true;
         }
         $ok=$ok && rm_write_json_atomic($file,$items);
+        if (!$ok) foreach (($newPhotoFiles ?? []) as $createdImage) @unlink($createdImage);
         flock($lock,LOCK_UN); fclose($lock);
         $results[]=$ok?['op_id'=>$opId,'ok'=>true,'id'=>$id]:['op_id'=>$opId,'ok'=>false,'error'=>'Nie udało się zapisać oferty sprzętu.'];
         continue;
