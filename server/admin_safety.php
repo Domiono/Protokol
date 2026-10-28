@@ -117,7 +117,7 @@ function rm_admin_validate_photos(array $files): array {
     }
     $types = ['jpg'=>'image/jpeg', 'jpeg'=>'image/jpeg', 'png'=>'image/png', 'webp'=>'image/webp', 'gif'=>'image/gif'];
     $valid = [];
-    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $finfo = class_exists('finfo') ? new finfo(FILEINFO_MIME_TYPE) : null;
     foreach ($files['name'] as $i => $name) {
         $error = $files['error'][$i] ?? UPLOAD_ERR_NO_FILE;
         if ($error === UPLOAD_ERR_NO_FILE) continue;
@@ -130,7 +130,7 @@ function rm_admin_validate_photos(array $files): array {
             rm_admin_reject('Zdjęcie musi być plikiem JPG, PNG, WebP lub GIF o rozmiarze do 8 MB.');
         }
         $info = @getimagesize($tmp);
-        if (!$info || ($info['mime'] ?? '') !== $types[$extension] || $finfo->file($tmp) !== $types[$extension]
+        if (!$info || ($info['mime'] ?? '') !== $types[$extension] || ($finfo !== null && $finfo->file($tmp) !== $types[$extension])
             || ($info[0] ?? 0) < 1 || ($info[1] ?? 0) < 1
             || $info[0] > 8000 || $info[1] > 8000 || $info[0] * $info[1] > 24000000) {
             rm_admin_reject('Nieprawidłowy obraz lub za duża rozdzielczość (maks. 24 MP).');
