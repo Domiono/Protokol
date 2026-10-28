@@ -16,6 +16,13 @@ function rm_read_assets(): array {
     }
     return $data;
 }
+// Serialize the full read/modify/write in protocol_sync.php for asset edits.
+function rm_lock_assets() {
+    $fp = @fopen(__DIR__ . '/rental_assets.php.lock', 'c+');
+    if (!$fp) return false;
+    if (!@flock($fp, LOCK_EX)) { fclose($fp); return false; }
+    return $fp;
+}
 function rm_write_assets(array $assets): bool {
     $path=__DIR__.'/rental_assets.php';$tmp=$path.'.'.bin2hex(random_bytes(6)).'.php';
     $data=json_encode(array_values($assets),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
