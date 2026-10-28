@@ -26,29 +26,29 @@ function rm_admin_storage_error(): never {
     http_response_code(503);
     exit('Nie udało się zapisać danych. Odśwież panel i spróbuj ponownie.');
 }
+// The Android API locks data.json.lock. Lock that same stable sidecar;
+// locking data.json itself does not synchronize with atomic rename() writers.
 function rm_admin_inventory_open(string $path) {
-    $fp = @fopen($path, 'c+');
-    if (!$fp || !flock($fp, LOCK_EX)) rm_admin_storage_error();
+    $fp = @fopen($path . '.lock', 'c+');
+    if (!$fp || !@flock($fp, LOCK_EX)) rm_admin_storage_error();
     return $fp;
 }
+function rm_admin_inventory_path($fp): string {
+    $meta = stream_get_meta_data($fp);
+    $lockPath = (string)($meta['uri'] ?? '');
+    if (!str_ends_with($lockPath, '.lock')) rm_admin_storage_error();
+    return substr($lockPath, 0, -5);
+}
 function rm_admin_inventory_read($fp): array {
-    rewind($fp);
-    $raw = stream_get_contents($fp);
-    if ($raw === '') return [];
+    $path = rm_admin_inventory_path($fp);
+    if (!is_file($path)) return [];
+    $raw = @file_get_contents($path);
     $data = is_string($raw) ? json_decode($raw, true) : null;
-    if (!is_array($data)) rm_admin_storage_error();
+    if (!is_array($data) || array_is_list($data) === false) rm_admin_storage_error();
     return $data;
 }
 function rm_admin_inventory_write($fp, array $data): void {
-    $json = json_encode(array_values($data), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    if ($json === false) rm_admin_storage_error();
-    rewind($fp);
-    $original = stream_get_contents($fp);
-    rewind($fp);
-    if (fwrite($fp, $json) !== strlen($json) || !ftruncate($fp, strlen($json)) || !fflush($fp)) {
-        if (is_string($original)) { rewind($fp); fwrite($fp, $original); ftruncate($fp, strlen($original)); fflush($fp); }
-        rm_admin_storage_error();
-    }
+    rm_admin_write_json_file(rm_admin_inventory_path($fp), array_values($data));
 }
 
 /**
