@@ -47,6 +47,25 @@ with tempfile.TemporaryDirectory() as td:
   assert any(item.get('name')=='Katalog testowy' for item in public)
   assert any(item.get('name')=='Katalog testowy' for item in json.loads((p/'data.json').read_text()))
   assert json.loads((p/'protocols.json').read_text())==[]
+  # Gallery editing must accept only original filenames and preserve shared files.
+  uploads=p/'uploads';uploads.mkdir(exist_ok=True)
+  shared=uploads/'shared-image.jpg';shared.write_bytes(b'test-image')
+  catalog=json.loads((p/'data.json').read_text())
+  catalog.extend([
+      {'id':'photo-a','name':'Offer A','images':['shared-image.jpg'],'price':80},
+      {'id':'photo-b','name':'Offer B','images':['shared-image.jpg'],'price':80}
+  ])
+  (p/'data.json').write_text(json.dumps(catalog))
+  def edit_photo(id,keep):
+   return {'action':'product_save','product_id':id,'name':'Edited offer',
+           'category':'budowlane','price':'80','deposit':'100','keep_images':keep}
+  assert not call(edit_photo('photo-a',['../../private.json']))['results'][0]['ok']
+  assert shared.is_file()
+  assert call(edit_photo('photo-a',[]))['results'][0]['ok']
+  assert shared.is_file(), 'Do not delete a photo referenced by another offer'
+  assert call(edit_photo('photo-b',[]))['results'][0]['ok']
+  assert not shared.exists(), 'Unreferenced photo should be deleted after commit'
+  assert json.loads((p/'protocols.json').read_text())==[]
   assert not call({'action':'equipment_add','name':'Assistant-only'},role='assistant')['results'][0]['ok']
   try:urllib.request.urlopen('http://127.0.0.1:18723/rental_equipment_names.php')
   except urllib.error.HTTPError as error: assert error.code==404
