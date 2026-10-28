@@ -855,7 +855,9 @@ public class MainActivity extends Activity {
         });
         formAutosave.watch(name,desc,price,deposit,seoTitle,seoDesc,olx);
         category.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            boolean first=true;
             public void onItemSelected(android.widget.AdapterView<?> p,View v,int position,long id){
+                if(first){first=false;return;}
                 if(formAutosave!=null)formAutosave.schedule();
             }
             public void onNothingSelected(android.widget.AdapterView<?> p){}
@@ -1042,6 +1044,7 @@ public class MainActivity extends Activity {
     }
     private void updateSelectedProductPhotoPreviews(){
         if(productNewPhotoContainer==null||productPhotoCount==null)return;
+        if(formAutosave!=null&&!productPhotosLoading)formAutosave.schedule();
         productNewPhotoContainer.removeAllViews();
         int remaining=Math.max(0,6-existingProductPhotoCount-productPhotos.size());
         String label="Na stronie: "+existingProductPhotoCount+"  •  Nowe: "+productPhotos.size()+
@@ -2162,7 +2165,7 @@ public class MainActivity extends Activity {
         LinearLayout card=protocolSection("Podpis klienta");
         TextView help=new TextView(this);help.setText("Podpisz palcem lub rysikiem. Podpis możesz wyczyścić i złożyć ponownie.");help.setTextSize(12);help.setTextColor(0xff697386);card.addView(help);
         signatureView=new SignatureView(this);card.addView(signatureView,new LinearLayout.LayoutParams(-1,dp(180)));
-        Button clear=new Button(this);clear.setText("Wyczyść podpis");brandButton(clear,false);clear.setOnClickListener(v->signatureView.clear());card.addView(clear);
+        Button clear=new Button(this);clear.setText("Wyczyść podpis");brandButton(clear,false);clear.setOnClickListener(v->{signatureView.clear();if(formAutosave!=null)formAutosave.schedule();});card.addView(clear);
     }
     private void protocolSignaturePreview(LinearLayout card,JSONObject protocol,String key,String label) {
         Bitmap bitmap=bitmapFrom(protocol,key);if(bitmap==null){detailLine(card,label,"Brak zapisanego podpisu");return;}
@@ -2179,7 +2182,7 @@ public class MainActivity extends Activity {
         JSONArray availableReservations=store.allReservations();ArrayList<String> reservationLabels=new ArrayList<>();ArrayList<String> reservationIds=new ArrayList<>();reservationLabels.add("— Bez przypisania —");reservationIds.add("");
         for(int ri=0;ri<availableReservations.length();ri++){JSONObject rr=availableReservations.optJSONObject(ri);if(rr==null)continue;String rid=rr.optString("id");if(rid.isEmpty())continue;String label=rr.optString("start_date",rr.optString("month"))+" • "+rr.optString("equipment",rr.optString("text"))+" • "+rr.optString("phone");reservationLabels.add(label);reservationIds.add(rid);}
         Spinner reservationSpinner=new Spinner(this);reservationSpinner.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,reservationLabels));root.addView(reservationSpinner,new LinearLayout.LayoutParams(-1,-2));
-        reservationSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onItemSelected(android.widget.AdapterView<?> parent,View view,int position,long id){if(position>0){JSONObject rr=findReservation(availableReservations,reservationIds.get(position));if(rr!=null){if(client.getText().toString().trim().isEmpty())client.setText(rr.optString("customer_name",rr.optString("client")));if(phone.getText().toString().trim().isEmpty())phone.setText(rr.optString("phone"));}}}public void onNothingSelected(android.widget.AdapterView<?> parent){}});
+        reservationSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){boolean first=true;public void onItemSelected(android.widget.AdapterView<?> parent,View view,int position,long id){if(position>0){JSONObject rr=findReservation(availableReservations,reservationIds.get(position));if(rr!=null){if(client.getText().toString().trim().isEmpty())client.setText(rr.optString("customer_name",rr.optString("client")));if(phone.getText().toString().trim().isEmpty())phone.setText(rr.optString("phone"));}}if(first){first=false;return;}if(formAutosave!=null)formAutosave.schedule();}public void onNothingSelected(android.widget.AdapterView<?> parent){}});
         // Automatyczne dopasowanie rezerwacji po pełnym, znormalizowanym numerze telefonu.
         Runnable autoMatchReservation=()->{
             String key=customerPhoneKey(phone.getText().toString());int match=-1;
@@ -2236,7 +2239,9 @@ public class MainActivity extends Activity {
         });
         formAutosave.watch(client,phone,date,condition,accessories,notes);
         equipment.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            boolean first=true;
             public void onItemSelected(android.widget.AdapterView<?> parent,View view,int position,long id){
+                if(first){first=false;return;}
                 if(formAutosave!=null)formAutosave.schedule();
             }
             public void onNothingSelected(android.widget.AdapterView<?> parent){}
@@ -2308,6 +2313,7 @@ public class MainActivity extends Activity {
     }
     private void updateIssuePhotoThumbnails(){
         if(issuePhotoThumbnails==null||photoCount==null)return;
+        if(formAutosave!=null)formAutosave.schedule();
         photoCount.setText(issuePhotos.isEmpty()?"Brak zdjęć. Zrób pierwsze zdjęcie sprzętu.":"Zdjęcia: "+issuePhotos.size()+" • dotknij miniatury, aby powiększyć");
         issuePhotoThumbnails.removeAllViews();
         for(Bitmap photo:new ArrayList<>(issuePhotos)){
@@ -2437,7 +2443,7 @@ public class MainActivity extends Activity {
         issuePhotos.clear();signatureView=null;issueDraftWriter=null;
         protocolPage("Zwrot sprzętu",original.optString("number")+" • "+original.optString("client"));
         LinearLayout summary=protocolSection("Zwracany sprzęt");detailLine(summary,"Sprzęt",original.optString("equipment"));detailLine(summary,"Wydane akcesoria",original.optString("accessories"));
-        protocolBackAction=()->new AlertDialog.Builder(this).setTitle("Opuścić formularz zwrotu?").setMessage("Niezapisane dane zwrotu zostaną odrzucone.").setNegativeButton("Zostań",null).setPositiveButton("Opuść",(d,w)->showProtocolDetail(original)).show();
+        protocolBackAction=()->new AlertDialog.Builder(this).setTitle("Opuścić formularz zwrotu?").setMessage("Odrzucić automatyczny szkic zwrotu?").setNegativeButton("Zostań",null).setPositiveButton("Odrzuć",(d,w)->{stopFormAutosave();new ProtocolCameraStore(this).clearDraft();showProtocolDetail(original);}).show();
         LinearLayout returnCard=protocolSection("Stan przy zwrocie");
         EditText date=protocolField(returnCard,"Data zwrotu",false);date.setText(new SimpleDateFormat("dd.MM.yyyy",Locale.getDefault()).format(new Date()));date.setFocusable(false);date.setOnClickListener(v->showDatePicker(date));
         EditText condition=protocolField(returnCard,"Stan sprzętu przy zwrocie",true);EditText notes=protocolField(returnCard,"Uwagi do zwrotu",true);
@@ -2473,7 +2479,7 @@ public class MainActivity extends Activity {
         SignatureView(Context c){super(c);setBackgroundColor(Color.WHITE);pen.setColor(Color.BLACK);pen.setStrokeWidth(4);pen.setStyle(Paint.Style.STROKE);}
         private void ensure(){if(bitmap==null){bitmap=Bitmap.createBitmap(Math.max(1,getWidth()),Math.max(1,getHeight()),Bitmap.Config.ARGB_8888);canvas=new Canvas(bitmap);canvas.drawColor(Color.WHITE);}}
         @Override protected void onDraw(Canvas c){super.onDraw(c);ensure();c.drawBitmap(bitmap,0,0,null);Paint p=new Paint(3);p.setColor(0xff888888);p.setTextSize(12);c.drawText("PODPIS KLIENTA – podpisz palcem",8,18,p);}
-        @Override public boolean onTouchEvent(android.view.MotionEvent e){ensure();float x=e.getX(),y=e.getY();if(e.getAction()==0){getParent().requestDisallowInterceptTouchEvent(true);lx=x;ly=y;drawing=true;hasInk=true;canvas.drawPoint(x,y,pen);invalidate();return true;}if(e.getAction()==2&&drawing){canvas.drawLine(lx,ly,x,y,pen);lx=x;ly=y;invalidate();return true;}if(e.getAction()==1||e.getAction()==3){getParent().requestDisallowInterceptTouchEvent(false);drawing=false;return true;}return true;}
+        @Override public boolean onTouchEvent(android.view.MotionEvent e){ensure();float x=e.getX(),y=e.getY();if(e.getAction()==0){getParent().requestDisallowInterceptTouchEvent(true);lx=x;ly=y;drawing=true;hasInk=true;canvas.drawPoint(x,y,pen);invalidate();return true;}if(e.getAction()==2&&drawing){canvas.drawLine(lx,ly,x,y,pen);lx=x;ly=y;invalidate();return true;}if(e.getAction()==1||e.getAction()==3){getParent().requestDisallowInterceptTouchEvent(false);drawing=false;if(formAutosave!=null)formAutosave.schedule();return true;}return true;}
         void restore(Bitmap source){ensure();canvas.drawBitmap(source,null,new Rect(0,0,bitmap.getWidth(),bitmap.getHeight()),null);hasInk=true;invalidate();}
         boolean hasInk(){return hasInk;}
         void clear(){ensure();canvas.drawColor(Color.WHITE);hasInk=false;invalidate();}
