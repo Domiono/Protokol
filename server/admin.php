@@ -2,6 +2,14 @@
 session_start();
 require_once __DIR__ . '/admin_safety.php';
 
+// PHP may discard the entire POST when post_max_size is exceeded.
+// Never silently re-render a form as if an oversized upload had succeeded.
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0
+    && empty($_POST) && empty($_FILES)) {
+    http_response_code(413);
+    exit('Zbyt duży formularz lub zdjęcia. Zmniejsz pliki i spróbuj ponownie.');
+}
+
 $hasz_hasla = '$2y$12$e7EQuw7V0ssM3OwS6h7RE.D1Fv76de7iB1lSTh3Qr1cZ3u5PVtDKW';
 
 $data_file = 'data.json';
