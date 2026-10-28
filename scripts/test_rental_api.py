@@ -22,6 +22,12 @@ with tempfile.TemporaryDirectory() as td:
   originalProducts = call()['site_products']
   added = call({'action':'equipment_add','name':'Niepublikowana nowa maszyna'})['results'][0]
   assert added['ok'] and not added['exists']
+  registry = p/'rental_equipment_names.php'
+  assert registry.is_file(), 'New private internal list missing'
+  try:
+   json.loads(registry.read_text().split('\\n',1)[1])
+  except Exception as diagnostic:
+   raise AssertionError('Malformed private registry fixture: '+repr(registry.read_bytes())) from diagnostic
   try:
    after_internal_add=call()
   except urllib.error.HTTPError as error:
