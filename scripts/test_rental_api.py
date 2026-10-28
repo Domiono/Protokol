@@ -25,7 +25,7 @@ with tempfile.TemporaryDirectory() as td:
   registry = p/'rental_equipment_names.php'
   assert registry.is_file(), 'New private internal list missing'
   try:
-   json.loads(registry.read_text().split('\\n',1)[1])
+   json.loads(registry.read_text().splitlines()[1])
   except Exception as diagnostic:
    raise AssertionError('Malformed private registry fixture: '+repr(registry.read_bytes())) from diagnostic
   try:
