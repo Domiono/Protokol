@@ -378,10 +378,27 @@ foreach ($operations as $op) {
             $found=-1; foreach($items as $idx=>$p) if((string)($p['id']??'')===$id && $id!=='') {$found=$idx;break;}
             if($id==='') $id=bin2hex(random_bytes(10));
             $old=$found>=0?$items[$found]:[];
-            $images=is_array($old['images']??null)?$old['images']:[];
+            $oldImages=is_array($old['images']??null)?array_values($old['images']):[];
+            $images=$oldImages;
+            $removedImages=[];
+            // Optional for backwards compatibility with older installed APKs.
+            // Never allow the app to inject arbitrary server filenames.
+            if(array_key_exists('keep_images',$op)){
+                $keep=$op['keep_images'];
+                if(!is_array($keep) || !array_is_list($keep) || count($keep)>6 ||
+                   count(array_filter($keep,fn($v)=>!is_string($v)))>0 ||
+                   count(array_unique($keep))!==count($keep) ||
+                   count(array_diff($keep,$oldImages))>0){
+                    flock($lock,LOCK_UN);fclose($lock);
+                    $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nieprawidłowa lista zdjęć do zachowania.'];
+                    continue;
+                }
+                $images=array_values($keep);
+                $removedImages=array_values(array_diff($oldImages,$images));
+            }
             $newPhotoFiles=[];
             $photoData=$op['photos_base64']??[];
-            if(is_array($photoData)) foreach(array_slice($photoData,0,6) as $encoded) {
+            if(is_array($photoData)) foreach(array_slice($photoData,0,max(0,6-count($images))) as $encoded) {
                 if(!is_string($encoded) || strlen($encoded)>4000000) continue;
                 $binary=base64_decode($encoded,true); if($binary===false || strlen($binary)>2800000) continue;
                 $info=@getimagesizefromstring($binary);
@@ -408,6 +425,14 @@ foreach ($operations as $op) {
         $ok=$ok && rm_write_json_atomic($file,$items);
         // Never strand images if the catalogue write fails.
         if (!$ok) foreach(($newPhotoFiles ?? []) as $created) @unlink($created);
+        if ($ok && !empty($removedImages)) {
+            // Remove a file only once no other product refers to it.
+            $stillUsed=[];
+            foreach($items as $product)foreach(($product['images']??[]) as $photo)if(is_string($photo))$stillUsed[$photo]=true;
+            foreach($removedImages as $removed)if(is_string($removed)&&!isset($stillUsed[$removed])&&
+                preg_match('/^[a-zA-Z0-9_.-]+$/D',$removed)&&basename($removed)===$removed)
+                @unlink(__DIR__.'/uploads/'.$removed);
+        }
         flock($lock,LOCK_UN); fclose($lock);
         $results[]=$ok?['op_id'=>$opId,'ok'=>true,'id'=>$id]:['op_id'=>$opId,'ok'=>false,'error'=>'Nie udało się zapisać oferty sprzętu.'];
         continue;

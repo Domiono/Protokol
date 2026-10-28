@@ -23,12 +23,13 @@ import android.util.Base64;
 public class MainActivity extends Activity {
     private static final String HOME="https://rentmor.pl/protocol.php";
     private LocalStore store; private SyncManager sync; private LinearLayout root; private LinearLayout homePage; private boolean adminDownloadAdded=false; private TextView status;
-    private WebView activation; private boolean showingApp=false; private final ArrayList<Bitmap> issuePhotos=new ArrayList<>(); private final ArrayList<Bitmap> productPhotos=new ArrayList<>(); private final ArrayList<String> productSelectedPhotoUris=new ArrayList<>(); private int existingProductPhotoCount=0; private int productPhotoSession=0; private boolean productPhotosLoading=false; private LinearLayout productExistingPhotoContainer,productNewPhotoContainer; private Button productPhotoPickButton; private TextView productPhotoCount; private TextView photoCount; private SignatureView signatureView; private final AtomicBoolean syncRunning=new AtomicBoolean(false); private ConnectivityManager.NetworkCallback networkCallback;
+    private WebView activation; private boolean showingApp=false; private final ArrayList<Bitmap> issuePhotos=new ArrayList<>(); private final ArrayList<Bitmap> productPhotos=new ArrayList<>(); private final ArrayList<String> productSelectedPhotoUris=new ArrayList<>(); private final ArrayList<String> productExistingImages=new ArrayList<>(); private int existingProductPhotoCount=0; private int productPhotoSession=0; private boolean productPhotosLoading=false; private LinearLayout productExistingPhotoContainer,productNewPhotoContainer; private Button productPhotoPickButton,productPhotoCameraButton; private TextView productPhotoCount; private Runnable productDraftWriter; private android.net.Uri pendingProductPhoto; private TextView photoCount; private SignatureView signatureView; private final AtomicBoolean syncRunning=new AtomicBoolean(false); private ConnectivityManager.NetworkCallback networkCallback;
     @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(Color.rgb(20,29,45));getWindow().setNavigationBarColor(Color.rgb(20,29,45));store=new LocalStore(this);sync=new SyncManager(this,store);registerNetworkSync();
         recordOpenedContactNotification(getIntent());
         String saved=getSharedPreferences("rentmor",0).getString("cookie","");
         if(!saved.isEmpty()){showHome();
-            if(new ProtocolCameraStore(this).pending()!=null){pendingProtocolPhoto=new ProtocolCameraStore(this).pending();restoreCameraForm();}
+            if(new ProductCameraStore(this).pending()!=null){pendingProductPhoto=new ProductCameraStore(this).pending();restoreProductCameraForm();}
+            else if(new ProtocolCameraStore(this).pending()!=null){pendingProtocolPhoto=new ProtocolCameraStore(this).pending();restoreCameraForm();}
             else openWidgetDestination();
         } else showActivation();
     }
@@ -699,9 +700,15 @@ public class MainActivity extends Activity {
         productPhotoSession++;
         root.removeAllViews();root.setPadding(16,14,16,18);
         for(Bitmap old:productPhotos) if(old!=null&&!old.isRecycled())old.recycle();
-        productPhotos.clear();productSelectedPhotoUris.clear();productPhotosLoading=false;
-        productPhotoCount=null;productPhotoPickButton=null;productExistingPhotoContainer=null;productNewPhotoContainer=null;
-        existingProductPhotoCount=existing==null||existing.optJSONArray("images")==null?0:existing.optJSONArray("images").length();
+        productPhotos.clear();productSelectedPhotoUris.clear();productExistingImages.clear();productPhotosLoading=false;
+        productDraftWriter=null;
+        productPhotoCount=null;productPhotoPickButton=null;productPhotoCameraButton=null;productExistingPhotoContainer=null;productNewPhotoContainer=null;
+        JSONArray initialPhotos=existing==null?null:existing.optJSONArray("images");
+        if(initialPhotos!=null)for(int i=0;i<initialPhotos.length();i++){
+            String filename=initialPhotos.optString(i,"");
+            if(!filename.isEmpty())productExistingImages.add(filename);
+        }
+        existingProductPhotoCount=productExistingImages.size();
         boolean editing=existing!=null;
         TextView h=new TextView(this);h.setText(editing?"EDYTUJ OFERTĘ":"DODAJ SPRZĘT NA STRONĘ");h.setTextSize(23);h.setTypeface(null,1);h.setTextColor(0xff172235);root.addView(h);
         TextView intro=new TextView(this);intro.setText("Uzupełnij dane oferty. Pola są podzielone na osobne sekcje, żeby łatwiej było je edytować.");intro.setTextSize(13);intro.setTextColor(0xff697386);intro.setPadding(0,5,0,14);root.addView(intro);
@@ -721,14 +728,19 @@ public class MainActivity extends Activity {
             existingScroll.setHorizontalScrollBarEnabled(false);
             productExistingPhotoContainer=new LinearLayout(this);productExistingPhotoContainer.setOrientation(0);
             existingScroll.addView(productExistingPhotoContainer);
-            photos.addView(existingScroll,new LinearLayout.LayoutParams(-1,dp(127)));
-            showExistingProductPhotos(existing.optJSONArray("images"),productExistingPhotoContainer);
+            photos.addView(existingScroll,new LinearLayout.LayoutParams(-1,dp(209)));
+            showExistingProductPhotos(new JSONArray(productExistingImages),productExistingPhotoContainer);
         }
         productPhotoPickButton=new Button(this);productPhotoPickButton.setText("＋ DODAJ ZDJĘCIA");
         brandButton(productPhotoPickButton,false);
         LinearLayout.LayoutParams chooseParams=new LinearLayout.LayoutParams(-1,-2);
         chooseParams.topMargin=dp(9);photos.addView(productPhotoPickButton,chooseParams);
         productPhotoPickButton.setOnClickListener(v->pickProductPhotos());
+        productPhotoCameraButton=new Button(this);productPhotoCameraButton.setText("📷 ZRÓB ZDJĘCIE APARATEM");
+        brandButton(productPhotoCameraButton,true);
+        LinearLayout.LayoutParams cameraParams=new LinearLayout.LayoutParams(-1,-2);
+        cameraParams.topMargin=dp(8);photos.addView(productPhotoCameraButton,cameraParams);
+        productPhotoCameraButton.setOnClickListener(v->captureProductPhoto());
         productPhotoCount=new TextView(this);productPhotoCount.setTextSize(12);
         productPhotoCount.setTextColor(0xff697386);productPhotoCount.setPadding(0,dp(8),0,dp(6));
         photos.addView(productPhotoCount);
@@ -745,13 +757,26 @@ public class MainActivity extends Activity {
             if(productPhotosLoading){toast("Trwa wczytywanie zdjęć. Zapisz po ich dodaniu.");return;}
             if(!isOnline()){toast("Do publikacji produktu potrzebny jest internet.");return;}
             String n=name.getText().toString().trim(),pr=price.getText().toString().trim(),de=deposit.getText().toString().trim();if(n.isEmpty()||pr.isEmpty()){toast("Podaj nazwę i cenę za dobę.");return;}
-            try{JSONObject op=new JSONObject();if(editing)op.put("product_id",existing.optString("id"));
+            try{JSONObject op=new JSONObject();if(editing){op.put("product_id",existing.optString("id"));op.put("keep_images",new JSONArray(productExistingImages));}
                 op.put("name",n);op.put("desc",desc.getText().toString());op.put("category",cats[category.getSelectedItemPosition()]);op.put("price",pr);op.put("deposit",de.isEmpty()?"0":de);op.put("seo_title",seoTitle.getText().toString());op.put("seo_description",seoDesc.getText().toString());op.put("olx",olx.getText().toString());
                 JSONArray photoData=new JSONArray();for(Bitmap bmp:productPhotos){ByteArrayOutputStream out=new ByteArrayOutputStream();Bitmap scaled=bmp;int max=1280;if(bmp.getWidth()>max||bmp.getHeight()>max){float scale=Math.min((float)max/bmp.getWidth(),(float)max/bmp.getHeight());scaled=Bitmap.createScaledBitmap(bmp,Math.max(1,Math.round(bmp.getWidth()*scale)),Math.max(1,Math.round(bmp.getHeight()*scale)),true);}scaled.compress(Bitmap.CompressFormat.JPEG,78,out);photoData.put(Base64.encodeToString(out.toByteArray(),Base64.NO_WRAP));if(scaled!=bmp)scaled.recycle();}op.put("photos_base64",photoData);
-                store.enqueue("product_save",op);new Thread(()->{try{sync.sync();runOnUiThread(()->{toast("Oferta opublikowana na RentMor.pl.");siteProductsPage();});}catch(Exception e){runOnUiThread(()->toast("Nie udało się opublikować: "+e.getMessage()));}}).start();
+                store.enqueue("product_save",op);new Thread(()->{try{sync.sync();runOnUiThread(()->{clearProductPhotoDraft();toast("Oferta opublikowana na RentMor.pl.");siteProductsPage();});}catch(Exception e){runOnUiThread(()->toast("Nie udało się opublikować: "+e.getMessage()));}}).start();
             }catch(Exception e){toast("Nie udało się przygotować oferty: "+e.getMessage());}
         });
-        addButton("ANULUJ / WRÓĆ",()->sitePage());
+        productDraftWriter=()->{try{
+            JSONObject draft=new JSONObject();draft.put("existing",existing==null?JSONObject.NULL:existing);
+            draft.put("name",name.getText().toString());draft.put("desc",desc.getText().toString());
+            draft.put("category",category.getSelectedItemPosition());draft.put("price",price.getText().toString());
+            draft.put("deposit",deposit.getText().toString());draft.put("seo_title",seoTitle.getText().toString());
+            draft.put("seo_description",seoDesc.getText().toString());draft.put("olx",olx.getText().toString());
+            draft.put("keep_images",new JSONArray(productExistingImages));
+            JSONArray saved=new JSONArray();
+            for(Bitmap bmp:productPhotos)saved.put(bitmapBase64(bmp,1280,78));
+            draft.put("new_photos",saved);
+            new ProductCameraStore(this).saveDraft(draft.toString());
+        }catch(Exception e){throw new IllegalStateException("Nie udało się zapisać roboczej oferty",e);}};
+        if(pendingProductPhoto!=null)restoreProductPhotoDraft(name,desc,category,price,deposit,seoTitle,seoDesc,olx);
+        addButton("ANULUJ / WRÓĆ",()->{clearProductPhotoDraft();sitePage();});
     }
     private LinearLayout productSection(String title,String subtitle){
         LinearLayout section=new LinearLayout(this);section.setOrientation(1);section.setPadding(14,12,14,14);section.setBackground(roundBg(Color.WHITE,15));
@@ -791,6 +816,127 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void captureProductPhoto(){
+        if(!isAdmin()){toast("Zdjęcia ofert może dodawać tylko administrator.");return;}
+        if(productPhotosLoading || 6-existingProductPhotoCount-productPhotos.size()<=0){
+            toast("Poczekaj na zdjęcia lub zwolnij miejsce w galerii.");return;
+        }
+        if(pendingProductPhoto!=null)return;
+        try{
+            if(productDraftWriter==null)throw new IOException("Formularz oferty nie jest aktywny.");
+            productDraftWriter.run();
+            pendingProductPhoto=new ProductCameraStore(this).create();
+            Intent intent=new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
+            intent.putExtra(android.provider.MediaStore.EXTRA_OUTPUT,pendingProductPhoto);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            intent.setClipData(ClipData.newRawUri("Zdjęcie oferty RentMor",pendingProductPhoto));
+            startActivityForResult(intent,4103);
+        }catch(Exception e){
+            discardPendingProductPhoto();
+            toast("Nie udało się uruchomić aparatu: "+e.getMessage());
+        }
+    }
+
+    private void discardPendingProductPhoto(){
+        new ProductCameraStore(this).clear();
+        pendingProductPhoto=null;
+    }
+
+    private void clearProductPhotoDraft(){
+        new ProductCameraStore(this).clearDraft();
+        discardPendingProductPhoto();
+        productDraftWriter=null;
+    }
+
+    private void restoreProductCameraForm(){
+        try{
+            ProductCameraStore camera=new ProductCameraStore(this);
+            String contents=new String(java.nio.file.Files.readAllBytes(camera.draftFile().toPath()),
+                java.nio.charset.StandardCharsets.UTF_8);
+            JSONObject draft=new JSONObject(contents);
+            JSONObject original=draft.optJSONObject("existing");
+            productForm(original);
+        }catch(Exception e){
+            discardPendingProductPhoto();
+            toast("Nie udało się odtworzyć edycji oferty. Spróbuj ponownie.");
+            siteProductsPage();
+        }
+    }
+
+    private void restoreProductPhotoDraft(EditText name,EditText desc,Spinner category,EditText price,
+                                           EditText deposit,EditText seoTitle,EditText seoDesc,EditText olx){
+        try{
+            ProductCameraStore camera=new ProductCameraStore(this);
+            JSONObject draft=new JSONObject(new String(java.nio.file.Files.readAllBytes(camera.draftFile().toPath()),
+                java.nio.charset.StandardCharsets.UTF_8));
+            name.setText(draft.optString("name"));desc.setText(draft.optString("desc"));
+            int selected=draft.optInt("category",0);
+            if(selected>=0&&selected<category.getCount())category.setSelection(selected);
+            price.setText(draft.optString("price"));deposit.setText(draft.optString("deposit"));
+            seoTitle.setText(draft.optString("seo_title"));seoDesc.setText(draft.optString("seo_description"));
+            olx.setText(draft.optString("olx"));
+            JSONArray retained=draft.optJSONArray("keep_images");
+            if(retained!=null){
+                ArrayList<String> listed=new ArrayList<>(productExistingImages);
+                ArrayList<String> keep=new ArrayList<>();
+                for(int i=0;i<retained.length();i++){
+                    String file=retained.optString(i);
+                    if(listed.contains(file) && !keep.contains(file))keep.add(file);
+                }
+                productExistingImages.clear();productExistingImages.addAll(keep);
+                existingProductPhotoCount=keep.size();
+                showExistingProductPhotos(new JSONArray(productExistingImages),productExistingPhotoContainer);
+            }
+            JSONArray photos=draft.optJSONArray("new_photos");
+            if(photos!=null)for(int i=0;i<photos.length() && productPhotos.size()+existingProductPhotoCount<6;i++){
+                byte[] bytes=Base64.decode(photos.optString(i),Base64.DEFAULT);
+                Bitmap image=BitmapFactory.decodeByteArray(bytes,0,bytes.length);
+                if(image!=null){productPhotos.add(image);productSelectedPhotoUris.add("draft:"+i);}
+            }
+            updateSelectedProductPhotoPreviews();
+        }catch(Exception e){toast("Sprawdź dane oferty. Nie udało się przywrócić całej wersji roboczej.");}
+    }
+
+    private void receiveProductCameraPhoto(Intent result){
+        Bitmap image=null;Exception failure=null;
+        if(pendingProductPhoto!=null)try{
+            image=readProtocolCameraPhoto(pendingProductPhoto);
+        }catch(Exception e){failure=e;}
+        if(image==null&&result!=null&&result.getData()!=null)try{
+            image=readProtocolCameraPhoto(result.getData());
+        }catch(Exception e){failure=e;}
+        if(image==null&&result!=null&&result.getExtras()!=null){
+            Object thumb=result.getExtras().get("data");
+            if(thumb instanceof Bitmap)image=(Bitmap)thumb;
+        }
+        if(image==null){
+            String reason=failure==null?"Aparat nie zapisał pliku.":"Nie można odczytać zdjęcia: "+failure.getMessage();
+            new AlertDialog.Builder(this).setTitle("Nie udało się dodać zdjęcia")
+                .setMessage(reason+"\\nPozostałe zdjęcia i formularz nie zostały usunięte.")
+                .setPositiveButton("Ponów odczyt",(d,w)->receiveProductCameraPhoto(result))
+                .setNeutralButton("Zrób ponownie",(d,w)->{discardPendingProductPhoto();captureProductPhoto();})
+                .setNegativeButton("Anuluj",(d,w)->discardPendingProductPhoto())
+                .setCancelable(false).show();
+            return;
+        }
+        if(productPhotos.size()+existingProductPhotoCount>=6){
+            if(!image.isRecycled())image.recycle();
+            discardPendingProductPhoto();toast("Osiągnięto limit 6 zdjęć.");return;
+        }
+        productPhotos.add(image);
+        productSelectedPhotoUris.add("camera:"+UUID.randomUUID());
+        updateSelectedProductPhotoPreviews();
+        // Durable draft first, then discard the original full-size camera file.
+        try{if(productDraftWriter!=null)productDraftWriter.run();}
+        catch(Exception e){toast("Zdjęcie dodane. Zapisz ofertę przed zamknięciem aplikacji.");}
+        discardPendingProductPhoto();
+        new AlertDialog.Builder(this).setTitle("Zdjęcie dodane ("+
+            (existingProductPhotoCount+productPhotos.size())+"/6)")
+            .setMessage("Możesz zrobić kolejne zdjęcie lub kontynuować edycję.")
+            .setPositiveButton("Zrób kolejne",(d,w)->captureProductPhoto())
+            .setNegativeButton("Gotowe",null).show();
+    }
+
     private Bitmap readProductPhotoThumbnail(android.net.Uri uri) throws IOException {
         BitmapFactory.Options bounds=new BitmapFactory.Options();bounds.inJustDecodeBounds=true;
         try(InputStream stream=getContentResolver().openInputStream(uri)){
@@ -820,8 +966,9 @@ public class MainActivity extends Activity {
         productPhotoCount.setText(label);
         if(productPhotoPickButton!=null){
             productPhotoPickButton.setEnabled(remaining>0&&!productPhotosLoading);
-            productPhotoPickButton.setText(remaining>0?"＋ DODAJ ZDJĘCIA ("+remaining+" MIEJSC)":"LIMIT 6 ZDJĘĆ");
+            productPhotoPickButton.setText(remaining>0?"＋ WYBIERZ Z GALERII ("+remaining+")":"LIMIT 6 ZDJĘĆ");
         }
+        if(productPhotoCameraButton!=null)productPhotoCameraButton.setEnabled(remaining>0&&!productPhotosLoading);
         for(int i=0;i<productPhotos.size();i++){
             final int index=i;
             LinearLayout tile=new LinearLayout(this);tile.setOrientation(1);
@@ -836,8 +983,9 @@ public class MainActivity extends Activity {
             tile.addView(remove,new LinearLayout.LayoutParams(-1,dp(35)));
             remove.setOnClickListener(v->{
                 if(index<productPhotos.size()){
-                    productPhotos.remove(index);
+                    Bitmap removed=productPhotos.remove(index);
                     productSelectedPhotoUris.remove(index);
+                    if(removed!=null&&!removed.isRecycled())removed.recycle();
                     updateSelectedProductPhotoPreviews();
                 }
             });
@@ -846,10 +994,12 @@ public class MainActivity extends Activity {
         }
     }
     private void showExistingProductPhotos(JSONArray saved,LinearLayout container){
+        if(container==null)return;
+        container.removeAllViews();
         if(saved==null)return;
-        int visible=Math.min(saved.length(),18);
+        int visible=Math.min(saved.length(),6);
         for(int i=0;i<visible;i++){
-            final int number=i+1;
+            final int originalIndex=i,number=i+1;
             String filename=saved.optString(i,"");
             String safeName=filename.substring(filename.lastIndexOf('/')+1);
             LinearLayout tile=new LinearLayout(this);tile.setOrientation(1);
@@ -858,16 +1008,38 @@ public class MainActivity extends Activity {
             thumbnail.setScaleType(ImageView.ScaleType.CENTER_CROP);
             thumbnail.setImageResource(android.R.drawable.ic_menu_gallery);
             thumbnail.setPadding(dp(6),dp(6),dp(6),dp(6));
-            tile.addView(thumbnail,new LinearLayout.LayoutParams(dp(94),dp(88)));
+            tile.addView(thumbnail,new LinearLayout.LayoutParams(dp(100),dp(88)));
             TextView caption=new TextView(this);caption.setText("Zdjęcie "+number);
             caption.setTextSize(11);caption.setTextColor(0xff526174);
             caption.setGravity(Gravity.CENTER);tile.addView(caption);
-            LinearLayout.LayoutParams tileParams=new LinearLayout.LayoutParams(dp(102),dp(123));
+            LinearLayout controls=new LinearLayout(this);controls.setOrientation(0);tile.addView(controls);
+            Button left=new Button(this);left.setText("‹");left.setAllCaps(false);left.setTextSize(16);
+            left.setEnabled(i>0);controls.addView(left,new LinearLayout.LayoutParams(0,dp(36),1));
+            left.setOnClickListener(v->moveExistingProductPhoto(originalIndex,-1));
+            Button right=new Button(this);right.setText("›");right.setAllCaps(false);right.setTextSize(16);
+            right.setEnabled(i<visible-1);controls.addView(right,new LinearLayout.LayoutParams(0,dp(36),1));
+            right.setOnClickListener(v->moveExistingProductPhoto(originalIndex,1));
+            Button remove=new Button(this);remove.setText("Usuń");remove.setAllCaps(false);
+            remove.setTextSize(10);remove.setTextColor(0xffb91c1c);
+            tile.addView(remove,new LinearLayout.LayoutParams(-1,dp(42)));
+            remove.setOnClickListener(v->new AlertDialog.Builder(this)
+                .setTitle("Usunąć zdjęcie z oferty?")
+                .setMessage("Zmiana będzie widoczna na stronie dopiero po zapisaniu oferty.")
+                .setNegativeButton("Zostaw",null)
+                .setPositiveButton("Usuń",(dialog,which)->{
+                    if(originalIndex<productExistingImages.size()){
+                        productExistingImages.remove(originalIndex);
+                        existingProductPhotoCount=productExistingImages.size();
+                        showExistingProductPhotos(new JSONArray(productExistingImages),container);
+                        updateSelectedProductPhotoPreviews();
+                    }
+                }).show());
+            LinearLayout.LayoutParams tileParams=new LinearLayout.LayoutParams(dp(108),-2);
             tileParams.rightMargin=dp(8);container.addView(tile,tileParams);
             if(!safeName.matches("[A-Za-z0-9._-]{1,180}")||safeName.equals(".")||safeName.equals("..")){
                 caption.setText("Brak podglądu");continue;
             }
-            // Photos are already public in /uploads. Load compressed thumbnail off the UI thread.
+            // Existing public gallery thumbnails load off the UI thread.
             new Thread(()->{
                 Bitmap bitmap=null;
                 java.net.HttpURLConnection connection=null;
@@ -886,7 +1058,8 @@ public class MainActivity extends Activity {
                 finally{if(connection!=null)connection.disconnect();}
                 final Bitmap loaded=bitmap;
                 runOnUiThread(()->{
-                    if(container!=productExistingPhotoContainer){
+                    if(container!=productExistingPhotoContainer || tile.getParent()!=container || thumbnail.getParent()!=tile ||
+                       !productExistingImages.contains(filename)){
                         if(loaded!=null)loaded.recycle();return;
                     }
                     if(loaded!=null){
@@ -895,10 +1068,13 @@ public class MainActivity extends Activity {
                 });
             }).start();
         }
-        if(saved.length()>visible){
-            TextView more=new TextView(this);more.setText("Pozostałe zdjęcia: "+(saved.length()-visible));
-            more.setTextSize(12);more.setTextColor(0xff697386);container.addView(more);
-        }
+    }
+    private void moveExistingProductPhoto(int index,int step){
+        int destination=index+step;
+        if(index<0||destination<0||destination>=productExistingImages.size())return;
+        Collections.swap(productExistingImages,index,destination);
+        showExistingProductPhotos(new JSONArray(productExistingImages),productExistingPhotoContainer);
+        updateSelectedProductPhotoPreviews();
     }
 
     private void reservationPage() {
@@ -2089,7 +2265,7 @@ public class MainActivity extends Activity {
                 ArrayList<String> imageKeys=new ArrayList<>();
                 for(android.net.Uri uri:toLoad){
                     try{
-                        Bitmap bitmap=readProductPhotoThumbnail(uri);
+                        Bitmap bitmap=readProtocolCameraPhoto(uri);
                         loadedImages.add(bitmap);imageKeys.add(uri.toString());
                     }catch(Exception ignored){}
                 }
@@ -2099,13 +2275,22 @@ public class MainActivity extends Activity {
                         return;
                     }
                     for(int i=0;i<loadedImages.size();i++){
-                        if(existingProductPhotoCount+productPhotos.size()>=6)break;
+                        if(existingProductPhotoCount+productPhotos.size()>=6){
+                            Bitmap unused=loadedImages.get(i);
+                            if(unused!=null&&!unused.isRecycled())unused.recycle();
+                            continue;
+                        }
                         productPhotos.add(loadedImages.get(i));productSelectedPhotoUris.add(imageKeys.get(i));
                     }
                     productPhotosLoading=false;updateSelectedProductPhotoPreviews();
                     toast(loadedImages.size()>0?"Dodano "+loadedImages.size()+" zdjęć.":"Nie udało się wczytać wybranych zdjęć.");
                 });
             }).start();
+        }
+        if(requestCode==4103){
+            if(pendingProductPhoto==null)pendingProductPhoto=new ProductCameraStore(this).pending();
+            if(resultCode!=RESULT_OK){discardPendingProductPhoto();return;}
+            receiveProductCameraPhoto(data);
         }
         if(requestCode==4101){
             if(pendingProtocolPhoto==null)pendingProtocolPhoto=new ProtocolCameraStore(this).pending();
