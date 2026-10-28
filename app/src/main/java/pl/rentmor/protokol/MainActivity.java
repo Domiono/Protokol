@@ -23,7 +23,7 @@ import android.util.Base64;
 public class MainActivity extends Activity {
     private static final String HOME="https://rentmor.pl/protocol.php";
     private LocalStore store; private SyncManager sync; private LinearLayout root; private LinearLayout homePage; private boolean adminDownloadAdded=false; private TextView status;
-    private WebView activation; private boolean showingApp=false; private final ArrayList<Bitmap> issuePhotos=new ArrayList<>(); private final ArrayList<Bitmap> productPhotos=new ArrayList<>(); private final ArrayList<String> productSelectedPhotoUris=new ArrayList<>(); private final ArrayList<String> productExistingImages=new ArrayList<>(); private int existingProductPhotoCount=0; private int productPhotoSession=0; private boolean productPhotosLoading=false; private LinearLayout productExistingPhotoContainer,productNewPhotoContainer; private Button productPhotoPickButton,productPhotoCameraButton; private TextView productPhotoCount; private Runnable productDraftWriter; private android.net.Uri pendingProductPhoto; private TextView photoCount; private SignatureView signatureView; private final AtomicBoolean syncRunning=new AtomicBoolean(false); private ConnectivityManager.NetworkCallback networkCallback;
+    private WebView activation; private boolean showingApp=false; private HomeInboxShortcut homeInboxShortcut; private final ArrayList<Bitmap> issuePhotos=new ArrayList<>(); private final ArrayList<Bitmap> productPhotos=new ArrayList<>(); private final ArrayList<String> productSelectedPhotoUris=new ArrayList<>(); private final ArrayList<String> productExistingImages=new ArrayList<>(); private int existingProductPhotoCount=0; private int productPhotoSession=0; private boolean productPhotosLoading=false; private LinearLayout productExistingPhotoContainer,productNewPhotoContainer; private Button productPhotoPickButton,productPhotoCameraButton; private TextView productPhotoCount; private Runnable productDraftWriter; private android.net.Uri pendingProductPhoto; private TextView photoCount; private SignatureView signatureView; private final AtomicBoolean syncRunning=new AtomicBoolean(false); private ConnectivityManager.NetworkCallback networkCallback;
     @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(Color.rgb(20,29,45));getWindow().setNavigationBarColor(Color.rgb(20,29,45));store=new LocalStore(this);sync=new SyncManager(this,store);registerNetworkSync();
         recordOpenedContactNotification(getIntent());
         String saved=getSharedPreferences("rentmor",0).getString("cookie","");
@@ -65,14 +65,18 @@ public class MainActivity extends Activity {
     private final Runnable messagePollTask=new Runnable(){
         @Override public void run(){
             if(showingApp&&isAdmin()&&isOnline()){
-                new Thread(()->{try{MessageMonitor.poll(getApplicationContext());}catch(Exception ignored){}},
-                    "rentmor-foreground-messages").start();
+                new Thread(()->{
+                    try{MessageMonitor.poll(getApplicationContext());}
+                    catch(Exception ignored){}
+                    finally{runOnUiThread(()->refreshHomeInboxBadge());}
+                },"rentmor-foreground-messages").start();
             }
             messagePollHandler.postDelayed(this,60000);
         }
     };
     @Override protected void onResume(){
         super.onResume();
+        refreshHomeInboxBadge();
         messagePollHandler.removeCallbacks(messagePollTask);
         messagePollHandler.postDelayed(messagePollTask,60000);
     }
@@ -118,7 +122,7 @@ public class MainActivity extends Activity {
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);
         scroll.setClipToPadding(false);
         LinearLayout page=new LinearLayout(this);page.setOrientation(1);
-        root=page;homePage=page;adminDownloadAdded=false;homeToolsList=null;
+        root=page;homePage=page;adminDownloadAdded=false;homeToolsList=null;homeInboxShortcut=null;
         page.setPadding(0,dp(3),0,dp(12));
         scroll.addView(page);
 
@@ -128,7 +132,19 @@ public class MainActivity extends Activity {
         TextView eyebrow=new TextView(this);
         eyebrow.setText("RENTMOR  /  PANEL ZARZĄDZANIA");
         eyebrow.setTextSize(10);eyebrow.setLetterSpacing(.15f);
-        eyebrow.setTextColor(0xfffacc15);eyebrow.setTypeface(null,1);hero.addView(eyebrow);
+        eyebrow.setTextColor(0xfffacc15);eyebrow.setTypeface(null,1);
+        LinearLayout heroTop=new LinearLayout(this);
+        heroTop.setOrientation(0);
+        heroTop.setGravity(Gravity.CENTER_VERTICAL);
+        heroTop.addView(eyebrow,new LinearLayout.LayoutParams(0,-2,1));
+        if(isAdmin()){
+            homeInboxShortcut=new HomeInboxShortcut(this,()->messageInboxPage());
+            homeInboxShortcut.setUnread(store.unreadMessagesCount());
+            LinearLayout.LayoutParams inboxParams=new LinearLayout.LayoutParams(dp(50),dp(50));
+            inboxParams.leftMargin=dp(10);
+            heroTop.addView(homeInboxShortcut,inboxParams);
+        }
+        hero.addView(heroTop,new LinearLayout.LayoutParams(-1,-2));
         TextView title=new TextView(this);title.setText("Pro RentMor");
         title.setTextSize(28);title.setTypeface(null,1);title.setTextColor(Color.WHITE);
         title.setPadding(0,dp(8),0,dp(7));hero.addView(title);
@@ -193,13 +209,6 @@ public class MainActivity extends Activity {
                 "Naprawy, paliwo, reklama i zakupy",0xffedf0f5,()->expensePage());
         }
 
-        if(isAdmin()){
-            homeSectionTitle(page,"KONTAKT Z KLIENTAMI","Wiadomości wysłane przez RentMor.pl");
-            int unread=store.unreadMessagesCount();
-            homeMenuItem(page,android.R.drawable.ic_dialog_email,"Wiadomości klientów",
-                unread>0?"Nowe wiadomości: "+unread:"Otwórz skrzynkę i odczytaj zapytania",
-                0xffffedd0,()->messageInboxPage());
-        }
         homeSectionTitle(page,"NARZĘDZIA","Ustawienia i dostęp");
         homeToolsList=new LinearLayout(this);homeToolsList.setOrientation(1);page.addView(homeToolsList);
         homeMenuItem(homeToolsList,android.R.drawable.ic_popup_sync,"Synchronizuj teraz",
@@ -216,14 +225,22 @@ public class MainActivity extends Activity {
         if(isOnline())syncNow();
         if(isAdmin()){
             MessageMonitor.schedule(this);
-            if(isOnline())new Thread(()->{try{MessageMonitor.poll(getApplicationContext());}catch(Exception ignored){}},
-                "rentmor-check-on-open").start();
+            if(isOnline())new Thread(()->{
+                try{MessageMonitor.poll(getApplicationContext());}
+                catch(Exception ignored){}
+                finally{runOnUiThread(()->refreshHomeInboxBadge());}
+            },"rentmor-check-on-open").start();
             if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED
                 &&!getSharedPreferences("rentmor",0).getBoolean("asked_contact_notifications",false)){
                 getSharedPreferences("rentmor",0).edit().putBoolean("asked_contact_notifications",true).apply();
                 requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},738);
             }
         }else MessageMonitor.cancel(this);
+    }
+    private void refreshHomeInboxBadge(){
+        if(homeInboxShortcut!=null && isAdmin()){
+            homeInboxShortcut.setUnread(store.unreadMessagesCount());
+        }
     }
     private void homeSectionTitle(LinearLayout parent,String title,String caption){
         LinearLayout section=new LinearLayout(this);section.setOrientation(1);
@@ -452,6 +469,7 @@ public class MainActivity extends Activity {
                     // This also closes a finance screen if an administrator loses access.
                     if(!previousRole.equals(currentRole)){showHome();return;}
                     if(status!=null)status.setText("Synchronizacja zakończona. Oczekujące: "+store.pendingCount());
+                    refreshHomeInboxBadge();
                     addAdminDownloadCard();
                 });
             }catch(Exception e){
