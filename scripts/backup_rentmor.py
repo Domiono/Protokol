@@ -5,9 +5,9 @@ import sys
 from pathlib import Path
 
 REQUIRED = {"data.json", "reservations.json", "protocols.json", "customers.json", "costs.json"}
-OPTIONAL = {"messages.json", "terms.json", "protocol_devices.json", "stats.json", "rental_assets.php", "rental_equipment_names.php"}
+OPTIONAL = {"messages.json", "terms.json", "protocol_devices.json", "stats.json", "rental_assets.php", "rental_equipment_names.php", "notebook.json"}
 KNOWN = REQUIRED | OPTIONAL
-OBJECTS = {"terms.json", "protocol_devices.json", "stats.json"}
+OBJECTS = {"terms.json", "protocol_devices.json", "stats.json", "notebook.json"}
 LISTS = {"data.json", "reservations.json", "protocols.json", "customers.json", "costs.json", "messages.json"}
 
 def validate(root: Path) -> list[str]:
@@ -33,6 +33,9 @@ def validate(root: Path) -> list[str]:
             raise ValueError("Expected a list: " + name)
         if name in OBJECTS and not isinstance(data, dict):
             raise ValueError("Expected an object: " + name)
+        if name == "notebook.json":
+            if not isinstance(data.get("revision"), int) or not isinstance(data.get("notes"), dict) or not isinstance(data.get("processed"), dict):
+                raise ValueError("Invalid notebook snapshot")
         verified.append(name)
     return verified
 
