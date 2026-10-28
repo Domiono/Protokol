@@ -231,16 +231,16 @@ if (!is_array($body)) rm_json_response(400, ['ok'=>false, 'error'=>'Nieprawidło
 $operations = $body['operations'] ?? [];
 if (!is_array($operations) || count($operations) > 100) rm_json_response(400, ['ok'=>false, 'error'=>'Nieprawidłowa lista operacji.']);
 
-$file = __DIR__ . '/protocols.json';
+$protocolFile = __DIR__ . '/protocols.json';
 // Photo-expiration maintenance uses protocols.json.lock; all protocol writes
 // must use the same stable sidecar instead of a data inode.
-$fp = @fopen($file . '.lock', 'c+');
+$fp = @fopen($protocolFile . '.lock', 'c+');
 if (!$fp || !@flock($fp, LOCK_EX)) {
     if ($fp) fclose($fp);
     rm_json_response(503, ['ok'=>false, 'error'=>'Baza protokołów jest chwilowo zajęta.']);
 }
 // A malformed existing protocols.json must never be replaced with an empty list.
-$protocols = rm_read_json_file($file, []);
+$protocols = rm_read_json_file($protocolFile, []);
 if (!array_is_list($protocols)) rm_json_response(503, ['ok'=>false,'error'=>'Nieprawidłowa lista protokołów. Zapis wstrzymany.']);
 $results = [];
 
@@ -655,7 +655,8 @@ foreach ($operations as $op) {
         $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nieobsługiwana operacja'];
     }
 }
-$writeOk = rm_write_json_atomic($file, $protocols);
+// Operation-specific $file must never replace the protocol database path.
+$writeOk = rm_write_json_atomic($protocolFile, $protocols);
 flock($fp, LOCK_UN);
 fclose($fp);
 if (!$writeOk) rm_json_response(500, ['ok'=>false,'error'=>'Nie udało się zapisać danych. Operacje należy ponowić.']);
