@@ -19,13 +19,15 @@ final class NotebookPage {
     private final Activity activity;
     private final LinearLayout root;
     private final NotebookStore store;
+    private final SyncManager sync;
     private final Runnable home;
+    private boolean syncing=false;
     private LinearLayout list;
     private TextView summary;
     private String category;
     private boolean completed;
-    NotebookPage(Activity activity,LinearLayout root,NotebookStore store,Runnable home){
-        this.activity=activity;this.root=root;this.store=store;this.home=home;
+    NotebookPage(Activity activity,LinearLayout root,NotebookStore store,SyncManager sync,Runnable home){
+        this.activity=activity;this.root=root;this.store=store;this.sync=sync;this.home=home;
     }
     private int dp(int value){return Math.round(value*activity.getResources().getDisplayMetrics().density);}
     private GradientDrawable background(int color){
@@ -45,9 +47,10 @@ final class NotebookPage {
         root.removeAllViews();root.setPadding(dp(3),dp(5),dp(3),dp(16));
         root.addView(button("‹ Panel główny",false,home),new LinearLayout.LayoutParams(-1,-2));
         TextView title=text("Notatki i zadania",26,0xff17263e);title.setTypeface(null,1);title.setPadding(0,dp(18),0,dp(6));root.addView(title);
-        TextView hint=text("Zapisane na tym telefonie • dostępne offline",12,0xff526174);root.addView(hint);
+        TextView hint=text("Dostępne offline • synchronizacja wyłącznie dla administratora",12,0xff526174);root.addView(hint);
         summary=text("",14,0xff526174);summary.setPadding(0,dp(10),0,dp(10));root.addView(summary);
         root.addView(button("＋ Dodaj wpis",true,()->edit(null)),new LinearLayout.LayoutParams(-1,-2));
+        root.addView(button("⟳ Synchronizuj notatnik",false,()->syncNow()),new LinearLayout.LayoutParams(-1,-2));
         Spinner categories=new Spinner(activity);
         String[] options={"Wszystkie kategorie","Zakupy","Umowy","Inne"};
         ArrayAdapter<String> adapter=new ArrayAdapter<>(activity,android.R.layout.simple_spinner_item,options);
@@ -60,12 +63,12 @@ final class NotebookPage {
             public void onItemSelected(AdapterView<?> p,View v,int position,long id){category=position==0?null:options[position];render();}
             public void onNothingSelected(AdapterView<?> p){}
         });
-        done.setOnCheckedChangeListener((v,checked)->{completed=checked;render();});render();
+        done.setOnCheckedChangeListener((v,checked)->{completed=checked;render();});render();syncNow();
     }
     private void render(){
         list.removeAllViews();
         try{
-            summary.setText("Do zrobienia: "+store.pendingCount());
+            summary.setText("Do zrobienia: "+store.pendingCount()+(store.conflicts()>0?" • Konflikty: "+store.conflicts():""));
             List<NotebookStore.Entry> entries=store.entries(category,completed);
             if(entries.isEmpty()){
                 TextView empty=text(completed?"Brak zrobionych wpisów w tej kategorii.":"Nie ma tu spraw do zrobienia. Dodaj np. zakup worków albo wydruk umów.",15,0xff526174);
@@ -77,7 +80,7 @@ final class NotebookPage {
     private void addEntry(NotebookStore.Entry entry){
         LinearLayout card=new LinearLayout(activity);card.setOrientation(1);card.setPadding(dp(12),dp(10),dp(12),dp(10));card.setBackground(background(Color.WHITE));
         LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.bottomMargin=dp(10);list.addView(card,cp);
-        TextView categoryLabel=text(entry.category,12,0xff526174);card.addView(categoryLabel);
+        TextView categoryLabel=text(entry.category+(entry.conflict?" • KONFLIKT: sprawdź wpis i zapisz ponownie":""),12,entry.conflict?0xffb45309:0xff526174);card.addView(categoryLabel);
         CheckBox check=new CheckBox(activity);check.setText(entry.text);check.setTextSize(16);check.setTextColor(entry.done?0xff697386:0xff17263e);
         check.setMinHeight(dp(48));check.setGravity(Gravity.TOP);check.setPadding(0,dp(8),0,dp(8));check.setChecked(entry.done);
         if(entry.done)check.setPaintFlags(check.getPaintFlags()|Paint.STRIKE_THRU_TEXT_FLAG);
@@ -116,6 +119,28 @@ final class NotebookPage {
             }catch(IllegalArgumentException error){input.setError(error.getMessage());}
             catch(Exception error){error(error);}
         });
+    }
+    private void syncNow(){
+        if(syncing)return;
+        syncing=true;
+        new Thread(()->{
+            try {
+                int conflicts=sync.syncNotebook(store);
+                activity.runOnUiThread(()->{
+                    syncing=false;
+                    render();
+                    Toast.makeText(activity,conflicts>0?
+                        "Notatnik zsynchronizowany, ale wykryto konflikty. Sprawdź oznaczone wpisy.":
+                        "Notatnik zsynchronizowany.",Toast.LENGTH_LONG).show();
+                });
+            }catch(Exception e){
+                activity.runOnUiThread(()->{
+                    syncing=false;
+                    Toast.makeText(activity,"Notatki pozostają w telefonie. Brak synchronizacji: "+
+                        e.getMessage(),Toast.LENGTH_LONG).show();
+                });
+            }
+        }).start();
     }
     private void error(Exception error){Toast.makeText(activity,"Nie udało się zapisać lub odczytać wpisu. "+error.getMessage(),Toast.LENGTH_LONG).show();}
 }
