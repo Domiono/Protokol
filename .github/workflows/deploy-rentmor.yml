@@ -90,6 +90,11 @@ jobs:
       - name: Test SEO patches without production credentials
         run: |
           set -eu
+          php -l server/phone_event.php
+          php -l server/phone_events.php
+          php -l server/phone_events_view.php
+          python3 scripts/test_phone_events.py
+          node scripts/test_phone_tracker.cjs
           python3 scripts/test_seo_improvements.py
           python3 scripts/test_static_tailwind.py
           python3 scripts/test_static_cards.py
