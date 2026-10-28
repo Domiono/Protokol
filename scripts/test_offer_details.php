@@ -14,6 +14,12 @@ ensure(str_contains($chaser, '/odkurzacz-przemyslowy-bosch-gas-25-l-sfc-metabo-a
 ensure(str_contains($chaser, 'Sprzęt przydatny do tego zadania'), 'Related equipment section missing');
 ensure(str_contains($chaser, 'Dostępność każdego urządzenia'), 'Related equipment availability caveat missing');
 
+$ladder=rentmor_offer_details(['id'=>'6938228c7c4bb','name'=>'Drabina składana Podest Krause Corda']);
+ensure(str_contains($ladder,'KRAUSE Corda 4×3'), 'KRAUSE guide missing');
+ensure(str_contains($ladder,'150 kg'), 'Missing load limit');
+ensure(str_contains($ladder,'4,40 m'), 'Missing work height');
+ensure(str_contains($ladder,'/szlifierka-stanley-zyrafa-do-gladzi-gipsu/'), 'Missing contextual ladder link');
+
 $set = rentmor_offer_details(['id'=>'69385df56774a','name'=>'Zestaw Stanley']);
 ensure(str_contains($set,'szlifierka-stanley-zyrafa-do-gladzi-gipsu'), 'Existing set link lost');
 ensure(substr_count($set, 'szlifierka-stanley-zyrafa-do-gladzi-gipsu') === 1, 'Duplicate existing set link');
