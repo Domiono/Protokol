@@ -8,17 +8,31 @@ PRODUCT = "        if (!isset($stats['product_views'])) {\n            $stats['p
 SAVE = 'save_json_file($stats_file, $stats);'
 MARKER = '// RentMor filtered statistics v1'
 
+V2_MARKER = '// RentMor browser-confirmed statistics v2'
+
+def legacy_block():
+    return (MARKER + "\nrequire_once __DIR__ . '/traffic_filter.php';\n"
+        + "if (http_response_code() !== 404 && rm_stats_count_pageview()) {\n"
+        + GLOBAL + "\n    if ($detail_view && $product) {\n" + PRODUCT
+        + "\n    }\n    " + SAVE + "\n}\n")
+
 def patch(source):
-    if MARKER in source:
+    replacement = (V2_MARKER + "\nrequire_once __DIR__ . '/browser_stats.php';\n"
+        + "$rm_pageview_token = rm_stats_prepare_pageview(\n"
+        + "    ($detail_view && $product) ? (string)$product['id'] : '', get_traffic_source());\n")
+    if V2_MARKER in source:
+        if source.count(replacement) != 1 or GLOBAL in source or PRODUCT in source or SAVE in source:
+            raise ValueError('Unexpected browser statistics structure; no files changed.')
         return source
+    if MARKER in source:
+        old = legacy_block()
+        if source.count(old) != 1 or source.count(GLOBAL)!=1 or source.count(PRODUCT)!=1 or source.count(SAVE)!=1:
+            raise ValueError('Unexpected live filter structure; no files changed.')
+        return source.replace(old,replacement,1)
     for block in (GLOBAL, PRODUCT, SAVE):
         if source.count(block) != 1:
             raise ValueError('Unexpected live counter structure; no files changed.')
     source = source.replace(GLOBAL, '', 1).replace(PRODUCT, '', 1)
-    replacement = (MARKER + "\nrequire_once __DIR__ . '/traffic_filter.php';\n"
-        + "if (http_response_code() !== 404 && rm_stats_count_pageview()) {\n"
-        + GLOBAL + "\n    if ($detail_view && $product) {\n" + PRODUCT
-        + "\n    }\n    " + SAVE + "\n}\n")
     return source.replace(SAVE, replacement, 1)
 
 if __name__ == '__main__':

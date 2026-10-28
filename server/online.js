@@ -51,3 +51,21 @@
     fetch("/phone_event.php", { method: "POST", credentials: "same-origin", mode: "same-origin", keepalive: true, body: body }).catch(function () {});
   }, true);
 })();
+
+/* Count only visible pages confirmed by the browser, once per issued page token. */
+(function () {
+  "use strict";
+  var script = document.querySelector("script[data-view-token]");
+  var token = script && script.getAttribute("data-view-token");
+  if (!token || navigator.webdriver) return;
+  var sent = false;
+  function confirmView() {
+    if (sent || document.visibilityState !== "visible") return;
+    sent = true;
+    fetch("/pageview.php", {method:"POST", mode:"same-origin", credentials:"same-origin", keepalive:true,
+      body:new URLSearchParams({token:token})}).catch(function () {});
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", confirmView, {once:true});
+  else confirmView();
+  document.addEventListener("visibilitychange", confirmView);
+})();

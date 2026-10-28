@@ -817,6 +817,9 @@ if (isset($_GET['edit_id'])) {
     <div class="max-w-6xl mx-auto p-4 py-8 admin-container">
 
         <?php if ($active_tab == 'dashboard'): ?>
+            <?php if (!empty($stats['browser_filter_since'])): ?>
+            <p class="bg-white p-4 rounded-xl mb-4 text-sm">Wzmocniony filtr odsłon działa od <?php echo e_admin((new DateTimeImmutable($stats['browser_filter_since']))->setTimezone(new DateTimeZone('Europe/Warsaw'))->format('d.m.Y H:i')); ?>. Liczone są strony potwierdzone przez przeglądarkę w widocznej karcie. Starsze sumy zachowano. Odsłony nie oznaczają liczby osób ani sesji Google Analytics.</p>
+            <?php endif; ?>
             <?php require __DIR__ . '/phone_events_view.php'; ?>
 
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-yellow-300 mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
