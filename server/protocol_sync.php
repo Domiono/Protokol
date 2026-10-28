@@ -234,12 +234,12 @@ $operations = $body['operations'] ?? [];
 if (!is_array($operations) || count($operations) > 100) rm_json_response(400, ['ok'=>false, 'error'=>'Nieprawidłowa lista operacji.']);
 
 $file = __DIR__ . '/protocols.json';
-$fp = fopen($file, 'c+');
-if (!$fp) rm_json_response(500, ['ok'=>false, 'error'=>'Nie można otworzyć bazy protokołów.']);
+// GET photo expiration already uses this sidecar; serialize all protocol
+// mutations with the same stable lock, not an inode replaced by rename().
+$fp = @fopen($file . '.lock', 'c+');
+if (!$fp) rm_json_response(503, ['ok'=>false, 'error'=>'Nie można otworzyć blokady bazy protokołów.']);
 if (!flock($fp, LOCK_EX)) { fclose($fp); rm_json_response(503, ['ok'=>false, 'error'=>'Baza jest chwilowo zajęta.']); }
-$rawDb = stream_get_contents($fp);
-$protocols = json_decode((string)$rawDb, true);
-if (!is_array($protocols)) $protocols = [];
+$protocols = rm_read_json_file($file, []);
 $results = [];
 
 foreach ($operations as $op) {
@@ -631,9 +631,7 @@ foreach ($operations as $op) {
         $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nieobsługiwana operacja'];
     }
 }
-rewind($fp);
-$encoded = json_encode(array_values($protocols), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-$writeOk = $encoded !== false && ftruncate($fp, 0) && fwrite($fp, $encoded) !== false && fflush($fp);
+$writeOk = rm_write_json_atomic($file, $protocols);
 flock($fp, LOCK_UN);
 fclose($fp);
 if (!$writeOk) rm_json_response(500, ['ok'=>false,'error'=>'Nie udało się zapisać danych. Operacje należy ponowić.']);
