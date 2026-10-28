@@ -5,7 +5,7 @@ function rentmor_offer_details(array $product): string {
     $id = (string)($product['id'] ?? '');
     // Extra editorial guidance uses verified product names where hosting IDs may change.
     // Product price, stock and technical attributes remain in live data.json.
-    $name = mb_strtolower((string)($product['name'] ?? ''), 'UTF-8');
+    $name = strtolower((string)($product['name'] ?? ''));
     $offerKey = $id;
     if (str_contains($name, 'bruzdownica') && str_contains($name, 'stalco')) {
         $offerKey = 'bruzdownica-stalco';
