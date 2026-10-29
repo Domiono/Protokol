@@ -13,6 +13,9 @@ on:
       - 'scripts/fcm_runtime_installer.php.template'
       - 'server/admin.php'
       - 'server/admin_safety.php'
+      - 'server/admin_auth.php'
+      - 'scripts/bootstrap_admin_auth.py'
+      - 'scripts/test_admin_auth.php'
       - 'scripts/patch_private_data_access.py'
       - 'scripts/test_security_access.py'
       - 'server/rental_inventory.php'
@@ -110,6 +113,9 @@ jobs:
       - name: Test SEO patches without production credentials
         run: |
           set -eu
+          php -l server/admin_auth.php
+          php scripts/test_admin_auth.php
+          python3 -m py_compile scripts/bootstrap_admin_auth.py
           php -l server/admin_safety.php
           php -l server/rental_inventory.php
           python3 scripts/test_admin_safety.py
@@ -209,6 +215,8 @@ jobs:
           python3 scripts/test_inject_local_seo.py
           python3 scripts/test_inject_airless_guide_link.py
           php -l server/traffic_filter.php
+          php -l server/admin_auth.php
+          php scripts/test_admin_auth.php
           php -l server/admin.php
           php -l server/browser_stats.php
           php -l server/pageview.php
@@ -318,6 +326,30 @@ jobs:
           python3 scripts/patch_mobile_rendering.py "$TEMP_DIR/index.php" "$CSS" server/rentmor-gallery.css
           php -l "$TEMP_DIR/index.php"
 
+      - name: Prepare private admin auth before publishing web files
+        if: steps.config.outputs.enabled == 'true' && steps.scope.outputs.public_only != 'true'
+        env:
+          FTP_SERVER: \${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: \${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: \${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          DIR="$RUNNER_TEMP/rentmor-private-admin-auth"
+          mkdir -m 700 -p "$DIR"
+          trap 'rm -rf "$DIR"' EXIT
+          source scripts/secure_sftp_connection.sh
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/admin.php -o $DIR/live-admin.php; bye"
+          # Missing config is normal on first migration. An unreadable existing file
+          # will fail the final readback before admin.php can be published.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; get rentmor-private/admin-security.json -o $DIR/existing.json; bye" >/dev/null 2>&1 || true
+          python3 scripts/bootstrap_admin_auth.py "$DIR/live-admin.php" "$DIR/existing.json" "$DIR/candidate.json"
+          if [ ! -f "$DIR/existing.json" ]; then
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $DIR/candidate.json -o rentmor-private/admin-security.json; bye"
+          fi
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get rentmor-private/admin-security.json -o $DIR/readback.json; bye"
+          cmp "$DIR/candidate.json" "$DIR/readback.json"
+          echo "Private admin authentication verified before publishing PHP."
+
       - name: Upload validated RentMor files over SFTP
         if: steps.config.outputs.enabled == 'true' && steps.scope.outputs.public_only != 'true'
         env:
@@ -333,7 +365,7 @@ jobs:
           # Pass credentials as process arguments, not by interpolating them
           # into lftp's command language. This avoids quote/shell parsing issues.
           source scripts/secure_sftp_connection.sh
-          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/rental_inventory.php -o public_html/rental_inventory.php; put server/admin_safety.php -o public_html/admin_safety.php; put server/phone_events.php -o public_html/phone_events.php; put server/rental_offer_details.php -o public_html/rental_offer_details.php; put server/related_offers.php -o public_html/related_offers.php; put server/rentmor-gallery.js -o public_html/rentmor-gallery.js; put server/performance_images.php -o public_html/performance_images.php; put server/traffic_filter.php -o public_html/traffic_filter.php; put server/browser_stats.php -o public_html/browser_stats.php; put server/pageview.php -o public_html/pageview.php; put server/notebook_sync.php -o public_html/notebook_sync.php; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/push_bridge.php -o public_html/push_bridge.php; put server/online.php -o public_html/online.php; put server/phone_event.php -o public_html/phone_event.php; put server/phone_events_view.php -o public_html/phone_events_view.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/poradnik-jaki-papier-scierny-do-zyrafy.php -o public_html/poradnik-jaki-papier-scierny-do-zyrafy.php; put server/poradnik-pranie-tapicerki-karcher-puzzi.php -o public_html/poradnik-pranie-tapicerki-karcher-puzzi.php; put server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php -o public_html/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
+          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/rental_inventory.php -o public_html/rental_inventory.php; put server/admin_safety.php -o public_html/admin_safety.php; put server/admin_auth.php -o public_html/admin_auth.php; put server/phone_events.php -o public_html/phone_events.php; put server/rental_offer_details.php -o public_html/rental_offer_details.php; put server/related_offers.php -o public_html/related_offers.php; put server/rentmor-gallery.js -o public_html/rentmor-gallery.js; put server/performance_images.php -o public_html/performance_images.php; put server/traffic_filter.php -o public_html/traffic_filter.php; put server/browser_stats.php -o public_html/browser_stats.php; put server/pageview.php -o public_html/pageview.php; put server/notebook_sync.php -o public_html/notebook_sync.php; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/push_bridge.php -o public_html/push_bridge.php; put server/online.php -o public_html/online.php; put server/phone_event.php -o public_html/phone_event.php; put server/phone_events_view.php -o public_html/phone_events_view.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/poradnik-jaki-papier-scierny-do-zyrafy.php -o public_html/poradnik-jaki-papier-scierny-do-zyrafy.php; put server/poradnik-pranie-tapicerki-karcher-puzzi.php -o public_html/poradnik-pranie-tapicerki-karcher-puzzi.php; put server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php -o public_html/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
           if [ -f server/admin.php ]; then
             LFTP_COMMAND="$LFTP_COMMAND; put server/admin.php -o public_html/admin.php"
           else
