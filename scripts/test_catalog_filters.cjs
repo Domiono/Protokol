@@ -22,7 +22,8 @@ const cards = ['Puzzi','Żyrafa'].map((name,i)=>({name,cat:i?'budowlane':'czyszc
 const buttons = ['all','ogrodnicze'].map((category)=>({classList:classes(),attributes:{},getAttribute:(k)=>k==='onclick'?"filterProducts('"+category+"', this)":'',setAttribute(k,v){this.attributes[k]=v;}}));
 const input = {value:'',focus(){this.focused=true}};
 let empty;
-const grid = {appendChild(node){empty=node;}};
+const order = cards.slice();
+const grid = {appendChild(node){if(cards.includes(node)){order.splice(order.indexOf(node),1);order.push(node);}else empty=node;}};
 for(const c of cards)c.parentNode=grid;
 const doc = {
   getElementById(id){if(id==='searchInput')return input;if(id==='rentmor-empty-catalogue')return empty;return null},
@@ -30,11 +31,14 @@ const doc = {
   createElement(){return {style:{},setAttribute(){},querySelector(){return {addEventListener(k,fn){this.click=fn;}}},parentNode:grid};}
 };
 let result;
-const context=vm.createContext({document:doc,filterItems:(search,cat)=>{
+const context=vm.createContext({document:doc,Math:Object.assign(Object.create(Math),{random:()=>0}),filterItems:(search,cat)=>{
  result={search,cat};
  for(const card of cards)card.style.display=(card.name.toLowerCase().includes(search) && (cat==='all'||cat===card.cat))?'':'none';
 }});
 vm.runInContext(source,context);
+assert.equal(order[0],cards[1]);
+assert.equal(new Set(order).size,cards.length);
+const shuffled = order.slice();
 input.value='puzzi';context.searchProducts();assert.deepEqual(result,{search:'puzzi',cat:'all'});
 assert.equal(empty.style.display,'none');
 context.filterProducts('ogrodnicze',buttons[1]);
@@ -47,4 +51,5 @@ assert.equal(input.focused,true);
 assert.equal(empty.style.display,'none');
 assert.deepEqual(result,{search:'',cat:'all'});
 assert.equal(buttons[0].attributes['aria-pressed'],'true');
+assert.deepEqual(order,shuffled);
 console.log('Catalogue empty state, clear filters, combined filters and upgrade tests passed.');
