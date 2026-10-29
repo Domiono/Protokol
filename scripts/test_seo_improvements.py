@@ -21,7 +21,9 @@ class SEOPatches(unittest.TestCase):
         ?></body></html>"""
         patched = patch_seo_template.patch(template.replace("</head>", "\n</head>"))
         self.assertEqual(patched, patch_seo_template.patch(patched))
-        self.assertEqual(patched.count("rentmor_offer_details($product)"), 1)
+        self.assertEqual(patched.count("rentmor_offer_details($product, false)"), 1)
+        self.assertEqual(patched.count("rentmor_render_related_offers($product)"), 1)
+        self.assertIn("require_once __DIR__ . '/related_offers.php'", patched)
         self.assertEqual(patched.count('type="application/ld+json"'), 1)
         self.assertIn("require_once __DIR__ . '/rental_offer_details.php'", patched)
         self.assertIn('"@type": "Organization"', patched)
@@ -30,6 +32,8 @@ class SEOPatches(unittest.TestCase):
             patch_seo_template.patch(template.replace("echo rentmor_render_description($product['desc'] ?? '');", "echo 'other';"))
         with self.assertRaises(ValueError):
             patch_seo_template.patch(patched.replace("<!-- rentmor-offer-details-v1 -->", "<!-- rentmor-offer-details-v1 --><!-- rentmor-offer-details-v1 -->"))
+        with self.assertRaises(ValueError):
+            patch_seo_template.patch(patched.replace("<!-- rentmor-related-offers-v1 -->", "<!-- rentmor-related-offers-v1 --><!-- rentmor-related-offers-v1 -->"))
 
     def test_home_sections_are_scoped_and_idempotent(self):
         from inject_local_seo import patch as local_patch
