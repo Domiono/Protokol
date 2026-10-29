@@ -9,8 +9,42 @@ function rentmor_offer_details(array $product): string {
     $offerKey = $id;
     if (str_contains($name, 'bruzdownica') && str_contains($name, 'stalco')) {
         $offerKey = 'bruzdownica-stalco';
+    } elseif (str_contains($name, 'forest master') && str_contains($name, 'fm6dd')) {
+        $offerKey = 'forest-master-fm6dd';
+    } elseif (str_contains($name, 'msw-fg-250') ||
+              (str_contains($name, 'szlifierka do betonu') &&
+               (str_contains($name, '250mm') || str_contains($name, '250 mm')))) {
+        $offerKey = 'szlifierka-msw-fg-250';
     }
     $offers = [
+        'forest-master-fm6dd' => [
+            'title' => 'Rębak Forest Master FM6DD – wynajem do gałęzi w Krakowie',
+            'intro' => 'Kompaktowy rębak spalinowy Forest Master FM6DD o mocy 6 KM pomaga rozdrobnić świeżo przycięte gałęzie podczas porządków w ogrodzie. Według oferty obsługuje gałęzie o średnicy do 3 cm. To sprzęt do drobniejszych prac ogrodowych, a nie zamiennik dużego rębaka do grubych konarów.',
+            'questions' => [
+                'Jakie gałęzie można rozdrabniać rębakiem Forest Master FM6DD?' => 'Oferta przewiduje świeżo ścięte gałęzie do 3 cm średnicy. Nie wkładaj gałęzi mokrych po deszczu: wilgotny materiał może oblepiać wylot i powodować zapychanie. Nie przekraczaj dopuszczalnej średnicy i stosuj instrukcję urządzenia.',
+                'Czy mały rębak nadaje się do gałęzi grubszych niż 3 cm?' => 'Nie. Jeżeli chcesz rozdrobnić grubsze gałęzie, sprawdź osobną ofertę rębaka Cedrus RB02 PRO, w której podano maksymalną średnicę 8 cm. Dobierz urządzenie do materiału i potwierdź dostępność przed wynajmem.',
+                'Czy Forest Master FM6DD zmieści się do samochodu?' => 'Wymiary podane w ofercie to 91 × 48 × 78 cm. Przed przyjazdem zmierz bagażnik i otwór załadunkowy; samo porównanie wymiarów nie gwarantuje, że urządzenie zmieści się w każdym aucie. Sprzęt należy bezpiecznie unieruchomić na czas transportu.',
+                'Co przygotować przed uruchomieniem rębaka?' => 'To urządzenie spalinowe zasilane benzyną. Pracuj na stabilnym podłożu na zewnątrz, używaj ochronników słuchu i oczu, trzymaj dłonie z dala od podajnika i stosuj zasady obsługi z instrukcji producenta. Nie pracuj w zamkniętym pomieszczeniu.',
+            ],
+            'related' => [
+                ['/rebak-cedrus-rb02-pro-rozdrabniacz-do-galezi/', 'Rębak Cedrus RB02 PRO – do gałęzi o średnicy do 8 cm'],
+            ],
+        ],
+        'szlifierka-msw-fg-250' => [
+            'title' => 'Szlifierka do betonu MSW-FG-250 – wynajem w Krakowie',
+            'intro' => 'Szlifierka do betonu i posadzek MSW-FG-250 służy do obróbki i wyrównywania odpowiednich powierzchni betonowych. Ma silnik 2200 W (3 KM), tarczę o średnicy 250 mm i masę około 62 kg. Przed pracą dobierz sposób szlifowania i osprzęt do rodzaju posadzki oraz jej stanu.',
+            'questions' => [
+                'Do jakich prac służy szlifierka MSW-FG-250?' => 'Urządzenie jest przeznaczone do szlifowania odpowiednich posadzek i powierzchni betonowych. Przed rozpoczęciem sprawdź rodzaj podłoża, stan powierzchni oraz zgodność używanej tarczy. Przy krawędziach i trudno dostępnych miejscach może przydać się osobna szlifierka ręczna z odpowiednią osłoną.',
+                'Czy szlifierka do betonu może pracować na mokro i na sucho?' => 'Model MSW-FG-250 umożliwia szlifowanie na mokro i na sucho. Przy pracy na sucho zaplanuj skuteczne odsysanie pyłu. Według aktualnej oferty odkurzacz można dobrać za dodatkowe 30 zł za dobę; przed rezerwacją potwierdź zgodność osprzętu i dostępność.',
+                'Ile kosztuje zużycie tarczy do betonu?' => 'Jeżeli wynajmujesz szlifierkę z tarczą, zużycie tarczy rozliczane jest osobno: 40 zł za każde rozpoczęte 0,5 mm. Przykładowo zużycie do 0,5 mm oznacza 40 zł, a powyżej 0,5 mm do 1 mm — 80 zł. Przed odbiorem potwierdź dostępność tarczy i sposób pomiaru zużycia.',
+                'Jak przewieźć szlifierkę ważącą około 62 kg?' => 'Maszyna waży około 62 kg i ma składaną rączkę oraz koła. Zaplanuj bezpieczny załadunek, odpowiedni samochód i solidne unieruchomienie sprzętu. Nie zakładaj, że jedna osoba bez pomocy bezpiecznie podniesie urządzenie do bagażnika.',
+                'Jak przygotować miejsce szlifowania?' => 'Usuń przeszkody, zabezpiecz otoczenie i stosuj odpowiednią ochronę oczu, słuchu i dróg oddechowych. Przy pracy na sucho ogranicz pylenie za pomocą odpowiedniego odciągu; przy pracy na mokro przestrzegaj zasad bezpieczeństwa elektrycznego i instrukcji producenta.',
+            ],
+            'related' => [
+                ['/odkurzacz-przemyslowy-bosch-gas-25-l-sfc-metabo-asr-25l-sc/', 'Odkurzacz przemysłowy Bosch / Metabo – zapytaj o dobór do szlifowania'],
+                ['/szlifierka-katowa-125mm-dewalt-dwe4357-szlifierka-do-betonu/', 'Szlifierka kątowa DeWALT 125 mm – do prac wymagających narzędzia ręcznego'],
+            ],
+        ],
         '6938228c7c4bb' => [
             'title' => 'Drabina KRAUSE Corda 4×3 z podestem – wynajem w Krakowie',
             'intro' => 'Składana, przegubowa drabina KRAUSE Corda 4×3 z podestem może ułatwić prace montażowe i wykończeniowe wewnątrz budynku. Wysokość robocza podawana w ofercie to 4,40 m, a długość po złożeniu wynosi około 1 m. Wybierz wyłącznie ustawienie dopuszczone przez producenta i sprawdź stabilność przed wejściem.',

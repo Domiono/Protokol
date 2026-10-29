@@ -10,6 +10,10 @@ from verify_public_seo import BASE, Page, fetch, validate, GUIDE, PUZZI_GUIDE, A
 from verify_public_seo import PUZZI_OFFER, AIRLESS_OFFER, OFFERS
 
 COMPACTOR_OFFER = '/zageszczarka-dro-masz-101-kg-do-kostki/'
+FOREST_OFFER = '/kompaktowy-rebak-spalinowy-forest-master-fm6dd-6km/'
+MSW_OFFER = '/szlifierka-do-betonu-i-posadzek-250mm-wynajem-krakow/'
+CEDRUS_OFFER = '/rebak-cedrus-rb02-pro-rozdrabniacz-do-galezi/'
+DEWALT_ANGLE_OFFER = '/szlifierka-katowa-125mm-dewalt-dwe4357-szlifierka-do-betonu/'
 
 OFFER_GUIDES = {
     OFFERS[0]: (GUIDE, "69384693e2cb9"),
@@ -88,8 +92,20 @@ def main():
     validate(compactor_html, compactor_headers, BASE + COMPACTOR_OFFER)
     assert 'data-rentmor-offer-details="693844ff66e57"' in compactor_html
     assert '18 kN' in compactor_html and '101 kg' in compactor_html
+    for offer_path, expected_snippets, related_paths in (
+        (FOREST_OFFER, ('Forest Master FM6DD', '91 × 48 × 78 cm', 'mokrych po deszczu'), (CEDRUS_OFFER,)),
+        (MSW_OFFER, ('MSW-FG-250', '40 zł za każde rozpoczęte 0,5 mm', '30 zł za dobę'), (DEWALT_ANGLE_OFFER,)),
+    ):
+        html, headers = fetch(offer_path)
+        parsed = validate(html, headers, BASE + offer_path)
+        assert 'data-rentmor-offer-details=' in html, ('Missing offer details', offer_path)
+        for phrase in expected_snippets:
+            assert phrase in html, ('Missing new SEO content', offer_path, phrase)
+        for related_path in related_paths:
+            assert related_path in parsed.links, ('Missing contextual internal link', offer_path, related_path)
+        assert '/zasady.php' in parsed.links
     verify_redirects()
-    print("PASS: offers incl. compactor, canonicals, Organization schema and 301 redirects.")
+    print("PASS: offers incl. Forest Master/MSW, canonical schema and 301 redirects.")
 
 def verify_redirects():
     verify_redirect("http://rentmor.pl/robots.txt?seo_check=1",
