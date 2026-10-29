@@ -31,6 +31,32 @@ class SEOPatches(unittest.TestCase):
         with self.assertRaises(ValueError):
             patch_seo_template.patch(patched.replace("<!-- rentmor-offer-details-v1 -->", "<!-- rentmor-offer-details-v1 --><!-- rentmor-offer-details-v1 -->"))
 
+    def test_home_sections_are_scoped_and_idempotent(self):
+        from inject_local_seo import patch as local_patch
+        source = "<?php $s='stats.json'; ?><html><head></head><body><h1>RentMor</h1><?php echo rentmor_render_description($product['desc'] ?? ''); ?><footer>Footer</footer></body></html>"
+        source = local_patch(source).replace('<footer>', '<!-- rentmor-guide-link-v1 --><section id="poradniki">Guide</section><footer>')
+        result = patch_seo_template.patch(source)
+        self.assertEqual(result, patch_seo_template.patch(result))
+        self.assertEqual(result.count('if (empty($detail_view))'), 2)
+        self.assertIn('id="wynajem-sprzetu-krakow"', result)
+        with self.assertRaises(ValueError):
+            patch_seo_template.patch(result.replace('<?php endif; ?>', '', 1))
+        if not __import__('shutil').which('php'):
+            return
+        for detail in (False, True):
+            prefix = "<?php $detail_view=" + ('true' if detail else 'false') + "; $product=['desc'=>'','id'=>'69384693e2cb9']; function rentmor_render_description($s){return $s;} ?>"
+            # The live index lives beside the offer helper.
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.php', dir=ROOT/'server', delete=False) as f:
+                f.write(prefix+result); path=Path(f.name)
+            try:
+                rendered=subprocess.run(['php', str(path)],capture_output=True,text=True)
+                self.assertEqual(rendered.returncode,0,rendered.stderr)
+                self.assertEqual('id="wynajem-sprzetu-krakow"' in rendered.stdout,not detail)
+                self.assertEqual('id="poradniki"' in rendered.stdout,not detail)
+                self.assertIn('data-rentmor-offer-details',rendered.stdout)
+            finally:
+                path.unlink()
+
     def test_titles_isolated_and_idempotent(self):
         keys = ["Wabrotech WT20i", "Ozonator ULSONIX", "Zaciskarka Energotytan",
                 "Drabina Krause", "Bruzdownica Stalco", "Zestaw szlifierka Stanley",

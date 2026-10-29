@@ -3,6 +3,7 @@
 from pathlib import Path
 import sys
 import json
+import re
 
 ORG = {'@context':'https://schema.org','@type':'Organization','@id':'https://rentmor.pl/#organization',
        'name':'RentMor.pl','url':'https://rentmor.pl/',
@@ -21,6 +22,24 @@ def patch(text):
         if text.count('</head>') != 1: raise ValueError('Expected one head')
         schema = marker + '\n<script type="application/ld+json">' + json.dumps(ORG, ensure_ascii=False) + '</script>\n'
         text = text.replace('</head>', schema + '</head>')
+    # General catalogue sections belong on the home page; offers have contextual content.
+    for key in ('guide-link', 'krakow-seo'):
+        marker = '<!-- rentmor-' + key + '-v1 -->'
+        guard = '<!-- rentmor-home-only-' + key + '-v1 -->'
+        opening = guard + "<?php if (empty($detail_view)): ?>"
+        ending = "<?php endif; ?><!-- /rentmor-home-only-" + key + "-v1 -->"
+        if text.count(marker) > 1 or text.count(guard) > 1:
+            raise ValueError('Duplicate home section marker: ' + key)
+        if marker not in text:
+            continue
+        match = re.search(re.escape(marker) + r'\s*<section\b[^>]*>.*?</section>', text, re.S)
+        if not match or '<section' in match.group()[len(marker):].split('>', 1)[1]:
+            raise ValueError('Unknown or nested home section: ' + key)
+        if guard in text:
+            if opening + match.group() + ending not in text:
+                raise ValueError('Broken home section guard: ' + key)
+            continue
+        text = text[:match.start()] + opening + match.group() + ending + text[match.end():]
     return text
 
 if __name__ == '__main__':

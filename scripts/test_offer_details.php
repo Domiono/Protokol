@@ -24,6 +24,14 @@ $set = rentmor_offer_details(['id'=>'69385df56774a','name'=>'Zestaw Stanley']);
 ensure(str_contains($set,'szlifierka-stanley-zyrafa-do-gladzi-gipsu'), 'Existing set link lost');
 ensure(substr_count($set, 'szlifierka-stanley-zyrafa-do-gladzi-gipsu') === 1, 'Duplicate existing set link');
 
+$solo = rentmor_offer_details(['id'=>'69384693e2cb9','name'=>'Szlifierka Stanley']);
+ensure(str_contains($solo, 'Kiedy wybrać samą żyrafę'), 'Missing solo vs set guidance');
+ensure(str_contains($solo, '225 mm'), 'Missing verified disc size');
+ensure(str_contains($solo, '/poradnik-jaki-papier-scierny-do-zyrafy.php'), 'Missing contextual paper guide');
+ensure(substr_count($solo, '/zestaw-szlifierka-stanley-zyrafa-do-gladzi-i-odkurzacz-bosch-metabo/') === 1, 'Missing or duplicate set link');
+ensure(str_contains($solo, '/odkurzacz-przemyslowy-bosch-gas-25-l-sfc-metabo-asr-25l-sc/'), 'Missing dust extractor link');
+ensure(!str_contains($set, 'Kiedy wybrać samą żyrafę'), 'Solo FAQ copied to set');
+
 $other = rentmor_offer_details(['id'=>'unknown','name'=>'Bruzdownica innej marki']);
 ensure($other === '', 'Content leaked to unrelated product');
 $escaped = rentmor_offer_details(['id'=>'<script>alert(1)</script>','name'=>'Stalco Bruzdownica']);

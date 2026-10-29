@@ -52,6 +52,22 @@ function rentmor_offer_details(array $product): string {
             'guide' => '/poradnik-pranie-tapicerki-karcher-puzzi.php',
             'guide_label' => 'Jak wyprać tapicerkę odkurzaczem Puzzi 10/1?',
         ],
+        '69384693e2cb9' => [
+            'title' => 'Szlifierka żyrafa Stanley do gładzi – wynajem w Krakowie',
+            'intro' => 'Planujesz szlifowanie gładzi na ścianach lub suficie przed malowaniem? Sama żyrafa Stanley jest opcją dla osób, które mają już odpowiedni odkurzacz do pyłu budowlanego. Ta oferta obejmuje szlifierkę; odkurzacz możesz wynająć osobno albo wybrać gotowy zestaw. Odbiór sprzętu odbywa się w Krakowie, w Czyżynach.',
+            'questions' => [
+                'Kiedy wybrać samą żyrafę, a kiedy zestaw z odkurzaczem?' => 'Samą szlifierkę wybierz, jeśli masz odciąg odpowiedni do szlifowania gładzi i pasujące podłączenie. Przed rezerwacją sprawdź zgodność węża oraz wymagania filtracji. Jeśli nie masz takiego sprzętu, sprawdź ofertę zestawu Stanley z odkurzaczem Bosch lub Metabo. Zwykłego odkurzacza domowego nie traktuj jako zamiennika odciągu pyłu budowlanego.',
+                'Jakie krążki pasują do tej szlifierki?' => 'Oferta dotyczy żyrafy z talerzem na krążki o średnicy 225 mm. Papier kupujesz osobno; dostępne gradacje i aktualną cenę podajemy w opisie powyżej. Sprawdź dopasowanie mocowania i otworów odsysających. Gradację dobierz do zaleceń producenta gładzi i wyniku próby na małym fragmencie.',
+                'Czy żyrafa nadaje się do szlifowania sufitu?' => 'Szlifierka ma regulowaną długość roboczą 125–180 cm i oświetlenie LED, co ułatwia pracę na ścianach i sufitach. Zasięg zależy także od wysokości pomieszczenia i operatora. Utrzymuj stabilną pozycję, nie dociskaj nadmiernie talerza i nie pracuj na niewyschniętej masie.',
+                'Co przygotować przed odbiorem żyrafy?' => 'Ustal termin, sprawdź potrzebne krążki i sposób odsysania pyłu. Aktualną stawkę za dobę oraz kaucję znajdziesz nad opisem. Przy odbiorze potwierdź wydane wyposażenie i zasady czyszczenia; przed pracą zabezpiecz pomieszczenie i stosuj ochronę odpowiednią do pyłu.',
+            ],
+            'guide' => '/poradnik-jaki-papier-scierny-do-zyrafy.php',
+            'guide_label' => 'Jaki papier do żyrafy? Dobór gradacji do gładzi',
+            'related' => [
+                ['/zestaw-szlifierka-stanley-zyrafa-do-gladzi-i-odkurzacz-bosch-metabo/', 'Żyrafa Stanley z odkurzaczem – komplet do szlifowania gładzi'],
+                ['/odkurzacz-przemyslowy-bosch-gas-25-l-sfc-metabo-asr-25l-sc/', 'Wynajem samego odkurzacza przemysłowego Bosch / Metabo'],
+            ],
+        ],
         '69385df56774a' => [
             'title' => 'Wynajem żyrafy z odkurzaczem w Krakowie',
             'intro' => 'Zestaw szlifierki Stanley i odkurzacza przemysłowego służy do szlifowania gładzi na ścianach i sufitach z odsysaniem pyłu. Dobór papieru zależy od rodzaju i stanu powierzchni. Odsysanie ogranicza pylenie, ale nie zastępuje ochrony dróg oddechowych ani zabezpieczenia pomieszczenia.',
