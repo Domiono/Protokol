@@ -30,7 +30,9 @@ with tempfile.TemporaryDirectory() as td:
     (root/'session_probe.php').write_text("<?php require 'admin_safety.php'; rm_admin_start_session(); echo json_encode(['logged'=>!empty($_SESSION['logged_in'])]);")
     with socket.socket() as sock: sock.bind(('127.0.0.1',0)); port=sock.getsockname()[1]
     base=f'http://127.0.0.1:{port}'
-    server=subprocess.Popen([os.environ.get('PHP_BINARY','php'),'-n','-d',f'session.save_path={root}','-S',f'127.0.0.1:{port}','-t',td],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    private=root/'rentmor-private';private.mkdir(mode=0o700)
+    env=dict(os.environ,RENTMOR_TEST_PRIVATE_DIR=str(private))
+    server=subprocess.Popen([os.environ.get('PHP_BINARY','php'),'-n','-d',f'session.save_path={root}','-S',f'127.0.0.1:{port}','-t',td],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,env=env)
     def request(role=None,op=None,header=True,path='/protocol_sync.php',client=None):
         headers={'Content-Type':'application/json'}
         if role: headers['Cookie']='rm_protocol_device='+role
