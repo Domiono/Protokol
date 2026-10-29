@@ -1,7 +1,11 @@
 <?php
 declare(strict_types=1);
 /** Admin credentials and audit never belong to public_html. */
-function rm_auth_path(): string { return dirname(__DIR__).'/rentmor-private/admin-security.json'; }
+function rm_auth_path(): string {
+    // A disposable directory is permitted for isolated CLI-server regression tests only.
+    $fixture=PHP_SAPI==='cli-server' ? getenv('RENTMOR_TEST_PRIVATE_DIR') : false;
+    return ($fixture!==false && $fixture!=='' ? $fixture : dirname(__DIR__).'/rentmor-private').'/admin-security.json';
+}
 function rm_auth_read(?string $file=null): array {
     $file=$file??rm_auth_path();
     if (!is_file($file) || !is_readable($file)) throw new RuntimeException('Admin config missing');
@@ -54,7 +58,7 @@ function rm_totp_verify(string $secret,string $code,?int $when=null): bool {
 }
 function rm_security_log(string $event): void {
     if(!in_array($event,['password_failed','password_rate_limited','password_ok','otp_failed','otp_ok','otp_enrolled','api_unauthorized'],true))return;
-    $dir=dirname(__DIR__).'/rentmor-private';
+    $dir=dirname(rm_auth_path());
     if(!is_dir($dir))return;
     $file=$dir.'/security-events-'.gmdate('Y-m-d').'.log';
     $fp=@fopen($file,'ab');
