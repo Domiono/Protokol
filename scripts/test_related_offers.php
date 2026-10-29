@@ -41,4 +41,8 @@ check_related(rm_related_pick(['name'=>'Bad product'], [['name'=>'Bad product']]
 $added = ['id'=>'new-1','name'=>'Nowy odkurzacz przemysłowy 2027', 'category'=>'budowlane'];
 $newResults = rm_related_pick($catalogue[3], array_merge($catalogue, [$added]));
 check_related(in_array('new-1', array_column($newResults, 'id'), true), 'New matching equipment automatically included');
+$isolated = ['id'=>'o','name'=>'Ozonator jedyny w kategorii', 'category'=>'dezynfekcja'];
+$fallback = rm_related_pick($isolated, array_merge($catalogue, [$isolated]));
+check_related(count($fallback) === 3, 'Even singleton-category offers should suggest existing products');
+check_related(!in_array('o', array_column($fallback, 'id'), true), 'Fallback cannot recommend the current offer');
 echo "PASS: contextual catalogue ranking, new products, limits, safe links, images and prices.\n";
