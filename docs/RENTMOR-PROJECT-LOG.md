@@ -71,6 +71,8 @@ Ostatnia weryfikacja: **29.10.2026** (plan dnia, kontrola akcesoriów i publikac
 
 ## Dziennik kolejnych aktualizacji
 
+- **29.10.2026 — wyłączono automatyczną migrację danych najmu (PR do potwierdzenia).** Po nieudanej próbie z 29.10 przy zwykłym wdrożeniu workflow `deploy-rentmor.yml` nie może ponownie uruchomić kroku przenoszenia 5 prywatnych baz. Migracja wymaga teraz **ręcznego uruchomienia** `workflow_dispatch` i świadomego włączenia pola `migrate_private_data` (domyślnie `false`). Test regresji w `scripts/test_private_rental_paths.py` sprawdza bramkę. Zwykłe wdrożenia strony, panelu i SEO pozostają dostępne. **Status:** zmiana w kodzie, CI i merge/publikacja do potwierdzenia. Nadal nie rozwiązano rozbieżności ścieżek katalogu `rentmor-private/rental-data` między PHP i SFTP; nie uruchamiać ręcznej migracji przed wyjaśnieniem. Dane klientów, istniejące kopie i punkt 3 (zewnętrzny backup) niezmienione.
+
 - **29.10.2026 — diagnostyka uprawnień katalogu prywatnego (PR #69, wdrożenie do potwierdzenia).** Po nieudanej próbie migracji pięciu plików i udanej próbie walidacji SFTP serwer PHP nie potwierdził prawa do pełnego odczytu/zapisu. Zatrzymano migrację i uruchomiono powrót do starych danych; brak potwierdzenia wyprowadzenia z public_html. Dodano jednorazowy HTTPS PHP probe z losowym tokenem i usunięciem pliku po kontroli. Raportuje tylko booleany praw katalogu, liczbę plików dostępnych oraz istnienie znaczników — nie odczytuje i nie loguje danych klientów. Zero zmian w bazach najmu, brak zewnętrznego backupu.
 
 
