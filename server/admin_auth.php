@@ -56,6 +56,32 @@ function rm_totp_verify(string $secret,string $code,?int $when=null): bool {
     for($d=-1;$d<=1;$d++)if($step+$d>=0&&hash_equals(rm_totp_at($secret,$step+$d),$code))return true;
     return false;
 }
+/** IP-based persistent OTP throttle independent of browser sessions or correct passwords. */
+function rm_otp_limit(bool $matched, ?string $file=null): bool {
+    $dir=sys_get_temp_dir().'/rentmor-admin-otp-'.substr(hash('sha256',__DIR__),0,20);
+    if ($file===null && !is_dir($dir) && !@mkdir($dir,0700,true) && !is_dir($dir)) return false;
+    $ip=(string)($_SERVER['REMOTE_ADDR']??'unknown');
+    $file=$file??$dir.'/'.hash('sha256',$ip).'.json';
+    $fp=@fopen($file,'c+');
+    if(!$fp || !flock($fp,LOCK_EX)){if($fp)fclose($fp);return false;}
+    try {
+        @chmod($file,0600);
+        $now=time();rewind($fp);
+        $state=json_decode((string)stream_get_contents($fp),true);
+        if(!is_array($state))$state=[];
+        $first=(int)($state['first']??0);
+        $failed=(int)($state['failed']??0);
+        $blocked=(int)($state['blocked']??0);
+        if($first<=0 || $first>$now || $first+900<=$now) {$first=$now;$failed=0;$blocked=0;}
+        if($blocked>$now)return false;
+        if($matched){$failed=0;$blocked=0;$first=$now;}
+        else {++$failed;if($failed>=5)$blocked=$now+900;}
+        $json=json_encode(['first'=>$first,'failed'=>$failed,'blocked'=>$blocked],JSON_THROW_ON_ERROR);
+        rewind($fp);
+        if(fwrite($fp,$json)!==strlen($json) || !ftruncate($fp,strlen($json)) || !fflush($fp))return false;
+        return $matched;
+    }finally{flock($fp,LOCK_UN);fclose($fp);}
+}
 function rm_security_log(string $event): void {
     if(!in_array($event,['password_failed','password_rate_limited','password_ok','otp_failed','otp_ok','otp_enrolled','api_unauthorized'],true))return;
     $dir=dirname(rm_auth_path());
