@@ -71,6 +71,9 @@ Ostatnia weryfikacja: **29.10.2026** (plan dnia, kontrola akcesoriów i publikac
 
 ## Dziennik kolejnych aktualizacji
 
+- **29.10.2026 — zmiana hasła administratora ([PR #68](https://github.com/Domiono/Protokol/pull/68), do potwierdzenia).** Panel Urządzenia umożliwia zmianę starego hasła potwierdzoną dodatkowo kodem TOTP. Nowe hasło minimum 14, maksimum 72 bajty, atomowy bcrypt i wylogowanie; odmowy na błędne dane, jednostkowe testy PHP. Pozwala unieważnić hasło, którego stary hash wciąż występuje w historii Git. Wdrożenie produkcyjne do potwierdzenia. Bez dodatkowego backupu.
+
+
 - **29.10.2026 — Android 1.7.20/35 ([PR #65](https://github.com/Domiono/Protokol/pull/65)).** Android Keystore AES-256-GCM chroni token synchronizacji i zapisany cache statystyk/ofert. Migracja jawnych SharedPreferences do szyfrogramu i brak możliwości odczytu przy nieudanym odszyfrowaniu. Cały magazyn SQLite, dane WebView i pliki eksportu PDF pozostają niezaszyfrowane (status CZĘŚCIOWO). Test CI po scaleniu i publikacja APK do potwierdzenia. Bez nowego zewnętrznego backupu.
 
 
