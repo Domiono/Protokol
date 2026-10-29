@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-function rentmor_offer_details(array $product): string {
+function rentmor_offer_details(array $product, bool $includeManualRelated = true): string {
     $id = (string)($product['id'] ?? '');
     // Extra editorial guidance uses verified product names where hosting IDs may change.
     // Product price, stock and technical attributes remain in live data.json.
@@ -153,7 +153,7 @@ function rentmor_offer_details(array $product): string {
     if (!empty($offer['guide']) && !empty($offer['guide_label'])) {
         $html .= '<p class="mb-4"><a class="underline font-semibold" href="' . $e($offer['guide']) . '">' . $e($offer['guide_label']) . '</a></p>';
     }
-    if (!empty($offer['related'])) {
+    if ($includeManualRelated && !empty($offer['related'])) {
         $html .= '<nav class="mt-6 mb-5 border-t border-gray-200 pt-5" aria-label="Sprzęt powiązany"><h3 class="text-lg font-bold mb-3">Sprzęt przydatny do tego zadania</h3><ul class="space-y-3">';
         foreach ($offer['related'] as $related) {
             $html .= '<li><a class="underline font-semibold" href="' . $e($related[0]) . '">' . $e($related[1]) . '</a></li>';
