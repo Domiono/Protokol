@@ -115,6 +115,7 @@ jobs:
           set -eu
           php -l server/admin_auth.php
           php scripts/test_admin_auth.php
+          python3 scripts/test_monitor_security_events.py
           python3 -m py_compile scripts/bootstrap_admin_auth.py
           php -l server/admin_safety.php
           php -l server/rental_inventory.php
@@ -342,6 +343,7 @@ jobs:
           # Missing config is normal on first migration. An unreadable existing file
           # will fail the final readback before admin.php can be published.
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; get rentmor-private/admin-security.json -o $DIR/existing.json; bye" >/dev/null 2>&1 || true
+          cp "$DIR/live-admin.php" "$RUNNER_TEMP/rentmor-prepared/admin-before-auth.php"
           python3 scripts/bootstrap_admin_auth.py "$DIR/live-admin.php" "$DIR/existing.json" "$DIR/candidate.json"
           if [ ! -f "$DIR/existing.json" ]; then
             lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $DIR/candidate.json -o rentmor-private/admin-security.json; bye"
@@ -372,6 +374,16 @@ jobs:
             echo "server/admin.php not present in repository; admin.php upload skipped"
           fi
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$LFTP_COMMAND; bye"
+          # Never leave the web admin unavailable after switching to private authentication.
+          # If its configuration cannot be read, restore the known-good previous login.
+          STATUS="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 30 "https://rentmor.pl/admin.php")"
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::Admin login health check failed: HTTP $STATUS; rolling back admin.php."
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $RUNNER_TEMP/rentmor-prepared/admin-before-auth.php -o public_html/admin.php; bye"
+            exit 1
+          fi
+          echo "Admin entrypoint responds HTTP 200 after private-auth migration."
+
 
       - name: Publish versioned public image helper before switching PHP
         if: steps.config.outputs.enabled == 'true'
