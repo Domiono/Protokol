@@ -14,7 +14,7 @@ import java.util.*;
 
 /** Operational screens share the existing reservation and protocol records. */
 public final class RentalOperations {
-    public interface Host { void home(); void issue(JSONObject r); void protocol(JSONObject p); void inbox(); void sync(); }
+    public interface Host { void home(); void issue(JSONObject r); void protocol(JSONObject p); void inbox(); void sync(); default void notebook() {} }
     final Activity activity; final LocalStore store; final Host host; final boolean admin;
     LinearLayout page;
     RentalOperations(Activity a,LocalStore s,Host h,boolean admin){activity=a;store=s;host=h;this.admin=admin;}
@@ -65,6 +65,7 @@ public final class RentalOperations {
         pair(page,"Dostępność",()->calendar(LocalDate.now()),"Aktywne najmy",this::active,false);
         if(admin)button(page,"Wiadomości  ·  "+store.unreadMessagesCount()+" nowych",host::inbox);
         if(missing>0){final int count=missing;button(page,"Przypisz egzemplarze  ·  "+count+" rezerwacji",this::active);}
+        if(admin)notebookSummary();
         text(page,"Do obsługi dzisiaj",18,0xff17263e);
         boolean any=false;
         for(int i=0;i<all.length();i++){JSONObject r=all.optJSONObject(i);if(r==null||r.optBoolean("settled")||r.optBoolean("returned"))continue;
@@ -73,6 +74,23 @@ public final class RentalOperations {
         }
         if(!any)text(page,"Brak wydań i zwrotów na dziś.",16,0xff526174);
         for(int i=0;i<store.assets().length();i++){JSONObject a=store.assets().optJSONObject(i);if(a!=null&&serviceDue(a))button(page,"Przegląd: "+a.optString("label"),()->assetDetails(a));}
+    }
+    private void notebookSummary(){
+        try(NotebookStore notes=new NotebookStore(activity)){
+            List<NotebookStore.Entry> entries=notes.entries(null,false);
+            LinearLayout box=card(page,"Zadania z notatnika · "+entries.size());
+            text(box,"Otwarte sprawy — bez przypisanego terminu",13,0xff607086);
+            if(entries.isEmpty())text(box,"Wszystkie zadania zrobione.",14,0xff16755b);
+            for(int i=0;i<Math.min(3,entries.size());i++){
+                NotebookStore.Entry entry=entries.get(i);
+                TextView line=new TextView(activity);
+                line.setText(entry.category+" · "+entry.text+(entry.conflict?" · Konflikt synchronizacji":""));
+                line.setTextSize(14);line.setTextColor(0xff17263e);
+                line.setMaxLines(3);line.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                line.setPadding(0,dp(6),0,dp(6));box.addView(line);
+            }
+            button(box,"Otwórz notatnik",host::notebook);
+        }
     }
     public void active(){screen("Aktywne najmy");JSONArray all=store.allReservations();for(int i=0;i<all.length();i++){JSONObject r=all.optJSONObject(i);if(r!=null&&!r.optBoolean("settled"))rentalCard(r);}button(page,"Dzisiaj",this::today);}
     String displayDate(String raw){try{return LocalDate.parse(raw).format(java.time.format.DateTimeFormatter.ofPattern("dd.MM"));}catch(Exception e){return raw;}}
