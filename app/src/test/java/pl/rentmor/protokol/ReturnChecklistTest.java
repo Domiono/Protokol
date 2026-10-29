@@ -27,9 +27,10 @@ public class ReturnChecklistTest {
         assertEquals(0,saved[0]);
         String message=((TextView)dialog.findViewById(android.R.id.message)).getText().toString();
         assertTrue(message.contains("Wąż"));assertFalse(message.contains("Dysza"));
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).performClick();assertEquals(0,saved[0]);
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).performClick();org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();assertEquals(0,saved[0]);
         ReturnChecklist.confirm(a,Arrays.asList(hose,nozzle),()->saved[0]++);
         ShadowAlertDialog.getLatestAlertDialog().getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
         assertEquals(1,saved[0]);assertFalse(hose.isChecked());
         hose.setChecked(true);
         ReturnChecklist.confirm(a,Arrays.asList(hose,nozzle),()->saved[0]++);
