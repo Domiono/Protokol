@@ -10,6 +10,30 @@ import java.util.*;
 
 /** Read-only contact history; uses the admin-only statistics sync payload. */
 final class PhoneContacts {
+    static String[] defaultDates(Date now) {
+        Calendar calendar=Calendar.getInstance(TimeZone.getTimeZone("Europe/Warsaw"));
+        calendar.setTime(now);
+        SimpleDateFormat format=new SimpleDateFormat("yyyy-MM-dd",Locale.US);
+        format.setTimeZone(calendar.getTimeZone());
+        String to=format.format(calendar.getTime());
+        calendar.add(Calendar.DAY_OF_YEAR,-29);
+        return new String[]{format.format(calendar.getTime()),to};
+    }
+    static int[] counts(List<JSONObject> rows) {
+        int calls=0,reveals=0;
+        for(JSONObject e:rows){if("call".equals(e.optString("action")))calls++;else if("reveal".equals(e.optString("action")))reveals++;}
+        return new int[]{calls,reveals};
+    }
+    static void summary(Activity activity,LinearLayout parent,JSONObject stats,Date now) {
+        String[] dates=defaultDates(now);
+        text(activity,parent,"Kontakty telefoniczne • ostatnie 30 dni",18);
+        text(activity,parent,dates[0]+" – "+dates[1]+" • czas polski",13);
+        JSONArray events=stats.optJSONArray("phone_events");
+        if(events==null){text(activity,parent,"Zadzwoń: —   •   Pokaż numer: —\nHistoria nie została jeszcze pobrana. Odśwież dane.",15);return;}
+        int[] totals=counts(filtered(events,dates[0],dates[1],"",""));
+        text(activity,parent,"Zadzwoń: "+totals[0]+"   •   Pokaż numer: "+totals[1],18);
+        text(activity,parent,"Ta sama historia co w zakładce Kontakty telefoniczne. Kliknięcia rozpoznanego administratora są pomijane. To nie liczba odbytych rozmów.",13);
+    }
     static ArrayList<JSONObject> filtered(JSONArray events,String from,String to,String source,String action) {
         ArrayList<JSONObject> result=new ArrayList<>();
         for(int i=0;i<events.length();i++) {
@@ -27,11 +51,9 @@ final class PhoneContacts {
     static void show(Activity activity,LinearLayout root,JSONObject stats,Runnable refresh,Runnable back) {
         root.removeAllViews();
         text(activity,root,"Kontakty telefoniczne",23);
-        text(activity,root,"Czas polski • zdarzenia, nie unikalni klienci ani odbyte rozmowy. Historia od uruchomienia funkcji.",13);
+        text(activity,root,"Czas polski • zdarzenia, nie unikalni klienci ani odbyte rozmowy. Historia od uruchomienia funkcji. Kliknięcia rozpoznanego administratora są pomijane.",13);
         JSONArray raw=stats.optJSONArray("phone_events");final JSONArray events=raw==null?new JSONArray():raw;
-        Calendar calendar=Calendar.getInstance(TimeZone.getTimeZone("Europe/Warsaw"));
-        SimpleDateFormat format=new SimpleDateFormat("yyyy-MM-dd",Locale.US);format.setTimeZone(calendar.getTimeZone());
-        final String[] dates={"",format.format(calendar.getTime())};calendar.add(Calendar.DAY_OF_YEAR,-29);dates[0]=format.format(calendar.getTime());
+        final String[] dates=defaultDates(new Date());
         LinearLayout dateRow=new LinearLayout(activity);root.addView(dateRow);
         Button from=new Button(activity),to=new Button(activity);dateRow.addView(from,new LinearLayout.LayoutParams(0,-2,1));dateRow.addView(to,new LinearLayout.LayoutParams(0,-2,1));
         ArrayList<String> ids=new ArrayList<>(),names=new ArrayList<>();ids.add("");names.add("Wszystkie źródła");ids.add("home");names.add("Strona główna");
@@ -45,9 +67,9 @@ final class PhoneContacts {
             from.setText("Od: "+dates[0]);to.setText("Do: "+dates[1]);list.removeAllViews();
             if(dates[0].compareTo(dates[1])>0){text(activity,list,"Data OD nie może być późniejsza niż DO.",15);return;}
             ArrayList<JSONObject> rows=filtered(events,dates[0],dates[1],ids.get(Math.max(0,source.getSelectedItemPosition())),new String[]{"","reveal","call"}[Math.max(0,action.getSelectedItemPosition())]);
-            int calls=0,reveals=0;for(JSONObject e:rows){if("call".equals(e.optString("action")))calls++;else if("reveal".equals(e.optString("action")))reveals++;}
-            text(activity,list,"Pokaż numer: "+reveals+"   •   Zadzwoń: "+calls,18);
-            if(!stats.has("phone_events"))text(activity,list,"Historia nie została jeszcze pobrana z serwera. Odśwież dane.",14);
+            int[] totals=counts(rows);
+            text(activity,list,raw==null?"Zadzwoń: —   •   Pokaż numer: —":"Zadzwoń: "+totals[0]+"   •   Pokaż numer: "+totals[1],18);
+            if(raw==null)text(activity,list,"Historia nie została jeszcze pobrana z serwera. Odśwież dane.",14);
             else if(rows.isEmpty())text(activity,list,"Brak zdarzeń dla wybranych filtrów.",15);
             for(int i=0;i<Math.min(limit[0],rows.size());i++){JSONObject e=rows.get(i);text(activity,list,e.optString("at")+"\n"+e.optString("source")+"\n"+("call".equals(e.optString("action"))?"Zadzwoń":"Pokaż numer"),15);}
             if(rows.size()>limit[0]){Button more=new Button(activity);more.setText("Pokaż kolejne 50");list.addView(more);more.setOnClickListener(v->{limit[0]+=50;render[0].run();});}
@@ -60,3 +82,4 @@ final class PhoneContacts {
     }
     private static void text(Activity a,LinearLayout parent,String value,int size){TextView t=new TextView(a);t.setText(value);t.setTextSize(size);t.setTextColor(0xff172235);int pad=(int)(12*a.getResources().getDisplayMetrics().density);t.setPadding(pad,pad,pad,pad);parent.addView(t);}
 }
+
