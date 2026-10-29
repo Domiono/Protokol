@@ -15,6 +15,7 @@ on:
       - 'server/admin_safety.php'
       - 'server/admin_auth.php'
       - 'scripts/bootstrap_admin_auth.py'
+      - 'scripts/admin_auth_runtime_installer.php.template'
       - 'scripts/test_admin_auth.php'
       - 'scripts/patch_private_data_access.py'
       - 'scripts/test_security_access.py'
@@ -113,6 +114,7 @@ jobs:
       - name: Test SEO patches without production credentials
         run: |
           set -eu
+          php -l scripts/admin_auth_runtime_installer.php.template
           php -l server/admin_auth.php
           php scripts/test_admin_auth.php
           python3 scripts/test_monitor_security_events.py
@@ -327,7 +329,7 @@ jobs:
           python3 scripts/patch_mobile_rendering.py "$TEMP_DIR/index.php" "$CSS" server/rentmor-gallery.css
           php -l "$TEMP_DIR/index.php"
 
-      - name: Prepare private admin auth before publishing web files
+      - name: Prepare private admin auth as the hosting PHP user
         if: steps.config.outputs.enabled == 'true' && steps.scope.outputs.public_only != 'true'
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
@@ -337,20 +339,31 @@ jobs:
           set -euo pipefail
           DIR="$RUNNER_TEMP/rentmor-private-admin-auth"
           mkdir -m 700 -p "$DIR"
-          trap 'rm -rf "$DIR"' EXIT
           source scripts/secure_sftp_connection.sh
+          PROBE="rm-admin-auth-$(openssl rand -hex 14).php"
+          TOKEN="$(openssl rand -hex 32)"
+          TOKEN_HASH="$(printf '%s' "$TOKEN" | sha256sum | cut -d ' ' -f1)"
+          cleanup() {
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; rm public_html/$PROBE; bye" >/dev/null 2>&1 || true
+            rm -rf "$DIR"
+          }
+          trap cleanup EXIT
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/admin.php -o $DIR/live-admin.php; bye"
-          # Missing config is normal on first migration. An unreadable existing file
-          # will fail the final readback before admin.php can be published.
-          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; get rentmor-private/admin-security.json -o $DIR/existing.json; bye" >/dev/null 2>&1 || true
           cp "$DIR/live-admin.php" "$RUNNER_TEMP/rentmor-prepared/admin-before-auth.php"
-          python3 scripts/bootstrap_admin_auth.py "$DIR/live-admin.php" "$DIR/existing.json" "$DIR/candidate.json"
-          if [ ! -f "$DIR/existing.json" ]; then
-            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $DIR/candidate.json -o rentmor-private/admin-security.json; bye"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; get rentmor-private/admin-security.json -o $DIR/existing.json; bye" >/dev/null 2>&1 || true
+          if [ -f "$DIR/existing.json" ] || grep -q '^\$hasz_hasla' "$DIR/live-admin.php"; then
+            python3 scripts/bootstrap_admin_auth.py "$DIR/live-admin.php" "$DIR/existing.json" "$DIR/request.json"
+          else
+            printf '{}\n' > "$DIR/request.json"
           fi
-          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get rentmor-private/admin-security.json -o $DIR/readback.json; bye"
-          cmp "$DIR/candidate.json" "$DIR/readback.json"
-          echo "Private admin authentication verified before publishing PHP."
+          sed "s/__AUTH_HASH__/$TOKEN_HASH/g" scripts/admin_auth_runtime_installer.php.template > "$DIR/installer.php"
+          php -l "$DIR/installer.php"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $DIR/installer.php -o public_html/$PROBE; bye"
+          RESPONSE="$(curl --fail --silent --show-error --max-time 30 --request POST \
+            --header "X-RentMor-Probe: $TOKEN" --header "Content-Type: application/json" \
+            --data-binary "@$DIR/request.json" "https://rentmor.pl/$PROBE")"
+          printf '%s' "$RESPONSE" | python3 -c 'import sys,json; x=json.load(sys.stdin); assert x.get("ok") is True and x.get("php_readable") is True'
+          echo "Admin auth config migrated/verified by PHP itself, no secrets logged."
 
       - name: Upload validated RentMor files over SFTP
         if: steps.config.outputs.enabled == 'true' && steps.scope.outputs.public_only != 'true'
