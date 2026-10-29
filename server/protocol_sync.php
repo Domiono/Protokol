@@ -33,7 +33,9 @@ function rm_device_role(string $file): string {
     foreach (($data['devices'] ?? []) as $device) {
         if (!empty($device['active']) && !empty($device['token_hash']) &&
             hash_equals((string)$device['token_hash'], hash('sha256', $token))) {
-            return (($device['role'] ?? '') === 'assistant') ? 'assistant' : 'admin';
+            // Unknown/missing roles must never acquire administrator privileges.
+            $role = $device['role'] ?? '';
+            return in_array($role, ['admin', 'assistant'], true) ? $role : '';
         }
     }
     return '';
@@ -82,6 +84,12 @@ $role = rm_device_role(__DIR__ . '/protocol_devices.json');
 if ($role === '') rm_json_response(401, ['ok'=>false, 'error'=>'Urządzenie nieaktywne. Połącz się z internetem i aktywuj je ponownie.']);
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+// Native Android already sends this header. Cross-site HTML forms cannot set it.
+if ($method === 'POST' && ($_SERVER['HTTP_X_RENTMOR_SYNC'] ?? '') !== '1') {
+    rm_json_response(403, ['ok'=>false, 'error'=>'Brak nagłówka uwierzytelnienia aplikacji.']);
+}
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
 if (($_GET['view'] ?? '') === 'notebook') {
     require_once __DIR__ . '/notebook_sync.php';
     rm_notebook_handle($role,$method);
@@ -495,6 +503,11 @@ foreach ($operations as $op) {
                 if (array_key_exists($field,$op)) $item[$field] = rm_text($op,$field,($field==='text'?500:200));
             }
             $existing=null;foreach($reservations as $saved)if(($saved['id']??'')===$id)$existing=$saved;
+            // A settled record drives finance reports; assistants cannot reattribute it.
+            if ($role !== 'admin' && $existing !== null && !empty($existing['settled'])) {
+                flock($reservationLock, LOCK_UN); fclose($reservationLock);
+                $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Zmiana rozliczonego najmu jest dostępna tylko dla administratora.']; continue;
+            }
             // Preserve new metadata when an older APK edits a reservation.
             foreach(['asset_id','asset_label','vacuum_asset_id','vacuum_asset_label','needs_vacuum','actual_return','returned','daily_rate','paid','deposit'] as $key){if($existing!==null&&array_key_exists($key,$existing)&&!array_key_exists($key,$op))$item[$key]=$existing[$key];}
             if(array_key_exists('returned',$op))$item['returned']=!empty($op['returned']);
