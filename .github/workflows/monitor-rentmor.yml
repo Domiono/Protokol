@@ -8,6 +8,8 @@ on:
     paths:
       - '.github/workflows/monitor-rentmor.yml'
       - 'scripts/monitor_public.py'
+      - 'scripts/monitor_security_events.py'
+      - 'scripts/test_monitor_security_events.py'
       - 'scripts/notify_health_failure.py'
   workflow_dispatch:
 
@@ -25,11 +27,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate monitor rules
-        run: python3 scripts/monitor_public.py --self-test
+        run: |
+          python3 scripts/monitor_public.py --self-test
+          python3 scripts/test_monitor_security_events.py
       - name: Check homepage, search sitemap and Android API authentication
         run: python3 scripts/monitor_public.py
       - name: Check private rental and finance files without reading bodies
         run: python3 scripts/verify_private_paths.py
+      - name: Inspect private authentication anomalies (only counts, no personal data)
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${FTP_SERVER:?Missing SFTP settings}"
+          : "${FTP_USERNAME:?Missing SFTP account}"
+          : "${LFTP_PASSWORD:?Missing SFTP password}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lftp
+          source scripts/secure_sftp_connection.sh
+          DIR="$RUNNER_TEMP/rentmor-auth-monitor"
+          mkdir -m 700 -p "$DIR"
+          trap 'rm -rf "$DIR"' EXIT
+          FILES="$(lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; cls -1 rentmor-private; bye")"
+          for day in "$(date -u +%Y-%m-%d)" "$(date -u -d yesterday +%Y-%m-%d)"; do
+            name="security-events-$day.log"
+            if printf '%s\n' "$FILES" | grep -Fxq "$name"; then
+              lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get rentmor-private/$name -o $DIR/$name; bye" >/dev/null
+            fi
+          done
+          python3 scripts/monitor_security_events.py "$DIR"
+
       - name: Alert on failure (Telegram optional)
         if: failure()
         env:
