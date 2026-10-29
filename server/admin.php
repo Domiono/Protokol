@@ -1,6 +1,6 @@
 <?php
-session_start();
 require_once __DIR__ . '/admin_safety.php';
+rm_admin_start_session();
 
 // PHP may discard the entire POST when post_max_size is exceeded.
 // Never silently re-render a form as if an oversized upload had succeeded.
@@ -65,6 +65,8 @@ if (isset($_POST['login_pass'])) {
     } elseif ($loginAttempt['ok']) {
         session_regenerate_id(true);
         $_SESSION['logged_in'] = true;
+        $_SESSION['admin_authenticated_at'] = time();
+        $_SESSION['admin_last_activity'] = time();
     } else {
         $error = 'Błędne hasło!';
     }

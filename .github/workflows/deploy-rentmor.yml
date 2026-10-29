@@ -13,6 +13,8 @@ on:
       - 'scripts/fcm_runtime_installer.php.template'
       - 'server/admin.php'
       - 'server/admin_safety.php'
+      - 'scripts/patch_private_data_access.py'
+      - 'scripts/test_security_access.py'
       - 'server/rental_inventory.php'
       - 'scripts/patch_catalog_filters.py'
       - 'scripts/test_admin_safety.py'
@@ -111,6 +113,7 @@ jobs:
           php -l server/admin_safety.php
           php -l server/rental_inventory.php
           python3 scripts/test_admin_safety.py
+          python3 scripts/test_security_access.py
           python3 scripts/test_backup_rentmor.py
           python3 scripts/test_post_audit.py
           python3 -m py_compile scripts/backup_photos.py scripts/backup_retention.py scripts/verify_private_paths.py

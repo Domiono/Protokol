@@ -8,6 +8,8 @@ PATHS = [
     "/data.json", "/reservations.json", "/customers.json",
     "/protocols.json", "/costs.json", "/messages.json",
     "/stats.json", "/protocol_devices.json", "/online_sessions.json",
+    "/rental_assets.php", "/phone_events_data.php",
+    "/reservations.json.bak", "/costs.json.old", "/stats.json.backup",
     "/data.json.lock", "/reservations.json.lock",
     "/rental_equipment_names.php",
     "/rental_equipment_names.php.lock",

@@ -2,6 +2,38 @@
 declare(strict_types=1);
 require_once __DIR__ . '/rental_inventory.php';
 
+/** Protect the browser session containing rental finances. */
+function rm_admin_start_session(): void {
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.use_only_cookies', '1');
+    ini_set('session.use_trans_sid', '0');
+    $https = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+    session_set_cookie_params([
+        'lifetime'=>0, 'path'=>'/', 'secure'=>$https,
+        'httponly'=>true, 'samesite'=>'Lax'
+    ]);
+    if (!session_start()) rm_admin_storage_error();
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: DENY');
+    header("Content-Security-Policy: frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+    header('Referrer-Policy: same-origin');
+    $now = time();
+    if (!empty($_SESSION['logged_in'])) {
+        // Existing sessions get the same bounded lifetime on their first visit.
+        $last = (int)($_SESSION['admin_last_activity'] ?? $now);
+        $start = (int)($_SESSION['admin_authenticated_at'] ?? $now);
+        if ($now - $last > 1800 || $now - $start > 43200 || $last > $now || $start > $now) {
+            unset($_SESSION['logged_in'], $_SESSION['admin_csrf'], $_SESSION['reservation_csrf'], $_SESSION['expense_csrf']);
+            session_regenerate_id(true);
+        } else {
+            $_SESSION['admin_authenticated_at'] = $start;
+            $_SESSION['admin_last_activity'] = $now;
+        }
+    }
+}
+
 function rm_admin_valid_time(string $time): bool {
     return preg_match('/^(?:[01]?\d|2[0-3]):[0-5]\d$/D', $time) === 1;
 }
