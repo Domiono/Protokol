@@ -15,5 +15,13 @@ ok(!rm_auth_enroll($s,$f));
 ok(rm_auth_read($f)['totp_secret']===$s);
 file_put_contents($f,'{}');
 try {rm_auth_read($f);throw new Exception('invalid accepted');}catch(RuntimeException $e){ok($e->getMessage()==='Admin config invalid');}
+$limit=sys_get_temp_dir().'/rentmor-otp-limit-'.bin2hex(random_bytes(8));
+ok(!rm_otp_limit(false,$limit));
+ok(!rm_otp_limit(false,$limit));
+ok(!rm_otp_limit(false,$limit));
+ok(!rm_otp_limit(false,$limit));
+ok(!rm_otp_limit(false,$limit));
+ok(!rm_otp_limit(true,$limit)); // Correct code is blocked after five failed attempts.
+@unlink($limit);
 @unlink($f);@unlink($f.'.lock');
 echo "PASS private auth, mandatory TOTP and fail closed\n";
