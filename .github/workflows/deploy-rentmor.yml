@@ -329,9 +329,9 @@ jobs:
       - name: Prepare private admin auth before publishing web files
         if: steps.config.outputs.enabled == 'true' && steps.scope.outputs.public_only != 'true'
         env:
-          FTP_SERVER: \${{ secrets.FTP_SERVER }}
-          FTP_USERNAME: \${{ secrets.FTP_USERNAME }}
-          LFTP_PASSWORD: \${{ secrets.FTP_PASSWORD }}
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
           set -euo pipefail
           DIR="$RUNNER_TEMP/rentmor-private-admin-auth"
