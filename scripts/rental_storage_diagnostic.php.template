@@ -1,0 +1,32 @@
+<?php
+declare(strict_types=1);
+header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store');
+$input=(string)($_SERVER['HTTP_X_RENTMOR_DIAGNOSTIC']??'');
+if(($_SERVER['REQUEST_METHOD']??'')!=='POST'||$input===''||
+  !hash_equals('__TOKEN_HASH__',hash('sha256',$input))){http_response_code(404);exit;}
+$root=dirname(__DIR__).'/rentmor-private';
+$dir=$root.'/rental-data';
+$names=['reservations.json','protocols.json','customers.json','costs.json','rental_assets.php'];
+$exists=0;$readable=0;$writable=0;
+foreach($names as $name){
+  $path=$dir.'/'.$name;
+  if(is_file($path))++$exists;
+  if(is_readable($path))++$readable;
+  if(is_writable($path))++$writable;
+}
+$probe=false;
+if(is_dir($dir) && is_writable($dir)) {
+  $name=$dir.'/permission-check-'.bin2hex(random_bytes(12)).'.tmp';
+  $probe=(@file_put_contents($name,'safe',LOCK_EX)===4);
+  if($probe)$probe=(file_get_contents($name)==='safe');
+  @unlink($name);
+}
+echo json_encode([
+  'root_exists'=>is_dir($root), 'root_writable'=>is_writable($root),
+  'private_dir_exists'=>is_dir($dir), 'private_dir_readable'=>is_readable($dir),
+  'private_dir_writable'=>is_writable($dir), 'atomic_temp_write'=>$probe,
+  'existing_files'=>$exists, 'readable_files'=>$readable, 'writable_files'=>$writable,
+  'active_flag'=>is_file($dir.'/active.flag'),
+  'maintenance_flag'=>is_file($dir.'/maintenance.flag')
+],JSON_THROW_ON_ERROR);
