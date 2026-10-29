@@ -81,7 +81,7 @@ function rm_expire_protocol_photos(string $file): void {
 require_once __DIR__ . '/rental_inventory.php';
 
 $role = rm_device_role(__DIR__ . '/protocol_devices.json');
-if ($role === '') rm_json_response(401, ['ok'=>false, 'error'=>'Urządzenie nieaktywne. Połącz się z internetem i aktywuj je ponownie.']);
+if ($role === '') { require_once __DIR__.'/admin_auth.php'; rm_security_log('api_unauthorized'); rm_json_response(401, ['ok'=>false, 'error'=>'Urządzenie nieaktywne. Połącz się z internetem i aktywuj je ponownie.']); }
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 // Native Android already sends this header. Cross-site HTML forms cannot set it.

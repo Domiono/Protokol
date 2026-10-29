@@ -10,7 +10,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (int)($_SERVER['CONTENT_LEN
     exit('Zbyt duży formularz lub zdjęcia. Zmniejsz pliki i spróbuj ponownie.');
 }
 
-$hasz_hasla = '$2y$12$e7EQuw7V0ssM3OwS6h7RE.D1Fv76de7iB1lSTh3Qr1cZ3u5PVtDKW';
+require_once __DIR__.'/admin_auth.php';
+try {$rm_auth=rm_auth_read();}
+catch(Throwable $e){http_response_code(503);exit('Konfiguracja logowania jest niedostępna.');}
+if(empty($_SESSION['login_csrf']))$_SESSION['login_csrf']=bin2hex(random_bytes(32));
+if(!empty($_SESSION['logged_in'])&&empty($_SESSION['rm_mfa_verified']))unset($_SESSION['logged_in']);
 
 $data_file = 'data.json';
 $stats_file = 'stats.json';
@@ -55,30 +59,54 @@ function rm_admin_phone_key($value) {
     return '';
 }
 
-if (isset($_POST['login_pass'])) {
-    // Persistent, IP-based throttle; not reset by starting a new browser session.
-    $loginAttempt = rm_admin_check_password(is_string($_POST['login_pass']) ? $_POST['login_pass'] : '', $hasz_hasla);
-    if ($loginAttempt['retry_after'] > 0) {
-        http_response_code(429);
-        header('Retry-After: ' . $loginAttempt['retry_after']);
-        $error = 'Zbyt wiele prób logowania. Spróbuj ponownie za około 15 minut.';
-    } elseif ($loginAttempt['ok']) {
-        session_regenerate_id(true);
-        $_SESSION['logged_in'] = true;
-        $_SESSION['admin_authenticated_at'] = time();
-        $_SESSION['admin_last_activity'] = time();
-    } else {
-        $error = 'Błędne hasło!';
+$rm_pending=!empty($_SESSION['rm_pending']) && time()-(int)$_SESSION['rm_pending']<=300 && (int)$_SESSION['rm_pending']<=time();
+if(!$rm_pending)unset($_SESSION['rm_pending'],$_SESSION['rm_setup_secret'],$_SESSION['rm_otp_tries']);
+$rm_csrf_ok=($_SERVER['REQUEST_METHOD']??'')==='POST' && is_string($_POST['login_csrf']??null)
+    && hash_equals($_SESSION['login_csrf'],$_POST['login_csrf']);
+if(isset($_POST['login_pass'])){
+    if(!$rm_csrf_ok||$rm_pending)$error='Odśwież stronę logowania.';
+    else {
+        $result=rm_admin_check_password(is_string($_POST['login_pass'])?$_POST['login_pass']:'',$rm_auth['password_hash']);
+        if($result['retry_after']>0){
+            rm_security_log('password_rate_limited');
+            http_response_code(429);header('Retry-After: '.$result['retry_after']);
+            $error='Zbyt wiele prób. Spróbuj ponownie za około 15 minut.';
+        }elseif($result['ok']){
+            rm_security_log('password_ok');
+            session_regenerate_id(true);
+            $_SESSION['rm_pending']=time();$_SESSION['rm_otp_tries']=0;
+            $_SESSION['login_csrf']=bin2hex(random_bytes(32));
+            if($rm_auth['totp_secret']==='')$_SESSION['rm_setup_secret']=rm_totp_secret();
+            $rm_pending=true;
+        }else{rm_security_log('password_failed');$error='Błędne hasło!';}
     }
 }
-
-if (isset($_GET['logout'])) {
-    session_destroy();
-    header("Location: admin.php");
-    exit();
+if(isset($_POST['totp_code'])){
+    if(!$rm_csrf_ok||!$rm_pending)$error='Sesja wygasła, zaloguj się ponownie.';
+    else {
+        $tries=++$_SESSION['rm_otp_tries'];
+        $secret=$rm_auth['totp_secret']!==''?$rm_auth['totp_secret']:(string)($_SESSION['rm_setup_secret']??'');
+        $valid=$tries<=5 && rm_totp_verify($secret,(string)$_POST['totp_code']);
+        if($valid && $rm_auth['totp_secret']===''){
+            $valid=rm_auth_enroll($secret);
+            if($valid)rm_security_log('otp_enrolled');
+        }
+        if($valid){
+            rm_security_log('otp_ok');
+            session_regenerate_id(true);
+            $_SESSION['logged_in']=true;$_SESSION['rm_mfa_verified']=true;
+            $_SESSION['admin_authenticated_at']=time();$_SESSION['admin_last_activity']=time();
+            unset($_SESSION['rm_pending'],$_SESSION['rm_setup_secret'],$_SESSION['rm_otp_tries']);
+            $rm_pending=false;
+        }else {
+            rm_security_log('otp_failed');
+            $error='Nieprawidłowy kod.';
+            if($tries>=5){unset($_SESSION['rm_pending'],$_SESSION['rm_setup_secret'],$_SESSION['rm_otp_tries']);$rm_pending=false;$error='Limit kodów. Zaloguj się ponownie hasłem.';}
+        }
+    }
 }
-
-$is_logged = !empty($_SESSION['logged_in']);
+if(isset($_GET['logout'])){session_destroy();header('Location: admin.php');exit();}
+$is_logged=!empty($_SESSION['logged_in'])&&!empty($_SESSION['rm_mfa_verified']);
 require_once __DIR__ . '/traffic_filter.php';
 if ($is_logged) rm_stats_remember_owner();
 
@@ -742,24 +770,27 @@ if (isset($_GET['edit_id'])) {
 <?php if (!$is_logged): ?>
 
     <div class="min-h-screen flex items-center justify-center p-4">
-        <form method="POST" class="bg-white p-8 sm:p-10 rounded-3xl shadow-2xl w-full max-w-sm text-center"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>">
+        <form method="POST" class="bg-white p-8 sm:p-10 rounded-3xl shadow-2xl w-full max-w-sm text-center"><input type="hidden" name="login_csrf" value="<?php echo e_admin($_SESSION['login_csrf']); ?>">
             <h2 class="text-2xl font-black mb-6 uppercase">Admin RentMor</h2>
 
             <?php if (isset($error)): ?>
                 <p class="text-red-500 font-bold mb-4"><?php echo e_admin($error); ?></p>
             <?php endif; ?>
 
-            <input
-                type="password"
-                name="login_pass"
-                class="w-full p-4 border rounded-2xl mb-4 outline-none focus:border-yellow-400"
-                placeholder="Hasło"
-                required
-            >
-
-            <button type="submit" class="w-full bg-gray-900 text-white font-black py-4 rounded-2xl shadow-lg">
-                ZALOGUJ
-            </button>
+            <?php if($rm_pending): ?>
+                <?php if($rm_auth['totp_secret']===''): ?>
+                    <p class="text-left text-sm mb-4">Dodaj ręcznie nowe konto w Google Authenticator, Microsoft Authenticator lub innej aplikacji TOTP. Typ: czasowy, nazwa: RentMor Admin. Zachowaj ten klucz w bezpiecznym miejscu:</p>
+                    <p class="bg-yellow-50 p-3 rounded-lg font-mono break-all mb-4 select-all"><?php echo e_admin($_SESSION['rm_setup_secret']??''); ?></p>
+                <?php else: ?>
+                    <p class="text-sm mb-4">Wpisz kod z aplikacji uwierzytelniającej.</p>
+                <?php endif; ?>
+                <input name="totp_code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" minlength="6" class="w-full p-4 border rounded-2xl mb-4" placeholder="Kod 6 cyfr" required>
+                <button type="submit" class="w-full bg-gray-900 text-white font-black py-4 rounded-2xl">POTWIERDŹ KOD</button>
+                <a href="?logout=1" class="block mt-4 underline text-sm">Anuluj</a>
+            <?php else: ?>
+                <input type="password" name="login_pass" autocomplete="current-password" class="w-full p-4 border rounded-2xl mb-4" placeholder="Hasło" required>
+                <button type="submit" class="w-full bg-gray-900 text-white font-black py-4 rounded-2xl">ZALOGUJ</button>
+            <?php endif; ?>
         </form>
     </div>
 
