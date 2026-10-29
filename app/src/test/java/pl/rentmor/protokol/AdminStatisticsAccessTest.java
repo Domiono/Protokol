@@ -6,6 +6,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 import org.junit.After;
+import org.junit.Before;
+import javax.crypto.spec.SecretKeySpec;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
@@ -21,7 +23,13 @@ public class AdminStatisticsAccessTest {
     private SharedPreferences prefs(){
         return RuntimeEnvironment.getApplication().getSharedPreferences("rentmor",0);
     }
+    @Before public void fakeKey(){
+        byte[] key=new byte[32];for(int i=0;i<32;i++)key[i]=(byte)i;
+        SecurePrefs.setRobolectricTestKey(new SecretKeySpec(key,"AES"));
+    }
     @After public void clearRole(){
+        SecurePrefs.remove(RuntimeEnvironment.getApplication(),"cookie");
+        SecurePrefs.setRobolectricTestKey(null);
         prefs().edit().remove("role").remove("cookie").apply();
     }
     private MainActivity open(String role){

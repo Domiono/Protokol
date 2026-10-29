@@ -104,7 +104,7 @@ public class ReservationsWidgetProvider extends AppWidgetProvider {
     }
 
     private void syncInBackground(Context c, LocalStore store) {
-        if (c.getSharedPreferences("rentmor", 0).getString("cookie", "").isEmpty()) return;
+        if (SecurePrefs.get(c,"cookie","").isEmpty()) return;
         new Thread(() -> {
             try { new SyncManager(c, store).sync(); }
             catch (Exception ignored) { }
