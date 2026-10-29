@@ -1,6 +1,8 @@
 <?php
 // RentMor protocol sync API. Upload beside protocol.php.
 declare(strict_types=1);
+require_once __DIR__ . '/private_rental_files.php';
+if (rm_rental_maintenance()) { header('Retry-After: 30'); http_response_code(503); exit('{"ok":false,"error":"Trwa konserwacja magazynu danych."}'); }
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 
@@ -166,11 +168,11 @@ if (($_GET['view'] ?? '') === 'messages') {
     }
     rm_json_response(200, ['ok'=>true, 'role'=>'admin', 'messages'=>$messages]);
 }
-rm_expire_protocol_photos(__DIR__ . '/protocols.json');
+rm_expire_protocol_photos(rm_rental_file('protocols.json'));
 if ($method === 'GET') {
-    $protocols = rm_read_json_file(__DIR__ . '/protocols.json', []);
-    $reservations = rm_read_json_file(__DIR__ . '/reservations.json', []);
-    $profiles = rm_read_json_file(__DIR__ . '/customers.json', []);
+    $protocols = rm_read_json_file(rm_rental_file('protocols.json'), []);
+    $reservations = rm_read_json_file(rm_rental_file('reservations.json'), []);
+    $profiles = rm_read_json_file(rm_rental_file('customers.json'), []);
     $customers = [];
     foreach ($profiles as $profile) {
         $key = rm_phone_key((string)($profile['phone'] ?? ''));
@@ -232,7 +234,7 @@ if ($method === 'GET') {
     rm_json_response(200, [
         'ok'=>true, 'role'=>$role, 'server_time'=>date(DATE_ATOM),
         'assets'=>array_map(function($a)use($role){if($role!=='admin')foreach(($a['repairs']??[]) as $i=>$r)unset($a['repairs'][$i]['cost']);return $a;},rm_read_assets()),
-        'protocols'=>array_values($protocols), 'customers'=>array_values($customers), 'expenses'=>($role === 'admin' ? array_values(rm_read_json_file(__DIR__ . '/costs.json', [])) : []), 'reservations'=>array_values(array_map(function($r) use ($role) { if ($role !== 'admin') { $r=rm_hide_rental_finance($r); } return $r; }, rm_read_json_file(__DIR__ . '/reservations.json', []))), 'equipment'=>array_keys($equipment), 'site_stats'=>($role === 'admin' ? $siteStats : []), 'site_products'=>($role === 'admin' ? array_values($inventory) : [])
+        'protocols'=>array_values($protocols), 'customers'=>array_values($customers), 'expenses'=>($role === 'admin' ? array_values(rm_read_json_file(rm_rental_file('costs.json'), [])) : []), 'reservations'=>array_values(array_map(function($r) use ($role) { if ($role !== 'admin') { $r=rm_hide_rental_finance($r); } return $r; }, rm_read_json_file(rm_rental_file('reservations.json'), []))), 'equipment'=>array_keys($equipment), 'site_stats'=>($role === 'admin' ? $siteStats : []), 'site_products'=>($role === 'admin' ? array_values($inventory) : [])
     ]);
 }
 if ($method !== 'POST') rm_json_response(405, ['ok'=>false, 'error'=>'Niedozwolona metoda.']);
@@ -243,7 +245,7 @@ if (!is_array($body)) rm_json_response(400, ['ok'=>false, 'error'=>'Nieprawidło
 $operations = $body['operations'] ?? [];
 if (!is_array($operations) || count($operations) > 100) rm_json_response(400, ['ok'=>false, 'error'=>'Nieprawidłowa lista operacji.']);
 
-$protocolFile = __DIR__ . '/protocols.json';
+$protocolFile = rm_rental_file('protocols.json');
 // Photo-expiration maintenance uses protocols.json.lock; all protocol writes
 // must use the same stable sidecar instead of a data inode.
 $fp = @fopen($protocolFile . '.lock', 'c+');
@@ -271,7 +273,7 @@ foreach ($operations as $op) {
             $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Nieprawidłowy identyfikator egzemplarza.'];continue;
         }
         // Serialize with reservation writes, so no existing booking can lose its physical copy.
-        $reservationFile=__DIR__.'/reservations.json';
+        $reservationFile=rm_rental_file('reservations.json');
         $reservationLock=fopen($reservationFile.'.lock','c+');
         if(!$reservationLock||!flock($reservationLock,LOCK_EX)){
             if($reservationLock)fclose($reservationLock);
@@ -334,7 +336,7 @@ foreach ($operations as $op) {
     }
     if ($action === 'expense_save' || $action === 'expense_delete') {
         if ($role !== 'admin') { $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Koszty są dostępne tylko dla administratora.']; continue; }
-        $costFile=__DIR__.'/costs.json'; $costLock=fopen($costFile.'.lock','c+');
+        $costFile=rm_rental_file('costs.json'); $costLock=fopen($costFile.'.lock','c+');
         if (!$costLock || !flock($costLock,LOCK_EX)) { if($costLock)fclose($costLock); $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Lista kosztów jest chwilowo zajęta.']; continue; }
         $costs=rm_read_json_file($costFile,[]); $id=preg_replace('/[^a-zA-Z0-9_-]/','',(string)($op['id']??''));
         if($id===''){flock($costLock,LOCK_UN);fclose($costLock);$results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Brak identyfikatora kosztu.'];continue;}
@@ -355,7 +357,7 @@ foreach ($operations as $op) {
         if ($role !== 'admin') { $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Edycja kart klientów jest dostępna tylko dla administratora.']; continue; }
         $phone = rm_text($op, 'phone', 50); $key = rm_phone_key($phone);
         if ($key === '') { $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Podaj prawidłowy numer telefonu.']; continue; }
-        $customerFile=__DIR__.'/customers.json'; $customerLock=fopen($customerFile.'.lock','c+');
+        $customerFile=rm_rental_file('customers.json'); $customerLock=fopen($customerFile.'.lock','c+');
         if (!$customerLock || !flock($customerLock,LOCK_EX)) { if($customerLock)fclose($customerLock); $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Baza klientów jest chwilowo zajęta.']; continue; }
         $customers=rm_read_json_file($customerFile,[]); $found=false;
         $item=['id'=>$key,'phone'=>$phone,'phone_key'=>$key,'name'=>rm_text($op,'name',200),'notes'=>rm_text($op,'notes',4000)];
@@ -479,7 +481,7 @@ foreach ($operations as $op) {
             $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Rozliczanie najmu jest dostępne tylko dla administratora.'];
             continue;
         }
-        $reservationFile = __DIR__ . '/reservations.json';
+        $reservationFile = rm_rental_file('reservations.json');
         $reservationLock = fopen($reservationFile . '.lock', 'c+');
         if (!$reservationLock || !flock($reservationLock, LOCK_EX)) {
             if ($reservationLock) fclose($reservationLock);

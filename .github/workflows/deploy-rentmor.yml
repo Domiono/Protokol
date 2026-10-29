@@ -14,6 +14,10 @@ on:
       - 'server/admin.php'
       - 'server/admin_safety.php'
       - 'server/admin_auth.php'
+      - 'server/private_rental_files.php'
+      - 'scripts/check_private_migration.py'
+      - 'scripts/private_rental_probe.php.template'
+      - 'scripts/test_private_rental_paths.py'
       - 'scripts/bootstrap_admin_auth.py'
       - 'scripts/admin_auth_runtime_installer.php.template'
       - 'scripts/test_admin_auth.php'
@@ -115,6 +119,10 @@ jobs:
         run: |
           set -eu
           php -l scripts/admin_auth_runtime_installer.php.template
+          php -l server/private_rental_files.php
+          python3 scripts/test_private_rental_paths.py
+          python3 -m py_compile scripts/check_private_migration.py
+          php -l scripts/private_rental_probe.php.template
           php -l server/admin_auth.php
           php scripts/test_admin_auth.php
           python3 scripts/test_monitor_security_events.py
@@ -380,7 +388,7 @@ jobs:
           # Pass credentials as process arguments, not by interpolating them
           # into lftp's command language. This avoids quote/shell parsing issues.
           source scripts/secure_sftp_connection.sh
-          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/rental_inventory.php -o public_html/rental_inventory.php; put server/admin_safety.php -o public_html/admin_safety.php; put server/admin_auth.php -o public_html/admin_auth.php; put server/phone_events.php -o public_html/phone_events.php; put server/rental_offer_details.php -o public_html/rental_offer_details.php; put server/related_offers.php -o public_html/related_offers.php; put server/rentmor-gallery.js -o public_html/rentmor-gallery.js; put server/performance_images.php -o public_html/performance_images.php; put server/traffic_filter.php -o public_html/traffic_filter.php; put server/browser_stats.php -o public_html/browser_stats.php; put server/pageview.php -o public_html/pageview.php; put server/notebook_sync.php -o public_html/notebook_sync.php; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/push_bridge.php -o public_html/push_bridge.php; put server/online.php -o public_html/online.php; put server/phone_event.php -o public_html/phone_event.php; put server/phone_events_view.php -o public_html/phone_events_view.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/poradnik-jaki-papier-scierny-do-zyrafy.php -o public_html/poradnik-jaki-papier-scierny-do-zyrafy.php; put server/poradnik-pranie-tapicerki-karcher-puzzi.php -o public_html/poradnik-pranie-tapicerki-karcher-puzzi.php; put server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php -o public_html/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
+          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/private_rental_files.php -o public_html/private_rental_files.php; put server/rental_inventory.php -o public_html/rental_inventory.php; put server/admin_safety.php -o public_html/admin_safety.php; put server/admin_auth.php -o public_html/admin_auth.php; put server/phone_events.php -o public_html/phone_events.php; put server/rental_offer_details.php -o public_html/rental_offer_details.php; put server/related_offers.php -o public_html/related_offers.php; put server/rentmor-gallery.js -o public_html/rentmor-gallery.js; put server/performance_images.php -o public_html/performance_images.php; put server/traffic_filter.php -o public_html/traffic_filter.php; put server/browser_stats.php -o public_html/browser_stats.php; put server/pageview.php -o public_html/pageview.php; put server/notebook_sync.php -o public_html/notebook_sync.php; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/push_bridge.php -o public_html/push_bridge.php; put server/online.php -o public_html/online.php; put server/phone_event.php -o public_html/phone_event.php; put server/phone_events_view.php -o public_html/phone_events_view.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/poradnik-jaki-papier-scierny-do-zyrafy.php -o public_html/poradnik-jaki-papier-scierny-do-zyrafy.php; put server/poradnik-pranie-tapicerki-karcher-puzzi.php -o public_html/poradnik-pranie-tapicerki-karcher-puzzi.php; put server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php -o public_html/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
           if [ -f server/admin.php ]; then
             LFTP_COMMAND="$LFTP_COMMAND; put server/admin.php -o public_html/admin.php"
           else
@@ -504,6 +512,83 @@ jobs:
           # A missing registry is expected before the first admin device registration.
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; get public_html/protocol_devices.json -o $PRIVATE_DIR/devices.json; cd public_html; cd ..; get rentmor-private/fcm-tokens.json -o $PRIVATE_DIR/tokens.json; bye" || true
           python3 scripts/diagnose_push_registry.py "$PRIVATE_DIR/devices.json" "$PRIVATE_DIR/tokens.json"
+
+      - name: Move rental and finance records outside public_html (verified rollback)
+        if: steps.config.outputs.enabled == 'true' && steps.scope.outputs.public_only != 'true'
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          source scripts/secure_sftp_connection.sh
+          DIR="$RUNNER_TEMP/rentmor-data-cutover"
+          mkdir -m 700 -p "$DIR"
+          DEST="rentmor-private/rental-data"
+          trap 'rm -rf "$DIR"' EXIT
+          # Check marker before doing anything: rerunning an already migrated deploy must be harmless.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; get $DEST/active.flag -o $DIR/active.flag; bye" >/dev/null 2>&1 || true
+          if [ -f "$DIR/active.flag" ] && grep -Fxq "verified" "$DIR/active.flag"; then
+            echo "Private rental storage already active; no migration necessary."
+            exit 0
+          fi
+          printf 'maintenance\n' > "$DIR/maintenance.flag"
+          printf 'verified\n' > "$DIR/ready.flag"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; mkdir -p $DEST; set cmd:fail-exit yes; put $DIR/maintenance.flag -o $DEST/maintenance.flag; bye"
+          cleanup() {
+            if [ "$CUTOVER_ACTIVE" = "1" ] && [ "$CUTOVER_COMMITTED" != "1" ]; then
+              lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; rm $DEST/active.flag; bye" >/dev/null 2>&1 || true
+            fi
+            if [ -n "${PROBE:-}" ]; then lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; rm public_html/$PROBE; bye" >/dev/null 2>&1 || true; fi
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; rm $DEST/maintenance.flag; bye" >/dev/null 2>&1 || true
+            rm -rf "$DIR"
+          }
+          CUTOVER_ACTIVE=0
+          CUTOVER_COMMITTED=0
+          trap cleanup EXIT
+          sleep 20
+          for name in reservations.json protocols.json customers.json costs.json rental_assets.php; do
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/$name -o $DIR/$name; bye" >/dev/null
+          done
+          python3 scripts/check_private_migration.py "$DIR"
+          for name in reservations.json protocols.json customers.json costs.json rental_assets.php; do
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $DIR/$name -o $DEST/$name; get $DEST/$name -o $DIR/verified-$name; bye" >/dev/null
+            cmp "$DIR/$name" "$DIR/verified-$name"
+          done
+          # Cut-over only after all five validated copies have been read back byte-for-byte.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $DIR/ready.flag -o $DEST/active.flag; bye"
+          CUTOVER_ACTIVE=1
+          # A one-time credentialed PHP probe verifies the web worker sees and can
+          # modify all five private files. No customer or finance values are returned.
+          PROBE="rm-storage-probe-$(openssl rand -hex 12).php"
+          TOKEN="$(openssl rand -hex 32)"
+          TOKEN_HASH="$(printf '%s' "$TOKEN" | sha256sum | cut -d' ' -f1)"
+          sed "s/__AUTH_HASH__/$TOKEN_HASH/g" scripts/private_rental_probe.php.template > "$DIR/probe.php"
+          php -l "$DIR/probe.php"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $DIR/probe.php -o public_html/$PROBE; bye"
+          RESPONSE="$(curl --silent --show-error --max-time 30 --request POST --header "X-RentMor-Probe: $TOKEN" "https://rentmor.pl/$PROBE")"
+          printf '%s' "$RESPONSE" | python3 -c 'import sys,json; x=json.load(sys.stdin); assert x.get("ok") is True and x.get("php_read_write") is True'
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; rm public_html/$PROBE; bye"
+          PROBE=""
+          # Keep writes paused until PHP confirmed readable/writable private files.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; rm $DEST/maintenance.flag; bye"
+
+          STATUS_ADMIN="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 https://rentmor.pl/admin.php)"
+          STATUS_API="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 https://rentmor.pl/protocol_sync.php)"
+          if [ "$STATUS_ADMIN" != 200 ] || [ "$STATUS_API" != 401 ]; then
+            # All originals still exist: safely switch back to original data.
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; rm $DEST/active.flag; bye"
+            echo "::error::Private cut-over failed public smoke test and was rolled back."
+            exit 1
+          fi
+          # From this point new writes use private files; do not roll back to stale originals.
+          CUTOVER_COMMITTED=1
+          # Originals are moved to a private rollback directory, NOT deleted or published.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; mkdir -p $DEST/legacy-originals; set cmd:fail-exit yes; bye"
+          for name in reservations.json protocols.json customers.json costs.json rental_assets.php; do
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; mv public_html/$name $DEST/legacy-originals/$name; bye"
+          done
+          echo "Private rental cut-over complete: all five originals moved outside document root."
 
       - name: Publish prepared homepage with backup
         if: steps.config.outputs.enabled == 'true'
