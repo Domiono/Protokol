@@ -103,6 +103,12 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      migrate_private_data:
+        description: 'Manualna migracja danych (tylko po sprawdzeniu sciezek i uprawnien PHP/SFTP)'
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: rentmor-public-homepage
@@ -514,7 +520,8 @@ jobs:
           python3 scripts/diagnose_push_registry.py "$PRIVATE_DIR/devices.json" "$PRIVATE_DIR/tokens.json"
 
       - name: Move rental and finance records outside public_html (verified rollback)
-        if: steps.config.outputs.enabled == 'true' && steps.scope.outputs.public_only != 'true'
+        # Never retry the rental-data cutover on push or pull_request. Explicit manual opt-in only.
+        if: github.event_name == 'workflow_dispatch' && inputs.migrate_private_data == true && steps.config.outputs.enabled == 'true' && steps.scope.outputs.public_only != 'true'
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
