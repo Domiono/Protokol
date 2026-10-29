@@ -11,6 +11,21 @@ event=click({'data-product-id':'p3'},'Pokaż numer');assert.equal(event.options.
 const before=sent.length;click({href:'/kontakt'},'Kontakt');assert.equal(sent.length,before);
 console.log('PASS: equipment, home and detail attribution, reveal, keepalive, unrelated clicks');
 
-context.location.search='';context.document.querySelector=()=>({});context.document.querySelectorAll=()=>[{getAttribute:()=>"trackCall('p4')"}];
+context.location.search='';context.document.querySelector=selector=>selector==='.rm-detail-gallery'?{}:null;context.document.querySelectorAll=()=>[{getAttribute:()=>"trackCall('p4')"}];
 event=click({href:'tel:733891281',onclick:"trackCall('top_nav')"});assert.equal(event.options.body.get('source_id'),'p4');
 console.log('PASS: header click on SEO product URL');
+
+// The rendered page wins over stale query parameters and unrelated recommendation links.
+context.location.search='?id=wrong';
+context.document.querySelector=selector=>selector==='script[data-phone-source]'?{getAttribute:()=> 'puzzi'}:null;
+context.document.querySelectorAll=()=>[{getAttribute:()=>"trackCall('szlifierka')"}];
+event=click({href:'tel:733891281',onclick:"trackCall('top_nav')"});
+assert.equal(event.options.body.get('source_id'),'puzzi');
+event=click({},'Pokaż numer');
+assert.equal(event.options.body.get('source_id'),'puzzi');assert.equal(event.options.body.get('action'),'reveal');
+context.document.querySelector=selector=>selector==='script[data-phone-source]'?{getAttribute:()=> 'home'}:null;
+event=click({href:'tel:733891281',onclick:"trackCall('top_nav')"});assert.equal(event.options.body.get('source_id'),'home');
+event=click({href:'tel:733891281',onclick:"trackCall('puzzi')"});assert.equal(event.options.body.get('source_id'),'puzzi');
+const count=sent.length;click({href:'tel:733891281',onclick:"trackCall('puzzi')"});assert.equal(sent.length,count+1);
+console.log('PASS: authoritative page identity, home catalogue product, one history event per click');
+

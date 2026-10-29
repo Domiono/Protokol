@@ -13,8 +13,8 @@ android {
         applicationId 'pl.rentmor.protokol'
         minSdk 29
         targetSdk 35
-        versionCode 33
-        versionName '1.7.18'
+        versionCode 34
+        versionName '1.7.19'
     }
 
     signingConfigs {
@@ -45,3 +45,4 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.robolectric:robolectric:4.13'
 }
+

@@ -14,8 +14,9 @@ contents = path.read_text(encoding="utf-8")
 if "<?php" not in contents or "stats.json" not in contents:
     raise SystemExit("Unexpected index.php; refusing to overwrite live site.")
 
-old_tags = ['<script src="/online.js" defer></script>', '<script src="/online.js?v=phone-events-1" defer></script>']
-tag = '<script src="/online.js?v=browser-stats-2" data-view-token="<?php echo htmlspecialchars($rm_pageview_token ?? \'\', ENT_QUOTES, \'UTF-8\'); ?>" defer></script>'
+legacy_tag = '<script src="/online.js?v=browser-stats-2" data-view-token="<?php echo htmlspecialchars($rm_pageview_token ?? \'\', ENT_QUOTES, \'UTF-8\'); ?>" defer></script>'
+old_tags = ['<script src="/online.js" defer></script>', '<script src="/online.js?v=phone-events-1" defer></script>', legacy_tag]
+tag = legacy_tag.replace('browser-stats-2', 'phone-history-3').replace(' defer>', ' data-phone-source="<?php echo htmlspecialchars(($detail_view && $product) ? (string)$product[\'id\'] : \'home\', ENT_QUOTES, \'UTF-8\'); ?>" defer>')
 for old_tag in old_tags:
     if old_tag in contents:
         contents = contents.replace(old_tag, tag)
@@ -32,3 +33,4 @@ offset = matches[0].start()
 contents = contents[:offset] + "    " + tag + "\n" + contents[offset:]
 path.write_text(contents, encoding="utf-8")
 print("Injected online tracker in the latest live homepage.")
+

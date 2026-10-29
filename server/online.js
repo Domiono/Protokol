@@ -37,7 +37,10 @@
     var id = button.getAttribute("data-product-id") || (match && match[1]);
     // Product buttons on the home catalogue retain their equipment identity.
     if (!id || id === "top_nav") {
-      id = new URLSearchParams(location.search).get("id");
+      // Rendered page identity is authoritative on pretty URLs and pages with related offers.
+      var page = document.querySelector("script[data-phone-source]");
+      id = page && page.getAttribute("data-phone-source");
+      if (!id) id = new URLSearchParams(location.search).get("id");
       // SEO product URLs do not have an id query parameter.
       if (!id && document.querySelector(".rm-detail-gallery")) {
         document.querySelectorAll("a[onclick]").forEach(function (link) {
@@ -69,3 +72,4 @@
   else confirmView();
   document.addEventListener("visibilitychange", confirmView);
 })();
+
