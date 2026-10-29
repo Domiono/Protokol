@@ -53,9 +53,14 @@ jobs:
           # No user data goes into GitHub artifacts, commits or logs.
           essential="data.json reservations.json protocols.json customers.json costs.json"
           optional="messages.json terms.json protocol_devices.json stats.json rental_assets.php rental_equipment_names.php"
+          # When private storage is active, read those files from outside public_html.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; get rentmor-private/rental-data/active.flag -o $SNAPSHOT/active.flag; bye" >/dev/null 2>&1 || true
+          private_names=" reservations.json protocols.json customers.json costs.json rental_assets.php "
           for name in $essential $optional; do
+            SOURCE="public_html/$name"
+            if [ -f "$SNAPSHOT/active.flag" ] && [[ "$private_names" == *" $name "* ]]; then SOURCE="rentmor-private/rental-data/$name"; fi
             if lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
-              -e "$SFTP_CONNECT_SETUP; get public_html/$name -o $SNAPSHOT/$name; bye" \
+              -e "$SFTP_CONNECT_SETUP; get $SOURCE -o $SNAPSHOT/$name; bye" \
               >/dev/null 2>&1; then
               chmod 600 "$SNAPSHOT/$name"
             elif [[ " $essential " == *" $name "* ]]; then

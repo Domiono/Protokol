@@ -1,0 +1,19 @@
+<?php
+declare(strict_types=1);
+// One-use deployment probe: returns booleans only and never private data.
+header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store');
+$token=(string)($_SERVER['HTTP_X_RENTMOR_PROBE']??'');
+if (($_SERVER['REQUEST_METHOD']??'')!=='POST' || $token==='' ||
+    !hash_equals('__AUTH_HASH__',hash('sha256',$token))) {
+    http_response_code(404);exit;
+}
+require_once __DIR__.'/private_rental_files.php';
+$directory=rm_rental_private_dir();
+$ok=rm_rental_migrated() && is_dir($directory) && is_readable($directory) && is_writable($directory);
+foreach(['reservations.json','protocols.json','customers.json','costs.json','rental_assets.php'] as $name) {
+    $file=rm_rental_file($name);
+    if ($file!==$directory.'/'.$name || !is_file($file) || !is_readable($file) || !is_writable($file)) $ok=false;
+}
+http_response_code($ok?200:503);
+echo json_encode(['ok'=>$ok,'storage'=>'private','php_read_write'=>$ok]);
