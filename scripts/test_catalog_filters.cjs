@@ -27,7 +27,7 @@ const grid = {appendChild(node){if(cards.includes(node)){order.splice(order.inde
 for(const c of cards)c.parentNode=grid;
 const doc = {
   getElementById(id){if(id==='searchInput')return input;if(id==='rentmor-empty-catalogue')return empty;return null},
-  querySelectorAll(sel){if(sel==='.product-card')return cards;if(sel==='.filter-btn')return buttons;return []},
+  querySelectorAll(sel){if(sel==='.product-item')return cards;if(sel==='.filter-btn')return buttons;return []},
   createElement(){return {style:{},setAttribute(){},querySelector(){return {addEventListener(k,fn){this.click=fn;}}},parentNode:grid};}
 };
 let result;
