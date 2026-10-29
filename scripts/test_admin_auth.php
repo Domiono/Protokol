@@ -23,5 +23,13 @@ ok(!rm_otp_limit(false,$limit));
 ok(!rm_otp_limit(false,$limit));
 ok(!rm_otp_limit(true,$limit)); // Correct code is blocked after five failed attempts.
 @unlink($limit);
+file_put_contents($f,json_encode(['password_hash'=>password_hash('current-test-passphrase',PASSWORD_BCRYPT),'totp_secret'=>$s]));
+$currentCode=rm_totp_at($s,intdiv(time(),30));
+ok(!rm_auth_rotate_password('wrong','another-test-passphrase',$currentCode,$f));
+ok(!rm_auth_rotate_password('current-test-passphrase','short',$currentCode,$f));
+ok(!rm_auth_rotate_password('current-test-passphrase','another-test-passphrase','000000',$f));
+ok(rm_auth_rotate_password('current-test-passphrase','another-test-passphrase',$currentCode,$f));
+ok(password_verify('another-test-passphrase',rm_auth_read($f)['password_hash']));
+ok(rm_auth_read($f)['totp_secret']===$s);
 @unlink($f);@unlink($f.'.lock');
 echo "PASS private auth, mandatory TOTP and fail closed\n";

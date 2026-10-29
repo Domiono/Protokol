@@ -82,8 +82,29 @@ function rm_otp_limit(bool $matched, ?string $file=null): bool {
         return $matched;
     }finally{flock($fp,LOCK_UN);fclose($fp);}
 }
+/** Rotate the previously published bcrypt credential from the authenticated admin panel. */
+function rm_auth_rotate_password(string $oldPassword,string $newPassword,string $code,?string $file=null): bool {
+    $file=$file??rm_auth_path();
+    $length=strlen($newPassword);
+    if ($length<14 || $length>72 || $oldPassword===$newPassword) return false;
+    $fp=@fopen($file.'.lock','c');
+    if (!$fp || !@flock($fp,LOCK_EX)) {if($fp)fclose($fp);return false;}
+    try {
+        $data=rm_auth_read($file);
+        if ($data['totp_secret']==='' || !password_verify($oldPassword,$data['password_hash'])
+            || !rm_totp_verify($data['totp_secret'],$code))return false;
+        $data['password_hash']=password_hash($newPassword,PASSWORD_BCRYPT,['cost'=>12]);
+        if(!is_string($data['password_hash']))return false;
+        $json=json_encode($data,JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR);
+        $temp=$file.'.'.bin2hex(random_bytes(8)).'.tmp';
+        if(@file_put_contents($temp,$json,LOCK_EX)!==strlen($json)) {@unlink($temp);return false;}
+        @chmod($temp,0600);
+        if(!@rename($temp,$file)) {@unlink($temp);return false;}
+        return password_verify($newPassword,rm_auth_read($file)['password_hash']);
+    } finally {flock($fp,LOCK_UN);fclose($fp);}
+}
 function rm_security_log(string $event): void {
-    if(!in_array($event,['password_failed','password_rate_limited','password_ok','otp_failed','otp_ok','otp_enrolled','api_unauthorized'],true))return;
+    if(!in_array($event,['password_failed','password_rate_limited','password_ok','otp_failed','otp_ok','otp_enrolled','api_unauthorized','password_changed'],true))return;
     $dir=dirname(rm_auth_path());
     if(!is_dir($dir))return;
     $file=$dir.'/security-events-'.gmdate('Y-m-d').'.log';

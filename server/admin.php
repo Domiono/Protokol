@@ -15,6 +15,10 @@ try {$rm_auth=rm_auth_read();}
 catch(Throwable $e){http_response_code(503);exit('Konfiguracja logowania jest niedostępna.');}
 if(empty($_SESSION['login_csrf']))$_SESSION['login_csrf']=bin2hex(random_bytes(32));
 if(!empty($_SESSION['logged_in'])&&empty($_SESSION['rm_mfa_verified']))unset($_SESSION['logged_in']);
+if(!empty($_SESSION['logged_in'])&&(!isset($_SESSION['rm_password_version'])
+    || !hash_equals((string)$_SESSION['rm_password_version'],hash('sha256',$rm_auth['password_hash'])))){
+    unset($_SESSION['logged_in'],$_SESSION['rm_mfa_verified']);
+}
 
 $data_file = 'data.json';
 $stats_file = 'stats.json';
@@ -95,7 +99,7 @@ if(isset($_POST['totp_code'])){
         if($valid){
             rm_security_log('otp_ok');
             session_regenerate_id(true);
-            $_SESSION['logged_in']=true;$_SESSION['rm_mfa_verified']=true;
+            $_SESSION['logged_in']=true;$_SESSION['rm_mfa_verified']=true;$_SESSION['rm_password_version']=hash('sha256',$rm_auth['password_hash']);
             $_SESSION['admin_authenticated_at']=time();$_SESSION['admin_last_activity']=time();
             unset($_SESSION['rm_pending'],$_SESSION['rm_setup_secret'],$_SESSION['rm_otp_tries']);
             $rm_pending=false;
@@ -113,6 +117,32 @@ if ($is_logged) rm_stats_remember_owner();
 
 // Protect legacy mutations as well as the individually protected newer forms.
 if ($is_logged && empty($_SESSION['admin_csrf'])) $_SESSION['admin_csrf'] = bin2hex(random_bytes(32));
+if ($is_logged && ($_POST['action'] ?? '') === 'change_admin_password'
+    && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+    $csrf=is_string($_POST['admin_csrf']??null) ? $_POST['admin_csrf'] : '';
+    if(!hash_equals($_SESSION['admin_csrf'],$csrf)){
+        http_response_code(403);exit('Sesja wygasła. Odśwież formularz.');
+    }
+    $old=is_string($_POST['password_old']??null) ? $_POST['password_old'] : '';
+    $new=is_string($_POST['password_new']??null) ? $_POST['password_new'] : '';
+    $repeat=is_string($_POST['password_repeat']??null) ? $_POST['password_repeat'] : '';
+    $otp=is_string($_POST['password_otp']??null) ? $_POST['password_otp'] : '';
+    if($new!==$repeat){
+        $_SESSION['password_flash']='Nowe hasła nie są jednakowe.';
+    }elseif(strlen($new)<14||strlen($new)>72){
+        $_SESSION['password_flash']='Nowe hasło powinno mieć od 14 do 72 bajtów.';
+    }elseif(rm_auth_rotate_password($old,$new,$otp)){
+        rm_security_log('password_changed');
+        $_SESSION=[];
+        session_regenerate_id(true);
+        session_destroy();
+        header('Location: admin.php?password_changed=1');exit();
+    }else {
+        $_SESSION['password_flash']='Nie udało się zmienić hasła. Sprawdź obecne hasło i kod 2FA.';
+    }
+    header('Location: admin.php?tab=devices');exit();
+}
+
 if ($is_logged && isset($_GET['reset_phones'])) { http_response_code(405); exit('Użyj przycisku resetowania w panelu.'); }
 $legacyActions = ['save_terms','add','update','delete','delete_msg','reset_phones'];
 if ($is_logged && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && in_array($_POST['action'] ?? '', $legacyActions, true)) {
@@ -773,6 +803,9 @@ if (isset($_GET['edit_id'])) {
     <div class="min-h-screen flex items-center justify-center p-4">
         <form method="POST" class="bg-white p-8 sm:p-10 rounded-3xl shadow-2xl w-full max-w-sm text-center"><input type="hidden" name="login_csrf" value="<?php echo e_admin($_SESSION['login_csrf']); ?>">
             <h2 class="text-2xl font-black mb-6 uppercase">Admin RentMor</h2>
+            <?php if(isset($_GET['password_changed'])): ?>
+                <p class="text-green-700 font-bold mb-4">Hasło zmienione. Zaloguj się nowym hasłem i kodem 2FA.</p>
+            <?php endif; ?>
 
             <?php if (isset($error)): ?>
                 <p class="text-red-500 font-bold mb-4"><?php echo e_admin($error); ?></p>
@@ -1287,6 +1320,23 @@ if (isset($_GET['edit_id'])) {
                         </div>
                     <?php endif; ?>
                     <p class="text-xs text-gray-500 mt-4">Po odebraniu dostępu urządzenie nie otworzy już aplikacji. W razie potrzeby wygeneruj nowy link aktywacyjny.</p>
+                </div>
+                <div class="bg-white p-6 sm:p-8 rounded-3xl shadow-sm">
+                    <h3 class="font-black text-xl mb-3">Zmień hasło administratora</h3>
+                    <p class="text-sm text-gray-600 mb-4">Po zmianie nastąpi wylogowanie. Wybierz unikalne hasło (co najmniej 14 znaków; maksymalnie 72 bajty). Kod z aplikacji Authenticator jest obowiązkowy.</p>
+                    <?php if(!empty($_SESSION['password_flash'])): ?>
+                        <p class="text-red-700 font-bold mb-4"><?php echo e_admin($_SESSION['password_flash']); unset($_SESSION['password_flash']); ?></p>
+                    <?php endif; ?>
+                    <form method="POST" class="space-y-3" autocomplete="off">
+                        <input type="hidden" name="action" value="change_admin_password">
+                        <input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf']); ?>">
+                        <label class="block text-sm font-bold">Obecne hasło<input type="password" name="password_old" autocomplete="current-password" class="block w-full p-3 border rounded-xl mt-1" required></label>
+                        <label class="block text-sm font-bold">Nowe hasło<input type="password" name="password_new" autocomplete="new-password" minlength="14" maxlength="72" class="block w-full p-3 border rounded-xl mt-1" required></label>
+                        <label class="block text-sm font-bold">Powtórz nowe hasło<input type="password" name="password_repeat" autocomplete="new-password" minlength="14" maxlength="72" class="block w-full p-3 border rounded-xl mt-1" required></label>
+                        <label class="block text-sm font-bold">Kod 2FA<input type="text" name="password_otp" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" class="block w-full p-3 border rounded-xl mt-1" required></label>
+                        <button class="bg-gray-900 text-white rounded-xl p-4 font-black w-full">ZAPISZ NOWE HASŁO</button>
+                    </form>
+
                 </div>
             </div>
         <?php endif; ?>

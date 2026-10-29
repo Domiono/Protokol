@@ -21,7 +21,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 with tempfile.TemporaryDirectory() as directory:
     root = Path(directory)
     shutil.copytree(ROOT/'server', root, dirs_exist_ok=True)
-    (root/'seed.php').write_text("<?php session_start(); $_SESSION['logged_in']=true; $_SESSION['rm_mfa_verified']=true; $_SESSION['login_csrf']='test-login'; $_SESSION['admin_csrf']='test-token'; $_SESSION['reservation_csrf']='booking-token'; echo 'ok';")
+    (root/'seed.php').write_text("<?php require 'admin_auth.php'; session_start(); $_SESSION['logged_in']=true; $_SESSION['rm_mfa_verified']=true; $_SESSION['rm_password_version']=hash('sha256',rm_auth_read()['password_hash']); $_SESSION['login_csrf']='test-login'; $_SESSION['admin_csrf']='test-token'; $_SESSION['reservation_csrf']='booking-token'; echo 'ok';")
     private=root/'rentmor-private'; private.mkdir(mode=0o700)
     (private/'admin-security.json').write_text(json.dumps({'password_hash':'$2y$12$e7EQuw7V0ssM3OwS6h7RE.D1Fv76de7iB1lSTh3Qr1cZ3u5PVtDKW','totp_secret':''}))
     (root/'data.json').write_text('[{"id":"p1","name":"Puzzi","phone_clicks":12,"images":[]}]')
