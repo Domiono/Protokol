@@ -9,7 +9,7 @@ public class SyncManager {
     private static final String API="https://rentmor.pl/protocol_sync.php";
     private final Context context; private final LocalStore store;
     public SyncManager(Context c, LocalStore s){context=c;store=s;}
-    private String cookie(){return context.getSharedPreferences("rentmor",0).getString("cookie","");}
+    private String cookie(){return SecurePrefs.get(context,"cookie","");}
     private JSONObject request(String method, JSONObject body) throws Exception {
         return request(API,method,body);
     }
@@ -156,7 +156,8 @@ public class SyncManager {
         if(server.has("assets"))store.replaceAssets(server.getJSONArray("assets"));
         ReservationsWidgetProvider.refresh(context);
         store.setEquipment(server.optJSONArray("equipment")==null?new JSONArray():server.optJSONArray("equipment"));
-        context.getSharedPreferences("rentmor",0).edit().putString("site_products",server.optJSONArray("site_products")==null?"[]":server.optJSONArray("site_products").toString()).putString("site_stats",server.optJSONObject("site_stats")==null?"{}":server.optJSONObject("site_stats").toString()).apply();
+        SecurePrefs.put(context,"site_products",server.optJSONArray("site_products")==null?"[]":server.optJSONArray("site_products").toString());
+        SecurePrefs.put(context,"site_stats",server.optJSONObject("site_stats")==null?"{}":server.optJSONObject("site_stats").toString());
         context.getSharedPreferences("rentmor",0).edit().putString("role",server.optString("role")).apply();
         if(!"admin".equals(server.optString("role")))store.clearMessages();
         PushRegistrar.refresh(context);

@@ -84,7 +84,7 @@ public final class MessageMonitor {
     public static void poll(Context context,boolean notifyIfNew) throws Exception {
         synchronized(POLL_LOCK) {
             android.content.SharedPreferences prefs=context.getSharedPreferences("rentmor",0);
-            if(!"admin".equals(prefs.getString("role",""))||prefs.getString("cookie","").isEmpty())return;
+            if(!"admin".equals(prefs.getString("role",""))||SecurePrefs.get(context,"cookie","").isEmpty())return;
             JSONArray response=new SyncManager(context,new LocalStore(context)).fetchMessages();
             LocalStore store=new LocalStore(context);
             JSONArray fresh=store.replaceMessages(response);
@@ -110,7 +110,7 @@ public final class MessageMonitor {
     /** FCM messages contain only a message ID; never display private contact details on the lockscreen. */
     public static void notifyPush(Context context,String messageId) {
         android.content.SharedPreferences p=context.getSharedPreferences("rentmor",0);
-        if(!"admin".equals(p.getString("role",""))||p.getString("cookie","").isEmpty())return;
+        if(!"admin".equals(p.getString("role",""))||SecurePrefs.get(context,"cookie","").isEmpty())return;
         if(messageId==null||messageId.isEmpty())return;
         if(!acknowledgePush(context,messageId))return;
         p.edit().putString("last_fcm_message_id",messageId).apply();

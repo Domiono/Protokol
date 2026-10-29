@@ -71,6 +71,9 @@ Ostatnia weryfikacja: **29.10.2026** (plan dnia, kontrola akcesoriów i publikac
 
 ## Dziennik kolejnych aktualizacji
 
+- **29.10.2026 — Android 1.7.20/35 ([PR #65](https://github.com/Domiono/Protokol/pull/65)).** Android Keystore AES-256-GCM chroni token synchronizacji i zapisany cache statystyk/ofert. Migracja jawnych SharedPreferences do szyfrogramu i brak możliwości odczytu przy nieudanym odszyfrowaniu. Cały magazyn SQLite, dane WebView i pliki eksportu PDF pozostają niezaszyfrowane (status CZĘŚCIOWO). Test CI po scaleniu i publikacja APK do potwierdzenia. Bez nowego zewnętrznego backupu.
+
+
 - **29.10.2026 — naprawa publikacji 2FA, [PR #67](https://github.com/Domiono/Protokol/pull/67) (do potwierdzenia).** Pierwszy deployment #64 zwrócił HTTP 503 i zgodnie z zabezpieczeniem przywrócił poprzedni admin.php. Przyczyna do zweryfikowania: rozdzielne uprawnienia SFTP/PHP do admin-security.json. Poprawka tworzy lub naprawia prywatną konfigurację przez jednorazowy, tokenowy instalator PHP (po HTTPS), potem potwierdza odczyt w tej samej tożsamości PHP, nie logując sekretów. Instalator odmawia nadpisania istniejących prawidłowych danych. Publikacja do potwierdzenia; żadnej zmiany hasła użytkownika i punktu 3 backupu.
 
 

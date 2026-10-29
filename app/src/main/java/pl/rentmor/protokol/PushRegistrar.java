@@ -45,7 +45,7 @@ public final class PushRegistrar {
             return;
         }
         SharedPreferences p=context.getSharedPreferences("rentmor",0);
-        String cookie=p.getString("cookie","");
+        String cookie=SecurePrefs.get(context,"cookie","");
         if(cookie.isEmpty())return;
         String role=p.getString("role","");
         if(!"admin".equals(role)) {
@@ -71,7 +71,7 @@ public final class PushRegistrar {
     }
     private static void send(Context context,String token,boolean enable){
         SharedPreferences p=context.getSharedPreferences("rentmor",0);
-        String cookie=p.getString("cookie","");
+        String cookie=SecurePrefs.get(context,"cookie","");
         if(cookie.isEmpty())return;
         String role=p.getString("role","");
         boolean admin="admin".equals(role);

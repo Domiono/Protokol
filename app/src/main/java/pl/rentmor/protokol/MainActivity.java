@@ -26,7 +26,7 @@ public class MainActivity extends Activity {
     private WebView activation; private boolean showingApp=false; private HomeInboxShortcut homeInboxShortcut; private final ArrayList<Bitmap> issuePhotos=new ArrayList<>(); private final ArrayList<Bitmap> productPhotos=new ArrayList<>(); private final ArrayList<String> productSelectedPhotoUris=new ArrayList<>(); private final ArrayList<String> productExistingImages=new ArrayList<>(); private int existingProductPhotoCount=0; private int productPhotoSession=0; private boolean productPhotosLoading=false; private LinearLayout productExistingPhotoContainer,productNewPhotoContainer; private Button productPhotoPickButton,productPhotoCameraButton; private TextView productPhotoCount; private Runnable productDraftWriter; private FormAutosave formAutosave; private boolean restoringProductDraft=false; private android.net.Uri pendingProductPhoto; private TextView photoCount; private SignatureView signatureView; private final AtomicBoolean syncRunning=new AtomicBoolean(false); private ConnectivityManager.NetworkCallback networkCallback;
     @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(Color.rgb(20,29,45));getWindow().setNavigationBarColor(Color.rgb(20,29,45));store=new LocalStore(this);notebook=new NotebookStore(this);sync=new SyncManager(this,store);registerNetworkSync();
         recordOpenedContactNotification(getIntent());
-        String saved=getSharedPreferences("rentmor",0).getString("cookie","");
+        String saved=SecurePrefs.get(this,"cookie","");
         if(!saved.isEmpty()){showHome();
             if(new ProductCameraStore(this).pending()!=null){pendingProductPhoto=new ProductCameraStore(this).pending();restoreProductCameraForm();}
             else if(new ProtocolCameraStore(this).pending()!=null){pendingProtocolPhoto=new ProtocolCameraStore(this).pending();restoreCameraForm();}
@@ -105,7 +105,7 @@ public class MainActivity extends Activity {
         CookieManager.getInstance().setAcceptCookie(true);
         activation.setWebViewClient(new WebViewClient(){@Override public void onPageFinished(WebView v,String url){
             String c=CookieManager.getInstance().getCookie("https://rentmor.pl");
-            if(c!=null&&c.contains("rm_protocol_device=")){getSharedPreferences("rentmor",0).edit().putString("cookie",c).apply();activation.postDelayed(()->{showHome();openWidgetDestination();},500);}
+            if(c!=null&&c.contains("rm_protocol_device=")){SecurePrefs.put(MainActivity.this,"cookie",c);activation.postDelayed(()->{showHome();openWidgetDestination();},500);}
         }});
         setContentView(activation); activation.loadUrl(HOME);
     }
@@ -404,8 +404,9 @@ public class MainActivity extends Activity {
         showingApp=false;
         // Do not inherit administrator privileges when activating a different device.
         MessageMonitor.reset(this);
-        getSharedPreferences("rentmor",0).edit().remove("cookie").remove("role")
-            .remove("site_stats").remove("site_products").remove("asked_contact_notifications").apply();
+        getSharedPreferences("rentmor",0).edit().remove("role")
+            .remove("asked_contact_notifications").apply();
+        SecurePrefs.remove(this,"cookie"); SecurePrefs.remove(this,"site_stats"); SecurePrefs.remove(this,"site_products");
         CookieManager cm=CookieManager.getInstance();
         cm.setAcceptCookie(true);
         cm.removeAllCookies(removed->{cm.flush();runOnUiThread(()->showActivation());});
@@ -439,7 +440,7 @@ public class MainActivity extends Activity {
                 catch(Exception e){toast("Nie udało się usunąć: "+e.getMessage());}
             }).show();
     }
-    private void registerNetworkSync(){ConnectivityManager cm=(ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);networkCallback=new ConnectivityManager.NetworkCallback(){@Override public void onAvailable(android.net.Network network){runOnUiThread(()->{if(showingApp&&getSharedPreferences("rentmor",0).getString("cookie","").length()>0)syncNow();});}};try{cm.registerDefaultNetworkCallback(networkCallback);}catch(Exception ignored){}}
+    private void registerNetworkSync(){ConnectivityManager cm=(ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);networkCallback=new ConnectivityManager.NetworkCallback(){@Override public void onAvailable(android.net.Network network){runOnUiThread(()->{if(showingApp&&SecurePrefs.get(MainActivity.this,"cookie","").length()>0)syncNow();});}};try{cm.registerDefaultNetworkCallback(networkCallback);}catch(Exception ignored){}}
     @Override protected void onDestroy(){try{if(networkCallback!=null)((ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE)).unregisterNetworkCallback(networkCallback);}catch(Exception ignored){}if(notebook!=null)notebook.close();super.onDestroy();}
     /** Repair offline asset saves without erasing bookings, protocols or other queue items. */
     private void pendingOperationsPage(){
@@ -547,12 +548,12 @@ public class MainActivity extends Activity {
     }
     private JSONObject siteStats() {
         if(!isAdmin())return new JSONObject();
-        try { return new JSONObject(getSharedPreferences("rentmor",0).getString("site_stats","{}")); }
+        try { return new JSONObject(SecurePrefs.get(this,"site_stats","{}")); }
         catch(Exception e) { return new JSONObject(); }
     }
     private JSONArray siteProducts() {
         if(!isAdmin())return new JSONArray();
-        try { return new JSONArray(getSharedPreferences("rentmor",0).getString("site_products","[]")); }
+        try { return new JSONArray(SecurePrefs.get(this,"site_products","[]")); }
         catch(Exception e) { return new JSONArray(); }
     }
     private void refreshSiteData(Runnable done) {
