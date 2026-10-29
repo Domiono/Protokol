@@ -86,7 +86,8 @@ if(isset($_POST['totp_code'])){
     else {
         $tries=++$_SESSION['rm_otp_tries'];
         $secret=$rm_auth['totp_secret']!==''?$rm_auth['totp_secret']:(string)($_SESSION['rm_setup_secret']??'');
-        $valid=$tries<=5 && rm_totp_verify($secret,(string)$_POST['totp_code']);
+        $match=$tries<=5 && rm_totp_verify($secret,(string)$_POST['totp_code']);
+        $valid=rm_otp_limit($match);
         if($valid && $rm_auth['totp_secret']===''){
             $valid=rm_auth_enroll($secret);
             if($valid)rm_security_log('otp_enrolled');
