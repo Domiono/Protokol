@@ -149,7 +149,7 @@ function rm_related_image(array $item): string {
     foreach ($images as $raw) {
         if (!is_string($raw)) continue;
         $file = basename(trim($raw));
-        if ($file !== '' && preg_match('/^[^\/\\\x00-\x1f]+\.(?:jpe?g|png|webp|gif)$/i', $file)) {
+        if ($file !== '' && preg_match('/^[a-zA-Z0-9._ -]+\.(?:jpe?g|png|webp|gif)$/i', $file)) {
             return '/uploads/' . rawurlencode($file);
         }
     }
