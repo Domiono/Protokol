@@ -1,9 +1,10 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/private_rental_files.php';
 
 // A copy occupies both boundary dates; the calendar flags legacy unassigned bookings.
 function rm_read_assets(): array {
-    $path = __DIR__ . '/rental_assets.php';
+    $path = rm_rental_file('rental_assets.php');
     if (!file_exists($path)) return [];
     $raw = is_file($path) ? @file_get_contents($path) : false;
     $cut = is_string($raw) ? strpos($raw, "\n") : false;
@@ -18,13 +19,13 @@ function rm_read_assets(): array {
 }
 // Serialize the full read/modify/write in protocol_sync.php for asset edits.
 function rm_lock_assets() {
-    $fp = @fopen(__DIR__ . '/rental_assets.php.lock', 'c+');
+    $fp = @fopen(rm_rental_file('rental_assets.php') . '.lock', 'c+');
     if (!$fp) return false;
     if (!@flock($fp, LOCK_EX)) { fclose($fp); return false; }
     return $fp;
 }
 function rm_write_assets(array $assets): bool {
-    $path=__DIR__.'/rental_assets.php';$tmp=$path.'.'.bin2hex(random_bytes(6)).'.php';
+    $path=rm_rental_file('rental_assets.php');$tmp=$path.'.'.bin2hex(random_bytes(6)).'.php';
     $data=json_encode(array_values($assets),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
     if($data===false)return false;
     $contents="<?php http_response_code(404); exit; ?>\n".$data;

@@ -3,6 +3,8 @@ ROOT=pathlib.Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory() as td:
  p=pathlib.Path(td);shutil.copy(ROOT/'server/protocol_sync.php',p/'protocol_sync.php')
  shutil.copy(ROOT/'server/rental_inventory.php',p/'rental_inventory.php')
+ shutil.copy(ROOT/'server/private_rental_files.php',p/'private_rental_files.php')
+ shutil.copy(ROOT/'server/admin_auth.php',p/'admin_auth.php')
  shutil.copy(ROOT/'server/phone_events.php',p/'phone_events.php')
  (p/'phone_events_data.php').write_text('<?php exit; ?>\n'+json.dumps({'at':'2026-10-28 09:00:00','action':'call','source_id':'home','source':'Strona główna'})+'\n')
  (p/'protocol_devices.json').write_text(json.dumps({'devices':[{'active':True,'token_hash':hashlib.sha256(b'test-admin').hexdigest(),'role':'admin'},{'active':True,'token_hash':hashlib.sha256(b'test-assistant').hexdigest(),'role':'assistant'}]}))

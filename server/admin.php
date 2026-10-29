@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/private_rental_files.php';
+if (rm_rental_maintenance()) { http_response_code(503); header('Retry-After: 30'); exit('Trwa bezpieczne przenoszenie danych najmu.'); }
 require_once __DIR__ . '/admin_safety.php';
 rm_admin_start_session();
 
@@ -164,7 +166,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['act
     if (!hash_equals($_SESSION['reservation_csrf'] ?? '', (string)($_POST['reservation_csrf'] ?? ''))) {
         $_SESSION['reservation_flash'] = 'Sesja wygasła. Odśwież stronę i spróbuj ponownie.';
     } else {
-        $rf = __DIR__ . '/reservations.json';
+        $rf = rm_rental_file('reservations.json');
         $lf = fopen($rf . '.lock', 'c+');
         if (!$lf || !flock($lf, LOCK_EX)) {
             if ($lf) fclose($lf);
@@ -218,7 +220,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? 
     if (!hash_equals($_SESSION['reservation_csrf'] ?? '', (string)($_POST['reservation_csrf'] ?? ''))) {
         $_SESSION['reservation_flash'] = 'Sesja wygasła. Odśwież stronę i spróbuj ponownie.';
     } else {
-        $id=preg_replace('/[^a-zA-Z0-9_-]/','',(string)($_POST['reservation_id']??''));$rf=__DIR__.'/reservations.json';$lf=fopen($rf.'.lock','c+');
+        $id=preg_replace('/[^a-zA-Z0-9_-]/','',(string)($_POST['reservation_id']??''));$rf=rm_rental_file('reservations.json');$lf=fopen($rf.'.lock','c+');
         if(!$lf||!flock($lf,LOCK_EX)){if($lf)fclose($lf);$_SESSION['reservation_flash']='Historia jest chwilowo zajęta.';}
         else{$items=rm_admin_read_json_list($rf);$before=count($items);$items=array_values(array_filter($items,function($r)use($id){return (string)($r['id']??'')!==$id;}));$tmp=$rf.'.'.bin2hex(random_bytes(6)).'.tmp';$json=json_encode($items,JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);$ok=$id!==''&&count($items)<$before&&$json!==false&&file_put_contents($tmp,$json,LOCK_EX)!==false&&rename($tmp,$rf);if(!$ok&&is_file($tmp))@unlink($tmp);$_SESSION['reservation_flash']=$ok?'Usunięto wybrany zapis z historii.':'Nie znaleziono wpisu lub nie udało się go usunąć.';flock($lf,LOCK_UN);fclose($lf);}
     }
@@ -234,7 +236,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? 
         if ($id === '' || $income === false || $loss === false || $income < 0 || $loss < 0) {
             $_SESSION['reservation_flash'] = 'Wpisz prawidłowe, nieujemne kwoty.';
         } else {
-            $rf = __DIR__ . '/reservations.json';
+            $rf = rm_rental_file('reservations.json');
             $lf = fopen($rf . '.lock', 'c+');
             if (!$lf || !flock($lf, LOCK_EX)) {
                 if ($lf) fclose($lf);
@@ -271,7 +273,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['act
     if (!hash_equals($_SESSION['expense_csrf'] ?? '', (string)($_POST['expense_csrf'] ?? ''))) {
         $_SESSION['expense_flash'] = 'Sesja wygasła. Odśwież stronę i spróbuj ponownie.';
     } else {
-        $cf = __DIR__ . '/costs.json';
+        $cf = rm_rental_file('costs.json');
         $lock = fopen($cf . '.lock', 'c+');
         if (!$lock || !flock($lock, LOCK_EX)) {
             if ($lock) fclose($lock);
@@ -605,7 +607,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? 
         $phone = trim((string)($_POST['phone'] ?? '')); $key = rm_admin_phone_key($phone);
         if ($key === '') { $_SESSION['customer_flash'] = 'Podaj prawidłowy numer telefonu.'; }
         else {
-            $cf = __DIR__ . '/customers.json'; $lf = fopen($cf . '.lock', 'c+');
+            $cf = rm_rental_file('customers.json'); $lf = fopen($cf . '.lock', 'c+');
             if (!$lf || !flock($lf, LOCK_EX)) { if ($lf) fclose($lf); $_SESSION['customer_flash'] = 'Baza klientów jest chwilowo zajęta.'; }
             else {
                 $items = rm_admin_read_json_list($cf);
@@ -1089,7 +1091,7 @@ if (isset($_GET['edit_id'])) {
 
         <?php if ($active_tab == 'reservations'): ?>
             <?php
-                $reservation_file = __DIR__ . '/reservations.json';
+                $reservation_file = rm_rental_file('reservations.json');
                 $reservation_items = is_file($reservation_file) ? json_decode((string)file_get_contents($reservation_file), true) : [];
                 if (!is_array($reservation_items)) $reservation_items = [];
                 $reservation_month = preg_match('/^\d{4}-\d{2}$/', (string)($_GET['month'] ?? '')) ? (string)$_GET['month'] : date('Y-m');
@@ -1162,11 +1164,11 @@ if (isset($_GET['edit_id'])) {
 
         <?php if ($active_tab == 'customers'): ?>
             <?php
-                $profilesFile = __DIR__ . '/customers.json'; $profiles = is_file($profilesFile) ? json_decode((string)file_get_contents($profilesFile), true) : []; if (!is_array($profiles)) $profiles = [];
+                $profilesFile = rm_rental_file('customers.json'); $profiles = is_file($profilesFile) ? json_decode((string)file_get_contents($profilesFile), true) : []; if (!is_array($profiles)) $profiles = [];
                 $customers = []; foreach ($profiles as $p) { $k = rm_admin_phone_key($p['phone'] ?? ''); if ($k !== '') $customers[$k] = $p + ['phone_key'=>$k,'reservations'=>[],'protocols'=>[]]; }
-                $reservations = is_file(__DIR__.'/reservations.json') ? json_decode((string)file_get_contents(__DIR__.'/reservations.json'), true) : []; if (!is_array($reservations)) $reservations=[];
+                $reservations = is_file(rm_rental_file('reservations.json')) ? json_decode((string)file_get_contents(rm_rental_file('reservations.json')), true) : []; if (!is_array($reservations)) $reservations=[];
                 foreach ($reservations as $r) { $k=rm_admin_phone_key($r['phone']??''); if($k==='') continue; if(!isset($customers[$k])) $customers[$k]=['phone'=>$r['phone'],'phone_key'=>$k,'name'=>$r['customer_name']??'','notes'=>'','reservations'=>[],'protocols'=>[]]; if(empty($customers[$k]['name'])&&!empty($r['customer_name']))$customers[$k]['name']=$r['customer_name']; $customers[$k]['reservations'][]=$r; }
-                $protocols = is_file(__DIR__.'/protocols.json') ? json_decode((string)file_get_contents(__DIR__.'/protocols.json'), true) : []; if (!is_array($protocols)) $protocols=[];
+                $protocols = is_file(rm_rental_file('protocols.json')) ? json_decode((string)file_get_contents(rm_rental_file('protocols.json')), true) : []; if (!is_array($protocols)) $protocols=[];
                 foreach ($protocols as $p) { $k=rm_admin_phone_key($p['phone']??''); if($k==='') continue; if(!isset($customers[$k])) $customers[$k]=['phone'=>$p['phone'],'phone_key'=>$k,'name'=>$p['client']??'','notes'=>'','reservations'=>[],'protocols'=>[]]; if(empty($customers[$k]['name'])&&!empty($p['client']))$customers[$k]['name']=$p['client']; $customers[$k]['protocols'][]=$p; }
                 uasort($customers, function($a,$b){ return strcasecmp((string)($a['name']??''),(string)($b['name']??'')); });
             ?>
@@ -1179,7 +1181,7 @@ if (isset($_GET['edit_id'])) {
 
         <?php if ($active_tab == 'costs'): ?>
             <?php
-                $cost_file = __DIR__ . '/costs.json';
+                $cost_file = rm_rental_file('costs.json');
                 $cost_items = is_file($cost_file) ? json_decode((string)file_get_contents($cost_file), true) : [];
                 if (!is_array($cost_items)) $cost_items = [];
                 $cost_month = preg_match('/^\d{4}-\d{2}$/', (string)($_GET['month'] ?? '')) ? (string)$_GET['month'] : date('Y-m');
@@ -1187,7 +1189,7 @@ if (isset($_GET['edit_id'])) {
                 usort($month_costs, function($a,$b) { return strcmp((string)($b['date'] ?? ''), (string)($a['date'] ?? '')); });
                 $sum_expense = 0; $sum_investment = 0;
                 foreach ($month_costs as $x) { if (($x['type'] ?? 'expense') === 'investment') $sum_investment += (float)($x['amount'] ?? 0); else $sum_expense += (float)($x['amount'] ?? 0); }
-                $reservation_file_for_costs = __DIR__ . '/reservations.json';
+                $reservation_file_for_costs = rm_rental_file('reservations.json');
                 $reservation_data_for_costs = is_file($reservation_file_for_costs) ? json_decode((string)file_get_contents($reservation_file_for_costs), true) : [];
                 if (!is_array($reservation_data_for_costs)) $reservation_data_for_costs = [];
                 $rental_income = 0; $rental_losses = 0;
@@ -1232,10 +1234,10 @@ if (isset($_GET['edit_id'])) {
             <?php
                 $profit_year = (string)($_GET['year'] ?? 'all');
                 if ($profit_year !== 'all' && !preg_match('/^20\d{2}$/', $profit_year)) $profit_year = date('Y');
-                $profit_res_file = __DIR__.'/reservations.json';
+                $profit_res_file = rm_rental_file('reservations.json');
                 $profit_res = is_file($profit_res_file) ? json_decode((string)file_get_contents($profit_res_file), true) : [];
                 if (!is_array($profit_res)) $profit_res=[];
-                $profit_cost_file = __DIR__.'/costs.json';
+                $profit_cost_file = rm_rental_file('costs.json');
                 $profit_costs = is_file($profit_cost_file) ? json_decode((string)file_get_contents($profit_cost_file), true) : [];
                 if (!is_array($profit_costs)) $profit_costs=[];
                 $profit = []; $known=[];

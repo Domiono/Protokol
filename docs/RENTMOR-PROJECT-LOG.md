@@ -71,6 +71,9 @@ Ostatnia weryfikacja: **29.10.2026** (plan dnia, kontrola akcesoriów i publikac
 
 ## Dziennik kolejnych aktualizacji
 
+- **29.10.2026 — migracja danych najmu poza public_html ([PR #66](https://github.com/Domiono/Protokol/pull/66), oczekuje na testy/produkcję).** Rezerwacje, protokoły, klienci, koszty i egzemplarze używają po przełączeniu wspólnego magazynu `rentmor-private/rental-data`. Wdrożenie zawiera fazę maintenance z wygaszeniem zapisów, odczyt + walidację pięciu plików, porównanie SFTP, marker przełączenia, jednorazową kontrolę PHP uprawnień do danych i katalogu, publiczny smoke test i wyniesienie starych plików do prywatnego katalogu awaryjnego. Błąd przed zakończeniem powoduje powrót do poprzednich plików. Dzienny workflow backupów obsługuje stare/nowe ścieżki. **Uwaga:** procedura automatyczna wymaga realnej weryfikacji hostingu; obecność w kodzie nie potwierdza przeprowadzonej migracji. Bez nowego backupu poza hostingiem.
+
+
 - **29.10.2026 — zmiana hasła administratora ([PR #68](https://github.com/Domiono/Protokol/pull/68), do potwierdzenia).** Panel Urządzenia umożliwia zmianę starego hasła potwierdzoną dodatkowo kodem TOTP. Nowe hasło minimum 14, maksimum 72 bajty, atomowy bcrypt i wylogowanie; odmowy na błędne dane, jednostkowe testy PHP. Pozwala unieważnić hasło, którego stary hash wciąż występuje w historii Git. Wdrożenie produkcyjne do potwierdzenia. Bez dodatkowego backupu.
 
 
