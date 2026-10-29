@@ -21,14 +21,17 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 with tempfile.TemporaryDirectory() as directory:
     root = Path(directory)
     shutil.copytree(ROOT/'server', root, dirs_exist_ok=True)
-    (root/'seed.php').write_text("<?php session_start(); $_SESSION['logged_in']=true; $_SESSION['admin_csrf']='test-token'; $_SESSION['reservation_csrf']='booking-token'; echo 'ok';")
+    (root/'seed.php').write_text("<?php session_start(); $_SESSION['logged_in']=true; $_SESSION['rm_mfa_verified']=true; $_SESSION['login_csrf']='test-login'; $_SESSION['admin_csrf']='test-token'; $_SESSION['reservation_csrf']='booking-token'; echo 'ok';")
+    private=root/'rentmor-private'; private.mkdir(mode=0o700)
+    (private/'admin-security.json').write_text(json.dumps({'password_hash':'$2y$12$e7EQuw7V0ssM3OwS6h7RE.D1Fv76de7iB1lSTh3Qr1cZ3u5PVtDKW','totp_secret':''}))
     (root/'data.json').write_text('[{"id":"p1","name":"Puzzi","phone_clicks":12,"images":[]}]')
     (root/'reservations.json').write_text('[]')
     (root/'rental_assets.php').write_text('<?php exit; ?>\n'+json.dumps([{'id':'a','equipment':'Puzzi','label':'Puzzi 1'}]))
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0)); port = sock.getsockname()[1]
     log = open(root/'server.log', 'w+')
-    server = subprocess.Popen([PHP,'-n','-d','post_max_size=20M','-d','upload_max_filesize=16M','-d',f'session.save_path={root}','-S',f'127.0.0.1:{port}','-t',str(root)],stdout=log,stderr=log,cwd=root)
+    test_env=dict(os.environ,RENTMOR_TEST_PRIVATE_DIR=str(private))
+    server = subprocess.Popen([PHP,'-n','-d','post_max_size=20M','-d','upload_max_filesize=16M','-d',f'session.save_path={root}','-S',f'127.0.0.1:{port}','-t',str(root)],stdout=log,stderr=log,cwd=root,env=test_env)
     client = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()), NoRedirect())
     base = f'http://127.0.0.1:{port}'
     def request(path, data=None):
@@ -144,11 +147,12 @@ with tempfile.TemporaryDirectory() as directory:
         assert post(action='save_terms',admin_csrf='test-token',terms_content='Test') == 503
         (root/'terms.json').rmdir()
         # Throttling survives a new browser session: it uses REMOTE_ADDR, not cookies.
-        for _ in range(4): assert post(login_pass='wrong-password') == 200
-        assert post(login_pass='wrong-password') == 429
-        assert post(login_pass='wrong-password') == 429
+        for _ in range(4): assert post(login_pass='wrong-password',login_csrf='test-login') == 200
+        assert post(login_pass='wrong-password',login_csrf='test-login') == 429
+        assert post(login_pass='wrong-password',login_csrf='test-login') == 429
         second_client = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()), NoRedirect())
-        try: second_client.open(base+'/admin.php',data=urllib.parse.urlencode({'login_pass':'wrong-password'}).encode())
+        second_client.open(base+'/seed.php').close()
+        try: second_client.open(base+'/admin.php',data=urllib.parse.urlencode({'login_pass':'wrong-password','login_csrf':'test-login'}).encode())
         except urllib.error.HTTPError as err: assert err.code == 429
         else: raise AssertionError('New session bypassed login throttle')
         (root/'data.json').write_text('{broken')
