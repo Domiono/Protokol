@@ -4,10 +4,24 @@ from pathlib import Path
 import re
 import sys
 
-MARKER = '// RentMor combined catalogue filters v2'
-OLD_MARKER = '// RentMor combined catalogue filters v1'
-JS = '''        // RentMor combined catalogue filters v2
+MARKER = '// RentMor combined catalogue filters v3'
+OLD_MARKERS = ('// RentMor combined catalogue filters v1', '// RentMor combined catalogue filters v2')
+JS = '''        // RentMor combined catalogue filters v3
         let selectedCategory = 'all';
+        // Shuffle once per page load; filtering only changes visibility.
+        function rmShuffleCatalogue() {
+            if (!document.getElementById('searchInput')) return;
+            const cards = Array.from(document.querySelectorAll('.product-item'));
+            if (cards.length < 2) return;
+            const grid = cards[0].parentNode;
+            if (!grid || cards.some(card => card.parentNode !== grid)) return;
+            for (let i = cards.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [cards[i], cards[j]] = [cards[j], cards[i]];
+            }
+            cards.forEach(card => grid.appendChild(card));
+        }
+        rmShuffleCatalogue();
         function searchProducts() {
             const input = document.getElementById('searchInput');
             filterItems(input.value.toLowerCase().trim(), selectedCategory);
@@ -72,10 +86,11 @@ def patch(source):
         if source.count(MARKER) != 1 or source.count('function rmRefreshEmptyCatalogue()') != 1 or 'oninput="searchProducts()"' not in source:
             raise ValueError('Incomplete catalogue v2 patch')
         return source
-    if OLD_MARKER in source:
+    if any(marker in source for marker in OLD_MARKERS):
+        OLD_MARKER = next(marker for marker in OLD_MARKERS if marker in source)
         if source.count(OLD_MARKER) != 1 or source.count('oninput="searchProducts()"') != 1:
             raise ValueError('Unexpected v1 catalogue structure')
-        pattern = r'        // RentMor combined catalogue filters v1.*?(?=        function filterItems\(search, cat\))'
+        pattern = r'        // RentMor combined catalogue filters v[12].*?(?=        function filterItems\(search, cat\))'
         source, count = re.subn(pattern, lambda m: JS, source, flags=re.S)
     else:
         pattern = r'        function searchProducts\(\)\s*\{.*?(?=        function filterItems\(search, cat\))'
