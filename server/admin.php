@@ -15,6 +15,10 @@ try {$rm_auth=rm_auth_read();}
 catch(Throwable $e){http_response_code(503);exit('Konfiguracja logowania jest niedostępna.');}
 if(empty($_SESSION['login_csrf']))$_SESSION['login_csrf']=bin2hex(random_bytes(32));
 if(!empty($_SESSION['logged_in'])&&empty($_SESSION['rm_mfa_verified']))unset($_SESSION['logged_in']);
+if(!empty($_SESSION['logged_in'])&&(!isset($_SESSION['rm_password_version'])
+    || !hash_equals((string)$_SESSION['rm_password_version'],hash('sha256',$rm_auth['password_hash'])))){
+    unset($_SESSION['logged_in'],$_SESSION['rm_mfa_verified']);
+}
 
 $data_file = 'data.json';
 $stats_file = 'stats.json';
@@ -95,7 +99,7 @@ if(isset($_POST['totp_code'])){
         if($valid){
             rm_security_log('otp_ok');
             session_regenerate_id(true);
-            $_SESSION['logged_in']=true;$_SESSION['rm_mfa_verified']=true;
+            $_SESSION['logged_in']=true;$_SESSION['rm_mfa_verified']=true;$_SESSION['rm_password_version']=hash('sha256',$rm_auth['password_hash']);
             $_SESSION['admin_authenticated_at']=time();$_SESSION['admin_last_activity']=time();
             unset($_SESSION['rm_pending'],$_SESSION['rm_setup_secret'],$_SESSION['rm_otp_tries']);
             $rm_pending=false;
