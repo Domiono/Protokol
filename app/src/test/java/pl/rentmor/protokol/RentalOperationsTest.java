@@ -172,6 +172,26 @@ public class RentalOperationsTest {
   assertEquals("Worek do odkurzacza",suggestion.getAdapter().getItem(0));
   store.close();
  }
+ @Test public void todayShowsOnlyOpenNotesToAdminAndOpensNotebook(){
+  Activity a=Robolectric.buildActivity(Activity.class).setup().get();
+  a.deleteDatabase("rentmor_notebook.db");
+  try(NotebookStore notes=new NotebookStore(a);LocalStore store=new LocalStore(a)){
+   notes.save(null,"Kupić worki","Zakupy");
+   String done=notes.save(null,"Gotowa umowa","Umowy");notes.setDone(done,true);
+   String deleted=notes.save(null,"Usunięty wpis","Inne");notes.delete(deleted);
+   final int[] opened={0};
+   RentalOperations.Host h=new RentalOperations.Host(){public void home(){}public void issue(JSONObject r){}
+    public void protocol(JSONObject p){}public void inbox(){}public void sync(){}public void notebook(){opened[0]++;}};
+   RentalOperations ops=new RentalOperations(a,store,h,true);ops.today();
+   View content=a.findViewById(android.R.id.content);
+   assertNotNull(findText(content,"Zadania z notatnika · 1"));
+   assertNotNull(findText(content,"Kupić worki"));assertNull(findText(content,"Gotowa umowa"));assertNull(findText(content,"Usunięty wpis"));
+   findText(content,"Otwórz notatnik").performClick();assertEquals(1,opened[0]);
+   new RentalOperations(a,store,h,false).today();content=a.findViewById(android.R.id.content);
+   assertNull(findText(content,"Kupić worki"));assertNull(findText(content,"Otwórz notatnik"));
+  }
+  a.deleteDatabase("rentmor_notebook.db");
+ }
  private RentalOperations.Host host(int[] sync){
   return new RentalOperations.Host(){public void home(){}public void issue(JSONObject r){}
    public void protocol(JSONObject p){}public void inbox(){}public void sync(){sync[0]++;}};
