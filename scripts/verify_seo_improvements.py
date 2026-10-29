@@ -12,6 +12,7 @@ from verify_public_seo import PUZZI_OFFER, AIRLESS_OFFER, OFFERS
 COMPACTOR_OFFER = '/zageszczarka-dro-masz-101-kg-do-kostki/'
 
 OFFER_GUIDES = {
+    OFFERS[0]: (GUIDE, "69384693e2cb9"),
     PUZZI_OFFER: (PUZZI_GUIDE, "69388418830b8"),
     AIRLESS_OFFER: (AIRLESS_GUIDE, "69385f95de01c"),
     OFFERS[1]: (GUIDE, "69385df56774a"),
@@ -73,6 +74,10 @@ def main():
         assert f'data-rentmor-offer-details="{product_id}"' in html, ("Missing details", path)
         assert guide in parsed.links, ("Missing contextual guide", path)
         assert "/zasady.php" in parsed.links, ("Missing terms", path)
+        assert 'id="wynajem-sprzetu-krakow"' not in html, ("Generic homepage section on offer", path)
+        assert 'id="poradniki"' not in html, ("Generic guide card on offer", path)
+        if path == OFFERS[0]:
+            assert OFFERS[1] in parsed.links and 'Kiedy wybrać samą żyrafę' in html
         if path == AIRLESS_OFFER:
             assert "210 bar" in html and "Nie dopuszczamy farb olejnych ani rozpuszczalnikowych." in html
     for path, expected_title in TITLE_PARTS.items():
@@ -95,6 +100,7 @@ def verify_redirects():
     verify_redirect("https://rentmor.pl/index.php?id=693844ff66e57", BASE + COMPACTOR_OFFER)
     verify_redirect("https://rentmor.pl/index.php?id=69388418830b8", BASE + PUZZI_OFFER)
     verify_redirect("https://rentmor.pl/index.php?id=69385df56774a", BASE + OFFERS[1])
+    verify_redirect("https://rentmor.pl/index.php?id=69384693e2cb9", BASE + OFFERS[0])
 
 if __name__ == "__main__":
     if "--redirects-only" in sys.argv:
