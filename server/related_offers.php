@@ -114,6 +114,7 @@ function rm_related_pick(array $current, array $catalogue, int $limit = 3): arra
     $ownSlug = rm_related_slug($name);
     $ownId = (string)($current['id'] ?? '');
     $ranked = [];
+    $fallback = [];
     $seen = [];
     foreach ($catalogue as $candidate) {
         if (!is_array($candidate) || !isset($candidate['name']) || !is_string($candidate['name'])) continue;
@@ -123,10 +124,15 @@ function rm_related_pick(array $current, array $catalogue, int $limit = 3): arra
         if ($ownId !== '' && (string)($candidate['id'] ?? '') === $ownId) continue;
         if (isset($seen[$slug])) continue;
         $score = rm_related_score($current, $candidate);
-        if ($score <= 0) continue;
-        $ranked[] = ['score'=>$score, 'slug'=>$slug, 'product'=>$candidate];
+        if ($score <= 0) {
+            // A singleton category should still show other existing offers.
+            $fallback[] = ['score'=>0, 'slug'=>$slug, 'product'=>$candidate];
+        } else {
+            $ranked[] = ['score'=>$score, 'slug'=>$slug, 'product'=>$candidate];
+        }
         $seen[$slug] = true;
     }
+    if (!$ranked) $ranked = $fallback;
     usort($ranked, static function (array $a, array $b): int {
         return ($b['score'] <=> $a['score']) ?: strcmp($a['slug'], $b['slug']);
     });
