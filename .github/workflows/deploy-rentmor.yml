@@ -20,6 +20,7 @@ on:
       - 'scripts/test_private_rental_paths.py'
       - 'scripts/bootstrap_admin_auth.py'
       - 'scripts/admin_auth_runtime_installer.php.template'
+      - 'scripts/test_admin_auth_installer.py'
       - 'scripts/test_admin_auth.php'
       - 'scripts/patch_private_data_access.py'
       - 'scripts/test_security_access.py'
@@ -125,6 +126,7 @@ jobs:
         run: |
           set -eu
           php -l scripts/admin_auth_runtime_installer.php.template
+          python3 scripts/test_admin_auth_installer.py
           php -l server/private_rental_files.php
           python3 scripts/test_private_rental_paths.py
           python3 -m py_compile scripts/check_private_migration.py
