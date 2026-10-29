@@ -57,8 +57,8 @@ with tempfile.TemporaryDirectory() as td:
         for view in ['messages','push_status','notebook']:
             assert request('assistant',path='/protocol_sync.php?view='+view)[0]==403
         before=(root/'reservations.json').read_bytes()
-        for action in ['reservation_settle','reservation_delete','expense_save','expense_delete','asset_save','product_save']:
-            code,_,body=request('assistant',{'action':action,'id':'r1','income':0,'loss':0})
+        for action in ['reservation_settle','reservation_delete','reservation_save','expense_save','expense_delete','asset_save','product_save']:
+            code,_,body=request('assistant',dict(rental,action=action,income=0,loss=0,equipment='Changed'))
             assert code==200 and not json.loads(body)['results'][0]['ok'],action
         assert (root/'reservations.json').read_bytes()==before
         assert request('admin',{'action':'reservation_delete','id':'r1'},header=False)[0]==403

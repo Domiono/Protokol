@@ -503,6 +503,11 @@ foreach ($operations as $op) {
                 if (array_key_exists($field,$op)) $item[$field] = rm_text($op,$field,($field==='text'?500:200));
             }
             $existing=null;foreach($reservations as $saved)if(($saved['id']??'')===$id)$existing=$saved;
+            // A settled record drives finance reports; assistants cannot reattribute it.
+            if ($role !== 'admin' && $existing !== null && !empty($existing['settled'])) {
+                flock($reservationLock, LOCK_UN); fclose($reservationLock);
+                $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Zmiana rozliczonego najmu jest dostępna tylko dla administratora.']; continue;
+            }
             // Preserve new metadata when an older APK edits a reservation.
             foreach(['asset_id','asset_label','vacuum_asset_id','vacuum_asset_label','needs_vacuum','actual_return','returned','daily_rate','paid','deposit'] as $key){if($existing!==null&&array_key_exists($key,$existing)&&!array_key_exists($key,$op))$item[$key]=$existing[$key];}
             if(array_key_exists('returned',$op))$item['returned']=!empty($op['returned']);
