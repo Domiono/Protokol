@@ -25,10 +25,12 @@ $valid=static function($data): bool {
 $current=@file_get_contents($path);
 $existing=$current!==false?json_decode($current,true):null;
 if ($valid($existing)) {
-    // Never overwrite a current password or enrolled 2FA key from an old SFTP snapshot.
-    if (isset($wanted['password_hash']) && $wanted!==$existing)finish(false);
+    // Live PHP-owned credentials are authoritative. The SFTP snapshot may be stale
+    // after password rotation or TOTP enrollment; never overwrite or reject them.
     finish(true);
 }
+// A corrupt/unreadable existing file must not be silently reset from an old snapshot.
+if ($current!==false || is_file($path) || is_link($path))finish(false);
 if (!$valid($wanted))finish(false);
 if (!is_dir($root) || !is_writable($root))finish(false);
 $json=json_encode(['password_hash'=>$wanted['password_hash'],'totp_secret'=>$wanted['totp_secret']],JSON_UNESCAPED_SLASHES);
