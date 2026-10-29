@@ -71,6 +71,9 @@ Ostatnia weryfikacja: **29.10.2026** (plan dnia, kontrola akcesoriów i publikac
 
 ## Dziennik kolejnych aktualizacji
 
+- **29.10.2026 — diagnostyka uprawnień katalogu prywatnego (PR #69, wdrożenie do potwierdzenia).** Po nieudanej próbie migracji pięciu plików i udanej próbie walidacji SFTP serwer PHP nie potwierdził prawa do pełnego odczytu/zapisu. Zatrzymano migrację i uruchomiono powrót do starych danych; brak potwierdzenia wyprowadzenia z public_html. Dodano jednorazowy HTTPS PHP probe z losowym tokenem i usunięciem pliku po kontroli. Raportuje tylko booleany praw katalogu, liczbę plików dostępnych oraz istnienie znaczników — nie odczytuje i nie loguje danych klientów. Zero zmian w bazach najmu, brak zewnętrznego backupu.
+
+
 - **29.10.2026 — migracja danych najmu poza public_html ([PR #66](https://github.com/Domiono/Protokol/pull/66), oczekuje na testy/produkcję).** Rezerwacje, protokoły, klienci, koszty i egzemplarze używają po przełączeniu wspólnego magazynu `rentmor-private/rental-data`. Wdrożenie zawiera fazę maintenance z wygaszeniem zapisów, odczyt + walidację pięciu plików, porównanie SFTP, marker przełączenia, jednorazową kontrolę PHP uprawnień do danych i katalogu, publiczny smoke test i wyniesienie starych plików do prywatnego katalogu awaryjnego. Błąd przed zakończeniem powoduje powrót do poprzednich plików. Dzienny workflow backupów obsługuje stare/nowe ścieżki. **Uwaga:** procedura automatyczna wymaga realnej weryfikacji hostingu; obecność w kodzie nie potwierdza przeprowadzonej migracji. Bez nowego backupu poza hostingiem.
 
 

@@ -1,0 +1,45 @@
+name: Diagnose private RentMor storage permissions (no customer data)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-private-rentmor.yml'
+      - 'scripts/rental_storage_diagnostic.php.template'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  permissions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+      FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+      LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check isolated PHP diagnostic template
+        run: php -l scripts/rental_storage_diagnostic.php.template
+      - name: Check PHP directory permissions without reading private files
+        run: |
+          set -euo pipefail
+          : "${FTP_SERVER:?Missing SFTP host}"
+          : "${FTP_USERNAME:?Missing SFTP user}"
+          : "${LFTP_PASSWORD:?Missing SFTP secret}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lftp
+          source scripts/secure_sftp_connection.sh
+          DIR="$RUNNER_TEMP/rentmor-storage-diagnostic"
+          mkdir -m 700 -p "$DIR"
+          PROBE="rm-permissions-$(openssl rand -hex 12).php"
+          TOKEN="$(openssl rand -hex 32)"
+          TOKEN_HASH="$(printf '%s' "$TOKEN" | sha256sum | cut -d' ' -f1)"
+          cleanup() {
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; rm public_html/$PROBE; bye" >/dev/null 2>&1 || true
+            rm -rf "$DIR"
+          }
+          trap cleanup EXIT
+          sed "s/__TOKEN_HASH__/$TOKEN_HASH/" scripts/rental_storage_diagnostic.php.template > "$DIR/probe.php"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $DIR/probe.php -o public_html/$PROBE; bye"
+          curl --fail --silent --show-error --max-time 25 --request POST --header "X-RentMor-Diagnostic: $TOKEN" "https://rentmor.pl/$PROBE" |
+            python3 -c 'import sys,json; d=json.load(sys.stdin); expected={"root_exists","root_writable","private_dir_exists","private_dir_readable","private_dir_writable","atomic_temp_write","existing_files","readable_files","writable_files","active_flag","maintenance_flag"}; assert set(d)==expected; assert isinstance(d["existing_files"],int); print("Sanitized PHP private-path diagnostic:",json.dumps(d,sort_keys=True))'
