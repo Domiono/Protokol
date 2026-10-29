@@ -104,8 +104,16 @@ def main():
         for related_path in related_paths:
             assert related_path in parsed.links, ('Missing contextual internal link', offer_path, related_path)
         assert '/zasady.php' in parsed.links
+    # Read-only checks against public pages, not only the merged GitHub source.
+    for path in (FOREST_OFFER, MSW_OFFER, OFFERS[0]):
+        html, headers = fetch(path)
+        page = validate(html, headers, BASE + path)
+        assert 'data-rentmor-recommendations="v1"' in html, ('Missing automatic suggestions', path)
+        count = html.count('data-rentmor-recommendation="1"')
+        assert 1 <= count <= 3, ('Wrong number of recommendations', path, count)
+        assert 'Sprzęt dobrany automatycznie' in html, ('Dynamic section not rendered', path)
     verify_redirects()
-    print("PASS: offers incl. Forest Master/MSW, canonical schema and 301 redirects.")
+    print("PASS: automatic related equipment, Forest Master/MSW, canonical and 301 redirects.")
 
 def verify_redirects():
     verify_redirect("http://rentmor.pl/robots.txt?seo_check=1",
