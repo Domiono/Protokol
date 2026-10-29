@@ -11,7 +11,7 @@ JS = '''        // RentMor combined catalogue filters v3
         // Shuffle once per page load; filtering only changes visibility.
         function rmShuffleCatalogue() {
             if (!document.getElementById('searchInput')) return;
-            const cards = Array.from(document.querySelectorAll('.product-card'));
+            const cards = Array.from(document.querySelectorAll('.product-item'));
             if (cards.length < 2) return;
             const grid = cards[0].parentNode;
             if (!grid || cards.some(card => card.parentNode !== grid)) return;
