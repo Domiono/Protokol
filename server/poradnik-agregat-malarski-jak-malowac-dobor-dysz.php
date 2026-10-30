@@ -6,7 +6,7 @@
 <title>Jak malować agregatem malarskim? Dysze 511, 517, 521 | RentMor</title>
 <meta name="description" content="Jak uruchomić agregat malarski Wabrotech WT20i? Sprawdź dysze 511, 517 i 521 do gruntu, ścian i elewacji, błędy malowania oraz filmy producenta. Wynajem Kraków.">
 <link rel="canonical" href="https://rentmor.pl/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php">
-<link rel="icon" type="image/png" href="/rentmor-kask-favicon.png">
+<link rel="icon" sizes="64x64" type="image/png" href="/assets/rentmor-favicon-01d8e2bf2ef1.png">
 <meta property="og:type" content="article">
 <meta property="og:locale" content="pl_PL">
 <meta property="og:title" content="Jak korzystać z agregatu malarskiego i dobrać dyszę? 511, 517 czy 521">
@@ -36,6 +36,11 @@ section{scroll-margin-top:20px}@media(max-width:480px){body{font-size:16px}.hero
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"Jak korzystać z agregatu malarskiego i dobrać dyszę 511, 517 lub 521?","inLanguage":"pl-PL","datePublished":"2026-10-25","dateModified":"2026-10-25","description":"Poradnik o WABROTECH WT20i, dyszach malarskich, przygotowaniu, malowaniu i czyszczeniu; filmy producenta.","mainEntityOfPage":"https://rentmor.pl/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php","author":{"@type":"Organization","name":"RentMor.pl","url":"https://rentmor.pl/"},"publisher":{"@type":"Organization","name":"RentMor.pl","url":"https://rentmor.pl/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"RentMor.pl","item":"https://rentmor.pl/"},{"@type":"ListItem","position":2,"name":"Jak malować agregatem i dobrać dyszę","item":"https://rentmor.pl/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php"}]}]}
 </script>
+<!-- rentmor-brand-icons-v1 -->
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/rm-20261030-180.png">
+<link rel="manifest" href="/assets/rm-20261030.webmanifest">
+<link rel="shortcut icon" href="/assets/rm-20261030.ico">
+<!-- /rentmor-brand-icons-v1 -->
 </head>
 <body>
 <nav aria-label="Nawigacja główna"><div class="nav-inner"><a href="/" aria-label="RentMor — strona główna"><img class="logo" src="/rentmor-logo.png" alt="RentMor.pl"></a><a class="call" href="tel:+48733891281">733 891 281</a></div></nav>
