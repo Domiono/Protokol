@@ -25,7 +25,7 @@
 <!-- /rentmor-brand-icons-v1 -->
 </head>
 <body>
-<nav aria-label="Nawigacja główna"><div class="navinner"><a href="/" aria-label="RentMor — strona główna"><img class="logo" src="/rentmor-logo.png" alt="RentMor.pl"></a><a class="call" href="tel:+48733891281">733 891 281</a></div></nav>
+<nav aria-label="Nawigacja główna"><div class="navinner"><a href="/" aria-label="RentMor — strona główna"><img class="logo" src="/rentmor-logo.png?v=rm-20261030-wordmark-v1" alt="RentMor.pl"></a><a class="call" href="tel:+48733891281">733 891 281</a></div></nav>
 <header class="hero"><div class="heroinner"><p class="eyebrow">Poradniki RentMor</p><h1>Jak wyprać kanapę, fotele i dywan odkurzaczem Karcher Puzzi 10/1?</h1><p>Nie musisz zamawiać usługi prania, aby odświeżyć tapicerkę. Odkurzacz ekstrakcyjny natryskuje roztwór czyszczący i odsysa zabrudzoną wodę. Liczy się jednak technika pracy oraz odpowiednie suszenie materiału.</p></div></header>
 <main><p class="crumb"><a href="/">Strona główna</a> / Poradniki / Pranie tapicerki</p>
 <article><p class="small">Autor: RentMor.pl · Opublikowano <time datetime="2026-10-25">25 października 2026</time></p>

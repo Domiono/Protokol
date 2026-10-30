@@ -72,6 +72,9 @@ on:
       - 'scripts/build_brand_icons.py'
       - 'scripts/patch_brand_icons.py'
       - 'scripts/test_brand_icons.py'
+      - 'scripts/build_site_wordmark.py'
+      - 'scripts/patch_site_wordmark.py'
+      - 'scripts/test_site_wordmark.py'
       - 'scripts/optimize_favicon.py'
       - 'scripts/test_optimize_favicon.py'
       - 'scripts/verify_fast_gallery.py'
@@ -182,6 +185,7 @@ jobs:
           "$RUNNER_TEMP/rentmor-perf-tests/bin/python" scripts/test_mobile_rendering.py
           "$RUNNER_TEMP/rentmor-perf-tests/bin/python" scripts/test_optimize_favicon.py
           "$RUNNER_TEMP/rentmor-perf-tests/bin/python" scripts/test_brand_icons.py
+          "$RUNNER_TEMP/rentmor-perf-tests/bin/python" scripts/test_site_wordmark.py
           python3 -m py_compile scripts/build_public_tailwind.py scripts/patch_static_tailwind.py scripts/verify_static_tailwind.py scripts/patch_static_css_cache.py
           python3 -m py_compile scripts/patch_seo_template.py scripts/patch_seo_titles.py scripts/patch_canonical_host.py scripts/verify_seo_improvements.py
           php -l server/rental_offer_details.php
@@ -354,6 +358,8 @@ jobs:
           "$RUNNER_TEMP/rentmor-favicon-venv/bin/python" scripts/test_optimize_favicon.py
           "$RUNNER_TEMP/rentmor-favicon-venv/bin/python" scripts/optimize_favicon.py "$TEMP_DIR/favicon-original.png" "$TEMP_DIR/index.php" "$TEMP_DIR/icons"
           python3 scripts/patch_brand_icons.py "$TEMP_DIR/index.php"
+          "$RUNNER_TEMP/rentmor-favicon-venv/bin/python" scripts/build_site_wordmark.py assets/branding/rm-source.png "$TEMP_DIR/rentmor-logo.png"
+          python3 scripts/patch_site_wordmark.py "$TEMP_DIR/index.php"
           python3 scripts/patch_deferred_fonts.py "$TEMP_DIR/index.php"
           python3 scripts/patch_deferred_fonts.py "$TEMP_DIR/index.php"
           python3 scripts/patch_mobile_rendering.py "$TEMP_DIR/index.php" "$CSS" server/rentmor-gallery.css
@@ -471,6 +477,21 @@ jobs:
             curl --fail --silent --show-error --retry 3 --max-time 45 "https://rentmor.pl/assets/$ASSET_NAME" -o "$TEMP_DIR/brand-readback"
             cmp "$ASSET" "$TEMP_DIR/brand-readback"
           done
+          # Replace only the public header logo. Preserve the prior logo in the
+          # existing HTTP-blocked backups directory; favicon and APK remain untouched.
+          WORDMARK="$TEMP_DIR/rentmor-logo.png"
+          test -s "$WORDMARK"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/rentmor-logo.png -o $TEMP_DIR/prior-logo.png; bye"
+          if ! cmp -s "$WORDMARK" "$TEMP_DIR/prior-logo.png"; then
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; mkdir -p public_html/.rentmor-backups; set cmd:fail-exit yes; put $TEMP_DIR/prior-logo.png -o public_html/.rentmor-backups/logo-before-wordmark-$GITHUB_RUN_ID.png; put $WORDMARK -o public_html/rentmor-logo.png; get public_html/rentmor-logo.png -o $TEMP_DIR/wordmark-readback.png; bye"
+            cmp "$WORDMARK" "$TEMP_DIR/wordmark-readback.png"
+          fi
+          if ! curl --fail --silent --show-error --retry 3 --max-time 45 "https://rentmor.pl/rentmor-logo.png?v=rm-20261030-wordmark-v1" -o "$TEMP_DIR/wordmark-public.png" || ! cmp -s "$WORDMARK" "$TEMP_DIR/wordmark-public.png"; then
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $TEMP_DIR/prior-logo.png -o public_html/rentmor-logo.png; bye"
+            echo "Wordmark public verification failed; restored previous logo."
+            exit 1
+          fi
+          echo "RM website wordmark published, read back, and verified byte-for-byte."
           # Public-only deployments skip the API bundle that used to carry guides.
           # Publish their updated icon metadata only after every icon is available.
           for GUIDE in server/poradnik-*.php; do
@@ -655,6 +676,13 @@ jobs:
             cmp "$TEMP_DIR/index.php" "$TEMP_DIR/deployed.php"
             echo "Public homepage uploaded and verified."
           fi
+          curl --fail --silent --show-error --retry 3 --max-time 45 "https://rentmor.pl/" -o "$TEMP_DIR/wordmark-homepage.html"
+          python3 - "$TEMP_DIR/wordmark-homepage.html" <<'PY'
+import pathlib,sys
+html=pathlib.Path(sys.argv[1]).read_text()
+assert '/rentmor-logo.png?v=rm-20261030-wordmark-v1' in html, 'Homepage still references old logo'
+print('Homepage references the new cached logo URL.')
+PY
           # Immediately recover the original homepage if the stylesheet or
           # public product rendering fails the smoke tests.
           if ! python3 scripts/verify_mobile_rendering.py || ! python3 scripts/verify_static_tailwind.py || ! python3 scripts/verify_fast_gallery.py || ! python3 scripts/verify_deferred_fonts.py; then
