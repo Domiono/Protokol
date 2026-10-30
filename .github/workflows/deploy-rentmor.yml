@@ -75,6 +75,10 @@ on:
       - 'scripts/build_site_wordmark.py'
       - 'scripts/patch_site_wordmark.py'
       - 'scripts/test_site_wordmark.py'
+      - 'scripts/patch_hero_blueprint.py'
+      - 'scripts/test_hero_blueprint.py'
+      - 'scripts/verify_public_hero_blueprint.py'
+      - 'server/assets/rentmor-hero-blueprint-*.webp'
       - 'scripts/verify_public_wordmark.py'
       - 'scripts/optimize_favicon.py'
       - 'scripts/test_optimize_favicon.py'
@@ -187,6 +191,7 @@ jobs:
           "$RUNNER_TEMP/rentmor-perf-tests/bin/python" scripts/test_optimize_favicon.py
           "$RUNNER_TEMP/rentmor-perf-tests/bin/python" scripts/test_brand_icons.py
           "$RUNNER_TEMP/rentmor-perf-tests/bin/python" scripts/test_site_wordmark.py
+          "$RUNNER_TEMP/rentmor-perf-tests/bin/python" scripts/test_hero_blueprint.py
           python3 -m py_compile scripts/build_public_tailwind.py scripts/patch_static_tailwind.py scripts/verify_static_tailwind.py scripts/patch_static_css_cache.py
           python3 -m py_compile scripts/patch_seo_template.py scripts/patch_seo_titles.py scripts/patch_canonical_host.py scripts/verify_seo_improvements.py
           php -l server/rental_offer_details.php
@@ -364,6 +369,7 @@ jobs:
           python3 scripts/patch_deferred_fonts.py "$TEMP_DIR/index.php"
           python3 scripts/patch_deferred_fonts.py "$TEMP_DIR/index.php"
           python3 scripts/patch_mobile_rendering.py "$TEMP_DIR/index.php" "$CSS" server/rentmor-gallery.css
+          python3 scripts/patch_hero_blueprint.py "$TEMP_DIR/index.php"
           php -l "$TEMP_DIR/index.php"
 
       - name: Prepare private admin auth as the hosting PHP user
@@ -478,6 +484,14 @@ jobs:
             curl --fail --silent --show-error --retry 3 --max-time 45 "https://rentmor.pl/assets/$ASSET_NAME" -o "$TEMP_DIR/brand-readback"
             cmp "$ASSET" "$TEMP_DIR/brand-readback"
           done
+          # Publish only the chosen blueprint backdrop before enabling hero CSS.
+          HERO="server/assets/rentmor-hero-blueprint-20261030.webp"
+          test -s "$HERO"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $HERO -o public_html/assets/$(basename "$HERO"); get public_html/assets/$(basename "$HERO") -o $TEMP_DIR/hero-readback.webp; bye"
+          cmp "$HERO" "$TEMP_DIR/hero-readback.webp"
+          curl --fail --silent --show-error --retry 3 --max-time 45 "https://rentmor.pl/assets/$(basename "$HERO")" -o "$TEMP_DIR/hero-public.webp"
+          cmp "$HERO" "$TEMP_DIR/hero-public.webp"
+          echo "Approved blueprint background published and verified byte-for-byte."
           # Replace only the public header logo. Preserve the prior logo in the
           # existing HTTP-blocked backups directory; favicon and APK remain untouched.
           WORDMARK="$TEMP_DIR/rentmor-logo.png"
@@ -679,6 +693,7 @@ jobs:
           fi
           curl --fail --silent --show-error --retry 3 --max-time 45 "https://rentmor.pl/" -o "$TEMP_DIR/wordmark-homepage.html"
           python3 scripts/verify_public_wordmark.py "$TEMP_DIR/wordmark-homepage.html"
+          python3 scripts/verify_public_hero_blueprint.py
           # Immediately recover the original homepage if the stylesheet or
           # public product rendering fails the smoke tests.
           if ! python3 scripts/verify_mobile_rendering.py || ! python3 scripts/verify_static_tailwind.py || ! python3 scripts/verify_fast_gallery.py || ! python3 scripts/verify_deferred_fonts.py; then
