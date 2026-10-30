@@ -1,0 +1,37 @@
+name: RentMor SFTP read-only connection check
+on:
+  push:
+    branches:
+      - diagnostic/read-only-sftp-2026-10-30
+    paths:
+      - '.github/workflows/check-sftp-readonly.yml'
+permissions:
+  contents: read
+jobs:
+  check-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check credentials exist, without printing them
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          test -n "$FTP_SERVER" && test -n "$FTP_USERNAME" && test -n "$FTP_PASSWORD" || { echo "::error::SFTP secrets are missing"; exit 1; }
+      - name: Read only existing live index.php
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -eu
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lftp >/dev/null
+          source scripts/secure_sftp_connection.sh
+          TEMP_FILE="$(mktemp)"
+          trap 'rm -f "$TEMP_FILE"' EXIT
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/index.php -o $TEMP_FILE; bye"
+          test -s "$TEMP_FILE"
+          echo "SFTP authentication and read-only download of public_html/index.php succeeded."
