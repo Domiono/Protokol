@@ -1,7 +1,7 @@
 # RentMor — stan projektu i dziennik zmian
 
 **Główna karta projektu: strona RentMor.pl + natywna aplikacja Android.**  
-Ostatnia weryfikacja: **29.10.2026** (plan dnia, kontrola akcesoriów i publikacja APK). Stan kodu: `main`, commit `56657c9f6c3dd383d5c1c0eb307aaf47b1e0b75e`. Aplikacja: **1.7.18**, `versionCode 33`; [PR #57](https://github.com/Domiono/Protokol/pull/57). Historyczne statusy niżej zachowują datę swojej weryfikacji.
+Ostatnia weryfikacja: **30.10.2026** (ikony RM, publikacja WWW i APK). Stan kodu: `main`, commit `01d0650b0a744faf360525ea8d309126e38e653e`. Aplikacja: **1.7.21**, `versionCode 36`; [PR #73](https://github.com/Domiono/Protokol/pull/73), [#74](https://github.com/Domiono/Protokol/pull/74), [#75](https://github.com/Domiono/Protokol/pull/75). Historyczne statusy niżej zachowują datę swojej weryfikacji.
 
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
@@ -21,6 +21,7 @@ Ostatnia weryfikacja: **29.10.2026** (plan dnia, kontrola akcesoriów i publikac
 
 | Obszar | Stan na 28.10.2026 | Co jest zaimplementowane i gdzie sprawdzić |
 |---|---|---|
+| Ikony RM — WWW i Android | **PUBLIKACJA POTWIERDZONA 30.10.2026** | Favicon, Apple touch icon, manifest WWW i Android 1.7.21/36; logo strony bez zmian. [#73](https://github.com/Domiono/Protokol/pull/73), [#74](https://github.com/Domiono/Protokol/pull/74), [#75](https://github.com/Domiono/Protokol/pull/75). Szczegóły i ograniczenia w najnowszym wpisie. |
 | Rezerwacje, wydania, zwroty, finanse | **WDROŻONE W KODZIE** | Plan dnia, rezerwacje, automatyczne przydziały egzemplarzy, rozliczenia, koszty, protokoły. [#12](https://github.com/Domiono/Protokol/pull/12), [#14](https://github.com/Domiono/Protokol/pull/14), [#16](https://github.com/Domiono/Protokol/pull/16). |
 | Żyrafa + odkurzacz — jeden wspólny magazyn | **WDROŻONE W KODZIE** | Zestaw zużywa żyrafę i fizyczny odkurzacz; model jest współdzielony z osobnym wynajmem. [#17](https://github.com/Domiono/Protokol/pull/17). Starsze rezerwacje bez przypisania wymagają uporządkowania. |
 | Obsługa egzemplarzy i blokada przy awarii | **WDROŻONE W KODZIE** | Edycja, serwis, bezpieczne usuwanie, historia. [#18](https://github.com/Domiono/Protokol/pull/18), [#36](https://github.com/Domiono/Protokol/pull/36), [#37](https://github.com/Domiono/Protokol/pull/37). |
@@ -70,6 +71,8 @@ Ostatnia weryfikacja: **29.10.2026** (plan dnia, kontrola akcesoriów i publikac
 6. **Kontynuacja na nowym czacie:** podaj nazwę repozytorium `Domiono/Protokol` i poproś o przeczytanie `AGENTS.md` oraz **tego** pliku. To trwały punkt startowy niezależny od historii pojedynczej rozmowy.
 
 ## Dziennik kolejnych aktualizacji
+
+- **30.10.2026 — ikony RM: PUBLIKACJA POTWIERDZONA.** Zakończono [#73](https://github.com/Domiono/Protokol/pull/73), [#74](https://github.com/Domiono/Protokol/pull/74) i [#75](https://github.com/Domiono/Protokol/pull/75). Końcowy kod `01d0650b0a744faf360525ea8d309126e38e653e`. Publiczne kontrole potwierdziły favicon 64 px na głównej, ofertach i wszystkich trzech poradnikach, manifest WWW i Apple touch icon; 10 zasobów pobrano i porównano bajtowo z repozytorium. Widoczne logo porównane przed/po — bez zmian. [Końcowe wdrożenie WWW](https://github.com/Domiono/Protokol/actions/runs/41102196174): log bez błędów, zakończone sprawdzanie SFTP, ikon, głównej/ofert/poradników, CSS, sitemap, canonical i przekierowań. Wcześniejsze #74 zatrzymało się na lokalnym konflikcie readback; #75 usuwa go i potwierdzono także publicznie Puzzi. [Build APK 1.7.21 / 36](https://github.com/Domiono/Protokol/actions/runs/41100601190): testy, podpisany assembleRelease i publikacja zakończone sukcesem; [RentMor.apk](https://github.com/Domiono/Protokol/releases/download/latest/RentMor.apk) — HTTP 200, asset z 30.10.2026 17:40:36 UTC, 8 350 492 B. Testy lokalne i CI opisane w #73; dodatkowo sprawdzono składnię YAML/bash oraz unikalne pliki readback przy zapisie bez nadpisywania. Telefon fizyczny nie był testowany. Android aktualizować przez instalację APK nad obecną aplikacją; stary skrót WWW może wymagać ponownego dodania. Nie zmieniono logo, danych klientów ani logiki najmu. Metadane WWW nie dodają trybu offline.
 
 - **30.10.2026 — poprawka lokalnych plików kontroli SFTP (PR do potwierdzenia).** Wdrożenie #74 zatrzymało się po przesłaniu dwóch poradników: lftp odmówił ponownego zapisu istniejącego lokalnego guide-readback.php. Każdy poradnik otrzymuje teraz osobną nazwę readback, bez osłabienia weryfikacji i bez nadpisywania innych plików. Główna, oferty, ikony i APK pozostały dostępne. Ponowna publikacja Puzzi i wynik workflow — do potwierdzenia.
 
