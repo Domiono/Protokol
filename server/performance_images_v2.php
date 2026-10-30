@@ -18,6 +18,10 @@ function rentmor_optimize_public_html(string $html): string {
         $source = html_entity_decode($match[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $path = parse_url($source, PHP_URL_PATH);
         if (!is_string($path)) return $tag;
+        // The approved RM wordmark replaces an earlier PNG at the same path.
+        // Ignore obsolete WebP srcset/dimensions still stored in the image manifest.
+        // Otherwise browsers prefer the old WebP over the new src.
+        if ($path === '/rentmor-logo.png') return $tag;
         if ($path === '/rentmor-logo.png') {
             $key = 'rentmor-logo.png';
         } elseif (preg_match('~^/?uploads/([a-zA-Z0-9_.-]+\.(?:jpe?g|png|webp))$~i', $path, $parts)) {

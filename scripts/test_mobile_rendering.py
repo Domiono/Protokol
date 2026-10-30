@@ -37,6 +37,21 @@ class MobileRendering(unittest.TestCase):
     if role=='card':self.assertIn('96px',out);self.assertIn('108px',out)
     if role=='thumb':self.assertIn('sizes="78px"',out)
     if role=='detail':self.assertIn('100vw, 900px',out)
+ def test_wordmark_skips_historical_webp_srcset(self):
+  if not shutil.which('php'):self.skipTest('PHP runs in CI')
+  with tempfile.TemporaryDirectory() as d:
+   root=Path(d);shutil.copy(ROOT/'server/performance_images_v2.php',root/'performance_images_v2.php')
+   legacy={'width':520,'height':110,'small':{'url':'/assets/rentmor-logo-old-small.webp','width':260},
+           'detail':{'url':'/assets/rentmor-logo-old-detail.webp','width':520}}
+   photo={'width':800,'height':500,'card':{'url':'/uploads/rentmor-webp/photo-card.webp','width':640}}
+   (root/'rentmor-image-manifest.json').write_text(json.dumps({'rentmor-logo.png':legacy,'photo.jpg':photo}))
+   icon='<img src="/rentmor-logo.png?v=rm-20261030-wordmark-v2" alt="RentMor.pl">'
+   html='<nav>'+icon+'</nav><img src="/uploads/photo.jpg">'
+   code='require '+json.dumps(str(root/'performance_images_v2.php'))+';echo rentmor_optimize_public_html('+json.dumps(html)+');'
+   out=subprocess.run(['php','-r',code],check=True,text=True,capture_output=True).stdout
+   self.assertIn(icon,out)
+   self.assertNotIn('rentmor-logo-old',out)
+   self.assertIn('/uploads/rentmor-webp/photo-card.webp',out)
  def test_new_small_variants_preserve_published_assets(self):
   try:from PIL import Image
   except ImportError:self.skipTest('Pillow required')

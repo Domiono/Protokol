@@ -32,6 +32,13 @@ class WordmarkTests(unittest.TestCase):
         html = '<html><head><title>RentMor</title></head><body><nav><a href="/"><img class="logo" src="/rentmor-logo.png" alt="RentMor.pl"></a></nav><main><img src="/product.png"></main></body></html>'
         result = patch(html)
         self.assertIn('src="' + URL + '"', result)
+        self.assertIn('srcset="' + URL + ' 1x"', result)
+        old_html = html.replace('src="/rentmor-logo.png"',
+            'src="/rentmor-logo.png?v=old" srcset="/assets/old-logo.webp 240w" sizes="240px"')
+        corrected = patch(old_html)
+        self.assertNotIn('/assets/old-logo.webp', corrected)
+        self.assertNotIn('sizes="240px"', corrected)
+        self.assertEqual(patch(corrected), corrected)
         self.assertEqual(patch(result), result)
         self.assertIn('src="/product.png"', result)
         self.assertIn('<title>RentMor</title>', result)
