@@ -475,8 +475,8 @@ jobs:
           # Publish their updated icon metadata only after every icon is available.
           for GUIDE in server/poradnik-*.php; do
             GUIDE_NAME="$(basename "$GUIDE")"
-            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $GUIDE -o public_html/$GUIDE_NAME; get public_html/$GUIDE_NAME -o $TEMP_DIR/guide-readback.php; bye"
-            cmp "$GUIDE" "$TEMP_DIR/guide-readback.php"
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $GUIDE -o public_html/$GUIDE_NAME; get public_html/$GUIDE_NAME -o $TEMP_DIR/$GUIDE_NAME.readback; bye"
+            cmp "$GUIDE" "$TEMP_DIR/$GUIDE_NAME.readback"
             curl --fail --silent --show-error --retry 3 --max-time 45 "https://rentmor.pl/$GUIDE_NAME" -o "$TEMP_DIR/guide-public.html"
             python3 -c 'import pathlib,sys; s=pathlib.Path(sys.argv[1]).read_text(); assert "/assets/rm-20261030.webmanifest" in s and "/assets/rentmor-favicon-01d8e2bf2ef1.png" in s' "$TEMP_DIR/guide-public.html"
           done
