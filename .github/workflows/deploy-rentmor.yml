@@ -485,7 +485,7 @@ jobs:
             cmp "$ASSET" "$TEMP_DIR/brand-readback"
           done
           # Publish only the chosen blueprint backdrop before enabling hero CSS.
-          HERO="server/assets/rentmor-hero-blueprint-20261030.webp"
+          HERO="server/assets/rentmor-blueprint-final-20261030.webp"
           test -s "$HERO"
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $HERO -o public_html/assets/$(basename "$HERO"); get public_html/assets/$(basename "$HERO") -o $TEMP_DIR/hero-readback.webp; bye"
           cmp "$HERO" "$TEMP_DIR/hero-readback.webp"

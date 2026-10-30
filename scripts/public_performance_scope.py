@@ -12,6 +12,7 @@ SAFE={
  'scripts/test_hero_blueprint.py',
  'scripts/verify_public_hero_blueprint.py',
  'server/assets/rentmor-hero-blueprint-20261030.webp',
+ 'server/assets/rentmor-blueprint-final-20261030.webp',
  'scripts/verify_public_wordmark.py',
  'docs/RENTMOR-PROJECT-LOG.md',
  'app/build.gradle',
