@@ -6,27 +6,25 @@ on:
     paths:
       - '.github/workflows/check-sftp-readonly.yml'
 permissions:
-  contents: read
+  contents: write
 jobs:
   check-readonly:
     runs-on: ubuntu-latest
     timeout-minutes: 7
     steps:
       - uses: actions/checkout@v4
-      - name: Check credentials exist, without printing them
-        env:
-          FTP_SERVER: ${{ secrets.FTP_SERVER }}
-          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
-          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-        run: |
-          test -n "$FTP_SERVER" && test -n "$FTP_USERNAME" && test -n "$FTP_PASSWORD" || { echo "::error::SFTP secrets are missing"; exit 1; }
-      - name: Read only existing live index.php
+        with:
+          persist-credentials: true
+      - name: Test SFTP read access without disclosing credentials
+        id: probe
+        continue-on-error: true
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
-          set -eu
+          set -euo pipefail
+          test -n "$FTP_SERVER" && test -n "$FTP_USERNAME" && test -n "$LFTP_PASSWORD" || { echo "::error::SFTP credentials are missing"; exit 1; }
           sudo apt-get update -qq
           sudo apt-get install -y -qq lftp >/dev/null
           source scripts/secure_sftp_connection.sh
@@ -34,4 +32,22 @@ jobs:
           trap 'rm -f "$TEMP_FILE"' EXIT
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/index.php -o $TEMP_FILE; bye"
           test -s "$TEMP_FILE"
-          echo "SFTP authentication and read-only download of public_html/index.php succeeded."
+          echo "SFTP authentication and read-only download succeeded."
+      - name: Report test outcome on diagnostic branch only
+        if: always()
+        env:
+          PROBE_OUTCOME: ${{ steps.probe.outcome }}
+          TEST_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p .diagnostics
+          if [ "$PROBE_OUTCOME" = "success" ]; then STATUS="success"; else STATUS="failure"; fi
+          printf 'status=%s\nrun_id=%s\n' "$STATUS" "$TEST_RUN_ID" > .diagnostics/sftp-readonly-2026-10-30.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .diagnostics/sftp-readonly-2026-10-30.txt
+          git commit -m "Record read-only SFTP check outcome" || exit 0
+          git push origin HEAD:diagnostic/read-only-sftp-2026-10-30
+      - name: Mark diagnostic as failed when SFTP failed
+        if: steps.probe.outcome != 'success'
+        run: exit 1
