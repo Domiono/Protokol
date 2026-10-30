@@ -24,7 +24,7 @@
 <!-- /rentmor-brand-icons-v1 -->
 </head>
 <body>
-<nav aria-label="Nawigacja główna"><div class="nav-inner"><a href="/" aria-label="RentMor.pl — strona główna"><img class="logo" src="/rentmor-logo.png" alt="RentMor.pl"></a><a class="call" href="tel:+48733891281">733 891 281</a></div></nav>
+<nav aria-label="Nawigacja główna"><div class="nav-inner"><a href="/" aria-label="RentMor.pl — strona główna"><img class="logo" src="/rentmor-logo.png?v=rm-20261030-wordmark-v1" alt="RentMor.pl"></a><a class="call" href="tel:+48733891281">733 891 281</a></div></nav>
 <header class="hero"><div class="hero-inner"><div class="eyebrow">Poradniki RentMor</div><h1>Jaki papier ścierny do żyrafy? Jak dobrać gradację do gładzi</h1><p>Dobrze dobrany papier ułatwia wygładzenie ścian i sufitów. Zbyt gruby zostawia rysy, a zbyt drobny powoli usuwa nierówności. Sprawdź, od czego zacząć.</p></div></header>
 <main><p class="crumb"><a href="/">Strona główna</a> / Poradniki / Papier ścierny do żyrafy</p>
 <article>
