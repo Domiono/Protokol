@@ -19,6 +19,11 @@ class HeroBlueprintTests(unittest.TestCase):
         self.assertNotIn('class="catalog" data-rentmor-blueprint=', out)
         self.assertEqual(patch(out), out)
         self.assertIn(ASSET, out)
+        self.assertNotIn('rentmor-hero-blueprint-20261030.webp', out)
+        old = out.replace(ASSET, '/assets/rentmor-hero-blueprint-20261030.webp')
+        upgraded = patch(old)
+        self.assertIn(ASSET, upgraded)
+        self.assertNotIn('rentmor-hero-blueprint-20261030.webp', upgraded)
         self.assertEqual(out.count("Prosty i tani wynajem"), 1)
         self.assertEqual(out.count("Katalog"), 1)
 
@@ -30,7 +35,13 @@ class HeroBlueprintTests(unittest.TestCase):
         img = ASSET_PATH.read_bytes()
         self.assertEqual(img[0:4], b"RIFF")
         self.assertEqual(img[8:12], b"WEBP")
-        self.assertLess(len(img), 30_000)
+        self.assertGreater(len(img), 200_000, "Do not publish the extremely compressed preview again")
+        self.assertLess(len(img), 500_000, "Hero background unexpectedly heavy")
+        from PIL import Image
+        with Image.open(ASSET_PATH) as picture:
+            self.assertEqual(picture.format, "WEBP")
+            self.assertGreaterEqual(picture.width, 1500)
+            self.assertGreaterEqual(picture.height, 850)
 
 if __name__ == "__main__":
     unittest.main()

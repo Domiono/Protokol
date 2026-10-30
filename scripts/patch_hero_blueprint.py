@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 MARKER = "rentmor-hero-blueprint-v1"
-ASSET = "/assets/rentmor-hero-blueprint-20261030.webp"
+ASSET = "/assets/rentmor-blueprint-final-20261030.webp"
 STYLE = f"""<!-- {MARKER} -->
 <style id="{MARKER}">
 [data-rentmor-blueprint="v1"] {{

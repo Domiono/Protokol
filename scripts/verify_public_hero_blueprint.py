@@ -21,6 +21,7 @@ def verify(html):
     assert len(p.heroes) == 1 and p.heroes[0][0] in ("header", "section"), p.heroes
     assert f'<style id="{MARKER}">' in html
     assert ASSET in html
+    assert '/assets/rentmor-hero-blueprint-20261030.webp' not in html, "Stale compressed image remains in HTML"
     assert "Wypożyczalnia sprzętu budowlanego i ogrodniczego w Krakowie" in html or "WYPOŻYCZALNIA" in html
     assert "Prosty i tani wynajem" in html
     print("PASS: published homepage has blueprint background and existing real text")
