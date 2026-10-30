@@ -6,7 +6,7 @@
 <title>Jak wyprać tapicerkę odkurzaczem Puzzi 10/1? Poradnik | RentMor</title>
 <meta name="description" content="Jak samodzielnie wyprać kanapę, fotel lub dywan odkurzaczem Karcher Puzzi 10/1? Przygotowanie, kolejność pracy, schnięcie i wynajem w Krakowie.">
 <link rel="canonical" href="https://rentmor.pl/poradnik-pranie-tapicerki-karcher-puzzi.php">
-<link rel="icon" href="/rentmor-kask-favicon.png" type="image/png">
+<link rel="icon" sizes="64x64" href="/assets/rentmor-favicon-01d8e2bf2ef1.png" type="image/png">
 <meta property="og:type" content="article"><meta property="og:locale" content="pl_PL">
 <meta property="og:title" content="Jak wyprać tapicerkę odkurzaczem Karcher Puzzi 10/1?">
 <meta property="og:description" content="Praktyczne wskazówki przed samodzielnym praniem kanapy, foteli i dywanów. Wypożyczalnia RentMor, Kraków Czyżyny.">
@@ -18,6 +18,11 @@
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"Jak wyprać tapicerkę odkurzaczem Karcher Puzzi 10/1?","description":"Praktyczny poradnik samodzielnego prania tapicerki i dywanów od wypożyczalni RentMor w Krakowie.","inLanguage":"pl-PL","datePublished":"2026-10-25","dateModified":"2026-10-25","mainEntityOfPage":"https://rentmor.pl/poradnik-pranie-tapicerki-karcher-puzzi.php","author":{"@type":"Organization","name":"RentMor.pl","url":"https://rentmor.pl/"},"publisher":{"@type":"Organization","name":"RentMor.pl","url":"https://rentmor.pl/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"RentMor.pl","item":"https://rentmor.pl/"},{"@type":"ListItem","position":2,"name":"Pranie tapicerki Karcher Puzzi 10/1","item":"https://rentmor.pl/poradnik-pranie-tapicerki-karcher-puzzi.php"}]}]}
 </script>
+<!-- rentmor-brand-icons-v1 -->
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/rm-20261030-180.png">
+<link rel="manifest" href="/assets/rm-20261030.webmanifest">
+<link rel="shortcut icon" href="/assets/rm-20261030.ico">
+<!-- /rentmor-brand-icons-v1 -->
 </head>
 <body>
 <nav aria-label="Nawigacja główna"><div class="navinner"><a href="/" aria-label="RentMor — strona główna"><img class="logo" src="/rentmor-logo.png" alt="RentMor.pl"></a><a class="call" href="tel:+48733891281">733 891 281</a></div></nav>

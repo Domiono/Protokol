@@ -66,6 +66,12 @@ on:
       - 'server/related_offers.php'
       - 'scripts/test_related_offers.php'
       - 'server/performance_images.php'
+      - 'assets/branding/**'
+      - 'server/assets/rm-*'
+      - 'server/assets/rentmor-favicon-*'
+      - 'scripts/build_brand_icons.py'
+      - 'scripts/patch_brand_icons.py'
+      - 'scripts/test_brand_icons.py'
       - 'scripts/optimize_favicon.py'
       - 'scripts/test_optimize_favicon.py'
       - 'scripts/verify_fast_gallery.py'
@@ -175,6 +181,7 @@ jobs:
           "$RUNNER_TEMP/rentmor-perf-tests/bin/python" scripts/test_static_cards.py
           "$RUNNER_TEMP/rentmor-perf-tests/bin/python" scripts/test_mobile_rendering.py
           "$RUNNER_TEMP/rentmor-perf-tests/bin/python" scripts/test_optimize_favicon.py
+          "$RUNNER_TEMP/rentmor-perf-tests/bin/python" scripts/test_brand_icons.py
           python3 -m py_compile scripts/build_public_tailwind.py scripts/patch_static_tailwind.py scripts/verify_static_tailwind.py scripts/patch_static_css_cache.py
           python3 -m py_compile scripts/patch_seo_template.py scripts/patch_seo_titles.py scripts/patch_canonical_host.py scripts/verify_seo_improvements.py
           php -l server/rental_offer_details.php
@@ -308,8 +315,8 @@ jobs:
           # Download the ACTUAL live index.php so recent site changes are preserved.
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/index.php -o $TEMP_DIR/index.php; bye"
           cp "$TEMP_DIR/index.php" "$TEMP_DIR/original.php"
-          # Keep the original 1.5 MB icon untouched; build a tiny hashed replacement.
-          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/rentmor-kask-favicon.png -o $TEMP_DIR/favicon-original.png; bye"
+          # Approved RM artwork; the visible website logo remains untouched.
+          cp assets/branding/rm-source.png "$TEMP_DIR/favicon-original.png"
           # Always start with the actual hosting rewrite file, never a repository guess.
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/.htaccess -o $TEMP_DIR/.htaccess; bye"
           cp "$TEMP_DIR/.htaccess" "$TEMP_DIR/original.htaccess"
@@ -346,6 +353,7 @@ jobs:
           "$RUNNER_TEMP/rentmor-favicon-venv/bin/pip" -q install 'Pillow==11.3.0'
           "$RUNNER_TEMP/rentmor-favicon-venv/bin/python" scripts/test_optimize_favicon.py
           "$RUNNER_TEMP/rentmor-favicon-venv/bin/python" scripts/optimize_favicon.py "$TEMP_DIR/favicon-original.png" "$TEMP_DIR/index.php" "$TEMP_DIR/icons"
+          python3 scripts/patch_brand_icons.py "$TEMP_DIR/index.php"
           python3 scripts/patch_deferred_fonts.py "$TEMP_DIR/index.php"
           python3 scripts/patch_deferred_fonts.py "$TEMP_DIR/index.php"
           python3 scripts/patch_mobile_rendering.py "$TEMP_DIR/index.php" "$CSS" server/rentmor-gallery.css
@@ -457,6 +465,12 @@ jobs:
           cmp "$CSS" "$TEMP_DIR/css-public.css"
           curl --fail --silent --show-error --retry 3 --retry-delay 2 --max-time 45             "https://rentmor.pl/assets/$ICON_NAME" -o "$TEMP_DIR/favicon-public.png"
           cmp "$ICON" "$TEMP_DIR/favicon-public.png"
+          for ASSET in server/assets/rm-* server/assets/rentmor-favicon-*.png; do
+            ASSET_NAME="$(basename "$ASSET")"
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $ASSET -o public_html/assets/$ASSET_NAME; bye"
+            curl --fail --silent --show-error --retry 3 --max-time 45 "https://rentmor.pl/assets/$ASSET_NAME" -o "$TEMP_DIR/brand-readback"
+            cmp "$ASSET" "$TEMP_DIR/brand-readback"
+          done
           echo "Static CSS and tiny favicon published and verified before PHP change."
 
       - name: Install Firebase key into PHP runtime private directory (HTTPS)
