@@ -6,6 +6,32 @@ declare(strict_types=1);
  * rental_offer_details.php's original curated entries.
  * No prices, deposits, availability, URLs or product data are changed.
  */
+
+/** Match the actual public product names without relying on changeable hosting IDs. */
+function rentmor_extra_offer_key(string $name): ?string {
+    $needles = [
+        'wiertnica' => 'wiertnica-glebowa',
+        'gws 2200' => 'bosch-gws-2200',
+        'dws520ktr' => 'dewalt-dws520ktr',
+        'stiga src 775' => 'stiga-src-775',
+        'rb02 pro' => 'cedrus-rb02-pro',
+        'zaciskarka' => 'energotytan-ph32uth',
+        'tr202' => 'norton-tr202',
+        'wr01-h' => 'cedrus-wr01-h',
+        'dwe4357' => 'dewalt-dwe4357',
+        'gas 25' => 'odkurzacz-przemyslowy',
+        'd25810k' => 'dewalt-d25810k',
+        'd25911k' => 'dewalt-d25911k',
+        'ozonator' => 'ulsonix-ozonator',
+        'ukośnica' => 'bosch-gcm-305',
+        'hd 7/20' => 'karcher-hd720',
+    ];
+    foreach ($needles as $needle => $key) {
+        if (str_contains($name, $needle)) return $key;
+    }
+    return null;
+}
+
 function rentmor_extra_offers(): array {
     return [
         'wiertnica-glebowa' => [
