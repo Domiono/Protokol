@@ -141,6 +141,13 @@ function rentmor_offer_details(array $product, bool $includeManualRelated = true
             ],
         ],
     ];
+    // The original nine curated offers take priority over new editorial sections.
+    require_once __DIR__ . '/rental_offer_details_extra.php';
+    if (!isset($offers[$offerKey])) {
+        $extraKey = rentmor_extra_offer_key($name);
+        if ($extraKey !== null) $offerKey = $extraKey;
+    }
+    $offers += rentmor_extra_offers();
     if (!isset($offers[$offerKey])) return '';
     $offer = $offers[$offerKey];
     $e = static fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
