@@ -75,6 +75,7 @@ on:
       - 'scripts/build_site_wordmark.py'
       - 'scripts/patch_site_wordmark.py'
       - 'scripts/test_site_wordmark.py'
+      - 'scripts/verify_public_wordmark.py'
       - 'scripts/optimize_favicon.py'
       - 'scripts/test_optimize_favicon.py'
       - 'scripts/verify_fast_gallery.py'
@@ -486,7 +487,7 @@ jobs:
             lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; mkdir -p public_html/.rentmor-backups; set cmd:fail-exit yes; put $TEMP_DIR/prior-logo.png -o public_html/.rentmor-backups/logo-before-wordmark-$GITHUB_RUN_ID.png; put $WORDMARK -o public_html/rentmor-logo.png; get public_html/rentmor-logo.png -o $TEMP_DIR/wordmark-readback.png; bye"
             cmp "$WORDMARK" "$TEMP_DIR/wordmark-readback.png"
           fi
-          if ! curl --fail --silent --show-error --retry 3 --max-time 45 "https://rentmor.pl/rentmor-logo.png?v=rm-20261030-wordmark-v1" -o "$TEMP_DIR/wordmark-public.png" || ! cmp -s "$WORDMARK" "$TEMP_DIR/wordmark-public.png"; then
+          if ! curl --fail --silent --show-error --retry 3 --max-time 45 "https://rentmor.pl/rentmor-logo.png?v=rm-20261030-wordmark-v2" -o "$TEMP_DIR/wordmark-public.png" || ! cmp -s "$WORDMARK" "$TEMP_DIR/wordmark-public.png"; then
             lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $TEMP_DIR/prior-logo.png -o public_html/rentmor-logo.png; bye"
             echo "Wordmark public verification failed; restored previous logo."
             exit 1
@@ -677,7 +678,7 @@ jobs:
             echo "Public homepage uploaded and verified."
           fi
           curl --fail --silent --show-error --retry 3 --max-time 45 "https://rentmor.pl/" -o "$TEMP_DIR/wordmark-homepage.html"
-          python3 -c 'import pathlib,sys; html=pathlib.Path(sys.argv[1]).read_text(); assert "/rentmor-logo.png?v=rm-20261030-wordmark-v1" in html, "Homepage still references old logo"; print("Homepage references new logo URL")' "$TEMP_DIR/wordmark-homepage.html"
+          python3 scripts/verify_public_wordmark.py "$TEMP_DIR/wordmark-homepage.html"
           # Immediately recover the original homepage if the stylesheet or
           # public product rendering fails the smoke tests.
           if ! python3 scripts/verify_mobile_rendering.py || ! python3 scripts/verify_static_tailwind.py || ! python3 scripts/verify_fast_gallery.py || ! python3 scripts/verify_deferred_fonts.py; then

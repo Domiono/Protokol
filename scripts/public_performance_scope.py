@@ -8,6 +8,7 @@ SAFE={
  'scripts/build_site_wordmark.py',
  'scripts/patch_site_wordmark.py',
  'scripts/test_site_wordmark.py',
+ 'scripts/verify_public_wordmark.py',
  'docs/RENTMOR-PROJECT-LOG.md',
  'app/build.gradle',
  'app/src/main/AndroidManifest.xml',

@@ -4,7 +4,7 @@ import re
 import sys
 from pathlib import Path
 
-VERSION = 'rm-20261030-wordmark-v1'
+VERSION = 'rm-20261030-wordmark-v2'
 URL = '/rentmor-logo.png?v=' + VERSION
 IMG = re.compile(r'<img\b[^>]*>', re.I | re.S)
 SRC = re.compile(r'\bsrc\s*=\s*(["\x27])(?P<url>[^"\x27]+)\1', re.I)
@@ -28,7 +28,11 @@ def patch(source: str) -> str:
         if not is_logo:
             return tag
         found += 1
-        return tag[:attr.start('url')] + URL + tag[attr.end('url'):]
+        updated = tag[:attr.start('url')] + URL + tag[attr.end('url'):]
+        # A single PNG source prevents a legacy optimizer from selecting old WebP.
+        updated = re.sub(r'\s+(?:srcset|sizes)\s*=\s*(["\x27]).*?\1', '', updated, flags=re.I | re.S)
+        suffix = '/>' if updated.endswith('/>') else '>'
+        return updated[:-len(suffix)] + ' srcset="' + URL + ' 1x"' + suffix
 
     updated = IMG.sub(refresh, source[:limit])
     if found != 1:
