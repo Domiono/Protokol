@@ -27,7 +27,7 @@ public class ReservationsWidgetService extends RemoteViewsService {
             if (!admin) return;
             Calendar n = Calendar.getInstance();
             String month = String.format(Locale.US, "%04d-%02d", n.get(Calendar.YEAR), n.get(Calendar.MONTH) + 1);
-            JSONArray a = new LocalStore(c).reservations(month);
+            JSONArray a = new LocalStore(c).operationalReservations(month);
             for (int i = 0; i < a.length(); i++) {
                 JSONObject x = a.optJSONObject(i);
                 if (x != null && !x.optBoolean("settled")) rows.add(x);

@@ -1167,7 +1167,7 @@ public class MainActivity extends Activity {
     private void reservationPage() {
         root.removeAllViews(); root.setOrientation(1); root.setPadding(dp(13),dp(15),dp(13),dp(22)); root.setBackgroundColor(0xfff5f6fa);
         TextView heading=new TextView(this); heading.setText("REZERWACJE"); heading.setTextSize(25); heading.setTypeface(null,1); heading.setTextColor(0xff172235); root.addView(heading);
-        TextView pageHint=new TextView(this);pageHint.setText("Odbiory, terminy i rozliczenia w jednym miejscu");
+        TextView pageHint=new TextView(this);pageHint.setText("Wybrany miesiąc + wszystkie wydane, niezwrócone najmy");
         pageHint.setTextSize(12);pageHint.setTextColor(0xff697386);
         pageHint.setPadding(0,dp(2),0,dp(10));root.addView(pageHint);
         Calendar today=Calendar.getInstance();
@@ -1307,7 +1307,7 @@ public class MainActivity extends Activity {
         final Runnable[] render=new Runnable[1];
         render[0]=()->{
             Calendar selected=parseReservationMonth(month[0]);monthLabel.setText(new SimpleDateFormat("LLLL yyyy",new Locale("pl","PL")).format(selected.getTime()).toUpperCase(new Locale("pl","PL")));list.removeAllViews();
-            JSONArray data=store.reservations(month[0]);ArrayList<JSONObject> items=new ArrayList<>();for(int i=0;i<data.length();i++){JSONObject item=data.optJSONObject(i);if(item!=null)items.add(item);}
+            JSONArray data=store.operationalReservations(month[0]);ArrayList<JSONObject> items=new ArrayList<>();for(int i=0;i<data.length();i++){JSONObject item=data.optJSONObject(i);if(item!=null)items.add(item);}
             Collections.sort(items,(a,b)->{int issued=Boolean.compare(b.optBoolean("done"),a.optBoolean("done"));if(issued!=0)return issued;String da=a.optString("start_date","").trim(),db=b.optString("start_date","").trim();if(!da.matches("\\d{4}-\\d{2}-\\d{2}")){java.util.regex.Matcher ma=java.util.regex.Pattern.compile("(\\d{4}-\\d{2}-\\d{2})").matcher(a.optString("text",""));da=ma.find()?ma.group(1):"9999-99-99";}if(!db.matches("\\d{4}-\\d{2}-\\d{2}")){java.util.regex.Matcher mb=java.util.regex.Pattern.compile("(\\d{4}-\\d{2}-\\d{2})").matcher(b.optString("text",""));db=mb.find()?mb.group(1):"9999-99-99";}int dateOrder=da.compareTo(db);if(dateOrder!=0)return dateOrder;return reservationTimeForItem(a).compareTo(reservationTimeForItem(b));});
             int active=0,issuedCount=0;
             for(JSONObject reservation:items){
@@ -2554,5 +2554,6 @@ public class MainActivity extends Activity {
     private void toast(String s){runOnUiThread(()->Toast.makeText(this,s,Toast.LENGTH_LONG).show());}
     @Override public void onBackPressed(){if(protocolBackAction!=null)protocolBackAction.run();else if(showingApp)showHome();else super.onBackPressed();}
 }
+
 
 
