@@ -1,0 +1,19 @@
+<?php
+/** Ephemeral single-purpose daily cleanup probe. Never deploy as a fixed URL. */
+declare(strict_types=1);
+header('Content-Type: application/json; charset=UTF-8');
+header('Cache-Control: no-store');
+$expected = '__RETENTION_TOKEN_HASH__';
+$provided = (string)($_SERVER['HTTP_X_RENTMOR_RETENTION'] ?? '');
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || strlen($provided) !== 64
+    || !hash_equals($expected, hash('sha256', $provided))) {
+    http_response_code(404); exit;
+}
+require_once __DIR__ . '/privacy_retention.php';
+require_once __DIR__ . '/phone_events.php';
+if (!rm_privacy_prune_messages(__DIR__ . '/messages.json')
+    || !rm_phone_events_prune(__DIR__ . '/phone_events_data.php')) {
+    http_response_code(503);
+    echo '{"ok":false}'; exit;
+}
+echo '{"ok":true}';
