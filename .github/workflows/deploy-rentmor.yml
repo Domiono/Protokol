@@ -192,6 +192,7 @@ jobs:
           php -l server/public_metadata.php
           php scripts/test_public_metadata.php
           python3 scripts/test_privacy_page.py
+          node --check server/cookie-consent.js
           php -l server/privacy_retention.php
           php scripts/test_privacy_retention.php
           python3 scripts/test_message_retention_patch.py
@@ -262,6 +263,7 @@ jobs:
           php -l server/public_metadata.php
           php scripts/test_public_metadata.php
           python3 scripts/test_privacy_page.py
+          node --check server/cookie-consent.js
           php -l server/privacy_retention.php
           php scripts/test_privacy_retention.php
           python3 scripts/test_message_retention_patch.py
