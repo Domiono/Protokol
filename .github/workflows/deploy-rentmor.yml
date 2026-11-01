@@ -5,6 +5,10 @@ on:
     paths:
       - 'server/public_metadata.php'
       - 'server/polityka-prywatnosci.php'
+      - 'server/privacy_retention.php'
+      - 'scripts/patch_message_retention.py'
+      - 'scripts/test_message_retention_patch.py'
+      - 'scripts/test_privacy_retention.php'
       - 'scripts/patch_privacy_link.py'
       - 'scripts/test_privacy_page.py'
       - 'scripts/patch_public_metadata.py'
@@ -187,6 +191,9 @@ jobs:
           php -l server/public_metadata.php
           php scripts/test_public_metadata.php
           python3 scripts/test_privacy_page.py
+          php -l server/privacy_retention.php
+          php scripts/test_privacy_retention.php
+          python3 scripts/test_message_retention_patch.py
           php -l server/performance_images_v2.php
           python3 scripts/test_deferred_fonts.py
           python3 -m py_compile scripts/patch_deferred_fonts.py scripts/verify_deferred_fonts.py
@@ -254,6 +261,9 @@ jobs:
           php -l server/public_metadata.php
           php scripts/test_public_metadata.php
           python3 scripts/test_privacy_page.py
+          php -l server/privacy_retention.php
+          php scripts/test_privacy_retention.php
+          python3 scripts/test_message_retention_patch.py
           php -l server/performance_images_v2.php
           python3 scripts/test_deferred_fonts.py
           python3 -m py_compile scripts/patch_deferred_fonts.py scripts/verify_deferred_fonts.py
@@ -356,6 +366,7 @@ jobs:
           python3 scripts/inject_local_seo.py "$TEMP_DIR/index.php"
           python3 scripts/inject_airless_guide_link.py "$TEMP_DIR/index.php"
           python3 scripts/patch_contact_push.py "$TEMP_DIR/index.php"
+          python3 scripts/patch_message_retention.py "$TEMP_DIR/index.php"
           python3 scripts/patch_seo_template.py "$TEMP_DIR/index.php"
           python3 scripts/patch_performance_template.py "$TEMP_DIR/index.php"
           python3 scripts/patch_static_cards.py "$TEMP_DIR/index.php"
@@ -453,7 +464,7 @@ jobs:
           # Pass credentials as process arguments, not by interpolating them
           # into lftp's command language. This avoids quote/shell parsing issues.
           source scripts/secure_sftp_connection.sh
-          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/private_rental_files.php -o public_html/private_rental_files.php; put server/rental_inventory.php -o public_html/rental_inventory.php; put server/admin_safety.php -o public_html/admin_safety.php; put server/admin_auth.php -o public_html/admin_auth.php; put server/phone_events.php -o public_html/phone_events.php; put server/rental_offer_details_extra.php -o public_html/rental_offer_details_extra.php; put server/rental_offer_details.php -o public_html/rental_offer_details.php; put server/related_offers.php -o public_html/related_offers.php; put server/rentmor-gallery.js -o public_html/rentmor-gallery.js; put server/performance_images.php -o public_html/performance_images.php; put server/traffic_filter.php -o public_html/traffic_filter.php; put server/browser_stats.php -o public_html/browser_stats.php; put server/pageview.php -o public_html/pageview.php; put server/notebook_sync.php -o public_html/notebook_sync.php; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/push_bridge.php -o public_html/push_bridge.php; put server/online.php -o public_html/online.php; put server/phone_event.php -o public_html/phone_event.php; put server/phone_events_view.php -o public_html/phone_events_view.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/poradnik-jaki-papier-scierny-do-zyrafy.php -o public_html/poradnik-jaki-papier-scierny-do-zyrafy.php; put server/poradnik-pranie-tapicerki-karcher-puzzi.php -o public_html/poradnik-pranie-tapicerki-karcher-puzzi.php; put server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php -o public_html/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
+          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/private_rental_files.php -o public_html/private_rental_files.php; put server/rental_inventory.php -o public_html/rental_inventory.php; put server/admin_safety.php -o public_html/admin_safety.php; put server/admin_auth.php -o public_html/admin_auth.php; put server/phone_events.php -o public_html/phone_events.php; put server/privacy_retention.php -o public_html/privacy_retention.php; put server/rental_offer_details_extra.php -o public_html/rental_offer_details_extra.php; put server/rental_offer_details.php -o public_html/rental_offer_details.php; put server/related_offers.php -o public_html/related_offers.php; put server/rentmor-gallery.js -o public_html/rentmor-gallery.js; put server/performance_images.php -o public_html/performance_images.php; put server/traffic_filter.php -o public_html/traffic_filter.php; put server/browser_stats.php -o public_html/browser_stats.php; put server/pageview.php -o public_html/pageview.php; put server/notebook_sync.php -o public_html/notebook_sync.php; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/push_bridge.php -o public_html/push_bridge.php; put server/online.php -o public_html/online.php; put server/phone_event.php -o public_html/phone_event.php; put server/phone_events_view.php -o public_html/phone_events_view.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/poradnik-jaki-papier-scierny-do-zyrafy.php -o public_html/poradnik-jaki-papier-scierny-do-zyrafy.php; put server/poradnik-pranie-tapicerki-karcher-puzzi.php -o public_html/poradnik-pranie-tapicerki-karcher-puzzi.php; put server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php -o public_html/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
           if [ -f server/admin.php ]; then
             LFTP_COMMAND="$LFTP_COMMAND; put server/admin.php -o public_html/admin.php"
           else
