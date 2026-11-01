@@ -51,7 +51,8 @@
       if (!save(next)) { panel.querySelector("p").textContent = "Nie można zapisać wyboru w przeglądarce. Statystyki pozostają wyłączone."; return; }
       panel.hidden = true;
       // Obtain a fresh server-generated statistics token, or stop loaded trackers after withdrawal.
-      location.reload();
+      // Always return using GET: never resubmit a contact form POST.
+      location.replace(location.pathname + location.search + location.hash);
     });
     document.body.appendChild(panel);
     if (!choice()) panel.hidden = false;
