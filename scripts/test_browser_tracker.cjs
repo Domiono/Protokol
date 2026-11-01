@@ -3,7 +3,7 @@ const source=fs.readFileSync('server/online.js','utf8');
 function setup({visible=true,webdriver=false,token='test-token'}={}){
   const calls=[],listeners={};
   const document={visibilityState:visible?'visible':'hidden',readyState:'complete',
-    querySelector:()=>token?{getAttribute:()=>token}:null,
+    cookie:'rm_stats_consent=allow',querySelector:()=>token?{getAttribute:()=>token}:null,
     addEventListener:(name,fn)=>(listeners[name]??=[]).push(fn)};
   vm.runInNewContext(source,{document,navigator:{webdriver},window:{setInterval:()=>{}},URLSearchParams,fetch:(url,options)=>{calls.push({url,options});return Promise.resolve();}});
   return {document,calls,listeners,views:()=>calls.filter(x=>x.url==='/pageview.php')};
