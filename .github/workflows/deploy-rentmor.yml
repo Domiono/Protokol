@@ -11,6 +11,8 @@ on:
       - 'scripts/test_privacy_retention.php'
       - 'scripts/patch_privacy_link.py'
       - 'scripts/patch_contact_privacy.py'
+      - 'scripts/patch_legacy_consent.py'
+      - 'scripts/test_legacy_consent_patch.py'
       - 'scripts/audit_live_privacy.py'
       - 'scripts/test_privacy_page.py'
       - 'scripts/patch_public_metadata.py'
@@ -194,6 +196,7 @@ jobs:
           php -l server/public_metadata.php
           php scripts/test_public_metadata.php
           python3 scripts/test_privacy_page.py
+          python3 scripts/test_legacy_consent_patch.py
           node --check server/cookie-consent.js
           php -l server/privacy_retention.php
           php scripts/test_privacy_retention.php
@@ -303,6 +306,7 @@ jobs:
           php -l server/public_metadata.php
           php scripts/test_public_metadata.php
           python3 scripts/test_privacy_page.py
+          python3 scripts/test_legacy_consent_patch.py
           node --check server/cookie-consent.js
           php -l server/privacy_retention.php
           php scripts/test_privacy_retention.php
@@ -441,6 +445,7 @@ jobs:
           python3 scripts/patch_public_metadata.py "$TEMP_DIR/index.php"
           python3 scripts/patch_privacy_link.py "$TEMP_DIR/index.php"
           python3 scripts/patch_contact_privacy.py "$TEMP_DIR/index.php"
+          python3 scripts/patch_legacy_consent.py "$TEMP_DIR/index.php"
           php -l "$TEMP_DIR/index.php"
 
       - name: Prepare private admin auth as the hosting PHP user
