@@ -272,6 +272,10 @@ jobs:
           python3 scripts/patch_legacy_consent.py "$DIR/index.php"
           php -l "$DIR/index.php"
           echo "Live PHP consent, contact privacy, and repeat-run patch dry run passed."
+          for path in /polityka-prywatnosci.php /cookie-consent.js /online.js; do
+            code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 20 "https://rentmor.pl$path")"
+            echo "Public asset $path: HTTP $code"
+          done
           python3 scripts/verify_public_privacy.py
 
   deploy-api:
