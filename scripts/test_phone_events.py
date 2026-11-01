@@ -23,7 +23,7 @@ with tempfile.TemporaryDirectory() as directory:
     server=subprocess.Popen(['php','-d',f'session.save_path={root}','-S',f'127.0.0.1:{port}','-t',str(root)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     def request(path='/phone_event.php',method='POST',fields=None,extra=None):
         connection=http.client.HTTPConnection('127.0.0.1',port,timeout=10)
-        headers={'User-Agent':'Mozilla/5.0','Content-Type':'application/x-www-form-urlencoded','Origin':'https://rentmor.pl'}
+        headers={'User-Agent':'Mozilla/5.0','Content-Type':'application/x-www-form-urlencoded','Origin':'https://rentmor.pl','Cookie':'rm_stats_consent=allow'}
         headers.update(extra or {})
         connection.request(method,path,urlencode(fields or {'source_id':'home','action':'call'}),headers)
         response=connection.getresponse();status=response.status;body=response.read();connection.close();return status,body
@@ -37,6 +37,7 @@ with tempfile.TemporaryDirectory() as directory:
         assert request(extra={'Origin':'https://evil.example'})[0]==403
         assert request(extra={'Cookie':'rm_stats_exclude=1'})[0]==200
         assert request(extra={'User-Agent':'Googlebot'})[0]==200
+        assert request(extra={'Cookie':'rm_stats_consent=deny'})[0]==200
         assert json.loads(request('/read.php','GET')[1])==[]
         assert request()[0]==200
         assert request(fields={'source_id':'p1','action':'reveal'})[0]==200
