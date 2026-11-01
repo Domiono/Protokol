@@ -7,7 +7,7 @@ function rm_stats_has_consent(): bool {
 }
 
 function rm_stats_is_internal(): bool {
-    return !empty($_SESSION['logged_in'])
+    return !rm_stats_has_consent() || !empty($_SESSION['logged_in'])
         || ($_COOKIE['rm_stats_exclude'] ?? '') === '1'
         || !empty($_COOKIE['rm_protocol_device']);
 }
