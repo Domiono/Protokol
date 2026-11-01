@@ -220,6 +220,44 @@ jobs:
           php -l server/related_offers.php
           php scripts/test_related_offers.php
 
+  privacy-live-audit:
+    # Read-only inspection of the actual source on hosting, never on external forks.
+    needs: seo-preflight
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check secure hosting audit availability
+        id: config
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          if [ -n "$FTP_SERVER" ] && [ -n "$FTP_USERNAME" ] && [ -n "$LFTP_PASSWORD" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Read-only live PHP audit unavailable: no SFTP credentials."
+          fi
+      - name: Audit live index source without publishing or logging source
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lftp
+          source scripts/secure_sftp_connection.sh
+          DIR="$(mktemp -d)"
+          chmod 700 "$DIR"
+          trap 'rm -rf "$DIR"' EXIT
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
+            -e "$SFTP_CONNECT_SETUP; get public_html/index.php -o $DIR/index.php; bye" >/dev/null
+          python3 scripts/audit_live_privacy.py "$DIR/index.php"
+
   deploy-api:
     needs: seo-preflight
     if: github.event_name != 'pull_request'
