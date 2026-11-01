@@ -49,6 +49,6 @@
 <section id="wynajem" class="offer"><h2>Wynajem żyrafy do gładzi w Krakowie — RentMor.pl</h2><p>Przygotowujesz ściany lub sufity do malowania? W RentMor.pl wynajmiesz szlifierkę żyrafę oraz zestaw z odkurzaczem. Dostępny jest również papier ścierny — przed odbiorem zapytaj o potrzebne gradacje.</p><div class="actions"><a class="button" href="/szlifierka-stanley-zyrafa-do-gladzi-gipsu/">Zobacz żyrafę Stanley</a><a class="button" href="/zestaw-szlifierka-stanley-zyrafa-do-gladzi-i-odkurzacz-bosch-metabo/">Żyrafa z odkurzaczem</a></div><p>Odbiór: <strong>Kraków, Czyżyny — ul. Woźniców.</strong><br>Dokładny adres podajemy po rezerwacji.<br>Zadzwoń i sprawdź dostępność: <a href="tel:+48733891281">733 891 281</a>.</p></section>
 <p class="sources">Źródło przykładowego zalecenia producenta: <a href="https://www.sniezka.pl/produkt/acrylputz-fs-20-finisz">ACRYL-PUTZ FS 20 Finisz — informacje techniczne</a>. Zawsze sprawdzaj aktualne zalecenia dla używanego produktu.</p>
 </article></main>
-<footer><a href="/">RentMor.pl — wypożyczalnia sprzętu Kraków</a> · <a href="/zasady.php">Zasady wynajmu</a></footer>
+<footer><a href="/">RentMor.pl — wypożyczalnia sprzętu Kraków</a> · <a href="/zasady.php">Zasady wynajmu</a> · <a href="/polityka-prywatnosci.php">Polityka prywatności</a></footer>
 <script src="/online.js" defer></script>
 </body></html>
