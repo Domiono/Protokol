@@ -36,8 +36,9 @@ require $argv[1];
 function check($ok, $label) { if (!$ok) throw new RuntimeException($label); }
 function reset_request() {
     $_SERVER = ['REQUEST_METHOD'=>'GET', 'HTTP_USER_AGENT'=>'Mozilla/5.0 Chrome/130.0 Safari/537.36', 'REQUEST_URI'=>'/zyrafa/', 'HTTP_SEC_FETCH_DEST'=>'document'];
-    $_SESSION = []; $_COOKIE = [];
+    $_SESSION = []; $_COOKIE = ['rm_stats_consent'=>'allow'];
 }
+reset_request(); unset($_COOKIE['rm_stats_consent']); check(!rm_stats_count_pageview(), 'no consent');
 reset_request(); check(rm_stats_count_pageview(), 'visitor first page');
 check(!rm_stats_count_pageview(), 'immediate reload');
 $_SERVER['REQUEST_URI']='/puzzi/'; check(rm_stats_count_pageview(), 'second offer');

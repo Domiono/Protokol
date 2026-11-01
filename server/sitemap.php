@@ -18,6 +18,7 @@ $urls = [$base.'/' => null];
 // Do not include admin, API, protocol, private document or authentication pages.
 $staticPublicPages = [
     'zasady.php' => null,
+    'polityka-prywatnosci.php' => '2026-11-01',
     // Update only when the article content meaningfully changes, not on upload.
     'poradnik-jaki-papier-scierny-do-zyrafy.php' => '2026-10-24',
     'poradnik-pranie-tapicerki-karcher-puzzi.php' => '2026-10-25',

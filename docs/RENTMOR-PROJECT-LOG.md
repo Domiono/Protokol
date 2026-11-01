@@ -5,6 +5,36 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
+
+## 01.11.2026 — zgoda na opcjonalne statystyki (PR #82, NIEOPUBLIKOWANE)
+
+- Potwierdzono prawną podstawę rozróżnienia niezbędnych cookies i opcjonalnych pomiarów: art. 399 PKE. Nie zakładać, że własne cookies statystyczne nie potrzebują zgody.
+- Przygotowano `server/cookie-consent.js`: niewielki panel z równorzędnymi wyborami „Tylko niezbędne” oraz „Zgadzam się na statystyki”, link do polityki i odwołanie decyzji w „Ustawienia cookies”. Preferencja `rm_stats_consent` zapamiętywana na maksymalnie 180 dni. Nie korzysta z zewnętrznych skryptów.
+- `server/traffic_filter.php`: opcjonalne liczniki są wyłączone domyślnie i w razie odmowy. `server/online.js` nie wysyła odsłon, heartbeat ani kliknięć telefonu bez wyraźnej zgody; `server/online.php` i `server/phone_event.php` odmawiają statystycznego zapisu bez zgody także po stronie serwera.
+- `scripts/patch_privacy_link.py` dołącza elementy do żywego `index.php`; osobno dodano interfejs do 3 poradników i strony polityki; `.github/workflows/deploy-rentmor.yml` publikuje lokalny skrypt.
+- Zmiana nie usuwa sesji PHP wykorzystywanych w funkcjach serwisu — zakres ich niezbędności wymaga weryfikacji na rzeczywistym serwerze. Należy także zweryfikować stary licznik telefoniczny z istniejącego pliku `index.php`, osadzane zasoby zewnętrzne oraz widoczność linku przy formularzu.
+- Status: przygotowane i testowane w gałęzi PR; **nie opublikowano na produkcji**. Testy CI do potwierdzenia przed decyzją o scaleniu.
+
+## 01.11.2026 — retencja 12 miesięcy (PR #82, NIEOPUBLIKOWANE)
+
+- **Decyzja właściciela:** usuwać wiadomości z formularza po 12 miesiącach od ich zapisanej daty oraz historię zdarzeń „Pokaż numer”/„Zadzwoń” po 12 miesiącach od zdarzenia. Nie obejmować automatycznym usuwaniem umów, protokołów, rozliczeń, rezerwacji i klientów powiązanych z najmem.
+- **Kod na gałęzi PR:** `server/privacy_retention.php` — bezpieczna modyfikacja skrzynki z `messages.json.lock`, ponownym odczytem i atomowym zapisem; nowe wiadomości zapisują się pod wspólną blokadą dzięki `scripts/patch_message_retention.py`. Usuwanie z panelu WWW i przeglądanie skrzynki w Androidzie używa tej samej procedury. Flaga `legal_hold` lub `retention_hold` chroni korespondencję dotyczącą sporu.
+- **Historia telefonu:** `server/phone_events.php` czyści przeterminowane datowane wiersze podczas zapisu i odczytu, na tym samym `flock` co pozostałe operacje. Zachowuje ochronny nagłówek PHP oraz wiersze o nieznanej dacie (do ręcznej weryfikacji).
+- **Harmonogram:** po udanym codziennym zweryfikowanym snapshocie, `.github/workflows/backup-rentmor.yml` uruchamia jednorazową losową, uwierzytelnioną i usuwaną po wykonaniu sondę PHP (nigdy stały publiczny endpoint). Archiwizuje również osłonięty `phone_events_data.php`. Backup danych nadal obejmuje retencję 30 dni; zdjęć 35 dni. Nie tworzy kopii klientów w repozytorium.
+- **Android:** `LocalStore.replaceMessages` usuwa lokalnie wiadomości nieobecne w aktualnym zestawie z serwera przy udanej synchronizacji; przy dłuższej pracy offline kopia na urządzeniu może zostać do synchronizacji.
+- **Testy:** `php scripts/test_privacy_retention.php` (granica czasu, ochrona sporu, uszkodzone daty, brak utraty nagłówka), `python3 scripts/test_message_retention_patch.py`, testy HTTP/CI telefonu i API. Wynik przed scaleniem: preflight GitHub Actions do weryfikacji. **Brak publikacji** na produkcji; implementacja w PR #82 bez scalenia.
+- **Nadal otwarte przed publikacją polityki:** retencja logów hostingu; zgody związane z cookies/statystykami; końcowa weryfikacja treści dokumentu. Nie udawać, że nowe zasady już działają na serwerze.
+
+## 01.11.2026 — projekt polityki prywatności (NIEOPUBLIKOWANE)
+
+- Przygotowano stronę `server/polityka-prywatnosci.php`, bezpieczny, idempotentny skrypt dodający odnośnik w stopce strony na żywym `index.php`, oraz wpięcie do sitemap i workflow publikacji. Oddzielna gałąź: `codex/polityka-prywatnosci-2026-11-01`; PR: [#82](https://github.com/Domiono/Protokol/pull/82) (szkic, nie scalać bez uzupełnienia danych i kontroli).
+- Projekt obejmuje formularz, kontakt, statystyki sesyjne, zdarzenia telefoniczne, dane klientów najmu, cookies i usługi zewnętrzne. Faktyczne mechanizmy zbadano w `server/browser_stats.php`, `server/phone_event.php`, `server/online.php` i `server/protocol_sync.php`.
+- **IDENTYFIKACJA ADMINISTRATORA:** zgodnie z informacją użytkownika: Dominik Morawski, osoba prowadząca RentMor.pl. Dokładny adres odbioru nie jest publikowany.
+- **WERYFIKACJA 01.11:** skrypt prywatnych kopii przewiduje retencję 30 dni dla danych i 35 dni dla zdjęć (minimum dwie kopie). Zdjęcia zakodowane w danych protokołów są czyszczone po 90 dniach w rutynie API. Nie znaleziono automatycznej retencji wiadomości z formularza oraz zdarzeń kliknięcia telefonu. Retencja logów dostawcy hostingu wymaga sprawdzenia w panelu lub u usługodawcy.
+- **PRYWATNOŚĆ FILMÓW:** zamiast dwóch osadzonych automatycznie elementów iframe w poradniku WT20i dodano bramkę ładowania filmów wyłącznie po kliknięciu użytkownika; odnośniki w trzech poradnikach i na stronie głównej (patch pliku żywego) do polityki prywatności. Zmiany w kodzie gałęzi PR, na produkcji dopiero po zatwierdzeniu i wdrożeniu.
+- **BLOKADA PUBLIKACJI:** przed połączeniem z `main` potwierdzić okres retencji wiadomości, logów i zdarzeń kontaktu oraz ocenić zgodę na cookies/analitykę. Nie utożsamiać technicznych testów z pełną zgodnością RODO. Poprawka pozostaje szkicem do weryfikacji. Brak publicznego wdrożenia do tego czasu.
+- Testy: `python3 scripts/test_privacy_page.py`, `php -l server/polityka-prywatnosci.php`, `php -l server/sitemap.php`; status GitHub Actions/wdrożenia: do potwierdzenia. Kod produkcyjny strony wciąż pochodzi z hostingu; link w stopce dodawany jest przez patch, a nie nadpisanie starego `index.php`.
+
 ## Źródła prawdy i gdzie szukać
 
 - Kod i historia: [repozytorium Domiono/Protokol](https://github.com/Domiono/Protokol), [scalone PR](https://github.com/Domiono/Protokol/pulls?q=is%3Apr+is%3Amerged), [testy i wdrożenia Actions](https://github.com/Domiono/Protokol/actions).

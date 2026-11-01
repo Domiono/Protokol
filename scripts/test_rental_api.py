@@ -6,6 +6,7 @@ with tempfile.TemporaryDirectory() as td:
  shutil.copy(ROOT/'server/private_rental_files.php',p/'private_rental_files.php')
  shutil.copy(ROOT/'server/admin_auth.php',p/'admin_auth.php')
  shutil.copy(ROOT/'server/phone_events.php',p/'phone_events.php')
+ shutil.copy(ROOT/'server/privacy_retention.php',p/'privacy_retention.php')
  (p/'phone_events_data.php').write_text('<?php exit; ?>\n'+json.dumps({'at':'2026-10-28 09:00:00','action':'call','source_id':'home','source':'Strona główna'})+'\n')
  (p/'protocol_devices.json').write_text(json.dumps({'devices':[{'active':True,'token_hash':hashlib.sha256(b'test-admin').hexdigest(),'role':'admin'},{'active':True,'token_hash':hashlib.sha256(b'test-assistant').hexdigest(),'role':'assistant'}]}))
  server=subprocess.Popen([os.environ.get('PHP_BINARY','php'),'-n','-S','127.0.0.1:18723','-t',td],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)

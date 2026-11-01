@@ -2,8 +2,12 @@
 // Statistics-only filtering: never block access to the public site or search indexing.
 declare(strict_types=1);
 
+function rm_stats_has_consent(): bool {
+    return ($_COOKIE['rm_stats_consent'] ?? '') === 'allow';
+}
+
 function rm_stats_is_internal(): bool {
-    return !empty($_SESSION['logged_in'])
+    return !rm_stats_has_consent() || !empty($_SESSION['logged_in'])
         || ($_COOKIE['rm_stats_exclude'] ?? '') === '1'
         || !empty($_COOKIE['rm_protocol_device']);
 }

@@ -4,6 +4,18 @@ on:
     branches: [ main ]
     paths:
       - 'server/public_metadata.php'
+      - 'server/polityka-prywatnosci.php'
+      - 'server/privacy_retention.php'
+      - 'scripts/patch_message_retention.py'
+      - 'scripts/test_message_retention_patch.py'
+      - 'scripts/test_privacy_retention.php'
+      - 'scripts/patch_privacy_link.py'
+      - 'scripts/patch_contact_privacy.py'
+      - 'scripts/patch_legacy_consent.py'
+      - 'scripts/test_legacy_consent_patch.py'
+      - 'scripts/audit_live_privacy.py'
+      - 'scripts/verify_public_privacy.py'
+      - 'scripts/test_privacy_page.py'
       - 'scripts/patch_public_metadata.py'
       - 'scripts/test_public_metadata.php'
       - 'scripts/verify_public_metadata.py'
@@ -45,6 +57,7 @@ on:
       - 'scripts/patch_statistics_filter.py'
       - 'scripts/test_statistics_filter.py'
       - 'server/online.js'
+      - 'server/cookie-consent.js'
       - 'server/phone_event.php'
       - 'server/phone_events.php'
       - 'server/phone_events_view.php'
@@ -183,6 +196,12 @@ jobs:
           python3 scripts/test_mobile_rendering.py
           php -l server/public_metadata.php
           php scripts/test_public_metadata.php
+          python3 scripts/test_privacy_page.py
+          python3 scripts/test_legacy_consent_patch.py
+          node --check server/cookie-consent.js
+          php -l server/privacy_retention.php
+          php scripts/test_privacy_retention.php
+          python3 scripts/test_message_retention_patch.py
           php -l server/performance_images_v2.php
           python3 scripts/test_deferred_fonts.py
           python3 -m py_compile scripts/patch_deferred_fonts.py scripts/verify_deferred_fonts.py
@@ -206,6 +225,52 @@ jobs:
           php scripts/test_extra_offers.php
           php -l server/related_offers.php
           php scripts/test_related_offers.php
+
+  privacy-live-audit:
+    # Read-only inspection of the actual source on hosting, never on external forks.
+    needs: seo-preflight
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check secure hosting audit availability
+        id: config
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          if [ -n "$FTP_SERVER" ] && [ -n "$FTP_USERNAME" ] && [ -n "$LFTP_PASSWORD" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Read-only live PHP audit unavailable: no SFTP credentials."
+          fi
+      - name: Audit live index source without publishing or logging source
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lftp
+          source scripts/secure_sftp_connection.sh
+          DIR="$(mktemp -d)"
+          chmod 700 "$DIR"
+          trap 'rm -rf "$DIR"' EXIT
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
+            -e "$SFTP_CONNECT_SETUP; get public_html/index.php -o $DIR/index.php; bye" >/dev/null
+          python3 scripts/audit_live_privacy.py "$DIR/index.php"
+          python3 scripts/patch_privacy_link.py "$DIR/index.php"
+          python3 scripts/patch_contact_privacy.py "$DIR/index.php"
+          python3 scripts/patch_legacy_consent.py "$DIR/index.php"
+          python3 scripts/patch_privacy_link.py "$DIR/index.php"
+          python3 scripts/patch_contact_privacy.py "$DIR/index.php"
+          python3 scripts/patch_legacy_consent.py "$DIR/index.php"
+          php -l "$DIR/index.php"
+          echo "Live PHP consent, contact privacy, and repeat-run patch dry run passed."
 
   deploy-api:
     needs: seo-preflight
@@ -249,6 +314,12 @@ jobs:
           python3 scripts/test_mobile_rendering.py
           php -l server/public_metadata.php
           php scripts/test_public_metadata.php
+          python3 scripts/test_privacy_page.py
+          python3 scripts/test_legacy_consent_patch.py
+          node --check server/cookie-consent.js
+          php -l server/privacy_retention.php
+          php scripts/test_privacy_retention.php
+          python3 scripts/test_message_retention_patch.py
           php -l server/performance_images_v2.php
           python3 scripts/test_deferred_fonts.py
           python3 -m py_compile scripts/patch_deferred_fonts.py scripts/verify_deferred_fonts.py
@@ -300,6 +371,7 @@ jobs:
           cp server/poradnik-jaki-papier-scierny-do-zyrafy.php "$TEST_DIR/"
           cp server/poradnik-pranie-tapicerki-karcher-puzzi.php "$TEST_DIR/"
           cp server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php "$TEST_DIR/"
+          cp server/polityka-prywatnosci.php "$TEST_DIR/"
           printf 'Rental terms test page' > "$TEST_DIR/zasady.php"
           printf '[{"name":"Szlifierka betonowa"},{"name":"Odkurzacz Puzzi"}]' > "$TEST_DIR/data.json"
           php "$TEST_DIR/sitemap.php" > "$TEST_DIR/sitemap.xml"
@@ -307,7 +379,7 @@ jobs:
           import sys, xml.etree.ElementTree as ET
           root = ET.parse(sys.argv[1]).getroot()
           urls = [x.text for x in root.iter() if x.tag.endswith('loc')]
-          for needed in ['https://rentmor.pl/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php','https://rentmor.pl/poradnik-pranie-tapicerki-karcher-puzzi.php','https://rentmor.pl/poradnik-jaki-papier-scierny-do-zyrafy.php', 'https://rentmor.pl/', 'https://rentmor.pl/zasady.php', 'https://rentmor.pl/szlifierka-betonowa/', 'https://rentmor.pl/odkurzacz-puzzi/']:
+          for needed in ['https://rentmor.pl/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php','https://rentmor.pl/poradnik-pranie-tapicerki-karcher-puzzi.php','https://rentmor.pl/poradnik-jaki-papier-scierny-do-zyrafy.php', 'https://rentmor.pl/', 'https://rentmor.pl/zasady.php', 'https://rentmor.pl/polityka-prywatnosci.php', 'https://rentmor.pl/szlifierka-betonowa/', 'https://rentmor.pl/odkurzacz-puzzi/']:
               assert needed in urls, (needed, urls)
           print('Sitemap XML and rental terms test passed.')
           PY
@@ -350,6 +422,7 @@ jobs:
           python3 scripts/inject_local_seo.py "$TEMP_DIR/index.php"
           python3 scripts/inject_airless_guide_link.py "$TEMP_DIR/index.php"
           python3 scripts/patch_contact_push.py "$TEMP_DIR/index.php"
+          python3 scripts/patch_message_retention.py "$TEMP_DIR/index.php"
           python3 scripts/patch_seo_template.py "$TEMP_DIR/index.php"
           python3 scripts/patch_performance_template.py "$TEMP_DIR/index.php"
           python3 scripts/patch_static_cards.py "$TEMP_DIR/index.php"
@@ -379,6 +452,9 @@ jobs:
           python3 scripts/patch_mobile_rendering.py "$TEMP_DIR/index.php" "$CSS" server/rentmor-gallery.css
           python3 scripts/patch_hero_blueprint.py "$TEMP_DIR/index.php"
           python3 scripts/patch_public_metadata.py "$TEMP_DIR/index.php"
+          python3 scripts/patch_privacy_link.py "$TEMP_DIR/index.php"
+          python3 scripts/patch_contact_privacy.py "$TEMP_DIR/index.php"
+          python3 scripts/patch_legacy_consent.py "$TEMP_DIR/index.php"
           php -l "$TEMP_DIR/index.php"
 
       - name: Prepare private admin auth as the hosting PHP user
@@ -417,6 +493,20 @@ jobs:
           printf '%s' "$RESPONSE" | python3 -c 'import sys,json; x=json.load(sys.stdin); assert x.get("ok") is True and x.get("php_readable") is True'
           echo "Admin auth config migrated/verified by PHP itself, no secrets logged."
 
+      - name: Upload and check public privacy policy
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          source scripts/secure_sftp_connection.sh
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put server/polityka-prywatnosci.php -o public_html/polityka-prywatnosci.php; get public_html/polityka-prywatnosci.php -o $RUNNER_TEMP/privacy-readback.php; bye"
+          cmp server/polityka-prywatnosci.php "$RUNNER_TEMP/privacy-readback.php"
+          curl --fail --silent --show-error --retry 3 --max-time 30 "https://rentmor.pl/polityka-prywatnosci.php" -o "$RUNNER_TEMP/privacy-public.html"
+          grep -q 'Polityka prywatności' "$RUNNER_TEMP/privacy-public.html"
+
       - name: Upload validated RentMor files over SFTP
         if: steps.config.outputs.enabled == 'true' && steps.scope.outputs.public_only != 'true'
         env:
@@ -432,7 +522,7 @@ jobs:
           # Pass credentials as process arguments, not by interpolating them
           # into lftp's command language. This avoids quote/shell parsing issues.
           source scripts/secure_sftp_connection.sh
-          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/private_rental_files.php -o public_html/private_rental_files.php; put server/rental_inventory.php -o public_html/rental_inventory.php; put server/admin_safety.php -o public_html/admin_safety.php; put server/admin_auth.php -o public_html/admin_auth.php; put server/phone_events.php -o public_html/phone_events.php; put server/rental_offer_details_extra.php -o public_html/rental_offer_details_extra.php; put server/rental_offer_details.php -o public_html/rental_offer_details.php; put server/related_offers.php -o public_html/related_offers.php; put server/rentmor-gallery.js -o public_html/rentmor-gallery.js; put server/performance_images.php -o public_html/performance_images.php; put server/traffic_filter.php -o public_html/traffic_filter.php; put server/browser_stats.php -o public_html/browser_stats.php; put server/pageview.php -o public_html/pageview.php; put server/notebook_sync.php -o public_html/notebook_sync.php; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/push_bridge.php -o public_html/push_bridge.php; put server/online.php -o public_html/online.php; put server/phone_event.php -o public_html/phone_event.php; put server/phone_events_view.php -o public_html/phone_events_view.php; put server/online.js -o public_html/online.js; put server/product_description.php -o public_html/product_description.php; put server/poradnik-jaki-papier-scierny-do-zyrafy.php -o public_html/poradnik-jaki-papier-scierny-do-zyrafy.php; put server/poradnik-pranie-tapicerki-karcher-puzzi.php -o public_html/poradnik-pranie-tapicerki-karcher-puzzi.php; put server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php -o public_html/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
+          LFTP_COMMAND="$SFTP_CONNECT_SETUP; put server/private_rental_files.php -o public_html/private_rental_files.php; put server/rental_inventory.php -o public_html/rental_inventory.php; put server/admin_safety.php -o public_html/admin_safety.php; put server/admin_auth.php -o public_html/admin_auth.php; put server/phone_events.php -o public_html/phone_events.php; put server/privacy_retention.php -o public_html/privacy_retention.php; put server/rental_offer_details_extra.php -o public_html/rental_offer_details_extra.php; put server/rental_offer_details.php -o public_html/rental_offer_details.php; put server/related_offers.php -o public_html/related_offers.php; put server/rentmor-gallery.js -o public_html/rentmor-gallery.js; put server/performance_images.php -o public_html/performance_images.php; put server/traffic_filter.php -o public_html/traffic_filter.php; put server/browser_stats.php -o public_html/browser_stats.php; put server/pageview.php -o public_html/pageview.php; put server/notebook_sync.php -o public_html/notebook_sync.php; put server/protocol_sync.php -o public_html/protocol_sync.php; put server/push_bridge.php -o public_html/push_bridge.php; put server/online.php -o public_html/online.php; put server/phone_event.php -o public_html/phone_event.php; put server/phone_events_view.php -o public_html/phone_events_view.php; put server/online.js -o public_html/online.js; put server/cookie-consent.js -o public_html/cookie-consent.js; put server/product_description.php -o public_html/product_description.php; put server/poradnik-jaki-papier-scierny-do-zyrafy.php -o public_html/poradnik-jaki-papier-scierny-do-zyrafy.php; put server/poradnik-pranie-tapicerki-karcher-puzzi.php -o public_html/poradnik-pranie-tapicerki-karcher-puzzi.php; put server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php -o public_html/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php; put server/sitemap.php -o public_html/sitemap.php; put server/robots.txt -o public_html/robots.txt"
           if [ -f server/admin.php ]; then
             LFTP_COMMAND="$LFTP_COMMAND; put server/admin.php -o public_html/admin.php"
           else
@@ -706,7 +796,7 @@ jobs:
           python3 scripts/verify_public_hero_blueprint.py
           # Immediately recover the original homepage if the stylesheet or
           # public product rendering fails the smoke tests.
-          if ! python3 scripts/verify_mobile_rendering.py || ! python3 scripts/verify_static_tailwind.py || ! python3 scripts/verify_fast_gallery.py || ! python3 scripts/verify_deferred_fonts.py; then
+          if ! python3 scripts/verify_mobile_rendering.py || ! python3 scripts/verify_static_tailwind.py || ! python3 scripts/verify_fast_gallery.py || ! python3 scripts/verify_deferred_fonts.py || ! python3 scripts/verify_public_privacy.py; then
             echo "Static CSS smoke test failed; restoring original homepage."
             lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $TEMP_DIR/original.php -o public_html/index.php; get public_html/index.php -o $TEMP_DIR/restored.php; bye"
             cmp "$TEMP_DIR/original.php" "$TEMP_DIR/restored.php"
@@ -826,4 +916,6 @@ jobs:
           python3 scripts/verify_public_seo.py
           python3 scripts/verify_seo_improvements.py
           python3 scripts/verify_private_paths.py
+          python3 scripts/verify_public_privacy.py
+          curl --fail --silent --show-error --max-time 30 "https://rentmor.pl/" | grep -q 'href="/polityka-prywatnosci.php"'
 

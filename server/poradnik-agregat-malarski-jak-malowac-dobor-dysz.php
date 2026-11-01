@@ -29,7 +29,7 @@ p{margin:14px 0}main{padding:25px 20px 52px}.crumb,.small{font-size:14px;color:#
 ol,ul{padding-left:24px}li{margin:9px 0}table{width:100%;border-collapse:collapse;font-size:15px}th,td{text-align:left;vertical-align:top;padding:14px;border-bottom:1px solid #e2e8f0}th{background:#111827;color:white}tr:last-child td{border-bottom:0}
 .table-wrap{background:#fff;border-radius:14px;border:1px solid #cbd5e1;overflow-x:auto}td:first-child{font-weight:700}
 .video-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:18px;margin:20px 0}.video-card{border:1px solid #e2e8f0;border-radius:16px;padding:14px;background:#fff}.video-card h3{margin:2px 0 12px;font-size:18px}
-.video-frame{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#111827}
+.video-frame{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#111827}.video-gate{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;padding:18px;gap:12px}.video-gate p{font-size:14px;line-height:1.5;margin:0;color:#e5e7eb}.video-load{background:#facc15;color:#111827;border:0;border-radius:22px;padding:10px 16px;font:700 15px system-ui,Arial,sans-serif;cursor:pointer}.video-load:focus-visible{outline:3px solid #fff;outline-offset:3px}
 .offer{background:#111827;color:white;border-radius:18px;padding:25px;margin:35px 0}.offer h2{color:white;margin:0 0 13px}.offer a:not(.cta){color:#fde047}.actions{display:flex;gap:13px;flex-wrap:wrap;margin:20px 0}
 footer{text-align:center;border-top:1px solid #e2e8f0;padding:28px 20px;color:#475569;font-size:14px}
 section{scroll-margin-top:20px}@media(max-width:480px){body{font-size:16px}.hero{padding:32px 20px}.nav-inner{padding:12px}th,td{padding:10px;font-size:14px}.call{padding:8px 11px;font-size:13px}}
@@ -97,10 +97,10 @@ section{scroll-margin-top:20px}@media(max-width:480px){body{font-size:16px}.hero
 <div class="notice"><strong>Jak uruchomić WT20i?</strong> <a href="https://wabrotech.pl/poradnik/jak-przygotowac-agregat-malarski-do-pracy" target="_blank" rel="noopener noreferrer">Przeczytaj ilustrowany poradnik WABROTECH o przygotowaniu agregatu do pracy</a>. Zawiera m.in. opis odpowietrzania i przygotowania pompy. Przed pracą przeczytaj też <a href="https://static.wabrotech.pl/public/products/29/29/files/wt20i-user-manual_06.07.2026-1783331866.pdf" target="_blank" rel="noopener noreferrer">instrukcję obsługi WT20i (PDF producenta)</a>, szczególnie zasady bezpiecznego odciążania ciśnienia. Film prezentacyjny nie zastępuje instrukcji uruchomienia.</div>
 <div class="video-grid">
 <div class="video-card"><h3>1. Prezentacja agregatu WABROTECH WT20i</h3>
-<iframe class="video-frame" src="https://www.youtube-nocookie.com/embed/-GtS3HWavo8" title="WABROTECH — prezentacja agregatu malarskiego WT20i" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+<div class="video-frame video-gate" data-video-src="https://www.youtube-nocookie.com/embed/-GtS3HWavo8" data-video-title="WABROTECH — prezentacja agregatu malarskiego WT20i"><p>Film z YouTube jest zablokowany, dopóki nie zdecydujesz się go odtworzyć. Po kliknięciu przeglądarka połączy się z serwisem YouTube.</p><button type="button" class="video-load">Odtwórz film z YouTube</button></div>
 <p class="small">Oficjalny film pokazujący urządzenie i jego możliwości — nie instrukcja uruchomienia. <a href="https://www.youtube.com/watch?v=-GtS3HWavo8" target="_blank" rel="noopener noreferrer">Otwórz film w YouTube</a>.</p>
 </div>
-<div class="video-card"><h3>2. Czyszczenie agregatu po malowaniu</h3><iframe class="video-frame" src="https://www.youtube-nocookie.com/embed/8OgLnaFO1Jk" title="WABROTECH — czyszczenie agregatu WT20i WT28" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><p class="small">Film producenta: płukanie, czyszczenie i konserwacja. <a href="https://www.youtube.com/watch?v=8OgLnaFO1Jk" target="_blank" rel="noopener noreferrer">Otwórz film w YouTube</a>.</p></div>
+<div class="video-card"><h3>2. Czyszczenie agregatu po malowaniu</h3><div class="video-frame video-gate" data-video-src="https://www.youtube-nocookie.com/embed/8OgLnaFO1Jk" data-video-title="WABROTECH — czyszczenie agregatu WT20i WT28"><p>Film z YouTube jest zablokowany, dopóki nie zdecydujesz się go odtworzyć. Po kliknięciu przeglądarka połączy się z serwisem YouTube.</p><button type="button" class="video-load">Odtwórz film z YouTube</button></div><p class="small">Film producenta: płukanie, czyszczenie i konserwacja. <a href="https://www.youtube.com/watch?v=8OgLnaFO1Jk" target="_blank" rel="noopener noreferrer">Otwórz film w YouTube</a>.</p></div>
 </div>
 <p>Filmy są materiałami pomocniczymi. Jeśli materiały producenta zostaną ponownie ograniczone, skorzystaj z podlinkowanej pisemnej instrukcji WT20i. W razie różnic w osprzęcie pierwszeństwo ma instrukcja wydawanego egzemplarza i karta techniczna farby.</p></section>
 <section id="czyszczenie"><h2>Jak wyczyścić agregat malarski po pracy?</h2><p>Po zakończeniu malowania nie zostawiaj farby w wężu ani pompie. Wykonaj procedurę odciążania ciśnienia i płukania opisaną w instrukcji WABROTECH WT20i. Rodzaj płynu do czyszczenia musi być zgodny z użytym materiałem i zasadami RentMor. Zadbaj o wąż ssący, pistolet, końcówkę oraz filtry. Przed odłączeniem któregokolwiek elementu konieczne jest bezpieczne zredukowanie ciśnienia.</p><p><strong>Nie uruchamiaj ponownie agregatu bez odpowiedniego płynu w układzie i nie pozostawiaj pompy z zaschniętą farbą.</strong> W razie niepewności co do konserwacji skontaktuj się z wypożyczalnią przed zwrotem. Zobacz powyżej film producenta o płukaniu i konserwacji.</p></section>
@@ -108,6 +108,26 @@ section{scroll-margin-top:20px}@media(max-width:480px){body{font-size:16px}.hero
 <div class="actions"><a class="cta" href="/agregat-malarski-wabrotech-wt20i-wynajem-krakow-malowanie-natryskowe/">Zobacz ofertę agregatu WT20i</a><a href="tel:+48733891281">Zadzwoń i zapytaj o termin: 733 891 281</a></div><p>Chcesz przygotować ściany przed malowaniem? Sprawdź też <a href="/poradnik-jaki-papier-scierny-do-zyrafy.php">jaki papier ścierny dobrać do szlifierki żyrafy</a>.</p></section>
 <p class="small">Źródła techniczne: <a href="https://wabrotech.pl/agregat/agregat-malarski-wt20">WABROTECH WT20i</a>, <a href="https://wabrotech.pl/faq">WABROTECH FAQ</a>, <a href="https://wabrotech.pl/poradnik/jak-przygotowac-agregat-malarski-do-pracy">WABROTECH — przygotowanie do pracy</a>, <a href="https://www.graco.com/pl/pl/homeowner/support/faq.html">Graco — wybór dyszy</a>. Parametry i zasady bezpieczeństwa zawsze sprawdź w aktualnej instrukcji producenta.</p>
 </article></main>
-<footer><a href="/">RentMor.pl — wypożyczalnia sprzętu Kraków</a> · <a href="/zasady.php">Zasady wynajmu</a></footer>
+<footer><a href="/">RentMor.pl — wypożyczalnia sprzętu Kraków</a> · <a href="/zasady.php">Zasady wynajmu</a> · <a href="/polityka-prywatnosci.php">Polityka prywatności</a> · <a href="#ustawienia-cookies" data-rm-cookie-settings>Ustawienia cookies</a></footer>
+<script>
+// Deliberate two-click YouTube embed: zero third-party video requests before activation.
+document.addEventListener('click', function (event) {
+  const button = event.target.closest && event.target.closest('.video-load');
+  if (!button) return;
+  const holder = button.closest('.video-gate');
+  if (!holder) return;
+  const src = holder.getAttribute('data-video-src');
+  if (!src || !/^https:\/\/www\.youtube-nocookie\.com\/embed\/[a-zA-Z0-9_-]+$/.test(src)) return;
+  const frame = document.createElement('iframe');
+  frame.className = 'video-frame';
+  frame.src = src;
+  frame.title = holder.getAttribute('data-video-title') || 'Film YouTube';
+  frame.referrerPolicy = 'strict-origin-when-cross-origin';
+  frame.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+  frame.allowFullscreen = true;
+  holder.replaceWith(frame);
+});
+</script>
 <script src="/online.js" defer></script>
+<script src="/cookie-consent.js" defer></script>
 </body></html>

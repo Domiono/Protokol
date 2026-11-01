@@ -1,8 +1,13 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert');
 const listeners={},sent=[];
-const context={document:{querySelector:()=>null,querySelectorAll:()=>[],visibilityState:'hidden',readyState:'complete',addEventListener:(type,fn)=>{listeners[type]=fn;}},window:{setInterval:()=>{}},location:{search:''},URLSearchParams,fetch:(url,options)=>{sent.push({url,options});return Promise.resolve();}};
+const context={document:{cookie:'rm_stats_consent=allow',querySelector:()=>null,querySelectorAll:()=>[],visibilityState:'hidden',readyState:'complete',addEventListener:(type,fn)=>{listeners[type]=fn;}},window:{setInterval:()=>{}},location:{search:''},URLSearchParams,fetch:(url,options)=>{sent.push({url,options});return Promise.resolve();}};
 vm.runInNewContext(fs.readFileSync('server/online.js','utf8'),context);
 function click(attrs,text='Zadzwoń'){listeners.click({target:{closest:()=>({getAttribute:name=>attrs[name]||null,textContent:text})}});return sent.at(-1);}
+const noConsent=sent.length;
+context.document.cookie='rm_stats_consent=deny';
+click({href:'tel:733891281',onclick:"trackCall('p1')"});
+assert.equal(sent.length,noConsent);
+context.document.cookie='rm_stats_consent=allow';
 let event=click({href:'tel:733891281',onclick:"trackCall('p1')"});
 assert.equal(event.options.body.get('source_id'),'p1');assert.equal(event.options.body.get('action'),'call');assert.equal(event.options.keepalive,true);
 event=click({href:'tel:733891281',onclick:"trackCall('top_nav')"});assert.equal(event.options.body.get('source_id'),'home');

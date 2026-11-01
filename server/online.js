@@ -2,6 +2,7 @@
 (function () {
   "use strict";
   function heartbeat() {
+    if (!/(?:^|; )rm_stats_consent=allow(?:;|$)/.test(document.cookie)) return;
     if (document.visibilityState === "hidden") return;
     fetch("/online.php", {
       method: "POST",
@@ -33,6 +34,7 @@
     if (!action && /^tel:/i.test(button.getAttribute("href") || "")) action = "call";
     if (!action && /^pokaż numer$/i.test(button.textContent.trim())) action = "reveal";
     if (action !== "call" && action !== "reveal") return;
+    if (!/(?:^|; )rm_stats_consent=allow(?:;|$)/.test(document.cookie)) return;
     var match = (button.getAttribute("onclick") || "").match(/trackCall\(['"]([^'"]+)['"]\)/);
     var id = button.getAttribute("data-product-id") || (match && match[1]);
     // Product buttons on the home catalogue retain their equipment identity.
@@ -60,10 +62,10 @@
   "use strict";
   var script = document.querySelector("script[data-view-token]");
   var token = script && script.getAttribute("data-view-token");
-  if (!token || navigator.webdriver) return;
+  if (!token || navigator.webdriver || !/(?:^|; )rm_stats_consent=allow(?:;|$)/.test(document.cookie)) return;
   var sent = false;
   function confirmView() {
-    if (sent || document.visibilityState !== "visible") return;
+    if (sent || document.visibilityState !== "visible" || !/(?:^|; )rm_stats_consent=allow(?:;|$)/.test(document.cookie)) return;
     sent = true;
     fetch("/pageview.php", {method:"POST", mode:"same-origin", credentials:"same-origin", keepalive:true,
       body:new URLSearchParams({token:token})}).catch(function () {});

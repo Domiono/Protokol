@@ -9,6 +9,7 @@ if (($origin !== '' && !in_array(strtolower((string)parse_url($origin,PHP_URL_HO
 $token = $_POST['token'] ?? '';
 if (!is_string($token) || !preg_match('/^[a-f0-9]{48}$/D',$token)) rm_view_reply(400);
 require_once __DIR__ . '/browser_stats.php';
+if (!rm_stats_has_consent()) rm_view_reply(403);
 if (!session_start()) rm_view_reply(503);
 $code = rm_stats_confirm_pageview($token);
 session_write_close();
