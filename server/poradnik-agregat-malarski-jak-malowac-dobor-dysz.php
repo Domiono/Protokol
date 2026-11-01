@@ -108,7 +108,7 @@ section{scroll-margin-top:20px}@media(max-width:480px){body{font-size:16px}.hero
 <div class="actions"><a class="cta" href="/agregat-malarski-wabrotech-wt20i-wynajem-krakow-malowanie-natryskowe/">Zobacz ofertę agregatu WT20i</a><a href="tel:+48733891281">Zadzwoń i zapytaj o termin: 733 891 281</a></div><p>Chcesz przygotować ściany przed malowaniem? Sprawdź też <a href="/poradnik-jaki-papier-scierny-do-zyrafy.php">jaki papier ścierny dobrać do szlifierki żyrafy</a>.</p></section>
 <p class="small">Źródła techniczne: <a href="https://wabrotech.pl/agregat/agregat-malarski-wt20">WABROTECH WT20i</a>, <a href="https://wabrotech.pl/faq">WABROTECH FAQ</a>, <a href="https://wabrotech.pl/poradnik/jak-przygotowac-agregat-malarski-do-pracy">WABROTECH — przygotowanie do pracy</a>, <a href="https://www.graco.com/pl/pl/homeowner/support/faq.html">Graco — wybór dyszy</a>. Parametry i zasady bezpieczeństwa zawsze sprawdź w aktualnej instrukcji producenta.</p>
 </article></main>
-<footer><a href="/">RentMor.pl — wypożyczalnia sprzętu Kraków</a> · <a href="/zasady.php">Zasady wynajmu</a> · <a href="/polityka-prywatnosci.php">Polityka prywatności</a></footer>
+<footer><a href="/">RentMor.pl — wypożyczalnia sprzętu Kraków</a> · <a href="/zasady.php">Zasady wynajmu</a> · <a href="/polityka-prywatnosci.php">Polityka prywatności</a> · <a href="#ustawienia-cookies" data-rm-cookie-settings>Ustawienia cookies</a></footer>
 <script>
 // Deliberate two-click YouTube embed: zero third-party video requests before activation.
 document.addEventListener('click', function (event) {
@@ -129,4 +129,5 @@ document.addEventListener('click', function (event) {
 });
 </script>
 <script src="/online.js" defer></script>
+<script src="/cookie-consent.js" defer></script>
 </body></html>
