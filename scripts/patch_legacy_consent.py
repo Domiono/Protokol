@@ -18,9 +18,9 @@ def patch(source: str) -> str:
         if source.count(CONSENT) != 1:
             raise ValueError('Consent guard corrupted')
         return source
-    if source.count('session_start()') != 1 or len(re.findall(r'\\$_SESSION\\s*\\[', source)) != 0:
+    if source.count('session_start()') != 1 or len(re.findall(r'\$_SESSION\s*\[', source)) != 0:
         raise ValueError('Live session usage changed; manual review required')
-    matches = list(re.finditer(r'function\\s+trackCall\\s*\\([^)]*\\)\\s*\\{',source))
+    matches = list(re.finditer(r'function\s+trackCall\s*\([^)]*\)\s*\{',source))
     if len(matches)!=1:
         raise ValueError('Legacy trackCall structure changed')
     fun=matches[0]
@@ -32,7 +32,7 @@ def patch(source: str) -> str:
     # No change to customer links. The legacy function returns before sending
     # its statistical request, while a normal tel: href still navigates.
     guarded = source[:fun.end()] + '\n  ' + MARKER + '\n  if (!' + CONSENT + ') return;\n' + source[fun.end():]
-    session = re.compile(r'\\bsession_start\\s*\\(\\s*\\)\\s*;')
+    session = re.compile(r'\bsession_start\s*\(\s*\)\s*;')
     code = SESSION + "\nif (($_COOKIE['rm_stats_consent'] ?? '') === 'allow') session_start();"
     guarded,n = session.subn(lambda _:code, guarded)
     if n != 1:
