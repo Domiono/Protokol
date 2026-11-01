@@ -6,6 +6,13 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 01.11.2026 — publikacja prywatności: stan weryfikacji
+
+- Scalone zmiany w `main`: [PR #82](https://github.com/Domiono/Protokol/pull/82) (polityka, cookies, roczna retencja), [PR #83](https://github.com/Domiono/Protokol/pull/83) (odizolowany release strony z kopią i rollbackiem), [PR #84](https://github.com/Domiono/Protokol/pull/84) (naprawa błędnego smoke testu, który wymagał w wyrenderowanej stronie komentarza PHP).
+- Przed #84 produkcyjny index.php został prawidłowo przywrócony po negatywnym **wadliwym teście**; założenia poprawek w pliku SFTP przeszły podwójne testy i składnię PHP, ale komentarz PHP nie mógł pojawić się w wygenerowanym HTML. Produkcyjne zasoby `polityka-prywatnosci.php`, `cookie-consent.js`, `online.js` zwracały HTTP 200.
+- Po #84 workflow `privacy-homepage-hotfix.yml` uruchamia publikację nowego index.php i weryfikuje widoczną informację o administratorze, brak PHPSESSID przed zgodą oraz odrzucanie pomiarów bez zgody. **Zapisz status jako publikacja POTWIERDZONA tylko po osobnym pozytywnym odczycie produkcji**.
+- Zadania repozytorium nie oznaczają automatycznie ukończonej publikacji; nie odczytywać osobowych danych najmu do testów.
+
 ## 01.11.2026 — zgoda na opcjonalne statystyki (PR #82, NIEOPUBLIKOWANE)
 
 - Potwierdzono prawną podstawę rozróżnienia niezbędnych cookies i opcjonalnych pomiarów: art. 399 PKE. Nie zakładać, że własne cookies statystyczne nie potrzebują zgody.
