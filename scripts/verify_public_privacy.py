@@ -14,8 +14,11 @@ assert 'src="/cookie-consent.js"' in home
 # Verify visible form notice and consent behavior, not PHP comments:
 # PHP comments disappear when index.php is rendered, and HTML comments
 # may be stripped by page optimization.
-assert 'Administratorem danych z formularza jest' in home, 'Contact privacy notice not visible'
-assert 'Dominik Morawski (RentMor.pl)' in home, 'Contact controller not shown'
+# The contact form lives on individual offer pages, not the catalogue home.
+offer,_=get("/odkurzacz-pioracy-karcher-puzzi-10-1/")
+assert 'Administratorem danych z formularza jest' in offer, 'Offer contact privacy notice not visible'
+assert 'Dominik Morawski (RentMor.pl)' in offer, 'Offer contact controller not shown'
+assert 'href="/polityka-prywatnosci.php"' in offer, 'Offer missing privacy link'
 assert "document.cookie.split('; ').indexOf('rm_stats_consent=allow')" in home, 'Legacy click tracking lacks an opt-in guard'
 assert 'rm_stats_consent=allow' in home
 assert not re.search(r'PHPSESSID=',str(headers.get_all("Set-Cookie",[])),re.I), "Statistical PHP session cookie set before consent"
