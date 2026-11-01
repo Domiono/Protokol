@@ -1,6 +1,8 @@
 """Skip unrelated API/admin/data writes when a commit changes only public speed files."""
 import subprocess
 SAFE={
+ 'server/public_metadata.php', 'scripts/patch_public_metadata.py',
+ 'scripts/test_public_metadata.php', 'scripts/verify_public_metadata.py',
  'assets/branding/rm-source.png',
  'scripts/build_brand_icons.py',
  'scripts/patch_brand_icons.py',
