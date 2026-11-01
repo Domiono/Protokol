@@ -527,16 +527,8 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
     /* USUWANIE WIADOMOŚCI */
     if (($_POST['action'] ?? '') === 'delete_msg') {
-        $msgs = rm_admin_read_json_list($msgs_file);
-
-        foreach ($msgs as $key => $m) {
-            if (($m['id'] ?? '') === ($_POST['id'] ?? '')) {
-                unset($msgs[$key]);
-                break;
-            }
-        }
-
-        rm_admin_write_json_file($msgs_file, array_values($msgs));
+        require_once __DIR__ . '/privacy_retention.php';
+        if (!rm_privacy_delete_message(__DIR__ . '/messages.json', (string)($_POST['id'] ?? ''))) rm_admin_storage_error();
 
         header("Location: admin.php?tab=messages");
         exit();
@@ -563,6 +555,10 @@ if ($is_logged && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['acti
 }
 
 /* WCZYTYWANIE DANYCH */
+if ($is_logged) {
+    require_once __DIR__ . '/privacy_retention.php';
+    if (!rm_privacy_prune_messages(__DIR__ . '/messages.json')) rm_admin_storage_error();
+}
 $products = file_exists($data_file)
     ? json_decode(file_get_contents($data_file), true)
     : [];
