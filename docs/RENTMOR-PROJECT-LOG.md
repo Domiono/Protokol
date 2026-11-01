@@ -6,6 +6,15 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 01.11.2026 — zgoda na opcjonalne statystyki (PR #82, NIEOPUBLIKOWANE)
+
+- Potwierdzono prawną podstawę rozróżnienia niezbędnych cookies i opcjonalnych pomiarów: art. 399 PKE. Nie zakładać, że własne cookies statystyczne nie potrzebują zgody.
+- Przygotowano `server/cookie-consent.js`: niewielki panel z równorzędnymi wyborami „Tylko niezbędne” oraz „Zgadzam się na statystyki”, link do polityki i odwołanie decyzji w „Ustawienia cookies”. Preferencja `rm_stats_consent` zapamiętywana na maksymalnie 180 dni. Nie korzysta z zewnętrznych skryptów.
+- `server/traffic_filter.php`: opcjonalne liczniki są wyłączone domyślnie i w razie odmowy. `server/online.js` nie wysyła odsłon, heartbeat ani kliknięć telefonu bez wyraźnej zgody; `server/online.php` i `server/phone_event.php` odmawiają statystycznego zapisu bez zgody także po stronie serwera.
+- `scripts/patch_privacy_link.py` dołącza elementy do żywego `index.php`; osobno dodano interfejs do 3 poradników i strony polityki; `.github/workflows/deploy-rentmor.yml` publikuje lokalny skrypt.
+- Zmiana nie usuwa sesji PHP wykorzystywanych w funkcjach serwisu — zakres ich niezbędności wymaga weryfikacji na rzeczywistym serwerze. Należy także zweryfikować stary licznik telefoniczny z istniejącego pliku `index.php`, osadzane zasoby zewnętrzne oraz widoczność linku przy formularzu.
+- Status: przygotowane i testowane w gałęzi PR; **nie opublikowano na produkcji**. Testy CI do potwierdzenia przed decyzją o scaleniu.
+
 ## 01.11.2026 — retencja 12 miesięcy (PR #82, NIEOPUBLIKOWANE)
 
 - **Decyzja właściciela:** usuwać wiadomości z formularza po 12 miesiącach od ich zapisanej daty oraz historię zdarzeń „Pokaż numer”/„Zadzwoń” po 12 miesiącach od zdarzenia. Nie obejmować automatycznym usuwaniem umów, protokołów, rozliczeń, rezerwacji i klientów powiązanych z najmem.
