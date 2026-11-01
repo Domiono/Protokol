@@ -145,7 +145,8 @@ on:
         default: false
 
 concurrency:
-  group: rentmor-public-homepage
+  # PR tests are read-only; do not block them behind a production SFTP deploy.
+  group: ${{ github.event_name == 'pull_request' && 'rentmor-public-homepage-review' || 'rentmor-public-homepage' }}
   cancel-in-progress: false
 
 jobs:
@@ -263,6 +264,7 @@ jobs:
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
             -e "$SFTP_CONNECT_SETUP; get public_html/index.php -o $DIR/index.php; bye" >/dev/null
           python3 scripts/audit_live_privacy.py "$DIR/index.php"
+          python3 scripts/patch_message_retention.py "$DIR/index.php"
           python3 scripts/patch_privacy_link.py "$DIR/index.php"
           python3 scripts/patch_contact_privacy.py "$DIR/index.php"
           python3 scripts/patch_legacy_consent.py "$DIR/index.php"
@@ -271,6 +273,15 @@ jobs:
           python3 scripts/patch_legacy_consent.py "$DIR/index.php"
           php -l "$DIR/index.php"
           echo "Live PHP consent, contact privacy, and repeat-run patch dry run passed."
+          for path in /polityka-prywatnosci.php /cookie-consent.js /online.js; do
+            code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 20 "https://rentmor.pl$path")"
+            echo "Public asset $path: HTTP $code"
+          done
+          if python3 scripts/verify_public_privacy.py; then
+            echo 'Public privacy release is already complete.'
+          else
+            echo '::notice::Public homepage requires the targeted privacy rollout on main.'
+          fi
 
   deploy-api:
     needs: seo-preflight
