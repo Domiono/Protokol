@@ -3,6 +3,10 @@ on:
   push:
     branches: [ main ]
     paths:
+      - 'server/public_metadata.php'
+      - 'scripts/patch_public_metadata.py'
+      - 'scripts/test_public_metadata.php'
+      - 'scripts/verify_public_metadata.py'
       - 'server/protocol_sync.php'
       - 'server/notebook_sync.php'
       - 'scripts/test_notebook_sync.php'
@@ -177,6 +181,8 @@ jobs:
           python3 scripts/test_static_tailwind.py
           python3 scripts/test_static_cards.py
           python3 scripts/test_mobile_rendering.py
+          php -l server/public_metadata.php
+          php scripts/test_public_metadata.php
           php -l server/performance_images_v2.php
           python3 scripts/test_deferred_fonts.py
           python3 -m py_compile scripts/patch_deferred_fonts.py scripts/verify_deferred_fonts.py
@@ -241,6 +247,8 @@ jobs:
           python3 scripts/test_static_tailwind.py
           python3 scripts/test_static_cards.py
           python3 scripts/test_mobile_rendering.py
+          php -l server/public_metadata.php
+          php scripts/test_public_metadata.php
           php -l server/performance_images_v2.php
           python3 scripts/test_deferred_fonts.py
           python3 -m py_compile scripts/patch_deferred_fonts.py scripts/verify_deferred_fonts.py
@@ -370,6 +378,7 @@ jobs:
           python3 scripts/patch_deferred_fonts.py "$TEMP_DIR/index.php"
           python3 scripts/patch_mobile_rendering.py "$TEMP_DIR/index.php" "$CSS" server/rentmor-gallery.css
           python3 scripts/patch_hero_blueprint.py "$TEMP_DIR/index.php"
+          python3 scripts/patch_public_metadata.py "$TEMP_DIR/index.php"
           php -l "$TEMP_DIR/index.php"
 
       - name: Prepare private admin auth as the hosting PHP user
@@ -450,7 +459,8 @@ jobs:
         run: |
           set -euo pipefail
           source scripts/secure_sftp_connection.sh
-          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put server/performance_images_v2.php -o public_html/performance_images_v2.php; get public_html/performance_images_v2.php -o $RUNNER_TEMP/image-helper-readback.php; bye"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put server/public_metadata.php -o public_html/public_metadata.php; get public_html/public_metadata.php -o $RUNNER_TEMP/metadata-readback.php; put server/performance_images_v2.php -o public_html/performance_images_v2.php; get public_html/performance_images_v2.php -o $RUNNER_TEMP/image-helper-readback.php; bye"
+          cmp server/public_metadata.php "$RUNNER_TEMP/metadata-readback.php"
           cmp server/performance_images_v2.php "$RUNNER_TEMP/image-helper-readback.php"
 
       - name: Publish and verify static CSS before switching production PHP
@@ -703,6 +713,32 @@ jobs:
             exit 1
           fi
 
+
+      - name: Add sharing metadata to current rental terms with backup and rollback
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -eu
+          TEMP_DIR="$RUNNER_TEMP/rentmor-prepared"
+          source scripts/secure_sftp_connection.sh
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/zasady.php -o $TEMP_DIR/terms-original.php; bye"
+          cp "$TEMP_DIR/terms-original.php" "$TEMP_DIR/terms.php"
+          python3 scripts/patch_public_metadata.py "$TEMP_DIR/terms.php"
+          php -l "$TEMP_DIR/terms.php"
+          if ! cmp -s "$TEMP_DIR/terms-original.php" "$TEMP_DIR/terms.php"; then
+            printf '<?php http_response_code(404); exit; ?>\n' > "$TEMP_DIR/terms-backup.php"
+            cat "$TEMP_DIR/terms-original.php" >> "$TEMP_DIR/terms-backup.php"
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/zasady.php -o $TEMP_DIR/terms-current.php; bye"
+            cmp "$TEMP_DIR/terms-original.php" "$TEMP_DIR/terms-current.php"
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $TEMP_DIR/terms-backup.php -o public_html/.rentmor-backups/terms-before-metadata-$GITHUB_RUN_ID.php; put $TEMP_DIR/terms.php -o public_html/zasady.php; bye"
+          fi
+          if ! python3 scripts/verify_public_metadata.py; then
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $TEMP_DIR/terms-original.php -o public_html/zasady.php; put $TEMP_DIR/original.php -o public_html/index.php; bye"
+            exit 1
+          fi
 
       - name: Correct approved WT20i offer parameters
         if: steps.config.outputs.enabled == 'true' && steps.scope.outputs.public_only != 'true'

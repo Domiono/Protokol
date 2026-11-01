@@ -1,3 +1,4 @@
+<?php /* rentmor-public-metadata-v1 */ require_once __DIR__ . '/public_metadata.php'; ob_start('rentmor_public_metadata'); ?>
 <!DOCTYPE html>
 <html lang="pl">
 <head>
