@@ -6,6 +6,16 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 01.11.2026 — retencja 12 miesięcy (PR #82, NIEOPUBLIKOWANE)
+
+- **Decyzja właściciela:** usuwać wiadomości z formularza po 12 miesiącach od ich zapisanej daty oraz historię zdarzeń „Pokaż numer”/„Zadzwoń” po 12 miesiącach od zdarzenia. Nie obejmować automatycznym usuwaniem umów, protokołów, rozliczeń, rezerwacji i klientów powiązanych z najmem.
+- **Kod na gałęzi PR:** `server/privacy_retention.php` — bezpieczna modyfikacja skrzynki z `messages.json.lock`, ponownym odczytem i atomowym zapisem; nowe wiadomości zapisują się pod wspólną blokadą dzięki `scripts/patch_message_retention.py`. Usuwanie z panelu WWW i przeglądanie skrzynki w Androidzie używa tej samej procedury. Flaga `legal_hold` lub `retention_hold` chroni korespondencję dotyczącą sporu.
+- **Historia telefonu:** `server/phone_events.php` czyści przeterminowane datowane wiersze podczas zapisu i odczytu, na tym samym `flock` co pozostałe operacje. Zachowuje ochronny nagłówek PHP oraz wiersze o nieznanej dacie (do ręcznej weryfikacji).
+- **Harmonogram:** po udanym codziennym zweryfikowanym snapshocie, `.github/workflows/backup-rentmor.yml` uruchamia jednorazową losową, uwierzytelnioną i usuwaną po wykonaniu sondę PHP (nigdy stały publiczny endpoint). Archiwizuje również osłonięty `phone_events_data.php`. Backup danych nadal obejmuje retencję 30 dni; zdjęć 35 dni. Nie tworzy kopii klientów w repozytorium.
+- **Android:** `LocalStore.replaceMessages` usuwa lokalnie wiadomości nieobecne w aktualnym zestawie z serwera przy udanej synchronizacji; przy dłuższej pracy offline kopia na urządzeniu może zostać do synchronizacji.
+- **Testy:** `php scripts/test_privacy_retention.php` (granica czasu, ochrona sporu, uszkodzone daty, brak utraty nagłówka), `python3 scripts/test_message_retention_patch.py`, testy HTTP/CI telefonu i API. Wynik przed scaleniem: preflight GitHub Actions do weryfikacji. **Brak publikacji** na produkcji; implementacja w PR #82 bez scalenia.
+- **Nadal otwarte przed publikacją polityki:** retencja logów hostingu; zgody związane z cookies/statystykami; końcowa weryfikacja treści dokumentu. Nie udawać, że nowe zasady już działają na serwerze.
+
 ## 01.11.2026 — projekt polityki prywatności (NIEOPUBLIKOWANE)
 
 - Przygotowano stronę `server/polityka-prywatnosci.php`, bezpieczny, idempotentny skrypt dodający odnośnik w stopce strony na żywym `index.php`, oraz wpięcie do sitemap i workflow publikacji. Oddzielna gałąź: `codex/polityka-prywatnosci-2026-11-01`; PR: [#82](https://github.com/Domiono/Protokol/pull/82) (szkic, nie scalać bez uzupełnienia danych i kontroli).
