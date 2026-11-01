@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/privacy-homepage-hotfix.yml'
+      - 'scripts/verify_public_privacy.py'
   workflow_dispatch:
 
 permissions:

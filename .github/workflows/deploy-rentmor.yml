@@ -228,12 +228,19 @@ jobs:
           php scripts/test_related_offers.php
 
   privacy-live-audit:
+    permissions:
+      contents: read
+      actions: read
     # Read-only inspection of the actual source on hosting, never on external forks.
     needs: seo-preflight
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Report current GitHub deployment states
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/check_release_status.py
       - name: Check secure hosting audit availability
         id: config
         env:
@@ -277,11 +284,7 @@ jobs:
             code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 20 "https://rentmor.pl$path")"
             echo "Public asset $path: HTTP $code"
           done
-          if python3 scripts/verify_public_privacy.py; then
-            echo 'Public privacy release is already complete.'
-          else
-            echo '::notice::Public homepage requires the targeted privacy rollout on main.'
-          fi
+          python3 scripts/verify_public_privacy.py
 
   deploy-api:
     needs: seo-preflight
