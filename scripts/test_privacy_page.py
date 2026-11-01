@@ -33,4 +33,18 @@ for bad in ('<html></html>', '<footer></footer><footer></footer>', '<footer><a h
 parser = Links()
 parser.feed(out)
 assert '/polityka-prywatnosci.php' in parser.links
+guide = Path('server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php').read_text(encoding="utf-8")
+assert guide.count('class="video-frame video-gate"') == 2
+assert guide.count('data-video-src="https://www.youtube-nocookie.com/embed/') == 2
+assert '<iframe' not in guide, "YouTube must not load on page render"
+assert 'document.createElement(\'iframe\')' in guide
+assert 'href="/polityka-prywatnosci.php"' in guide
+for article in ('server/poradnik-jaki-papier-scierny-do-zyrafy.php',
+                'server/poradnik-pranie-tapicerki-karcher-puzzi.php'):
+    assert 'href="/polityka-prywatnosci.php"' in Path(article).read_text(encoding='utf-8')
+assert 'Dominik Morawski' in html
+assert '30 dniach' in html and '35 dniach' in html
+assert 'DO POTWIERDZENIA' in html, 'draft must stay blocked pending retention confirmation'
+subprocess.run(['php', '-l', 'server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php'], check=True)
+
 print('PASS: privacy policy PHP, required information, safe footer patch')
