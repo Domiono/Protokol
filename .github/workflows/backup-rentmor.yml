@@ -11,6 +11,10 @@ on:
       - 'scripts/backup_rentmor.py'
       - 'scripts/backup_photos.py'
       - 'scripts/backup_retention.py'
+      - 'scripts/test_privacy_retention.php'
+      - 'scripts/retention_probe.php.template'
+      - 'server/privacy_retention.php'
+      - 'server/phone_events.php'
       - 'server/notebook_sync.php'
       - 'scripts/test_notebook_sync.php'
   workflow_dispatch:
@@ -35,9 +39,14 @@ jobs:
       - name: Install SFTP client
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq lftp
+          sudo apt-get install -y -qq lftp php-cli
       - name: Test backup validation before downloading private data
-        run: python3 scripts/test_backup_rentmor.py
+        run: |
+          python3 scripts/test_backup_rentmor.py
+          php -l server/privacy_retention.php
+          php -l server/phone_events.php
+          php -l scripts/retention_probe.php.template
+          php scripts/test_privacy_retention.php
       - name: Copy, validate and privately archive rental data
         shell: bash
         run: |
@@ -52,7 +61,7 @@ jobs:
           chmod 700 "$SNAPSHOT"
           # No user data goes into GitHub artifacts, commits or logs.
           essential="data.json reservations.json protocols.json customers.json costs.json"
-          optional="messages.json terms.json protocol_devices.json stats.json rental_assets.php rental_equipment_names.php"
+          optional="messages.json phone_events_data.php terms.json protocol_devices.json stats.json rental_assets.php rental_equipment_names.php"
           # When private storage is active, read those files from outside public_html.
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; get rentmor-private/rental-data/active.flag -o $SNAPSHOT/active.flag; bye" >/dev/null 2>&1 || true
           private_names=" reservations.json protocols.json customers.json costs.json rental_assets.php "
@@ -118,6 +127,31 @@ jobs:
             lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222"               -e "$SFTP_CONNECT_SETUP; rm -r rentmor-private/backups/$NAME; bye"
           done < "$RUNNER_TEMP/rentmor-expired.txt"
           echo "Data backup retention checked (30 days, keep at least two)."
+      - name: Remove contact messages and phone events older than 12 months
+        # Only after a complete verified snapshot, never during code deployment on push.
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          source scripts/secure_sftp_connection.sh
+          PRIVATE="$RUNNER_TEMP/rentmor-retention"
+          mkdir -m 700 -p "$PRIVATE"
+          TOKEN="$(openssl rand -hex 32)"
+          HASH="$(printf '%s' "$TOKEN" | sha256sum | cut -d ' ' -f1)"
+          REMOTE="rm-retention-$(openssl rand -hex 16).php"
+          cleanup() {
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; rm public_html/$REMOTE; bye" >/dev/null 2>&1 || true
+            rm -rf "$PRIVATE"
+          }
+          trap cleanup EXIT
+          sed "s/__RETENTION_TOKEN_HASH__/$HASH/g" scripts/retention_probe.php.template > "$PRIVATE/probe.php"
+          php -l "$PRIVATE/probe.php"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $PRIVATE/probe.php -o public_html/$REMOTE; bye" >/dev/null
+          curl --fail --silent --show-error --retry 2 --max-time 40 --request POST \
+            --header "X-Rentmor-Retention: $TOKEN" "https://rentmor.pl/$REMOTE" \
+            | python3 -c 'import json,sys; assert json.load(sys.stdin).get("ok") is True'
+          echo "12-month contact retention check completed. No customer details logged."
+
       - name: Alert on backup failure (Telegram optional)
         if: failure()
         env:
