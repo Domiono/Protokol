@@ -14,6 +14,7 @@ on:
       - 'scripts/patch_legacy_consent.py'
       - 'scripts/test_legacy_consent_patch.py'
       - 'scripts/audit_live_privacy.py'
+      - 'scripts/verify_public_privacy.py'
       - 'scripts/test_privacy_page.py'
       - 'scripts/patch_public_metadata.py'
       - 'scripts/test_public_metadata.php'
@@ -795,7 +796,7 @@ jobs:
           python3 scripts/verify_public_hero_blueprint.py
           # Immediately recover the original homepage if the stylesheet or
           # public product rendering fails the smoke tests.
-          if ! python3 scripts/verify_mobile_rendering.py || ! python3 scripts/verify_static_tailwind.py || ! python3 scripts/verify_fast_gallery.py || ! python3 scripts/verify_deferred_fonts.py; then
+          if ! python3 scripts/verify_mobile_rendering.py || ! python3 scripts/verify_static_tailwind.py || ! python3 scripts/verify_fast_gallery.py || ! python3 scripts/verify_deferred_fonts.py || ! python3 scripts/verify_public_privacy.py; then
             echo "Static CSS smoke test failed; restoring original homepage."
             lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $TEMP_DIR/original.php -o public_html/index.php; get public_html/index.php -o $TEMP_DIR/restored.php; bye"
             cmp "$TEMP_DIR/original.php" "$TEMP_DIR/restored.php"
@@ -915,5 +916,6 @@ jobs:
           python3 scripts/verify_public_seo.py
           python3 scripts/verify_seo_improvements.py
           python3 scripts/verify_private_paths.py
+          python3 scripts/verify_public_privacy.py
           curl --fail --silent --show-error --max-time 30 "https://rentmor.pl/" | grep -q 'href="/polityka-prywatnosci.php"'
 
