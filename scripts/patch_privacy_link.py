@@ -9,7 +9,8 @@ CONSENT_SCRIPT = '<script src="/cookie-consent.js" defer></script>'
 
 def patch(source: str) -> str:
     if MARKER in source:
-        if source.count(MARKER) != 1 or source.count('href="/polityka-prywatnosci.php"') != 1:
+        if (source.count(MARKER) != 1 or source.count('href="/polityka-prywatnosci.php"') != 1
+                or source.count('data-rm-cookie-settings') != 1 or source.count(CONSENT_SCRIPT) != 1):
             raise ValueError('Duplicate or damaged privacy link')
         return source
     if 'href="/polityka-prywatnosci.php"' in source:
