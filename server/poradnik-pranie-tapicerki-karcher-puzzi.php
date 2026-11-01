@@ -41,6 +41,7 @@
 <section id="wynajem" class="offer"><h2>Odkurzacz piorący na wynajem — Kraków Czyżyny</h2><p>W RentMor.pl wypożyczysz Karcher Puzzi 10/1 do samodzielnego czyszczenia tapicerki, foteli i dywanów. Odbiór osobisty: Kraków, Czyżyny, ul. Woźniców; dokładny adres podajemy po rezerwacji. Sprzęt odbierasz i transportujesz we własnym zakresie.</p><p><a class="cta" href="/odkurzacz-pioracy-karcher-puzzi-10-1/">Sprawdź wynajem Karcher Puzzi 10/1</a></p><p>Zapytaj o termin telefonicznie: <a href="tel:+48733891281">733 891 281</a>. Możesz też zobaczyć <a href="/poradnik-jaki-papier-scierny-do-zyrafy.php">poradnik doboru papieru do szlifierki żyrafy</a>, jeśli planujesz również remont ścian.</p></section>
 </article>
 </main>
-<footer><a href="/">RentMor.pl — wypożyczalnia sprzętu w Krakowie</a> · <a href="/zasady.php">Zasady najmu</a> · <a href="/polityka-prywatnosci.php">Polityka prywatności</a></footer>
+<footer><a href="/">RentMor.pl — wypożyczalnia sprzętu w Krakowie</a> · <a href="/zasady.php">Zasady najmu</a> · <a href="/polityka-prywatnosci.php">Polityka prywatności</a> · <a href="#ustawienia-cookies" data-rm-cookie-settings>Ustawienia cookies</a></footer>
 <script src="/online.js" defer></script>
+<script src="/cookie-consent.js" defer></script>
 </body></html>
