@@ -277,11 +277,7 @@ jobs:
             code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 20 "https://rentmor.pl$path")"
             echo "Public asset $path: HTTP $code"
           done
-          if python3 scripts/verify_public_privacy.py; then
-            echo 'Public privacy release is already complete.'
-          else
-            echo '::notice::Public homepage requires the targeted privacy rollout on main.'
-          fi
+          python3 scripts/verify_public_privacy.py
 
   deploy-api:
     needs: seo-preflight
