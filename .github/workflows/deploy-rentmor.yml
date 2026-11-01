@@ -10,6 +10,8 @@ on:
       - 'scripts/test_message_retention_patch.py'
       - 'scripts/test_privacy_retention.php'
       - 'scripts/patch_privacy_link.py'
+      - 'scripts/patch_contact_privacy.py'
+      - 'scripts/audit_live_privacy.py'
       - 'scripts/test_privacy_page.py'
       - 'scripts/patch_public_metadata.py'
       - 'scripts/test_public_metadata.php'
@@ -438,6 +440,7 @@ jobs:
           python3 scripts/patch_hero_blueprint.py "$TEMP_DIR/index.php"
           python3 scripts/patch_public_metadata.py "$TEMP_DIR/index.php"
           python3 scripts/patch_privacy_link.py "$TEMP_DIR/index.php"
+          python3 scripts/patch_contact_privacy.py "$TEMP_DIR/index.php"
           php -l "$TEMP_DIR/index.php"
 
       - name: Prepare private admin auth as the hosting PHP user
