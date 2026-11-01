@@ -149,6 +149,8 @@ if (($_GET['view'] ?? '') === 'push_status') {
 if (($_GET['view'] ?? '') === 'messages') {
     if ($method !== 'GET') rm_json_response(405, ['ok'=>false,'error'=>'Niedozwolona metoda.']);
     if ($role !== 'admin') rm_json_response(403, ['ok'=>false,'error'=>'Wiadomości są dostępne tylko dla administratora.']);
+    require_once __DIR__ . '/privacy_retention.php';
+    if (!rm_privacy_prune_messages(__DIR__ . '/messages.json')) rm_json_response(503, ['ok'=>false, 'error'=>'Wiadomości chwilowo niedostępne.']);
     $rawMessages = rm_read_json_file(__DIR__ . '/messages.json', []);
     $messages = [];
     foreach ($rawMessages as $entry) {
