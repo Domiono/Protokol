@@ -228,12 +228,19 @@ jobs:
           php scripts/test_related_offers.php
 
   privacy-live-audit:
+    permissions:
+      contents: read
+      actions: read
     # Read-only inspection of the actual source on hosting, never on external forks.
     needs: seo-preflight
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Report current GitHub deployment states
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/check_release_status.py
       - name: Check secure hosting audit availability
         id: config
         env:
