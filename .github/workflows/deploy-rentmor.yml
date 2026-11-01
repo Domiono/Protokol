@@ -271,6 +271,7 @@ jobs:
           python3 scripts/patch_legacy_consent.py "$DIR/index.php"
           php -l "$DIR/index.php"
           echo "Live PHP consent, contact privacy, and repeat-run patch dry run passed."
+          python3 scripts/verify_public_privacy.py
 
   deploy-api:
     needs: seo-preflight
