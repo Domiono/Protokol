@@ -6,6 +6,12 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 01.11.2026 — kontrola produkcji po naprawie testu (#85)
+
+- [PR #85](https://github.com/Domiono/Protokol/pull/85) (merge `77413cab45d8349763123c39daa4c04d9b4dad65`) koryguje kontrolę informacji o prywatności przy formularzu: formularz jest na stronach ofert, a nie w katalogu sprzętu.
+- Release `privacy-homepage-hotfix.yml` wykonuje wyłącznie patch aktualnego pliku `index.php` pobranego z serwera, backup SFTP i automatyczny rollback przy porażce testu publicznego. Ustalony błąd wcześniejszych prób to nieprawidłowe asercje w smoke teście (komentarze PHP w renderowanym HTML i lokalizacja formularza).
+- **PUBLIKACJA PRODUKCYJNA POTWIERDZONA 01.11.2026:** [workflow privacy-homepage-hotfix.yml — run 41352005125](https://github.com/Domiono/Protokol/actions/runs/41352005125) zakończony sukcesem na merge `77413cab45d8349763123c39daa4c04d9b4dad65` (PR #85). Niezależny test PR #86 (job `privacy-live-audit` w run 41352090026) również zakończył się sukcesem: publiczna polityka prywatności HTTP 200, skrypt cookies HTTP 200, widoczne linki w stopce, informacja administratora przy formularzu produktu Puzzi, brak sesji PHP przed zgodą i HTTP 403 dla pomiarów z odmową, 2 filmy YouTube ładowane na żądanie. Status potwierdza publiczne zachowanie strony, nie jest gwarancją pełnej zgodności prawnej poza zbadanym zakresem.
+
 ## 01.11.2026 — publikacja prywatności: stan weryfikacji
 
 - Scalone zmiany w `main`: [PR #82](https://github.com/Domiono/Protokol/pull/82) (polityka, cookies, roczna retencja), [PR #83](https://github.com/Domiono/Protokol/pull/83) (odizolowany release strony z kopią i rollbackiem), [PR #84](https://github.com/Domiono/Protokol/pull/84) (naprawa błędnego smoke testu, który wymagał w wyrenderowanej stronie komentarza PHP).
