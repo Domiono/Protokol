@@ -33,6 +33,8 @@ for bad in ('<html></html>', '<footer></footer><footer></footer>', '<footer><a h
 parser = Links()
 parser.feed(out)
 assert '/polityka-prywatnosci.php' in parser.links
+assert 'cookie-consent.js' in out
+assert 'data-rm-cookie-settings' in out
 guide = Path('server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php').read_text(encoding="utf-8")
 assert guide.count('class="video-frame video-gate"') == 2
 assert guide.count('data-video-src="https://www.youtube-nocookie.com/embed/') == 2
