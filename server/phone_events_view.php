@@ -5,7 +5,7 @@ $phoneEvents = array_reverse(rm_phone_events_read());
 ?>
 <section class="bg-white p-6 rounded-3xl shadow-sm mb-8" id="phone-contacts">
 <h2 class="font-black text-lg">Kontakty telefoniczne</h2>
-<p class="text-sm text-gray-500">Czas polski. Zdarzenia, nie unikalni klienci ani odbyte rozmowy. Historia od uruchomienia funkcji.</p>
+<p class="text-sm text-gray-500">Czas polski. Zdarzenia, nie unikalni klienci ani odbyte rozmowy. Historia dostępna maksymalnie z ostatnich 12 miesięcy.</p>
 <div class="flex flex-wrap gap-4 my-4">
 <label>Od <input id="phone-from" type="date" class="border rounded-lg p-2"></label>
 <label>Do <input id="phone-to" type="date" class="border rounded-lg p-2"></label>
