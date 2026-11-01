@@ -11,5 +11,7 @@ function setup({visible=true,webdriver=false,token='test-token',cookie='rm_stats
 let x=setup();assert.equal(x.views().length,1);assert.equal(x.views()[0].options.body.get('token'),'test-token');assert.equal(x.views()[0].options.keepalive,true);
 x.listeners.visibilitychange.forEach(f=>f());assert.equal(x.views().length,1,'visibility transition counted twice');
 x=setup({visible:false});assert.equal(x.views().length,0);x.document.visibilityState='visible';x.listeners.visibilitychange.forEach(f=>f());assert.equal(x.views().length,1);
+assert.equal(setup({cookie:''}).views().length,0);
+assert.equal(setup({cookie:'rm_stats_consent=deny'}).views().length,0);
 assert.equal(setup({webdriver:true}).views().length,0);assert.equal(setup({token:''}).views().length,0);
 console.log('PASS: visible browser confirms once; hidden tab waits; automation and tokenless page do not count');
