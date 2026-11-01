@@ -4,6 +4,9 @@ on:
     branches: [ main ]
     paths:
       - 'server/public_metadata.php'
+      - 'server/polityka-prywatnosci.php'
+      - 'scripts/patch_privacy_link.py'
+      - 'scripts/test_privacy_page.py'
       - 'scripts/patch_public_metadata.py'
       - 'scripts/test_public_metadata.php'
       - 'scripts/verify_public_metadata.py'
@@ -183,6 +186,7 @@ jobs:
           python3 scripts/test_mobile_rendering.py
           php -l server/public_metadata.php
           php scripts/test_public_metadata.php
+          python3 scripts/test_privacy_page.py
           php -l server/performance_images_v2.php
           python3 scripts/test_deferred_fonts.py
           python3 -m py_compile scripts/patch_deferred_fonts.py scripts/verify_deferred_fonts.py
@@ -249,6 +253,7 @@ jobs:
           python3 scripts/test_mobile_rendering.py
           php -l server/public_metadata.php
           php scripts/test_public_metadata.php
+          python3 scripts/test_privacy_page.py
           php -l server/performance_images_v2.php
           python3 scripts/test_deferred_fonts.py
           python3 -m py_compile scripts/patch_deferred_fonts.py scripts/verify_deferred_fonts.py
@@ -300,6 +305,7 @@ jobs:
           cp server/poradnik-jaki-papier-scierny-do-zyrafy.php "$TEST_DIR/"
           cp server/poradnik-pranie-tapicerki-karcher-puzzi.php "$TEST_DIR/"
           cp server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php "$TEST_DIR/"
+          cp server/polityka-prywatnosci.php "$TEST_DIR/"
           printf 'Rental terms test page' > "$TEST_DIR/zasady.php"
           printf '[{"name":"Szlifierka betonowa"},{"name":"Odkurzacz Puzzi"}]' > "$TEST_DIR/data.json"
           php "$TEST_DIR/sitemap.php" > "$TEST_DIR/sitemap.xml"
@@ -307,7 +313,7 @@ jobs:
           import sys, xml.etree.ElementTree as ET
           root = ET.parse(sys.argv[1]).getroot()
           urls = [x.text for x in root.iter() if x.tag.endswith('loc')]
-          for needed in ['https://rentmor.pl/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php','https://rentmor.pl/poradnik-pranie-tapicerki-karcher-puzzi.php','https://rentmor.pl/poradnik-jaki-papier-scierny-do-zyrafy.php', 'https://rentmor.pl/', 'https://rentmor.pl/zasady.php', 'https://rentmor.pl/szlifierka-betonowa/', 'https://rentmor.pl/odkurzacz-puzzi/']:
+          for needed in ['https://rentmor.pl/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php','https://rentmor.pl/poradnik-pranie-tapicerki-karcher-puzzi.php','https://rentmor.pl/poradnik-jaki-papier-scierny-do-zyrafy.php', 'https://rentmor.pl/', 'https://rentmor.pl/zasady.php', 'https://rentmor.pl/polityka-prywatnosci.php', 'https://rentmor.pl/szlifierka-betonowa/', 'https://rentmor.pl/odkurzacz-puzzi/']:
               assert needed in urls, (needed, urls)
           print('Sitemap XML and rental terms test passed.')
           PY
@@ -379,6 +385,7 @@ jobs:
           python3 scripts/patch_mobile_rendering.py "$TEMP_DIR/index.php" "$CSS" server/rentmor-gallery.css
           python3 scripts/patch_hero_blueprint.py "$TEMP_DIR/index.php"
           python3 scripts/patch_public_metadata.py "$TEMP_DIR/index.php"
+          python3 scripts/patch_privacy_link.py "$TEMP_DIR/index.php"
           php -l "$TEMP_DIR/index.php"
 
       - name: Prepare private admin auth as the hosting PHP user
@@ -416,6 +423,20 @@ jobs:
             --data-binary "@$DIR/request.json" "https://rentmor.pl/$PROBE")"
           printf '%s' "$RESPONSE" | python3 -c 'import sys,json; x=json.load(sys.stdin); assert x.get("ok") is True and x.get("php_readable") is True'
           echo "Admin auth config migrated/verified by PHP itself, no secrets logged."
+
+      - name: Upload and check public privacy policy
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          source scripts/secure_sftp_connection.sh
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put server/polityka-prywatnosci.php -o public_html/polityka-prywatnosci.php; get public_html/polityka-prywatnosci.php -o $RUNNER_TEMP/privacy-readback.php; bye"
+          cmp server/polityka-prywatnosci.php "$RUNNER_TEMP/privacy-readback.php"
+          curl --fail --silent --show-error --retry 3 --max-time 30 "https://rentmor.pl/polityka-prywatnosci.php" -o "$RUNNER_TEMP/privacy-public.html"
+          grep -q 'Polityka prywatności' "$RUNNER_TEMP/privacy-public.html"
 
       - name: Upload validated RentMor files over SFTP
         if: steps.config.outputs.enabled == 'true' && steps.scope.outputs.public_only != 'true'
@@ -826,4 +847,5 @@ jobs:
           python3 scripts/verify_public_seo.py
           python3 scripts/verify_seo_improvements.py
           python3 scripts/verify_private_paths.py
+          curl --fail --silent --show-error --max-time 30 "https://rentmor.pl/" | grep -q 'href="/polityka-prywatnosci.php"'
 
