@@ -22,6 +22,16 @@ flags = {
  'body_count':len(re.findall(r'</body\s*>',source,re.I)),
  'page_size_bytes':len(source.encode('utf-8')),
 }
+# Report only structural tokens from the live inline click function, never source.
+click = re.search(r'function\s+trackCall\s*\([^)]*\)\s*\{(.{0,1600})', source,re.S)
+block = click.group(1) if click else ''
+for token in ['fetch(', 'sendBeacon(', 'XMLHttpRequest', 'gtag(', 'dataLayer', 'location.', 'window.open', 'tel:', 'return false', 'preventDefault(', 'JSON.stringify', 'send(', 'navigator.']:
+    print('track_function_' + re.sub(r'[^a-zA-Z]', '', token).lower() + '=' + str(int(token in block)))
+print('track_function_consent_guard=' + str(int('rm_stats_consent' in block)))
+print('session_references=' + str(len(re.findall(r'\$_SESSION\s*\[',source))))
+print('session_start_before_html=' + str(int(source.find('session_start(') < source.find('<!doctype'))))
+print('setcookie_calls=' + str(len(re.findall(r'\bsetcookie\s*\(',source))))
+print('source_form_actions=' + str(len(re.findall(r'<form[^>]+action=',source,re.I))))
 for key,value in flags.items():
     print(f'{key}={value}')
 # Never upload or output the PHP file; the summary contains only static code structure.
