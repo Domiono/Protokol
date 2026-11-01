@@ -145,7 +145,8 @@ on:
         default: false
 
 concurrency:
-  group: rentmor-public-homepage
+  # PR tests are read-only; do not block them behind a production SFTP deploy.
+  group: rentmor-public-homepage-${{ github.event_name == 'pull_request' && 'review' || 'deploy' }}
   cancel-in-progress: false
 
 jobs:
