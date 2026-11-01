@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 REQUIRED = {"data.json", "reservations.json", "protocols.json", "customers.json", "costs.json"}
-OPTIONAL = {"messages.json", "terms.json", "protocol_devices.json", "stats.json", "rental_assets.php", "rental_equipment_names.php", "notebook.json"}
+OPTIONAL = {"messages.json", "phone_events_data.php", "terms.json", "protocol_devices.json", "stats.json", "rental_assets.php", "rental_equipment_names.php", "notebook.json"}
 KNOWN = REQUIRED | OPTIONAL
 OBJECTS = {"terms.json", "protocol_devices.json", "stats.json", "notebook.json"}
 LISTS = {"data.json", "reservations.json", "protocols.json", "customers.json", "costs.json", "messages.json"}
@@ -21,6 +21,14 @@ def validate(root: Path) -> list[str]:
             continue
         if path.stat().st_size == 0:
             raise ValueError("Empty file: " + name)
+        if name == "phone_events_data.php":
+            text = path.read_text(encoding="utf-8")
+            lines = text.splitlines()
+            if not lines or lines[0] != "<?php http_response_code(404); exit; ?>":
+                raise ValueError("Invalid private phone event guard")
+            # Preserve all event lines in this private backup. No personal data printed.
+            verified.append(name)
+            continue
         if name in {"rental_assets.php", "rental_equipment_names.php"}:
             text = path.read_text(encoding="utf-8")
             if "\n" not in text or not text.startswith("<?php"):
