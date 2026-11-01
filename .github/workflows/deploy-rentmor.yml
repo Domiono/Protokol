@@ -264,6 +264,7 @@ jobs:
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" \
             -e "$SFTP_CONNECT_SETUP; get public_html/index.php -o $DIR/index.php; bye" >/dev/null
           python3 scripts/audit_live_privacy.py "$DIR/index.php"
+          python3 scripts/patch_message_retention.py "$DIR/index.php"
           python3 scripts/patch_privacy_link.py "$DIR/index.php"
           python3 scripts/patch_contact_privacy.py "$DIR/index.php"
           python3 scripts/patch_legacy_consent.py "$DIR/index.php"
