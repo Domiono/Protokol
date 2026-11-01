@@ -18,7 +18,10 @@ def patch(source: str) -> str:
     if len(endings) != 1:
         raise ValueError('Expected exactly one footer in live template')
     at = endings[0].start()
-    return source[:at] + LINK + '\n' + source[at:]
+    updated = source[:at] + LINK + '\n' + source[at:]
+    if updated.count('</body>') != 1:
+        raise ValueError('Expected one body end')
+    return updated.replace('</body>', CONSENT_SCRIPT + '\n</body>')
 
 if __name__ == '__main__':
     target = Path(sys.argv[1])
