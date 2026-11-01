@@ -2,6 +2,7 @@
 import subprocess
 SAFE={
  'server/public_metadata.php', 'scripts/patch_public_metadata.py',
+ 'server/polityka-prywatnosci.php', 'scripts/patch_privacy_link.py', 'scripts/test_privacy_page.py',
  'scripts/test_public_metadata.php', 'scripts/verify_public_metadata.py',
  'assets/branding/rm-source.png',
  'scripts/build_brand_icons.py',
