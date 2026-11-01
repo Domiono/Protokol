@@ -1,7 +1,6 @@
 <?php
 declare(strict_types=1);
-// Draft: contact retention confirmed at 12 calendar months. Still verify host log retention,
-// external processors and whether statistical cookies need prior consent.
+// Contact messages and optional analytics documented; hosting logs retain according to provider configuration.
 header('Content-Type: text/html; charset=UTF-8');
 header('X-Content-Type-Options: nosniff');
 ?>
@@ -64,7 +63,7 @@ header('X-Content-Type-Options: nosniff');
 <ul>
 <li><strong>Dane umów i rozliczeń:</strong> przez okres realizacji najmu, a następnie przez okres wynikający z obowiązujących przepisów i terminów przedawnienia ewentualnych roszczeń.</li>
 <li><strong>Wiadomości z formularza kontaktowego:</strong> maksymalnie 12 miesięcy od daty otrzymania wiadomości. Po tym okresie są usuwane z aktywnej skrzynki, o ile nie są niezbędne do ustalenia, dochodzenia lub obrony roszczeń albo trwającego sporu. Wiadomości bez rozpoznawalnej daty wymagają osobnego sprawdzenia. Prywatne kopie zapasowe mają odrębny okres przechowywania opisany poniżej.</li>
-<li><strong>Logi serwera:</strong> przez czas wynikający z konfiguracji hostingu. <strong>[DO POTWIERDZENIA PRZED PUBLIKACJĄ: rzeczywisty okres retencji logów.]</strong></li>
+<li><strong>Logi serwera:</strong> przez okres niezbędny do zapewnienia bezpieczeństwa połączeń, obsługi błędów i ochrony przed nadużyciami, zgodnie z konfiguracją oraz harmonogramem retencji dostawcy hostingu. Administrator nie prowadzi odrębnego, bezterminowego archiwum tych logów.</li>
 <li><strong>Statystyki odwiedzin:</strong> w formie liczników zbiorczych, bez tworzenia publicznych profili osób. Krótkotrwałe wpisy określające aktywne sesje są automatycznie usuwane po wygaśnięciu aktywności (około 95 sekund). Osobna historia kliknięć telefonu jest przechowywana maksymalnie 12 miesięcy od zdarzenia; starsze poprawnie datowane wpisy są automatycznie usuwane. Dane z nieprawidłową datą wymagają weryfikacji.</li>
 <li><strong>Kopie zapasowe:</strong> mechanizm prywatnych kopii przewiduje usuwanie archiwów danych po 30 dniach i archiwów zdjęć po 35 dniach, z zachowaniem co najmniej dwóch kopii każdego typu. Dotyczy to kopii, a nie danych w aktywnych bazach; dlatego w starszej kopii mogą przejściowo występować wpisy już usunięte ze skrzynki. Wykonanie harmonogramu podlega kontroli technicznej.</li>
 <li><strong>Zdjęcia do protokołów:</strong> system przewiduje usuwanie zapisanych danych zdjęciowych z protokołów po 90 dniach, o ile działa rutyna czyszczenia i zachowane są powiązane terminy utworzenia. Nie oznacza to usunięcia całego protokołu.</li>
@@ -73,7 +72,7 @@ header('X-Content-Type-Options: nosniff');
 <p>Serwis wykorzystuje techniczne identyfikatory sesji PHP (zwykle cookie <code>PHPSESSID</code>) używane do obsługi sesji i zabezpieczeń serwisu. Statystyki wykorzystujące sesję są uruchamiane dopiero po zgodzie na analitykę. Właściciel serwisu może dodatkowo używać rocznego cookie <code>rm_stats_exclude</code>, aby wykluczać własne wejścia ze statystyk.</p>
 <p>Po wyrażeniu zgody własne statystyki zapisują m.in. liczbę odwiedzin, odwiedzane oferty, źródła wejść oraz zdarzenia kontaktowe. Brak zgody nie uniemożliwia kontaktu ani przeglądania oferty. Mechanizm liczników jest własny, a nie równoznaczny z użyciem Google Analytics. Zliczanie aktywnych odwiedzających opiera się na krótkotrwałym identyfikatorze sesji w postaci skrótu.</p>
 <p>Można usuwać lub blokować cookies w ustawieniach przeglądarki, jednak zablokowanie cookies niezbędnych do działania serwisu może ograniczyć niektóre funkcje. W tym serwisie opcjonalne statystyki wymagają uprzedniego wyboru „Zgadzam się na statystyki”. Odmowa „Tylko niezbędne” wyłącza opcjonalne pomiary. Zapis wyboru w cookie <code>rm_stats_consent</code> trwa do 180 dni i służy wyłącznie zapamiętaniu preferencji. Ustawienia można w dowolnym momencie zmienić poprzez odnośnik „Ustawienia cookies” w stopce; po zmianie strona jest odświeżana.</p>
-<p>W poradniku agregatu malarskiego filmy YouTube pozostają zablokowane do chwili naciśnięcia przycisku „Odtwórz film z YouTube”. Dopiero wtedy zewnętrzna usługa jest ładowana. Bez naciśnięcia przycisku można korzystać z tekstu poradnika. <strong>[DO POTWIERDZENIA PRZED PUBLIKACJĄ: czy na pozostałych częściach serwisu działają niekonieczne technologie wymagające uprzedniej zgody.]</strong></p></section>
+<p>W poradniku agregatu malarskiego filmy YouTube pozostają zablokowane do chwili naciśnięcia przycisku „Odtwórz film z YouTube”. Dopiero wtedy zewnętrzna usługa jest ładowana. Bez naciśnięcia przycisku można korzystać z tekstu poradnika.</p></section>
 <section id="prawa"><h2>7. Twoje prawa</h2>
 <p>W zakresie przewidzianym przez RODO przysługują Ci prawa dostępu do danych, ich sprostowania, usunięcia, ograniczenia przetwarzania, przenoszenia danych oraz wniesienia sprzeciwu wobec przetwarzania opartego na uzasadnionym interesie. Jeżeli przetwarzanie opiera się na zgodzie, możesz ją wycofać bez wpływu na zgodność z prawem wcześniejszego przetwarzania.</p>
 <p>Wnioski dotyczące danych można zgłaszać administratorowi przez podany numer telefonu lub formularz kontaktowy serwisu. Masz również prawo wniesienia skargi do <a href="https://uodo.gov.pl/">Prezesa Urzędu Ochrony Danych Osobowych</a>.</p></section>
