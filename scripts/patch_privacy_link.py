@@ -4,7 +4,8 @@ from pathlib import Path
 import sys
 
 MARKER = '<!-- rentmor-privacy-link-v1 -->'
-LINK = MARKER + ' <span aria-hidden="true">·</span> <a href="/polityka-prywatnosci.php">Polityka prywatności</a>'
+LINK = MARKER + ' <span aria-hidden="true">·</span> <a href="/polityka-prywatnosci.php">Polityka prywatności</a> · <a href="#ustawienia-cookies" data-rm-cookie-settings>Ustawienia cookies</a>'
+CONSENT_SCRIPT = '<script src="/cookie-consent.js" defer></script>'
 
 def patch(source: str) -> str:
     if MARKER in source:
