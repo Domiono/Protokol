@@ -46,7 +46,8 @@ for article in ('server/poradnik-jaki-papier-scierny-do-zyrafy.php',
     assert 'href="/polityka-prywatnosci.php"' in Path(article).read_text(encoding='utf-8')
 assert 'Dominik Morawski' in html
 assert '30 dniach' in html and '35 dniach' in html
-assert 'DO POTWIERDZENIA' in html, 'draft must stay blocked pending retention confirmation'
+assert '[DO POTWIERDZENIA' not in html and '[DO WERYFIKACJI' not in html
+assert 'rm_stats_consent' in html and 'Ustawienia cookies' in html
 subprocess.run(['php', '-l', 'server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php'], check=True)
 
 print('PASS: privacy policy PHP, required information, safe footer patch')
