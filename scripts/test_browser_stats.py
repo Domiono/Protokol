@@ -14,7 +14,7 @@ with tempfile.TemporaryDirectory() as tmp:
     server=subprocess.Popen(['php','-d',f'session.save_path={root}','-S',f'127.0.0.1:{port}','-t',tmp],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     def request(path,method='GET',token='',cookie='',headers=None):
         c=http.client.HTTPConnection('127.0.0.1',port,timeout=10)
-        h={'User-Agent':'Mozilla/5.0 Chrome/130 Safari/537.36','Cookie':cookie,'Content-Type':'application/x-www-form-urlencoded'};h.update(headers or {})
+        h={'User-Agent':'Mozilla/5.0 Chrome/130 Safari/537.36','Cookie':(cookie+'; ' if cookie else '')+'rm_stats_consent=allow','Content-Type':'application/x-www-form-urlencoded'};h.update(headers or {})
         c.request(method,path,urlencode({'token':token}) if method=='POST' else None,h);r=c.getresponse();status=r.status;session=r.getheader('Set-Cookie','').split(';')[0];body=r.read();c.close()
         return status,json.loads(body),session
     def count():return json.loads((root/'stats.json').read_text())
@@ -22,6 +22,7 @@ with tempfile.TemporaryDirectory() as tmp:
         for _ in range(100):
             try:request('/page.php');break
             except OSError:time.sleep(.05)
+        assert request('/page.php',headers={'Cookie':'rm_stats_consent=deny'})[1]['token']==''
         _,page,cookie=request('/page.php');assert page['token'];assert count()==original, 'plain browser-looking HTTP request counted'
         assert request('/pageview.php','POST','a'*48,cookie)[0]==400
         assert request('/pageview.php','POST',page['token'])[0]==400,'token accepted without its session'
