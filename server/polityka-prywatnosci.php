@@ -37,7 +37,7 @@ header('X-Content-Type-Options: nosniff');
 <li><a href="#prawa">Prawa użytkownika</a></li><li><a href="#pozostale">Pozostałe informacje</a></li>
 </ol></nav>
 <section id="administrator"><h2>1. Administrator danych</h2>
-<p>Administratorem danych osobowych jest <strong>[IMIĘ I NAZWISKO ADMINISTRATORA — DO UZUPEŁNIENIA PRZED PUBLIKACJĄ]</strong>, osoba prowadząca wypożyczalnię sprzętu RentMor w Krakowie (Czyżyny).</p>
+<p>Administratorem danych osobowych przetwarzanych w związku z działaniem serwisu <strong>RentMor.pl</strong> jest osoba fizyczna prowadząca wypożyczalnię pod tą nazwą: <strong>[IMIĘ I NAZWISKO — DO UZUPEŁNIENIA PRZED PUBLIKACJĄ]</strong>, Kraków (Czyżyny). Nazwa RentMor.pl jest nazwą serwisu i marki.</p>
 <p>Kontakt w sprawach ochrony danych: <a href="tel:+48733891281">733 891 281</a> lub przez formularz kontaktowy serwisu RentMor.pl. Dokładny adres odbioru sprzętu jest podawany po uzgodnieniu rezerwacji; nie jest publicznie prezentowany na stronie.</p>
 </section>
 <section id="zakres"><h2>2. Jakie dane przetwarzamy?</h2>
