@@ -73,6 +73,7 @@ function rm_privacy_insert_message(string $file, array $new, ?int $cutoff = null
     }, $cutoff);
 }
 function rm_privacy_delete_message(string $file, string $id, ?int $cutoff = null): bool {
+    if ($id === '') return false; // never delete legacy messages with missing IDs by accident
     return rm_privacy_messages_modify($file, static function(array $current) use ($id): array {
         return array_values(array_filter($current, static fn(array $entry): bool => (string)($entry['id'] ?? '') !== $id));
     }, $cutoff);
