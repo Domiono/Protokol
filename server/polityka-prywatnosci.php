@@ -82,6 +82,7 @@ header('X-Content-Type-Options: nosniff');
 </section>
 </article>
 </main>
-<footer><a href="/">Strona główna</a> · <a href="/zasady.php">Zasady wynajmu</a> · RentMor.pl © 2026</footer>
+<footer><a href="/">Strona główna</a> · <a href="/zasady.php">Zasady wynajmu</a> · RentMor.pl © 2026 · <a href="#ustawienia-cookies" data-rm-cookie-settings>Ustawienia cookies</a></footer>
+<script src="/cookie-consent.js" defer></script>
 </body>
 </html>
