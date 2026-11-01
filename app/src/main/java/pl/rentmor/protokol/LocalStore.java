@@ -216,6 +216,18 @@ public class LocalStore extends SQLiteOpenHelper {
             if(!x.has("id"))x.put("id",c.getString(1));if(!x.has("month"))x.put("month",c.getString(2));if(!x.has("text"))x.put("text",c.getString(3));if(!x.has("done"))x.put("done",c.getInt(4)==1);a.put(x);}}
         catch(Exception ignored){}finally{c.close();}return a;
     }
+    // Operational lists keep outstanding issued rentals visible across month/year boundaries.
+    // Financial reports must continue using reservations(month).
+    public synchronized JSONArray operationalReservations(String month) {
+        JSONArray result=new JSONArray(), all=allReservations();
+        for(int i=0;i<all.length();i++) {
+            JSONObject r=all.optJSONObject(i);
+            if(r==null)continue;
+            boolean outstanding=r.optBoolean("done")&&!r.optBoolean("settled")&&!r.optBoolean("returned");
+            if(month.equals(r.optString("month"))||outstanding)result.put(r);
+        }
+        return result;
+    }
     public synchronized JSONArray reservations(String month) {
         JSONArray a=new JSONArray(); Cursor c=getReadableDatabase().rawQuery("SELECT data,id,month,text,done FROM reservations WHERE month=? ORDER BY updated",new String[]{month});
         try { while(c.moveToNext()) { JSONObject x; try{x=c.isNull(0)?new JSONObject():new JSONObject(c.getString(0));}catch(Exception e){x=new JSONObject();}
