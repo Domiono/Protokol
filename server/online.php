@@ -24,6 +24,7 @@ if (($_SERVER['HTTP_SEC_FETCH_SITE'] ?? '') === 'cross-site') {
     exit;
 }
 require_once __DIR__ . '/traffic_filter.php';
+if (!rm_stats_has_consent()) { echo '{"ok":true}'; exit; }
 session_start();
 if (rm_stats_is_internal() || rm_stats_is_automated()) {
     session_write_close();
