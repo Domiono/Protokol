@@ -12,7 +12,7 @@ permissions:
 
 # Serialize with the main public site deploy; never race on live index.php.
 concurrency:
-  group: rentmor-public-homepage
+  group: rentmor-public-homepage-deploy
   cancel-in-progress: false
 
 jobs:
