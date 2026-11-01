@@ -8,6 +8,7 @@ $origin = (string)($_SERVER['HTTP_ORIGIN'] ?? '');
 if (($origin !== '' && !in_array(strtolower((string)parse_url($origin, PHP_URL_HOST)), ['rentmor.pl','www.rentmor.pl'], true)) || ($_SERVER['HTTP_SEC_FETCH_SITE'] ?? '') === 'cross-site') rm_phone_reply(403);
 require_once __DIR__ . '/traffic_filter.php';
 require_once __DIR__ . '/phone_events.php';
+if (!rm_stats_has_consent()) rm_phone_reply(200);
 session_start();
 if (rm_stats_is_internal() || rm_stats_is_automated()) rm_phone_reply(200);
 $action = $_POST['action'] ?? '';
