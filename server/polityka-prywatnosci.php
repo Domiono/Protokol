@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
-// DRAFT ONLY: confirm unknown message/log/call-event retention,
-// actual third-party processors and whether statistics need a consent mechanism.
+// Draft: contact retention confirmed at 12 calendar months. Still verify host log retention,
+// external processors and whether statistical cookies need prior consent.
 header('Content-Type: text/html; charset=UTF-8');
 header('X-Content-Type-Options: nosniff');
 ?>
@@ -63,10 +63,10 @@ header('X-Content-Type-Options: nosniff');
 <section id="okres"><h2>5. Jak długo przechowujemy dane?</h2>
 <ul>
 <li><strong>Dane umów i rozliczeń:</strong> przez okres realizacji najmu, a następnie przez okres wynikający z obowiązujących przepisów i terminów przedawnienia ewentualnych roszczeń.</li>
-<li><strong>Korespondencja oraz wiadomości z formularza:</strong> w okresie obsługi sprawy i przez okres uzasadniony ewentualnym dochodzeniem roszczeń. <strong>[DO POTWIERDZENIA PRZED PUBLIKACJĄ: faktyczny termin lub konkretne kryteria usuwania wiadomości na serwerze i w kopiach zapasowych.]</strong></li>
+<li><strong>Wiadomości z formularza kontaktowego:</strong> maksymalnie 12 miesięcy od daty otrzymania wiadomości. Po tym okresie są usuwane z aktywnej skrzynki, o ile nie są niezbędne do ustalenia, dochodzenia lub obrony roszczeń albo trwającego sporu. Wiadomości bez rozpoznawalnej daty wymagają osobnego sprawdzenia. Prywatne kopie zapasowe mają odrębny okres przechowywania opisany poniżej.</li>
 <li><strong>Logi serwera:</strong> przez czas wynikający z konfiguracji hostingu. <strong>[DO POTWIERDZENIA PRZED PUBLIKACJĄ: rzeczywisty okres retencji logów.]</strong></li>
-<li><strong>Statystyki odwiedzin:</strong> w formie liczników zbiorczych, bez tworzenia publicznych profili osób. Krótkotrwałe wpisy określające aktywne sesje są automatycznie usuwane po wygaśnięciu aktywności (około 95 sekund). Osobna historia kliknięć telefonu jest prowadzona na potrzeby statystyk. <strong>[DO POTWIERDZENIA: okres przechowywania historii kliknięć.]</strong></li>
-<li><strong>Kopie zapasowe:</strong> mechanizm prywatnych kopii przewiduje usuwanie archiwów danych po 30 dniach i archiwów zdjęć po 35 dniach, z zachowaniem co najmniej dwóch kopii każdego typu. Dotyczy to kopii, a nie danych w aktywnych bazach. Podane terminy wymagają potwierdzenia rzeczywistego działania harmonogramu.</li>
+<li><strong>Statystyki odwiedzin:</strong> w formie liczników zbiorczych, bez tworzenia publicznych profili osób. Krótkotrwałe wpisy określające aktywne sesje są automatycznie usuwane po wygaśnięciu aktywności (około 95 sekund). Osobna historia kliknięć telefonu jest przechowywana maksymalnie 12 miesięcy od zdarzenia; starsze poprawnie datowane wpisy są automatycznie usuwane. Dane z nieprawidłową datą wymagają weryfikacji.</li>
+<li><strong>Kopie zapasowe:</strong> mechanizm prywatnych kopii przewiduje usuwanie archiwów danych po 30 dniach i archiwów zdjęć po 35 dniach, z zachowaniem co najmniej dwóch kopii każdego typu. Dotyczy to kopii, a nie danych w aktywnych bazach; dlatego w starszej kopii mogą przejściowo występować wpisy już usunięte ze skrzynki. Wykonanie harmonogramu podlega kontroli technicznej.</li>
 <li><strong>Zdjęcia do protokołów:</strong> system przewiduje usuwanie zapisanych danych zdjęciowych z protokołów po 90 dniach, o ile działa rutyna czyszczenia i zachowane są powiązane terminy utworzenia. Nie oznacza to usunięcia całego protokołu.</li>
 </ul></section>
 <section id="cookies"><h2>6. Cookies, sesje i statystyki</h2>
