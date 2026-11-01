@@ -8,7 +8,7 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 
 ## 01.11.2026 — projekt polityki prywatności (NIEOPUBLIKOWANE)
 
-- Przygotowano stronę `server/polityka-prywatnosci.php`, bezpieczny, idempotentny skrypt dodający odnośnik w stopce strony na żywym `index.php`, oraz wpięcie do sitemap i workflow publikacji. Oddzielna gałąź: `codex/polityka-prywatnosci-2026-11-01`; PR: do potwierdzenia.
+- Przygotowano stronę `server/polityka-prywatnosci.php`, bezpieczny, idempotentny skrypt dodający odnośnik w stopce strony na żywym `index.php`, oraz wpięcie do sitemap i workflow publikacji. Oddzielna gałąź: `codex/polityka-prywatnosci-2026-11-01`; PR: [#82](https://github.com/Domiono/Protokol/pull/82) (szkic, nie scalać bez uzupełnienia danych i kontroli).
 - Projekt obejmuje formularz, kontakt, statystyki sesyjne, zdarzenia telefoniczne, dane klientów najmu, cookies i usługi zewnętrzne. Faktyczne mechanizmy zbadano w `server/browser_stats.php`, `server/phone_event.php`, `server/online.php` i `server/protocol_sync.php`.
 - **BLOKADA PUBLIKACJI:** przed połączeniem z `main` uzupełnić pełne imię i nazwisko administratora (bez ujawniania dokładnego adresu odbioru), potwierdzić okres retencji wiadomości, logów i zdarzeń kontaktu oraz ocenić zgodę na cookies/analitykę i osadzone media. Nie udawać, że gotowy tekst oznacza pełną zgodność z RODO. Poprawka pozostaje szkicem do weryfikacji.
 - Testy: `python3 scripts/test_privacy_page.py`, `php -l server/polityka-prywatnosci.php`, `php -l server/sitemap.php`; status GitHub Actions/wdrożenia: do potwierdzenia. Kod produkcyjny strony wciąż pochodzi z hostingu; link w stopce dodawany jest przez patch, a nie nadpisanie starego `index.php`.
