@@ -15,7 +15,7 @@ from urllib.parse import urlencode
 ROOT=Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory() as directory:
     root=Path(directory)
-    for name in ['phone_event.php','phone_events.php','traffic_filter.php']:
+    for name in ['phone_event.php','phone_events.php','privacy_retention.php','traffic_filter.php']:
         shutil.copy(ROOT/'server'/name,root/name)
     (root/'data.json').write_text(json.dumps([{'id':'p1','name':'Kärcher Puzzi'}]))
     (root/'read.php').write_text("<?php require 'phone_events.php'; echo json_encode(rm_phone_events_read());")
