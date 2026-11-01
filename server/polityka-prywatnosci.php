@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
-// DRAFT ONLY. Before publication replace the controller identity placeholder and
-// confirm the actual retention periods, processors and consent setup.
+// DRAFT ONLY: confirm unknown message/log/call-event retention,
+// actual third-party processors and whether statistics need a consent mechanism.
 header('Content-Type: text/html; charset=UTF-8');
 header('X-Content-Type-Options: nosniff');
 ?>
@@ -58,7 +58,7 @@ header('X-Content-Type-Options: nosniff');
 <p>Podanie danych przy zapytaniu jest dobrowolne, ale bez danych umożliwiających kontakt nie będziemy mogli odpowiedzieć. Dane niezbędne do umowy są wymagane do jej zawarcia i realizacji.</p></section>
 <section id="odbiorcy"><h2>4. Odbiorcy danych i usługi zewnętrzne</h2>
 <p>Dostęp do danych mogą uzyskiwać podmioty, które świadczą usługi techniczne na rzecz RentMor, w zakresie niezbędnym do realizacji usługi, w szczególności dostawca hostingu, poczty elektronicznej oraz usług powiadomień. W razie potrzeby dane mogą być udostępniane także podmiotom obsługującym księgowość lub uprawnionym organom na podstawie prawa.</p>
-<p>Formularz kontaktowy może generować powiadomienia e-mail i powiadomienia dla administratora aplikacji z użyciem usług takich jak Firebase Cloud Messaging. Dostępne na stronie filmy osadzone z YouTube, a także ewentualne zewnętrzne zasoby czcionek, mogą skutkować połączeniem przeglądarki z usługami dostawcy. Odtwarzanie filmu może wiązać się z osobnym przetwarzaniem danych przez YouTube.</p>
+<p>Formularz kontaktowy może generować powiadomienia e-mail i powiadomienia dla administratora aplikacji z użyciem usług takich jak Firebase Cloud Messaging. W poradniku agregatu malarskiego filmy YouTube uruchamiane są dopiero po świadomym kliknięciu przycisku odtwarzania. Wtedy przeglądarka łączy się z usługą YouTube, która może przetwarzać dane zgodnie ze swoimi zasadami. Ewentualne zewnętrzne zasoby czcionek mogą powodować odrębne połączenia z ich dostawcami.</p>
 <p>W związku z używaniem usług dostawców zewnętrznych niektóre dane mogą być przetwarzane poza Europejskim Obszarem Gospodarczym. Szczegóły, właściwego odbiorcę i podstawę transferu należy ocenić dla faktycznie użytej konfiguracji usług.</p></section>
 <section id="okres"><h2>5. Jak długo przechowujemy dane?</h2>
 <ul>
@@ -66,12 +66,14 @@ header('X-Content-Type-Options: nosniff');
 <li><strong>Korespondencja oraz wiadomości z formularza:</strong> w okresie obsługi sprawy i przez okres uzasadniony ewentualnym dochodzeniem roszczeń. <strong>[DO POTWIERDZENIA PRZED PUBLIKACJĄ: faktyczny termin lub konkretne kryteria usuwania wiadomości na serwerze i w kopiach zapasowych.]</strong></li>
 <li><strong>Logi serwera:</strong> przez czas wynikający z konfiguracji hostingu. <strong>[DO POTWIERDZENIA PRZED PUBLIKACJĄ: rzeczywisty okres retencji logów.]</strong></li>
 <li><strong>Statystyki odwiedzin:</strong> w formie liczników zbiorczych, bez tworzenia publicznych profili osób. Krótkotrwałe wpisy określające aktywne sesje są automatycznie usuwane po wygaśnięciu aktywności (około 95 sekund). Osobna historia kliknięć telefonu jest prowadzona na potrzeby statystyk. <strong>[DO POTWIERDZENIA: okres przechowywania historii kliknięć.]</strong></li>
+<li><strong>Kopie zapasowe:</strong> mechanizm prywatnych kopii przewiduje usuwanie archiwów danych po 30 dniach i archiwów zdjęć po 35 dniach, z zachowaniem co najmniej dwóch kopii każdego typu. Dotyczy to kopii, a nie danych w aktywnych bazach. Podane terminy wymagają potwierdzenia rzeczywistego działania harmonogramu.</li>
+<li><strong>Zdjęcia do protokołów:</strong> system przewiduje usuwanie zapisanych danych zdjęciowych z protokołów po 90 dniach, o ile działa rutyna czyszczenia i zachowane są powiązane terminy utworzenia. Nie oznacza to usunięcia całego protokołu.</li>
 </ul></section>
 <section id="cookies"><h2>6. Cookies, sesje i statystyki</h2>
 <p>Serwis wykorzystuje techniczne identyfikatory sesji PHP (zwykle cookie <code>PHPSESSID</code>) służące m.in. do obsługi sesji, ochrony działania witryny oraz mechanizmów pomiaru ruchu. Właściciel serwisu może dodatkowo używać rocznego cookie <code>rm_stats_exclude</code>, aby wykluczać własne wejścia ze statystyk.</p>
 <p>Nasze statystyki zapisują m.in. liczbę odwiedzin, odwiedzane oferty, źródła wejść oraz zdarzenia kontaktowe. Mechanizm liczników jest własny, a nie równoznaczny z użyciem Google Analytics. Zliczanie aktywnych odwiedzających opiera się na krótkotrwałym identyfikatorze sesji w postaci skrótu.</p>
 <p>Można usuwać lub blokować cookies w ustawieniach przeglądarki, jednak zablokowanie cookies niezbędnych do działania serwisu może ograniczyć niektóre funkcje. Jeśli używane są cookies lub podobne technologie niewymagane do świadczenia zamówionej usługi, przed ich zastosowaniem należy uzyskać zgodę użytkownika, z możliwością jej odmowy i wycofania.</p>
-<p>Osadzone filmy YouTube lub inne treści dostawców zewnętrznych mogą wykorzystywać własne technologie w trakcie ich uruchamiania. <strong>[DO WERYFIKACJI PRZED PUBLIKACJĄ: czy potrzebny jest i działa mechanizm wcześniejszej zgody lub blokowania takich treści.]</strong></p></section>
+<p>W poradniku agregatu malarskiego filmy YouTube pozostają zablokowane do chwili naciśnięcia przycisku „Odtwórz film z YouTube”. Dopiero wtedy zewnętrzna usługa jest ładowana. Bez naciśnięcia przycisku można korzystać z tekstu poradnika. <strong>[DO POTWIERDZENIA PRZED PUBLIKACJĄ: czy na pozostałych częściach serwisu działają niekonieczne technologie wymagające uprzedniej zgody.]</strong></p></section>
 <section id="prawa"><h2>7. Twoje prawa</h2>
 <p>W zakresie przewidzianym przez RODO przysługują Ci prawa dostępu do danych, ich sprostowania, usunięcia, ograniczenia przetwarzania, przenoszenia danych oraz wniesienia sprzeciwu wobec przetwarzania opartego na uzasadnionym interesie. Jeżeli przetwarzanie opiera się na zgodzie, możesz ją wycofać bez wpływu na zgodność z prawem wcześniejszego przetwarzania.</p>
 <p>Wnioski dotyczące danych można zgłaszać administratorowi przez podany numer telefonu lub formularz kontaktowy serwisu. Masz również prawo wniesienia skargi do <a href="https://uodo.gov.pl/">Prezesa Urzędu Ochrony Danych Osobowych</a>.</p></section>
