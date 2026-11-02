@@ -6,6 +6,13 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 02.11.2026 — R-07, lokalne fonty i kompaktowe logo (w przygotowaniu)
+
+- Przygotowano subset Font Awesome 6.4.0 na podstawie nazw ikon z publicznej mapy stron oraz kodu PHP/JS; lokalny Roboto variable 300–900 z alfabetem łacińskim i polskimi znakami. Zachowane rodziny i style, ładowanie asynchroniczne oraz noscript.
+- Logo powstaje z rzeczywistego aktualnego PNG na stronie, jako WebP o maksymalnej szerokości 672 px (3× szerokość 224 px); oryginalny PNG zachowany. Preload tła przeniesiony na początek head.
+- Publikacja tylko aktualnego hostingowego index.php, zasoby z nazwami zawierającymi hash, kopie i rollback. Bez API, danych najmu i APK. Poradniki poza wspólnym szablonem nadal używają dawnych fontów.
+- Testy, PR, porównanie Lighthouse i publikacja: do potwierdzenia. R-07 nadal CZĘŚCIOWO do zmierzenia efektu.
+
 ## 02.11.2026 — R-07: końcowa kontrola wdrożonych poprawek mobilnych
 
 - **PUBLIKACJA POTWIERDZONA:** PR #87/#88, krok publikacji [run 41428969769](https://github.com/Domiono/Protokol/actions/runs/41428969769) zakończony sukcesem; publiczny odczyt niezależny również poprawny. Tło mobilne 166190 B zamiast 313692 B (−47%), wysoki priorytet i preload wyłącznie na głównej; desktop zachowuje oryginalną grafikę. Cache statycznych plików i etykieta telefonu działają.
