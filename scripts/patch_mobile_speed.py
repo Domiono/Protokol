@@ -6,10 +6,12 @@ from pathlib import Path
 ASSET = '/assets/rentmor-blueprint-mobile-20261102.webp'
 MARKER = 'rentmor-mobile-speed-v1'
 STYLE = f'''<!-- {MARKER} -->
+<?php if (empty($detail_view)): ?>
 <link rel="preload" as="image" href="{ASSET}" media="(max-width: 899px)" fetchpriority="high">
+<?php endif; ?>
 <style id="{MARKER}">
 @media (max-width: 899px) {{
- [data-rentmor-blueprint="v1"] {{
+ header[data-rentmor-blueprint="v1"] {{
   background-image: linear-gradient(90deg,rgba(2,15,36,.10),rgba(2,15,36,.16),rgba(2,15,36,.10)),url("{ASSET}") !important;
  }}
 }}
