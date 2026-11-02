@@ -6,6 +6,15 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 02.11.2026 — R-07, mobilne tło, cache i dostępność telefonu
+
+- Zrzut PSI użytkownika: mobile LCP 5,5 s, FCP 0,9 s, TBT 0 ms, CLS 0,002; brak cache dla 418 KiB zasobów. Nie utożsamiać z danymi rzeczywistych użytkowników.
+- Przygotowano oddzielny wariant istniejącego, zaakceptowanego tła: WebP 1200 px / q82 dla ekranów poniżej 900 px, preload i wysoki priorytet; oryginał desktop pozostaje. Bez zmiany ilustracji/układu.
+- Dopisano cache 7 dni tylko dla statycznych rozszerzeń oraz rok dla wersjonowanych teł; PHP/HTML/JSON bez nowych reguł. Dotychczasowy cache obejmował wyłącznie card/detail, pomijając small/thumb.
+- Link telefonu w nawigacji ma nazwę „Zadzwoń do RentMor”, ikona telefonu aria-hidden; zdarzenie trackCall zachowane.
+- Publikacja: nowy workflow mobile-speed.yml, patch aktualnego index.php i .htaccess, kontrola zmiany źródła, osłonięte kopie, readback i rollback obu plików w przypadku nieudanej kontroli publicznej. Bez danych najmu, API i APK.
+- Testy lokalne: idempotencja, odmowa dla nieznanego szablonu, zachowanie akcji i patch rzeczywistego HTML — sukces. CI mierzy trzy przebiegi Lighthouse przed/po i wykonuje testy publiczne/prywatności/przeglądarki. PR, CI i publikacja: **do potwierdzenia**. R-07 pozostaje otwarte do porównania LCP.
+
 ## 01.11.2026 — kontrola produkcji po naprawie testu (#85)
 
 - [PR #85](https://github.com/Domiono/Protokol/pull/85) (merge `77413cab45d8349763123c39daa4c04d9b4dad65`) koryguje kontrolę informacji o prywatności przy formularzu: formularz jest na stronach ofert, a nie w katalogu sprzętu.
