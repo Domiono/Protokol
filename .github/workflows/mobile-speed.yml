@@ -23,7 +23,7 @@ jobs:
           npm install --no-save lighthouse@12.8.2 playwright@1.56.1
           mkdir -p reports
           python3 scripts/test_mobile_speed.py
-          cwebp -quiet -q 90 -resize 1200 0 server/assets/rentmor-blueprint-final-20261030.webp -o reports/rentmor-blueprint-mobile-20261102.webp
+          cwebp -quiet -q 82 -m 6 -resize 1200 0 server/assets/rentmor-blueprint-final-20261030.webp -o reports/rentmor-blueprint-mobile-20261102.webp
           test "$(stat -c%s reports/rentmor-blueprint-mobile-20261102.webp)" -lt 220000
       - name: Measure current public mobile performance
         run: |

@@ -9,7 +9,7 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 ## 02.11.2026 — R-07, mobilne tło, cache i dostępność telefonu
 
 - Zrzut PSI użytkownika: mobile LCP 5,5 s, FCP 0,9 s, TBT 0 ms, CLS 0,002; brak cache dla 418 KiB zasobów. Nie utożsamiać z danymi rzeczywistych użytkowników.
-- Przygotowano oddzielny wariant istniejącego, zaakceptowanego tła: WebP 1200 px / q90 dla ekranów poniżej 900 px, preload i wysoki priorytet; oryginał desktop pozostaje. Bez zmiany ilustracji/układu.
+- Przygotowano oddzielny wariant istniejącego, zaakceptowanego tła: WebP 1200 px / q82 dla ekranów poniżej 900 px, preload i wysoki priorytet; oryginał desktop pozostaje. Bez zmiany ilustracji/układu.
 - Dopisano cache 7 dni tylko dla statycznych rozszerzeń oraz rok dla wersjonowanych teł; PHP/HTML/JSON bez nowych reguł. Dotychczasowy cache obejmował wyłącznie card/detail, pomijając small/thumb.
 - Link telefonu w nawigacji ma nazwę „Zadzwoń do RentMor”, ikona telefonu aria-hidden; zdarzenie trackCall zachowane.
 - Publikacja: nowy workflow mobile-speed.yml, patch aktualnego index.php i .htaccess, kontrola zmiany źródła, osłonięte kopie, readback i rollback obu plików w przypadku nieudanej kontroli publicznej. Bez danych najmu, API i APK.
