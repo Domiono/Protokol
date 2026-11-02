@@ -6,6 +6,15 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 02.11.2026 — R-07: końcowa kontrola wdrożonych poprawek mobilnych
+
+- **PUBLIKACJA POTWIERDZONA:** PR #87/#88, krok publikacji [run 41428969769](https://github.com/Domiono/Protokol/actions/runs/41428969769) zakończony sukcesem; publiczny odczyt niezależny również poprawny. Tło mobilne 166190 B zamiast 313692 B (−47%), wysoki priorytet i preload wyłącznie na głównej; desktop zachowuje oryginalną grafikę. Cache statycznych plików i etykieta telefonu działają.
+- Lighthouse potwierdził zaliczenie audytu link-name; mobilny request pobiera wyłącznie nowy wariant tła z priorytetem High. Zrzuty 390/1365 px przejrzane — układ i czytelność tła zachowane.
+- **Testy przeglądarki ZALICZONE** dla 390 i 1365 px w [run 41430368867](https://github.com/Domiono/Protokol/actions/runs/41430368867), PR #90: katalog, wyszukiwanie, kategorie i zoom. Liczba zdjęć Puzzi została sprawdzona w publicznym HTML (1 slajd, brak next, 1 zoom); wcześniejsze niepowodzenia dotyczyły błędnego oczekiwania testu. Testy prywatności i consent przeszły po publikacji.
+- Porównanie Lighthouse 12.8.2, mobile, po trzy próby: przed publikacją LCP 6,263 / 6,867 / 6,976 s (mediana 6,867); końcowa kontrola po publikacji 5,468 / 6,260 / 5,757 s (mediana 5,757; około −16%). Wyniki performance odpowiednio 75/68/68 oraz 75/77/78. Nie są to wyniki tej samej sesji PSI użytkownika ani dane CrUX; występują wahania sieci i losowy porządek kart.
+- **R-07 pozostaje CZĘŚCIOWO:** potwierdzona redukcja transferu i poprawa mediany w tym porównaniu, ale LCP nadal przekracza dobry poziom i nie ma dowodu stabilnych wyników poniżej 2,5 s. Dalsza optymalizacja wymaga oddzielnego pomiaru zależności zasobów/fontów. Nie deklarować, że cała wydajność jest naprawiona.
+- PR #89/#90 korygują wyłącznie testy i workflow; bez nowego APK, zmian danych najmu lub cen. Ostatni kod testów: b24e85b4ca2465ddac95ffe25c2257b8e7297c00.
+
 ## 02.11.2026 — publikacja szybkości potwierdzona, końcowy test w toku
 
 - PR #88 / commit c4a4c7db285c80f1e7c27b822e312be07f81d9e7; etap publikacji w run 41428969769 zakończony sukcesem. Niezależny odczyt potwierdził cache, tło mobilne 166190 B (oryginał 313692 B), etykietę telefonu i zachowanie cookies. Test prywatności również zakończony sukcesem.
