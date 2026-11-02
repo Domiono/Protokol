@@ -6,6 +6,12 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 02.11.2026 — publikacja szybkości potwierdzona, końcowy test w toku
+
+- PR #88 / commit c4a4c7db285c80f1e7c27b822e312be07f81d9e7; etap publikacji w run 41428969769 zakończony sukcesem. Niezależny odczyt potwierdził cache, tło mobilne 166190 B (oryginał 313692 B), etykietę telefonu i zachowanie cookies. Test prywatności również zakończony sukcesem.
+- Test przeglądarki na 390 px przeszedł wszystkie interakcje. Przy 1365 px stary test wybrał losową ofertę z jednym zdjęciem i oczekiwał przycisku następnego zdjęcia. Poprawiono dobór oferty testowej na stałe Puzzi, zachowując kontrolę losowego katalogu. To korekta testu, nie wykazana awaria galerii.
+- Pomiary po wdrożeniu i końcowe wyniki: do potwierdzenia. Produkcyjne zmiany pozostały opublikowane; test po publikacji zatrzymał się dopiero na założeniu dotyczącym losowego produktu.
+
 ## 02.11.2026 — R-07, mobilne tło, cache i dostępność telefonu
 
 - Zrzut PSI użytkownika: mobile LCP 5,5 s, FCP 0,9 s, TBT 0 ms, CLS 0,002; brak cache dla 418 KiB zasobów. Nie utożsamiać z danymi rzeczywistych użytkowników.

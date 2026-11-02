@@ -43,7 +43,7 @@ jobs:
         run: |
           python3 scripts/check_mobile_speed.py
           python3 scripts/verify_public_privacy.py
-          node scripts/public_speed_browser.cjs
+          node scripts/mobile_speed_browser.cjs
           for N in 1 2 3; do
             npx lighthouse https://rentmor.pl/ --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance,accessibility --output=json --output-path="reports/after-$N.json" --quiet
             python3 scripts/summarize_speed.py "reports/after-$N.json"
