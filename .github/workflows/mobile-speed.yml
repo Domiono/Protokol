@@ -1,0 +1,55 @@
+name: RentMor mobile speed and accessibility
+on:
+  pull_request:
+    paths: ['scripts/*mobile_speed*', '.github/workflows/mobile-speed.yml']
+  push:
+    branches: [main]
+    paths: ['scripts/*mobile_speed*', '.github/workflows/mobile-speed.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rentmor-public-homepage
+  cancel-in-progress: false
+jobs:
+  validate-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lftp php-cli webp
+          npm install --no-save lighthouse@12.8.2 playwright@1.56.1
+          mkdir -p reports
+          python3 scripts/test_mobile_speed.py
+          cwebp -quiet -q 90 -resize 1200 0 server/assets/rentmor-blueprint-final-20261030.webp -o reports/rentmor-blueprint-mobile-20261102.webp
+          test "$(stat -c%s reports/rentmor-blueprint-mobile-20261102.webp)" -lt 220000
+      - name: Measure current public mobile performance
+        run: |
+          for N in 1 2 3; do
+            npx lighthouse https://rentmor.pl/ --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance,accessibility --output=json --output-path="reports/before-$N.json" --quiet
+            python3 scripts/summarize_speed.py "reports/before-$N.json"
+          done
+      - name: Patch and publish current hosting files with rollback
+        if: github.event_name != 'pull_request'
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: bash scripts/publish_mobile_speed.sh
+      - name: Verify public behaviour
+        if: github.event_name != 'pull_request'
+        run: |
+          python3 scripts/check_mobile_speed.py
+          python3 scripts/verify_public_privacy.py
+          node scripts/public_speed_browser.cjs
+          for N in 1 2 3; do
+            npx lighthouse https://rentmor.pl/ --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance,accessibility --output=json --output-path="reports/after-$N.json" --quiet
+            python3 scripts/summarize_speed.py "reports/after-$N.json"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-speed-evidence
+          path: reports/
