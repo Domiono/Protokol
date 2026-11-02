@@ -10,3 +10,7 @@ try:patch('<html></html>')
 except ValueError:pass
 else:raise AssertionError('Must reject unknown template')
 print('PASS: idempotency, original actions, narrow cache and unknown-template rejection')
+
+php_source=s.replace('tel:733891281', 'tel:<?php echo htmlspecialchars($phone); ?>')
+assert 'aria-label="Zadzwoń do RentMor"' in patch(php_source)
+assert '<?php echo htmlspecialchars($phone); ?>' in patch(php_source)
