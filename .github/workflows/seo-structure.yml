@@ -1,0 +1,36 @@
+name: RentMor SEO categories and rental structure
+on:
+  pull_request:
+    paths: ['server/seo_structure.php', 'server/rental_categories.php', 'server/category.php', 'server/category_sitemap.php', 'server/seo-structure.css', 'scripts/*seo_structure*', '.github/workflows/seo-structure.yml']
+  push:
+    branches: [main]
+    paths: ['server/seo_structure.php', 'server/rental_categories.php', 'server/category.php', 'server/category_sitemap.php', 'server/seo-structure.css', 'scripts/*seo_structure*', '.github/workflows/seo-structure.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rentmor-public-homepage
+  cancel-in-progress: false
+jobs:
+  validate-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test structure and semantics
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq php-cli lftp
+          for file in server/{rental_categories,category,category_sitemap,seo_structure}.php; do php -l "$file"; done
+          python3 scripts/test_seo_structure.py
+          php scripts/test_seo_structure.php
+          php scripts/test_related_offers.php
+          bash -n scripts/publish_seo_structure.sh
+          python3 scripts/test_seo_structure_http.py
+      - name: Publish with backup, readback and rollback
+        if: github.event_name != 'pull_request'
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: bash scripts/publish_seo_structure.sh
