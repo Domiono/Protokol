@@ -13,7 +13,7 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 - Dopisano cache 7 dni tylko dla statycznych rozszerzeń oraz rok dla wersjonowanych teł; PHP/HTML/JSON bez nowych reguł. Dotychczasowy cache obejmował wyłącznie card/detail, pomijając small/thumb.
 - Link telefonu w nawigacji ma nazwę „Zadzwoń do RentMor”, ikona telefonu aria-hidden; zdarzenie trackCall zachowane.
 - Publikacja: nowy workflow mobile-speed.yml, patch aktualnego index.php i .htaccess, kontrola zmiany źródła, osłonięte kopie, readback i rollback obu plików w przypadku nieudanej kontroli publicznej. Bez danych najmu, API i APK.
-- Testy lokalne: idempotencja, odmowa dla nieznanego szablonu, zachowanie akcji i patch rzeczywistego HTML — sukces. CI mierzy trzy przebiegi Lighthouse przed/po i wykonuje testy publiczne/prywatności/przeglądarki. PR, CI i publikacja: **do potwierdzenia**. R-07 pozostaje otwarte do porównania LCP.
+- Testy lokalne: idempotencja, odmowa dla nieznanego szablonu, zachowanie akcji i patch rzeczywistego HTML — sukces. CI mierzy trzy przebiegi Lighthouse przed/po i wykonuje testy publiczne/prywatności/przeglądarki. PR #87: CI zakończone sukcesem. Pierwsza publikacja 41413493841 zatrzymana przed zapisem z powodu PHP wewnątrz atrybutu linku telefonu. Parser poprawiono i dodano test takiego szablonu; ponowna publikacja do potwierdzenia. R-07 pozostaje otwarte do porównania LCP.
 
 ## 01.11.2026 — kontrola produkcji po naprawie testu (#85)
 

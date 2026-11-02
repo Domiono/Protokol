@@ -42,7 +42,7 @@ def patch(source):
         found += 1
         if 'aria-label=' not in tag: tag = tag[:-1] + ' aria-label="Zadzwoń do RentMor">'
         return tag
-    source = re.sub(r'<a\b[^>]*>',phone,source,flags=re.S)
+    source = re.sub(r'<a\b(?:<\?(?:php|=).*?\?>|[^>])*>',phone,source,flags=re.S)
     if found != 1: raise ValueError(f'Expected one top phone link, got {found}')
     source = re.sub(r'(<i\b)([^>]*class="[^"]*fa-phone[^"]*"[^>]*)(>)',
         lambda m: m.group() if 'aria-hidden=' in m.group() else m[1]+m[2]+' aria-hidden="true"'+m[3],source)
