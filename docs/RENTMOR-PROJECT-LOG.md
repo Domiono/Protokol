@@ -6,6 +6,13 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 03.11.2026 — LCP zdjęcia ofert (Puzzi): preload pierwszego WebP — PR DO POTWIERDZENIA
+
+- **Analiza Lighthouse 12.8.2 oferty Puzzi:** LCP **5,33 s**, LCP element to pierwsze zdjęcie galerii `data-rm-image-kind="detail"` (plik WebP około 75 kB). Rozbicie LCP: TTFB 663 ms, *load delay* 2392 ms, czas pobierania 2021 ms, render delay 255 ms. Próbka laboratoryjna, nie prawdziwe Core Web Vitals.
+- **Przygotowano** w `seo_structure.php` funkcję `rm_product_lcp_preload()`, która tylko na rozpoznanej stronie Product wybiera z już opublikowanego manifestu WebP te same kandydaty `srcset` co pierwsze zdjęcie i wstawia pojedynczy preload `imagesrcset/imagesizes/fetchpriority=high` na sam początek `<head>`. Walidacja URL zapobiega wstrzyknięciu zewnętrznego zasobu. Jeśli manifest nie zawiera danych, nie zmienia HTML. Reszta galerii nadal ładuje się na żądanie.
+- **Bez zmian** oryginałów zdjęć, powiększenia, rezerwacji, cen, kaucji, danych klienta i APK. Testy jednostkowe obejmują spójność srcset, kolejność przed CSS, idempotencję i złośliwy manifest; produkcyjne sprawdzają pierwszy obraz Puzzi oraz stare SEO/prywatność. Publikacja przez `seo-structure.yml` z backupem i rollbackiem.
+- **Do potwierdzenia:** PR, skuteczna publikacja, porównanie trzech przebiegów przed/po i ponowny Lighthouse Puzzi. Bez poprawy wartości rzeczywistej i celu 2,5 s nie zamykać R-07.
+
 ## 03.11.2026 — Google Quality: WebP kategorii, kontrast i a11y — DO PUBLIKACJI
 
 - Po audycie mobilnym szczególne ryzyka: w kategoriach oryginalne duże PNG/JPG zamiast istniejących WebP (potencjalny transfer oszczędności ponad 2 MB); na głównej i ofertach kontrast ciemniejszego zielonego telefonu, żółtych cen i szarych etykiet; `aria-label` filtrów nie zawierało wizualnej nazwy („Budowlane”), mimo że `aria-pressed` było poprawne. Na ofercie Puzzi stwierdzono kolejność H1 → H3 (opis) → H4 (w zestawie) i logo PNG bez wymiarów.
