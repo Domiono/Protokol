@@ -17,6 +17,60 @@ function rm_home_sections(): string {
         . '</div></section>';
 }
 
+/** Preload only a product's first, already-optimized gallery photo.
+ * Matches the existing srcset selection without downloading original JPG/PNG.
+ * Do not preload additional slides, because they are hydrated on demand.
+ */
+function rm_product_lcp_preload(string $html, array $manifest): string {
+    if (str_contains($html, 'data-rm-lcp-preload="v1"')) return $html;
+    if (preg_match_all('~<img\b(?=[^>]*\bdata-rm-image-kind="detail")[^>]*>~is', $html, $images) !== 1) return $html;
+    $tag = $images[0][0];
+    $sources = [];
+    if (preg_match('~\bsrcset\s*=\s*(["\x27])(.*?)\1~is', $tag, $match)) {
+        // HTML optimizer may already have populated srcset, depending on buffer order.
+        $sources = array_map('trim', explode(',', html_entity_decode($match[2], ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+    } elseif (preg_match('~\bsrc\s*=\s*(["\x27])(.*?)\1~is', $tag, $match)) {
+        $path = parse_url(html_entity_decode($match[2], ENT_QUOTES | ENT_HTML5, 'UTF-8'), PHP_URL_PATH);
+        if (!is_string($path)) return $html;
+        $asset = null;
+        if (preg_match('~^/uploads/([A-Za-z0-9_.-]+\.(?:jpe?g|png|webp))$~i', $path, $source)) {
+            $asset = $manifest[$source[1]] ?? null;
+        } elseif (preg_match('~^/uploads/rentmor-webp/[A-Za-z0-9_.-]+\.webp$~', $path)) {
+            // Some page templates render the already optimized public WebP as src.
+            // Reverse-match a *declared* variant in the safe manifest, never a free URL.
+            foreach ($manifest as $candidate) {
+                if (!is_array($candidate)) continue;
+                foreach (['card', 'detail'] as $kind) {
+                    if (($candidate[$kind]['url'] ?? null) === $path) {
+                        $asset = $candidate;
+                        break 2;
+                    }
+                }
+            }
+        }
+        if (!is_array($asset)) return $html;
+        foreach (['thumb', 'small', 'card', 'detail'] as $kind) {
+            $variant = $asset[$kind] ?? null;
+            if (!is_array($variant)) continue;
+            $url = $variant['url'] ?? null;
+            $width = $variant['width'] ?? null;
+            if (!is_string($url) || !preg_match('~^/uploads/rentmor-webp/[A-Za-z0-9_.-]+\.webp$~', $url)
+                || !is_numeric($width) || (int)$width < 1 || (int)$width > 5000) continue;
+            $sources[] = $url . ' ' . (int)$width . 'w';
+        }
+    }
+    if (count($sources) < 2) return $html;
+    foreach ($sources as $source) {
+        if (!preg_match('~^/uploads/rentmor-webp/[A-Za-z0-9_.-]+\.webp [1-9][0-9]{0,3}w$~', $source)) return $html;
+    }
+    if (preg_match_all('~<head\b[^>]*>~i', $html) !== 1) return $html;
+    $link = '<link rel="preload" as="image" imagesrcset="'
+        . htmlspecialchars(implode(', ', $sources), ENT_QUOTES, 'UTF-8')
+        . '" imagesizes="(max-width: 768px) 100vw, 900px" fetchpriority="high" data-rm-lcp-preload="v1">';
+    return (string)preg_replace_callback('~<head\b[^>]*>~i',
+        static fn($m) => $m[0] . "\n" . $link, $html, 1);
+}
+
 /** Optimizes only already-approved images on the public homepage; preserves the artwork. */
 function rm_speed_up_home(string $html): string {
     $oldHero = '/assets/rentmor-blueprint-mobile-20261102.webp';
@@ -92,6 +146,10 @@ function rentmor_seo_structure(string $html): string {
     }, $html);
     if ($changedProduct) {
         $html = preg_replace('~(</h1>)~i', '$1<p class="rm-seo-muted" data-rm-rental-terms="v1">Cena podstawowa za dobę wynajmu. Kaucja i ewentualne dodatki zgodnie z opisem. Dostępność na termin potwierdzamy przy rezerwacji.</p>', $html, 1);
+        $manifestFile = __DIR__ . '/rentmor-image-manifest.json';
+        $manifestRaw = is_file($manifestFile) ? @file_get_contents($manifestFile) : false;
+        $imageManifest = is_string($manifestRaw) ? json_decode($manifestRaw, true) : null;
+        if (is_array($imageManifest)) $html = rm_product_lcp_preload($html, $imageManifest);
     }
     $html = rm_add_header_category_menu($html);
     $html = rm_accessibility_html($html, $isHome);

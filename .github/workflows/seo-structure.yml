@@ -43,6 +43,8 @@ jobs:
           for N in 1 2 3; do
             npx lighthouse https://rentmor.pl/ --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance --output=json --output-path="reports/mobile-before-$N.json" --quiet
             python3 scripts/summarize_speed.py "reports/mobile-before-$N.json" | grep '^SPEED_RESULT'
+            npx lighthouse https://rentmor.pl/odkurzacz-pioracy-karcher-puzzi-10-1/ --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance --output=json --output-path="reports/offer-before-$N.json" --quiet
+            python3 scripts/summarize_speed.py "reports/offer-before-$N.json" | grep '^SPEED_RESULT'
           done
       - name: Publish with backup, readback and rollback
         if: github.event_name != 'pull_request'
@@ -57,12 +59,17 @@ jobs:
           for N in 1 2 3; do
             npx lighthouse https://rentmor.pl/ --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance --output=json --output-path="reports/mobile-after-$N.json" --quiet
             python3 scripts/summarize_speed.py "reports/mobile-after-$N.json" | grep '^SPEED_RESULT'
+            npx lighthouse https://rentmor.pl/odkurzacz-pioracy-karcher-puzzi-10-1/ --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance --output=json --output-path="reports/offer-after-$N.json" --quiet
+            python3 scripts/summarize_speed.py "reports/offer-after-$N.json" | grep '^SPEED_RESULT'
           done
           python3 - <<'PY'
           import json,statistics
-          for phase in ('before','after'):
-              values=[json.load(open(f'reports/mobile-{phase}-{i}.json'))['audits']['largest-contentful-paint']['numericValue'] for i in (1,2,3)]
-              print('MOBILE_LCP_MEDIAN',phase,round(statistics.median(values)), 'ms',list(map(round,values)))
+          for prefix in ('mobile','offer'):
+              for phase in ('before','after'):
+                  sources=[json.load(open(f'reports/{prefix}-{phase}-{i}.json')) for i in (1,2,3)]
+                  values=[source['audits']['largest-contentful-paint']['numericValue'] for source in sources]
+                  scores=[source['categories']['performance']['score'] for source in sources]
+                  print(prefix.upper()+'_LCP_MEDIAN', phase, round(statistics.median(values)), 'ms', list(map(round,values)), 'perf_med', round(statistics.median(scores)*100))
           PY
       - uses: actions/upload-artifact@v4
         if: always()

@@ -80,6 +80,13 @@ def main():
     assert 'src="/assets/rentmor-logo-mobile-20261103.webp"' in offer
     assert 'class="rm-skip-link" href="#rentmor-main-heading"' in offer
     assert '<button type="button" class="rm-cookie-settings-button" data-rm-cookie-settings>' in offer
+    # Product gallery's first WebP image starts fetching in HEAD before inline styles.
+    puzzi, _ = fetch('/odkurzacz-pioracy-karcher-puzzi-10-1/')
+    assert puzzi.count('data-rm-lcp-preload="v1"') == 1
+    assert '<link rel="preload" as="image" imagesrcset="/uploads/rentmor-webp/' in puzzi
+    assert 'imagesizes="(max-width: 768px) 100vw, 900px"' in puzzi
+    assert puzzi.index('data-rm-lcp-preload="v1"') < puzzi.index('rentmor-critical-css-v1')
+    assert 'data-rm-image-kind="detail"' in puzzi
     verify_redirect(BASE+'/index.php', BASE+'/')
     verify_redirects() # legacy query-based products, www and HTTP must remain functional
     print('PASS: public categories, sitemap, consolidated home, rental schema and legacy redirects')

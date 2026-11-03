@@ -38,6 +38,18 @@ check(str_contains($perfOut, 'srcset="/assets/rentmor-logo-mobile-20261103.webp 
 check(rentmor_seo_structure($perfOut) === $perfOut, 'Optimized HTML idempotent');
 $offerOnly = str_replace('href="https://rentmor.pl/"', 'href="https://rentmor.pl/test/"', $perfFixture);
 check(str_contains(rentmor_seo_structure($offerOnly), '/assets/rentmor-blueprint-mobile-20261102.webp'), 'Offer image unchanged');
+$detailFixture = '<html><head><link rel="canonical" href="https://rentmor.pl/puzzi/"></head><body><div class="rm-gallery"><img data-rm-image-kind="detail" src="/uploads/puzzi.jpg" alt="Puzzi" fetchpriority="high"></div></body></html>';
+$detailManifest = ['puzzi.jpg'=>['card'=>['url'=>'/uploads/rentmor-webp/puzzi-card.webp','width'=>640],'detail'=>['url'=>'/uploads/rentmor-webp/puzzi-detail.webp','width'=>1080]]];
+$preload = rm_product_lcp_preload($detailFixture, $detailManifest);
+check(str_contains($preload, 'imagesrcset="/uploads/rentmor-webp/puzzi-card.webp 640w, /uploads/rentmor-webp/puzzi-detail.webp 1080w"'), 'Preload selects exact approved WebP candidates');
+check(str_contains($preload, 'imagesizes="(max-width: 768px) 100vw, 900px"'), 'Preload matches detail image sizes');
+check(str_contains($preload, 'fetchpriority="high" data-rm-lcp-preload="v1"'), 'Preload is priority-hinted and unique');
+check(strpos($preload, 'data-rm-lcp-preload="v1"') < strpos($preload, '<link rel="canonical"'), 'Preload discovered at head start');
+$webpSource = str_replace('src="/uploads/puzzi.jpg"', 'src="https://rentmor.pl/uploads/rentmor-webp/puzzi-detail.webp"', $detailFixture);
+check(str_contains(rm_product_lcp_preload($webpSource, $detailManifest), 'data-rm-lcp-preload="v1"'), 'Previously optimized image source resolves via manifest');
+check(rm_product_lcp_preload($preload, $detailManifest) === $preload, 'Preload helper idempotent');
+check(rm_product_lcp_preload($detailFixture, ['puzzi.jpg'=>['card'=>['url'=>'https://invalid.local/image.webp','width'=>640]]]) === $detailFixture, 'Unsafe image manifest ignored');
+check(rm_product_lcp_preload('<html><head></head><body></body></html>', $detailManifest) === '<html><head></head><body></body></html>', 'Unknown page unchanged');
 check(rentmor_seo_structure('{"ok":true}') === '{"ok":true}', 'Non HTML unchanged');
 $items = rm_category_items([['name'=>'Puzzi','cat'=>'czyszczace','price'=>50],['name'=>'Młot','category'=>'budowlane','price'=>60],['name'=>'Puzzi','cat'=>'czyszczace'],['name'=>'Nowy sprzęt','cat'=>'czyszczące']], 'czyszczace');
 check(count($items) === 2 && isset($items['puzzi'], $items['nowy-sprzet']), 'Category matching and deduplication');
