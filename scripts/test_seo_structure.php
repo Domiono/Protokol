@@ -45,6 +45,8 @@ check(str_contains($preload, 'imagesrcset="/uploads/rentmor-webp/puzzi-card.webp
 check(str_contains($preload, 'imagesizes="(max-width: 768px) 100vw, 900px"'), 'Preload matches detail image sizes');
 check(str_contains($preload, 'fetchpriority="high" data-rm-lcp-preload="v1"'), 'Preload is priority-hinted and unique');
 check(strpos($preload, 'data-rm-lcp-preload="v1"') < strpos($preload, '<link rel="canonical"'), 'Preload discovered at head start');
+$webpSource = str_replace('src="/uploads/puzzi.jpg"', 'src="https://rentmor.pl/uploads/rentmor-webp/puzzi-detail.webp"', $detailFixture);
+check(str_contains(rm_product_lcp_preload($webpSource, $detailManifest), 'data-rm-lcp-preload="v1"'), 'Previously optimized image source resolves via manifest');
 check(rm_product_lcp_preload($preload, $detailManifest) === $preload, 'Preload helper idempotent');
 check(rm_product_lcp_preload($detailFixture, ['puzzi.jpg'=>['card'=>['url'=>'https://invalid.local/image.webp','width'=>640]]]) === $detailFixture, 'Unsafe image manifest ignored');
 check(rm_product_lcp_preload('<html><head></head><body></body></html>', $detailManifest) === '<html><head></head><body></body></html>', 'Unknown page unchanged');
