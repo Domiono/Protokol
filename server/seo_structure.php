@@ -5,9 +5,9 @@ require_once __DIR__ . '/rental_categories.php';
 function rm_home_sections(): string {
     return '<section id="wynajem-sprzetu-krakow" class="rm-seo-section" data-rm-home-structure="v1">'
         . '<h2>Wypożycz sprzęt w Krakowie, Czyżynach</h2>'
-        . '<p>Sprzęt do remontu, ogrodu i sprzątania dla osób prywatnych oraz firm. Wybierz kategorię, porównaj urządzenia i sprawdź warunki konkretnej oferty.</p>'
+        . '<p>RentMor to lokalna wypożyczalnia sprzętu w Krakowie, w dzielnicy Czyżyny. Wynajmujemy urządzenia do remontu, prac ogrodowych i sprzątania osobom prywatnym oraz firmom. Zobacz <a href="/sprzet-budowlany/">sprzęt budowlany na wynajem</a>, porównaj ceny dobowe i wybierz model odpowiedni do pracy.</p>'
         . '<h3>Jak wypożyczyć sprzęt?</h3><ol><li>Wybierz urządzenie i sprawdź cenę dobową, kaucję oraz dodatki.</li><li>Zadzwoń i ustal termin odbioru oraz zwrotu.</li><li>Przy odbiorze podpisz umowę i wpłać kaucję. Transport zapewniasz we własnym zakresie.</li></ol>'
-        . '<p>Odbiór przy ul. Woźniców po wcześniejszej rezerwacji. Dokładny adres podajemy przy ustalaniu odbioru.</p>'
+        . '<p>Odbiór osobisty w Krakowie przy ul. Woźniców, po wcześniejszym uzgodnieniu terminu. Dokładny adres przekazujemy przy rezerwacji. Nie trzeba prowadzić firmy, aby wynająć sprzęt; obsługujemy również wykonawców.</p>'
         . '<p><a href="tel:+48733891281">Zadzwoń: 733 891 281</a> · <a href="/zasady.php">Zasady wynajmu</a></p></section>'
         . '<section id="poradniki" class="rm-seo-section"><h2>Poradniki przed rozpoczęciem pracy</h2><div class="rm-seo-grid">'
         . '<article class="rm-seo-card"><h3><a href="/poradnik-jaki-papier-scierny-do-zyrafy.php">Jaki papier ścierny do żyrafy?</a></h3><p>Dobór gradacji i najczęstsze błędy przy szlifowaniu gładzi.</p></article>'
@@ -16,11 +16,29 @@ function rm_home_sections(): string {
         . '</div></section>';
 }
 
+/** Optimizes only already-approved images on the public homepage; preserves the artwork. */
+function rm_speed_up_home(string $html): string {
+    $oldHero = '/assets/rentmor-blueprint-mobile-20261102.webp';
+    $newHero = '/assets/rentmor-blueprint-mobile-20261103.webp';
+    // The existing CSS and preload must reference the same file, or do nothing.
+    if (str_contains($html, 'data-rentmor-blueprint="v1"') && substr_count($html, $oldHero) >= 2) {
+        $html = str_replace($oldHero, $newHero, $html);
+    }
+    $oldLogo = '/rentmor-logo.png?v=rm-20261030-wordmark-v2';
+    $newLogo = '/assets/rentmor-logo-mobile-20261103.webp';
+    if (str_contains($html, 'src="' . $oldLogo . '"')) {
+        $html = str_replace('src="' . $oldLogo . '"', 'src="' . $newLogo . '"', $html);
+        $html = str_replace('srcset="' . $oldLogo . ' 1x"', 'srcset="' . $newLogo . ' 1x"', $html);
+    }
+    return $html;
+}
+
 /** Only rendered public HTML: never modifies product data, sessions or reservations. */
 function rentmor_seo_structure(string $html): string {
     if (!str_contains($html, '</head>') || str_contains($html, '<!-- rentmor-seo-structure-v1 -->')) return $html;
     $isHome = (bool)preg_match('~<link\b[^>]*rel=["\x27]canonical["\x27][^>]*href=["\x27]https://rentmor\.pl/["\x27]~i', $html);
     if ($isHome) {
+        $html = rm_speed_up_home($html);
         // Replace only the three known sections. On template drift leave all content intact.
         $section = '~<section\b[^>]*>(?:(?!<section\b|</section>).)*?</section>~is';
         $counts = ['intro'=>0, 'guide'=>0, 'local'=>0];
