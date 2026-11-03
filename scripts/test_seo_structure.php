@@ -42,6 +42,11 @@ $items = rm_category_items([['name'=>'Puzzi','cat'=>'czyszczace','price'=>50],['
 check(count($items) === 2 && isset($items['puzzi'], $items['nowy-sprzet']), 'Category matching and deduplication');
 check(rm_related_price(['price'=>'<script>']) === '', 'Invalid price excluded');
 check(str_contains(rm_category_escape('<script>'), '&lt;script&gt;'), 'Escaping');
+[$fallback, $srcset] = rm_category_responsive_image('/uploads/a.jpg', ['a.jpg'=>['small'=>['url'=>'/uploads/rentmor-webp/a-small.webp','width'=>320],'card'=>['url'=>'/uploads/rentmor-webp/a-card.webp','width'=>640]]]);
+check($fallback==='/uploads/rentmor-webp/a-card.webp' && str_contains($srcset,'a-small.webp 320w'), 'Responsive WebP variants');
+[$fallback, $srcset] = rm_category_responsive_image('/uploads/a.jpg', ['a.jpg'=>['card'=>['url'=>'https://attacker.invalid/image.webp','width'=>640]]]);
+check($fallback==='/uploads/a.jpg' && $srcset==='', 'Reject manifest URL outside expected public uploads');
+
 // Unknown templates must keep their original content rather than remove selected pieces.
 $unknown = str_replace('Szukasz sprzętu', 'Changed layout', $home);
 if (!isset($argv[1])) check(str_contains(rentmor_seo_structure($unknown), 'old local'), 'Unknown layout retained');
