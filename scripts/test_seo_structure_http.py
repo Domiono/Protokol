@@ -37,6 +37,11 @@ with tempfile.TemporaryDirectory() as tmp:
             collection=next(s for s in page.schemas if s.get('@type')=='CollectionPage')
             assert collection['mainEntity']['numberOfItems']==1
             assert '<test>' not in html and 'cookie-consent.js' in html
+            if slug=='sprzet-budowlany':
+                assert 'Wypożyczalnia sprzętu budowlanego Kraków' in html
+                assert 'szlifierkę do betonu' in html
+            assert 'Wynajem sprzętu dla osób prywatnych i firm' in html
+            assert 'Czy sprzęt można odebrać tego samego dnia?' in html
         with fetch('/sitemap.xml') as response: xml=response.read()
         urls=[node.text for node in ET.fromstring(xml).findall('{*}url/{*}loc')]
         assert len(urls)==7 and len(set(urls))==7
