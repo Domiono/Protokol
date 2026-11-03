@@ -74,11 +74,20 @@ function rm_category_json(array $data): string {
 
 /** Native disclosure remains usable with JavaScript disabled. */
 function rm_category_menu(): string {
-    $html = '<details class="rm-category-menu" id="rm-category-menu"><summary aria-label="Menu kategorii sprzętu" title="Kategorie sprzętu"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg><span class="rm-sr-only">Kategorie sprzętu</span></summary><div class="rm-category-dropdown"><strong>Kategorie sprzętu</strong>';
+    $html = '<details class="rm-category-menu" id="rm-category-menu"><summary aria-label="Otwórz menu RentMor" title="Menu RentMor"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg><span class="rm-sr-only">Menu RentMor</span></summary><div class="rm-category-dropdown"><strong>Oferta RentMor</strong>';
     foreach (rm_categories() as $slug=>$category) {
         $html .= '<a href="/' . $slug . '/">' . rm_category_escape($category['name']) . '</a>';
     }
+    $html .= '<a href="/#poradniki">Poradniki</a><a href="/zasady.php">Zasady wynajmu</a>';
     return $html . '</div></details><script>(function(){var menu=document.getElementById("rm-category-menu");if(!menu)return;document.addEventListener("click",function(e){if(!menu.contains(e.target))menu.open=false;});document.addEventListener("keydown",function(e){if(e.key==="Escape"&&menu.open){menu.open=false;menu.querySelector("summary").focus();}});menu.addEventListener("focusout",function(e){if(e.relatedTarget&&!menu.contains(e.relatedTarget))menu.open=false;});})();</script>';
+}
+
+/** Consistent top navigation on category, editorial and legal pages. */
+function rm_public_site_header(): string {
+    return '<header class="rm-category-header rm-site-header"><div class="rm-header-brand">'
+        . rm_category_menu()
+        . '<a href="/" aria-label="RentMor.pl — strona główna"><img src="/assets/rentmor-logo-mobile-20261103.webp" width="224" height="48" alt="RentMor.pl"></a>'
+        . '</div><a class="rm-header-phone" href="tel:+48733891281" aria-label="Zadzwoń do RentMor: 733 891 281">733 891 281</a></header>';
 }
 
 function rm_add_header_category_menu(string $html): string {
