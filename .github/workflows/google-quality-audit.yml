@@ -1,0 +1,31 @@
+name: Google quality audit (public RentMor)
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/report_google_quality.py'
+      - '.github/workflows/google-quality-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  lighthouse-public:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lighthouse
+        run: npm install --no-save lighthouse@12.8.2
+      - name: Audit key public pages
+        run: |
+          mkdir -p reports
+          npx lighthouse https://rentmor.pl/ --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance,accessibility,best-practices,seo --output=json --output-path=reports/google-home-mobile.json --quiet
+          npx lighthouse https://rentmor.pl/sprzet-budowlany/ --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance,accessibility,best-practices,seo --output=json --output-path=reports/google-category-mobile.json --quiet
+          npx lighthouse https://rentmor.pl/odkurzacz-pioracy-karcher-puzzi-10-1/ --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance,accessibility,best-practices,seo --output=json --output-path=reports/google-offer-mobile.json --quiet
+          npx lighthouse https://rentmor.pl/ --preset=desktop --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance,accessibility,best-practices,seo --output=json --output-path=reports/google-home-desktop.json --quiet
+          python3 scripts/report_google_quality.py reports/google-*.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: google-quality-report
+          path: reports/
