@@ -36,6 +36,31 @@ function rm_category_items(array $catalogue, string $key): array {
     ksort($items);
     return $items;
 }
+/** Safely reuse already-uploaded WebP derivatives for category cards. */
+function rm_category_responsive_image(string $original, array $manifest): array {
+    if (!preg_match('~^/uploads/([A-Za-z0-9%_.-]+\.(?:jpe?g|png|webp))$~i', $original, $match)) {
+        return [$original, ''];
+    }
+    $filename = rawurldecode($match[1]);
+    if (!preg_match('~^[A-Za-z0-9_.-]+\.(?:jpe?g|png|webp)$~i', $filename)) return [$original, ''];
+    $asset = $manifest[$filename] ?? null;
+    if (!is_array($asset)) return [$original, ''];
+    $variants = [];
+    foreach (['thumb', 'small', 'card'] as $kind) {
+        $variant = $asset[$kind] ?? null;
+        if (!is_array($variant)) continue;
+        $url = $variant['url'] ?? null;
+        $width = $variant['width'] ?? null;
+        if (!is_string($url) || !preg_match('~^/uploads/rentmor-webp/[A-Za-z0-9_.-]+\.webp$~', $url)
+            || !is_numeric($width) || (int)$width < 1 || (int)$width > 3000) continue;
+        $variants[$kind] = ['url'=>$url,'width'=>(int)$width];
+    }
+    if (!$variants) return [$original, ''];
+    $fallback = $variants['card']['url'] ?? $variants['small']['url'] ?? $variants['thumb']['url'];
+    $srcset = implode(', ', array_map(static fn($v) => $v['url'] . ' ' . $v['width'] . 'w', array_values($variants)));
+    return [$fallback, $srcset];
+}
+
 function rm_category_nav(): string {
     $html = '<nav class="rm-seo-links" aria-label="Kategorie sprzętu">';
     foreach (rm_categories() as $slug=>$category) {
@@ -49,7 +74,7 @@ function rm_category_json(array $data): string {
 
 /** Native disclosure remains usable with JavaScript disabled. */
 function rm_category_menu(): string {
-    $html = '<details class="rm-category-menu" id="rm-category-menu"><summary aria-label="Menu kategorii sprzętu" title="Kategorie sprzętu"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></summary><div class="rm-category-dropdown"><strong>Kategorie sprzętu</strong>';
+    $html = '<details class="rm-category-menu" id="rm-category-menu"><summary aria-label="Menu kategorii sprzętu" title="Kategorie sprzętu"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg><span class="rm-sr-only">Kategorie sprzętu</span></summary><div class="rm-category-dropdown"><strong>Kategorie sprzętu</strong>';
     foreach (rm_categories() as $slug=>$category) {
         $html .= '<a href="/' . $slug . '/">' . rm_category_escape($category['name']) . '</a>';
     }
