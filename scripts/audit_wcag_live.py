@@ -41,4 +41,8 @@ for path in ('/','/odkurzacz-pioracy-karcher-puzzi-10-1/','/sprzet-budowlany/'):
     print('COOKIE_CTA',re.findall(r'<(?:a|button)\\b[^>]*data-rm-cookie-settings[^>]*>',html)[:2])
     print('SEARCH_TAG',re.findall(r'<input\\b[^>]*id="searchInput"[^>]*>',html)[:1])
     print('FILTER_TAGS',re.findall(r'<button\\b[^>]*class="[^"]*filter-btn[^"]*"[^>]*>',html)[:5])
-    print('MAP_SNIPPETS', [html[max(0,m.start()-180):m.end()+230].replace('\\n',' ') for m in list(re.finditer('Gdzie jesteśmy|mapa-dojazdu|bg-gray-200|iframe',html,re.I))[:3]])
+    for term in ('id="searchInput"', 'class="filter-btn', 'Gdzie jesteśmy?', 'data-rm-cookie-settings', '<iframe', 'id="products"', 'id="catalog'):
+        idx=html.find(term,html.lower().find('<body'))
+        if idx>=0:
+            print('BODY_SNIPPET',term,repr(html[max(html.lower().find('<body'),idx-330):idx+680].replace('\\n',' ')[:1010]))
+    print('MAP_SNIPPETS', [html[max(0,m.start()-180):m.end()+230].replace('\\n',' ') for m in list(re.finditer('Gdzie jesteśmy|mapa-dojazdu|iframe',html[html.lower().find('<body'):],re.I))[-3:]])
