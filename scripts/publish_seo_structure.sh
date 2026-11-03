@@ -26,6 +26,17 @@ cmp "$DIR/prepared/index.php" "$DIR/first.php"
 curl --fail --silent --show-error --max-time 30 https://rentmor.pl/ -o "$DIR/home.html"
 # On a repeat deployment the home is already transformed; otherwise require known sections.
 if ! grep -q 'data-rm-home-structure="v1"' "$DIR/home.html"; then php scripts/test_seo_structure.php "$DIR/home.html"; fi
+# Prepare the same artwork with smaller mobile download sizes, before changing live PHP.
+test -s reports/rentmor-blueprint-mobile-20261103.webp
+sftp_run "get public_html/rentmor-logo.png -o $DIR/original-logo.png"
+cwebp -quiet -q 83 -m 6 -resize 640 0 "$DIR/original-logo.png" -o "$DIR/rentmor-logo-mobile-20261103.webp"
+test -s "$DIR/rentmor-logo-mobile-20261103.webp"
+test "$(stat -c%s "$DIR/rentmor-logo-mobile-20261103.webp")" -lt 50000
+# Immutable filenames avoid changing the existing live assets; verify every byte.
+sftp_run "put reports/rentmor-blueprint-mobile-20261103.webp -o public_html/assets/rentmor-blueprint-mobile-20261103.webp; get public_html/assets/rentmor-blueprint-mobile-20261103.webp -o $DIR/hero-readback.webp"
+cmp reports/rentmor-blueprint-mobile-20261103.webp "$DIR/hero-readback.webp"
+sftp_run "put $DIR/rentmor-logo-mobile-20261103.webp -o public_html/assets/rentmor-logo-mobile-20261103.webp; get public_html/assets/rentmor-logo-mobile-20261103.webp -o $DIR/logo-readback.webp"
+cmp "$DIR/rentmor-logo-mobile-20261103.webp" "$DIR/logo-readback.webp"
 printf 'Require all denied\n' > "$DIR/backup.htaccess"
 sftp_run "set cmd:fail-exit no; mkdir -p public_html/.rentmor-backups; set cmd:fail-exit yes; put $DIR/backup.htaccess -o public_html/.rentmor-backups/.htaccess"
 for name in index.php .htaccess "${FILES[@]}"; do
