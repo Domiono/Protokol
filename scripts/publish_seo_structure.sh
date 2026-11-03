@@ -77,5 +77,6 @@ python3 scripts/verify_public_seo.py
 python3 scripts/verify_seo_improvements.py
 python3 scripts/verify_public_privacy.py
 node scripts/seo_structure_browser.cjs
+node scripts/seo_structure_assets_browser.cjs
 trap - ERR
 echo 'PASS: SEO structure published; categories, sitemap, rental schema and legacy routes verified.'

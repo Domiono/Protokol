@@ -6,6 +6,14 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 03.11.2026 — R-07: zastąpienie pełnej czcionki ikon SVG — W PR, publikacja do potwierdzenia
+
+- Po audycie Verseo (performance 66, LCP 4,3 s, TBT 830 ms) sprawdzono aktualny kod i raporty Lighthouse z wdrożenia #100. Raport `mobile-after-1.json`: Font Awesome WOFF2 **150810 B**, arkusz **19404 B** (99,19% nieużywanych reguł), baner **91276 B**; cztery fonty łącznie **229556 B**. Samo kolejne kompresowanie banera nie usuwa tego transferu. LCP pozostaje banerem; wyniki laboratoryjne są zmienne.
+- Helper `rm_light_public_assets` zastępuje pięć używanych typów ikon lekkimi SVG w HTML, zachowując kolory, marginesy, etykiety linków i funkcje. Usuwa stylesheet Font Awesome tylko gdy nie zostały nierozpoznane ikony; nie modyfikuje skryptów. Zdjęcia kart dostają `fetchpriority=low` bez zmiany obrazów oferty, jakości zdjęć i banera. Skrócono metaopis głównej do 70–155 znaków. Bez zmian rezerwacji, cen, danych klientów, zgód, Androida i APK.
+- Testy PHP: idempotencja, fallback nieznanych ikon, zachowanie JS/etykiet/priorytetu głównego obrazu oraz dotychczasowe SEO/WCAG. Nowy test przeglądarki sprawdza kandydat na rzeczywistym HTML przed publikacją, a po publikacji brak żądań fontu, widoczność SVG i zdjęcia Puzzi, telefon, wyszukiwanie/reset, formularz, brak przepełnienia w 390/1365 px. Publikacja przez istniejący backup/readback/rollback; trzy pomiary Lighthouse przed i po dla głównej i oferty, dodatkowo mediany TBT/CLS/transferu.
+- PR, testy CI i publikacja: **do potwierdzenia**. Lokalny Lighthouse z tej sesji nie dostarczył wiarygodnego wyniku (brak zaufanego certyfikatu w lokalnym Chromium); nie wyłączano weryfikacji TLS. Pomiary porównawcze wykona środowisko CI jak poprzednio. R-07 pozostaje **CZĘŚCIOWO** do pomiarów; oszczędność transferu nie jest obietnicą LCP <2,5 s ani poprawy pozycji.
+
+
 ## 03.11.2026 — Google Search Console: aktualny odczyt z Windsor.ai
 
 - Połączone konto `searchconsole`, właściwość `sc-domain:rentmor.pl`. Zapytania z okresu 05.10–01.11.2026: „wypożyczalnia sprzętu budowlanego kraków” **23 wyświetlenia, średnia pozycja 45,48**, „wynajem sprzętu budowlanego kraków” **21 wyświetleń, pozycja 48,81**, „wynajem zagęszczarka kraków” **36 wyświetleń, pozycja 24**, „agregat malarski wynajem kraków” **2 wyświetlenia, pozycja 7, 1 kliknięcie**. Niewielkie wolumeny, wyniki w okresie przed najnowszymi wdrożeniami — nie deklarować jeszcze wzrostów SEO.
