@@ -1,4 +1,4 @@
-<?php /* rentmor-public-metadata-v1 */ require_once __DIR__ . '/public_metadata.php'; ob_start('rentmor_public_metadata'); ?>
+<?php /* rentmor-public-metadata-v1 */ require_once __DIR__ . '/public_metadata.php'; require_once __DIR__ . '/rental_categories.php'; ob_start('rentmor_public_metadata'); ?>
 <!DOCTYPE html>
 <html lang="pl">
 <head>
@@ -16,6 +16,7 @@
 <style>
 *{box-sizing:border-box}body{margin:0;background:#f8fafc;color:#1f2937;font:17px/1.72 system-ui,-apple-system,"Segoe UI",Arial,sans-serif}a{color:#164e63;text-underline-offset:3px}a:hover{color:#9a6700}a:focus-visible{outline:3px solid #eab308;outline-offset:3px}nav{background:#fff;border-bottom:1px solid #e2e8f0}.navinner{max-width:1100px;margin:auto;padding:13px 20px;display:flex;align-items:center;justify-content:space-between;gap:15px}.logo{width:170px;max-width:42vw;height:auto}.call,.cta{display:inline-block;border-radius:22px;padding:10px 19px;background:#facc15;color:#111827;text-decoration:none;font-weight:700}.call{background:#15803d;color:#fff;font-size:15px}.hero{background:#111827;color:#fff;padding:40px 20px}.heroinner,main{max-width:880px;margin:auto}.eyebrow{color:#fde047;text-transform:uppercase;letter-spacing:1.8px;font-size:13px;font-weight:700}h1{font-size:clamp(30px,5vw,42px);line-height:1.17;margin:12px 0 20px}h2{font-size:clamp(22px,4vw,28px);line-height:1.3;color:#111827;margin:36px 0 13px}h3{font-size:20px;margin:23px 0 8px}p{margin:13px 0}main{padding:26px 20px 52px}.crumb,.small{font-size:14px;color:#64748b}.notice{background:#fef9c3;padding:18px 22px;border-left:4px solid #eab308;border-radius:0 12px 12px 0}.panel{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:23px;margin:26px 0}.panel h2{margin:0 0 12px}.offer{background:#111827;color:#fff;padding:25px;border-radius:18px;margin:32px 0}.offer h2{color:#fff;margin-top:0}.offer a:not(.cta){color:#fde047}li{margin:8px 0}ol,ul{padding-left:25px}footer{border-top:1px solid #e2e8f0;text-align:center;padding:28px 20px;color:#475569;font-size:14px}@media(max-width:480px){body{font-size:16px}.hero{padding:32px 20px}.navinner{padding:12px}.call{padding:9px 12px;font-size:13px}}
 </style>
+<link rel="stylesheet" href="/seo-structure.css?v=20261103-unified-header">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"Jak wyprać tapicerkę odkurzaczem Karcher Puzzi 10/1?","description":"Praktyczny poradnik samodzielnego prania tapicerki i dywanów od wypożyczalni RentMor w Krakowie.","inLanguage":"pl-PL","datePublished":"2026-10-25","dateModified":"2026-10-25","mainEntityOfPage":"https://rentmor.pl/poradnik-pranie-tapicerki-karcher-puzzi.php","author":{"@type":"Organization","name":"RentMor.pl","url":"https://rentmor.pl/"},"publisher":{"@type":"Organization","name":"RentMor.pl","url":"https://rentmor.pl/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"RentMor.pl","item":"https://rentmor.pl/"},{"@type":"ListItem","position":2,"name":"Pranie tapicerki Karcher Puzzi 10/1","item":"https://rentmor.pl/poradnik-pranie-tapicerki-karcher-puzzi.php"}]}]}
 </script>
@@ -26,7 +27,7 @@
 <!-- /rentmor-brand-icons-v1 -->
 </head>
 <body>
-<nav aria-label="Nawigacja główna"><div class="navinner"><a href="/" aria-label="RentMor — strona główna"><img class="logo" src="/rentmor-logo.png?v=rm-20261030-wordmark-v1" alt="RentMor.pl"></a><a class="call" href="tel:+48733891281">733 891 281</a></div></nav>
+<?= rm_public_site_header() ?>
 <header class="hero"><div class="heroinner"><p class="eyebrow">Poradniki RentMor</p><h1>Jak wyprać kanapę, fotele i dywan odkurzaczem Karcher Puzzi 10/1?</h1><p>Nie musisz zamawiać usługi prania, aby odświeżyć tapicerkę. Odkurzacz ekstrakcyjny natryskuje roztwór czyszczący i odsysa zabrudzoną wodę. Liczy się jednak technika pracy oraz odpowiednie suszenie materiału.</p></div></header>
 <main><p class="crumb"><a href="/">Strona główna</a> / Poradniki / Pranie tapicerki</p>
 <article><p class="small">Autor: RentMor.pl · Opublikowano <time datetime="2026-10-25">25 października 2026</time></p>
