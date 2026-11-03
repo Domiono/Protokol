@@ -10,6 +10,11 @@ $raw = @file_get_contents(__DIR__ . '/data.json');
 $catalogue = $raw === false ? null : json_decode($raw, true);
 if (!is_array($catalogue)) { http_response_code(503); header('Retry-After: 300'); echo 'Katalog jest chwilowo niedostępny. Zadzwoń: 733 891 281.'; exit; }
 $items = rm_category_items($catalogue, $category['key']);
+// Category cards reuse the same versioned WebP manifest as product pages.
+// A missing or partial manifest falls back to existing original images.
+$manifestRaw = @file_get_contents(__DIR__ . '/rentmor-image-manifest.json');
+$manifestParsed = is_string($manifestRaw) ? json_decode($manifestRaw, true) : null;
+$imageManifest = is_array($manifestParsed) ? $manifestParsed : [];
 $url = 'https://rentmor.pl/'.$slug.'/';
 $list = []; $position = 0;
 foreach ($items as $productSlug=>$item) $list[] = ['@type'=>'ListItem', 'position'=>++$position, 'url'=>'https://rentmor.pl/'.$productSlug.'/', 'name'=>$item['name']];
@@ -26,16 +31,17 @@ $e = 'rm_category_escape';
 <script type="application/ld+json"><?= rm_category_json(['@context'=>'https://schema.org','@type'=>'CollectionPage','name'=>$category['heading'],'url'=>$url,'mainEntity'=>['@type'=>'ItemList','numberOfItems'=>count($list),'itemListElement'=>$list]]) ?></script>
 <script type="application/ld+json"><?= rm_category_json(['@context'=>'https://schema.org','@type'=>'BreadcrumbList','itemListElement'=>[['@type'=>'ListItem','position'=>1,'name'=>'RentMor','item'=>'https://rentmor.pl/'],['@type'=>'ListItem','position'=>2,'name'=>$category['name'],'item'=>$url]]]) ?></script>
 </head><body class="rm-category-page">
-<header class="rm-category-header"><div class="rm-header-brand"><?= rm_category_menu() ?><a href="/" aria-label="RentMor.pl — strona główna"><img src="/rentmor-logo.png?v=rm-20261030-wordmark-v2" alt="RentMor.pl"></a></div><a href="tel:+48733891281">733 891 281</a></header>
-<main><nav aria-label="Okruszki"><a href="/">Strona główna</a> / <?= $e($category['name']) ?></nav>
+<a class="rm-skip-link" href="#rentmor-category-main">Przejdź do treści</a>
+<header class="rm-category-header"><div class="rm-header-brand"><?= rm_category_menu() ?><a href="/" aria-label="RentMor.pl — strona główna"><img src="/assets/rentmor-logo-mobile-20261103.webp" alt="RentMor.pl" width="224" height="48"></a></div><a href="tel:+48733891281">733 891 281</a></header>
+<main id="rentmor-category-main" tabindex="-1"><nav aria-label="Okruszki"><a href="/">Strona główna</a> / <?= $e($category['name']) ?></nav>
 <h1><?= $e($category['heading']) ?></h1><p><?= $e($category['intro']) ?></p>
 <section class="rm-seo-section" aria-labelledby="category-offers"><h2 id="category-offers">Urządzenia i ceny wynajmu</h2>
 <p>Dostępność na wybrany termin potwierdzamy przy rezerwacji. Kaucję i ewentualne koszty dodatków sprawdzisz w szczegółach oferty.</p>
 <?php if (!$items): ?><p>Obecnie nie ma urządzeń w tej kategorii. <a href="/">Zobacz cały katalog</a>.</p><?php endif; ?>
 <div class="rm-seo-grid">
-<?php foreach ($items as $productSlug=>$item): $image = rm_related_image($item); $price = rm_related_price($item); ?>
+<?php foreach ($items as $productSlug=>$item): $rawImage = rm_related_image($item); [$image, $srcset] = rm_category_responsive_image($rawImage, $imageManifest); $price = rm_related_price($item); ?>
 <article class="rm-seo-card"><a href="/<?= $e($productSlug) ?>/">
-<?php if ($image !== ''): ?><img src="<?= $e($image) ?>" alt="<?= $e($item['name']) ?>" width="300" height="180" loading="lazy" decoding="async"><?php endif; ?>
+<?php if ($image !== ''): ?><img src="<?= $e($image) ?>" alt="" width="300" height="180" loading="lazy" decoding="async"<?php if ($srcset !== ''): ?> srcset="<?= $e($srcset) ?>" sizes="(max-width: 600px) calc(100vw - 72px), (max-width: 1120px) 48vw, 310px"<?php endif; ?>><?php endif; ?>
 <h3><?= $e($item['name']) ?></h3></a>
 <?php if ($price !== ''): ?><p class="rm-seo-price"><?= $e($price) ?></p><?php endif; ?>
 <a href="/<?= $e($productSlug) ?>/">Szczegóły wynajmu</a></article>
