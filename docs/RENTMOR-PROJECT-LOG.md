@@ -10,7 +10,7 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 
 - Użytkownik zatwierdził publikację kodu i wdrożenie: ikona menu po lewej stronie logo, kolejność budowlany → ogrodniczy → czyszczący. Kategorie rozwijają się po kliknięciu; dolna nawigacja kategorii usunięta. Poradniki i warunki wynajmu zachowane.
 - Menu na głównej, ofertach i nowych stronach kategorii. Natywne details/summary obsługuje dotyk i klawiaturę bez JavaScript; skrypt zamyka menu po kliknięciu poza nim, Escape i wyjściu fokusu.
-- Workflow seo-structure sprawdza menu w przeglądarce przy szerokości 360, 390 i 1365 px przed publikacją oraz po publikacji (z rollbackiem). Bez zmian cen, rezerwacji i APK. Testy, PR i publikacja: do potwierdzenia.
+- Workflow seo-structure sprawdza menu w przeglądarce przy szerokości 360, 390 i 1365 px przed publikacją oraz po publikacji (z rollbackiem). Bez zmian cen, rezerwacji i APK. **PUBLIKACJA POTWIERDZONA:** [PR #93](https://github.com/Domiono/Protokol/pull/93), commit `376d56a3c7fa1b5fc829b898f25a9d6b3c598aaa`. Wszystkie kontrole PR zaliczone. [Wdrożenie 41596603282](https://github.com/Domiono/Protokol/actions/runs/41596603282) zakończone sukcesem 03.11.2026 o 08:32 czasu polskiego; publiczne testy menu na 360/390/1365 px, kategorii, sitemap, przekierowań i prywatności zaliczone. Osobna kontrola przeglądarki potwierdziła rozwijane menu po lewej stronie logo.
 
 ## 02.11.2026 — SEO: punkty 3, 4, 5 i 9 — wdrożone (potwierdzenie 03.11.2026)
 
