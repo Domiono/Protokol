@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/rental_categories.php';
+require_once __DIR__ . '/rentmor_accessibility.php';
 
 function rm_home_sections(): string {
     return '<section id="wynajem-sprzetu-krakow" class="rm-seo-section" data-rm-home-structure="v1">'
@@ -76,5 +77,6 @@ function rentmor_seo_structure(string $html): string {
         $html = preg_replace('~(</h1>)~i', '$1<p class="rm-seo-muted" data-rm-rental-terms="v1">Cena podstawowa za dobę wynajmu. Kaucja i ewentualne dodatki zgodnie z opisem. Dostępność na termin potwierdzamy przy rezerwacji.</p>', $html, 1);
     }
     $html = rm_add_header_category_menu($html);
-    return str_replace('</head>', '<!-- rentmor-seo-structure-v1 --><link rel="stylesheet" href="/seo-structure.css?v=20261103-menu"></head>', $html);
+    $html = rm_accessibility_html($html, $isHome);
+    return str_replace('</head>', '<!-- rentmor-seo-structure-v1 --><link rel="stylesheet" href="/seo-structure.css?v=20261103-wcag"></head>', $html);
 }
