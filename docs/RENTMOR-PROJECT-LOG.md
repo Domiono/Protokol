@@ -6,6 +6,12 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 03.11.2026 — diagnostyka Google Lighthouse na kluczowych typach stron — w przygotowaniu
+
+- **Cel:** nie poprzestawać na jednym wyniku PSI strony głównej. Przeprowadzić pomiary performance, accessibility, best-practices i SEO w Lighthouse 12.8.2 dla strony głównej (mobile i desktop), podstrony kategorii `/sprzet-budowlany/` (mobile) oraz oferty Puzzi `/odkurzacz-pioracy-karcher-puzzi-10-1/` (mobile). Próby laboratoryjne nie są danymi Google CrUX o użytkownikach ani gwarancją pozycji.
+- Nowa analiza w `scripts/report_google_quality.py` podsumowuje wyniki czterech kategorii, LCP/FCP/TBT/CLS/Speed Index i najwyżej oceniane oszczędności; pełne raporty jako artefakt CI. Nowy workflow `google-quality-audit.yml` odpala się po scaleniu swoich plików oraz na życzenie. Test jest tylko do odczytu, bez SFTP i zmian danych.
+- **Do potwierdzenia:** wyniki pierwszego uruchomienia, lista realnych problemów i priorytety napraw. Ahrefs Site Audit nie był dostępny na aktualnym planie połączenia; nie przypisywać mu niewykonanych pomiarów. Nie wystawiać oceny „pełna zgodność Google” bez pomiarów INP z rzeczywistych wizyt.
+
 ## 03.11.2026 — mobilne LCP: lżejszy banner i wcześniejszy preload — PR DO POMIARU
 
 - **Użytkownik poprosił o dalszą poprawę LCP** (po audycie WCAG). Poprzedni pomiar 03.11: LCP 4,749 s przed → 5,094 s po na trzech próbach; wariancja wyników nie pozwala przypisać różnicy zmianom WCAG.
