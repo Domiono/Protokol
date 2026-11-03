@@ -33,7 +33,7 @@ const assert=require('node:assert/strict');
   await page.keyboard.press('Escape');assert.equal(await menu.getAttribute('open'),null);
   await trigger.press('Enter');assert(await links.first().isVisible());
   await page.keyboard.press('Tab');assert(await links.first().evaluate(el=>el===document.activeElement));
-  await page.locator('h1').click();assert.equal(await menu.getAttribute('open'),null);
+  await page.mouse.click(width-8,450);assert.equal(await menu.getAttribute('open'),null);
   assert.equal(await page.locator('#wynajem-sprzetu-krakow a[href="/sprzet-budowlany/"]').count(),0);
   await trigger.click();await links.first().click();await page.waitForURL('**/sprzet-budowlany/');
   assert(await page.locator('h1').isVisible());
