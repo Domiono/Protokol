@@ -31,10 +31,12 @@ const assert=require('node:assert/strict');
   const oldLabels=newLabels.slice(0,3);
   // Pull requests check the currently published site before deployment (possibly old menu).
   // The post-deployment verification must require all five links.
-  if(process.env.GITHUB_EVENT_NAME==='pull_request'){
-   assert([JSON.stringify(oldLabels),JSON.stringify(newLabels)].includes(JSON.stringify(currentLabels)));
-  } else {
+  // This test runs before deployment on both PR and main. The exact
+  // five-item menu is enforced only in post-deployment verification.
+  if(process.env.RM_REQUIRE_NEW_MENU==='1'){
    assert.deepEqual(currentLabels,newLabels);
+  } else {
+   assert([JSON.stringify(oldLabels),JSON.stringify(newLabels)].includes(JSON.stringify(currentLabels)));
   }
   if(currentLabels.length===5){
    assert.equal(await links.nth(3).getAttribute('href'),' /#poradniki'.trim());
