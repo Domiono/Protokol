@@ -6,6 +6,13 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 03.11.2026 — mobilne LCP: lżejszy banner i wcześniejszy preload — PR DO POMIARU
+
+- **Użytkownik poprosił o dalszą poprawę LCP** (po audycie WCAG). Poprzedni pomiar 03.11: LCP 4,749 s przed → 5,094 s po na trzech próbach; wariancja wyników nie pozwala przypisać różnicy zmianom WCAG.
+- **Zmiana tylko na głównej:** na bazie istniejącej zatwierdzonej grafiki blueprint CI tworzy mniejszy WebP w tej samej rozdzielczości 1200 px, jakość q48, sprawdza rozmiar poniżej 115 kB, publikuje go pod niezmiennym unikatowym URL oraz potwierdza bajtowo przed zmianą strony. Pierwotne grafiki pozostają i wersja na komputerze się nie zmienia.
+- W `rm_speed_up_home` nowy mobile WebP zastępuje wyłącznie wcześniej zatwierdzone warianty i znajduje się spójnie w CSS oraz preload. Preload przeniesiono na początek `<head>`, przed dużymi stylami inline, by przeglądarka mogła rozpocząć pobieranie wcześniej. Brak zmiany tekstów, formularzy, prywatności i API.
+- **Bezpieczny deployment:** dotychczasowy workflow `seo-structure.yml` wraz z testem PHP, weryfikacją publicznych assetów, backup/rollback oraz trzema przebiegami Lighthouse *przed i po*. **Do potwierdzenia:** PR, merge, produkcyjny deploy i rzeczywista różnica LCP. Nie deklarować docelowego LCP 2,5 s bez potwierdzenia.
+
 ## 03.11.2026 — przegląd dostępności WCAG po audycie — PUBLIKACJA POTWIERDZONA
 
 - **Źródło:** zrzut audytu właściciela, czerwone punkty 4–7, 9, 11–14. Odczyt publicznego HTML na głównej, ofercie Puzzi i stronie kategorii w teście `scripts/audit_wcag_live.py` potwierdził brak label wyszukiwania, brak początkowych `aria-pressed` w czterech filtrach, brak kontekstu H2 przed H3 produktów oraz `href="#ustawienia-cookies"` bez prawdziwego celu. Stopka klasy `text-gray-500` na tle `bg-gray-900` daje około 3,67:1, poniżej 4,5:1 dla zwykłego tekstu.

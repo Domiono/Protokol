@@ -25,6 +25,9 @@ jobs:
           mkdir -p reports
           cwebp -quiet -q 68 -m 6 -resize 1200 0 server/assets/rentmor-blueprint-final-20261030.webp -o reports/rentmor-blueprint-mobile-20261103.webp
           test "$(stat -c%s reports/rentmor-blueprint-mobile-20261103.webp)" -lt 145000
+          # Same approved artwork; smaller size at phone resolutions reduces contention on mobile.
+          cwebp -quiet -q 48 -m 6 -resize 1200 0 server/assets/rentmor-blueprint-final-20261030.webp -o reports/rentmor-blueprint-mobile-20261103-lite.webp
+          test "$(stat -c%s reports/rentmor-blueprint-mobile-20261103-lite.webp)" -lt 115000
           python3 scripts/test_seo_structure.py
           php scripts/test_seo_structure.php
           php scripts/test_wcag_accessibility.php
