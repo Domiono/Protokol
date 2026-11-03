@@ -46,3 +46,18 @@ for path in ('/','/odkurzacz-pioracy-karcher-puzzi-10-1/','/sprzet-budowlany/'):
         if idx>=0:
             print('BODY_SNIPPET',term,repr(html[max(html.lower().find('<body'),idx-330):idx+680].replace('\\n',' ')[:1010]))
     print('MAP_SNIPPETS', [html[max(0,m.start()-180):m.end()+230].replace('\\n',' ') for m in list(re.finditer('Gdzie jesteśmy|mapa-dojazdu|iframe',html[html.lower().find('<body'):],re.I))[-3:]])
+
+
+# The crawl provider flagged directory browsing. Distinguish a real Apache
+# listing from a 200-page rewrite; do not print filenames or private content.
+from urllib.error import HTTPError
+for folder in ('/uploads/', '/uploads/rentmor-webp/', '/assets/', '/.rentmor-backups/'):
+    req = Request('https://rentmor.pl' + folder,
+        headers={'User-Agent':'RentMorPublicDirectoryAudit/1.0','Cache-Control':'no-cache'})
+    try:
+        with urlopen(req, timeout=25) as response:
+            snippet = response.read(45000).decode('utf-8','replace')
+            is_listing = bool(re.search(r'<title>\s*Index of\b|<h1>\s*Index of\b|Directory listing for', snippet, re.I))
+            print('PUBLIC_DIRECTORY_STATUS',folder,response.status,'listing_detected',is_listing)
+    except HTTPError as exc:
+        print('PUBLIC_DIRECTORY_STATUS',folder,exc.code,'listing_detected',False)

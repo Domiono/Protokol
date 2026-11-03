@@ -20,13 +20,16 @@ def main():
     assert home.index('id="rentmor-catalogue-heading"') < home.index('class="product-item')
     assert home.count('aria-pressed="true"') == 1
     assert home.count('aria-pressed="false"') == 3
-    assert 'aria-label="Filtr: sprzęt budowlany"' in home
-    assert 'aria-label="Filtr: sprzęt ogrodniczy"' in home
+    assert 'aria-label="Filtr:' not in home
+    assert 'class="rm-skip-link" href="#searchInput"' in home
+    assert 'aria-pressed="true"' in home
     assert '<button type="button" class="rm-cookie-settings-button" data-rm-cookie-settings>' in home
     assert 'href="#ustawienia-cookies"' not in home
     assert '<html lang="pl"' in home
     assert 'title="Mapa dojazdu RentMor Kraków"' in home
-    assert '/seo-structure.css?v=20261103-wcag' in home
+    assert 'id="rm-public-accessibility-css"' in home
+    assert 'background-color:#15803d!important' in home
+    assert 'color:#a16207!important' in home
     assert '/assets/rentmor-blueprint-mobile-20261103-lite.webp' in home
     assert home.count('/assets/rentmor-blueprint-mobile-20261103-lite.webp') == 2
     assert '/assets/rentmor-blueprint-mobile-20261103.webp' not in home
@@ -60,6 +63,9 @@ def main():
         assert '/polityka-prywatnosci.php' in category.links
         assert 'cookie-consent.js' in body and not hdrs.get('Set-Cookie')
         assert '<button type="button" class="rm-cookie-settings-button" data-rm-cookie-settings>' in body
+        assert 'src="/assets/rentmor-logo-mobile-20261103.webp"' in body
+        assert '/seo-structure.css?v=20261103-google-quality' in body
+        assert 'class="rm-skip-link" href="#rentmor-category-main"' in body
         verify_redirect(BASE+'/'+slug, BASE+path)
     offer, hdrs = fetch(MSW_OFFER)
     assert offer.count('id="rm-category-menu"') == 1
@@ -71,6 +77,8 @@ def main():
     assert rental['priceSpecification']['referenceQuantity'] == {'@type':'QuantitativeValue','value':1,'unitCode':'DAY'}
     assert 'availability' not in rental and 'data-rm-rental-terms="v1"' in offer
     assert 'id="poradniki"' not in offer
+    assert 'src="/assets/rentmor-logo-mobile-20261103.webp"' in offer
+    assert 'class="rm-skip-link" href="#rentmor-main-heading"' in offer
     assert '<button type="button" class="rm-cookie-settings-button" data-rm-cookie-settings>' in offer
     verify_redirect(BASE+'/index.php', BASE+'/')
     verify_redirects() # legacy query-based products, www and HTTP must remain functional

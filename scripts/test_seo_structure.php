@@ -12,7 +12,8 @@ check(rentmor_seo_structure($out) === $out, 'Idempotent HTML');
 foreach (rm_categories() as $slug=>$cat) check(str_contains($out, 'href="/'.$slug.'/"'), 'Category linked');
 check(substr_count($out, 'id="rm-category-menu"') === 1, 'One header menu');
 check(!str_contains($out, 'class="rm-seo-links"'), 'No duplicate lower category navigation');
-check(strpos($out, 'id="rm-category-menu"') < strpos($out, '<h1>'), 'Menu above content');
+preg_match('~<h1\\b~', $out, $firstHeading, PREG_OFFSET_CAPTURE);
+check(isset($firstHeading[0][1]) && strpos($out, 'id="rm-category-menu"') < $firstHeading[0][1], 'Menu above content');
 check(str_contains($out, 'href="tel:733891281"'), 'Phone preserved');
 $schema = ['@context'=>'https://schema.org','@type'=>'Product','name'=>'Test </script>','offers'=>['@type'=>'Offer','url'=>'https://rentmor.pl/test/','price'=>'130','priceCurrency'=>'PLN','availability'=>'https://schema.org/InStock']];
 $product = '<html><head><link rel="canonical" href="https://rentmor.pl/test/"><script type="application/ld+json">'.rm_category_json($schema).'</script></head><body><h1>Test</h1><p>130 zł / doba</p><form action="/">FORM</form></body></html>';
@@ -42,6 +43,11 @@ $items = rm_category_items([['name'=>'Puzzi','cat'=>'czyszczace','price'=>50],['
 check(count($items) === 2 && isset($items['puzzi'], $items['nowy-sprzet']), 'Category matching and deduplication');
 check(rm_related_price(['price'=>'<script>']) === '', 'Invalid price excluded');
 check(str_contains(rm_category_escape('<script>'), '&lt;script&gt;'), 'Escaping');
+[$fallback, $srcset] = rm_category_responsive_image('/uploads/a.jpg', ['a.jpg'=>['small'=>['url'=>'/uploads/rentmor-webp/a-small.webp','width'=>320],'card'=>['url'=>'/uploads/rentmor-webp/a-card.webp','width'=>640]]]);
+check($fallback==='/uploads/rentmor-webp/a-card.webp' && str_contains($srcset,'a-small.webp 320w'), 'Responsive WebP variants');
+[$fallback, $srcset] = rm_category_responsive_image('/uploads/a.jpg', ['a.jpg'=>['card'=>['url'=>'https://attacker.invalid/image.webp','width'=>640]]]);
+check($fallback==='/uploads/a.jpg' && $srcset==='', 'Reject manifest URL outside expected public uploads');
+
 // Unknown templates must keep their original content rather than remove selected pieces.
 $unknown = str_replace('Szukasz sprzętu', 'Changed layout', $home);
 if (!isset($argv[1])) check(str_contains(rentmor_seo_structure($unknown), 'old local'), 'Unknown layout retained');

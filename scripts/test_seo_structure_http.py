@@ -17,7 +17,8 @@ with tempfile.TemporaryDirectory() as tmp:
     tmp = Path(tmp)
     for name in ('rental_categories.php','related_offers.php','category.php','category_sitemap.php','sitemap.php'):
         shutil.copy(ROOT/'server'/name,tmp/name)
-    products = [{'name':'Młot testowy','cat':'budowlane','price':60}, {'name':'Glebogryzarka','category':'ogrodnicze','price':100}, {'name':'Puzzi <test>','cat':'czyszczace','price':50}]
+    products = [{'name':'Młot testowy','cat':'budowlane','price':60,'images':['test-photo.jpg']}, {'name':'Glebogryzarka','category':'ogrodnicze','price':100}, {'name':'Puzzi <test>','cat':'czyszczace','price':50}]
+    (tmp/'rentmor-image-manifest.json').write_text(json.dumps({'test-photo.jpg':{'thumb':{'url':'/uploads/rentmor-webp/test-thumb.webp','width':160},'small':{'url':'/uploads/rentmor-webp/test-small.webp','width':320},'card':{'url':'/uploads/rentmor-webp/test-card.webp','width':640}}}))
     (tmp/'data.json').write_text(json.dumps(products))
     (tmp/'router.php').write_text("<?php if (str_starts_with($_SERVER['REQUEST_URI'], '/sitemap.xml')) require __DIR__.'/category_sitemap.php'; else require __DIR__.'/category.php';")
     sock = socket.socket(); sock.bind(('127.0.0.1',0)); port=sock.getsockname()[1]; sock.close()
@@ -38,7 +39,12 @@ with tempfile.TemporaryDirectory() as tmp:
             assert collection['mainEntity']['numberOfItems']==1
             assert '<test>' not in html and 'cookie-consent.js' in html
             assert '<button type="button" class="rm-cookie-settings-button" data-rm-cookie-settings>' in html
+            assert 'class="rm-skip-link" href="#rentmor-category-main"' in html
+            assert 'src="/assets/rentmor-logo-mobile-20261103.webp"' in html
             if slug=='sprzet-budowlany':
+                assert '/uploads/rentmor-webp/test-card.webp' in html
+                assert '/uploads/rentmor-webp/test-small.webp 320w' in html
+                assert '<img src="/uploads/rentmor-webp/test-card.webp" alt=""' in html
                 assert 'Wypożyczalnia sprzętu budowlanego Kraków' in html
                 assert 'szlifierkę do betonu' in html
             assert 'Wynajem sprzętu dla osób prywatnych i firm' in html
