@@ -30,8 +30,15 @@ jobs:
           php scripts/test_related_offers.php
           bash -n scripts/publish_seo_structure.sh
           python3 scripts/test_seo_structure_http.py
-          npm install --no-save playwright@1.56.1
-          RM_MENU_PREVIEW=1 node scripts/seo_structure_browser.cjs
+          npm install --no-save playwright@1.56.1 lighthouse@12.8.2
+          node scripts/seo_structure_browser.cjs
+      - name: Capture before-release mobile performance
+        if: github.event_name != 'pull_request'
+        run: |
+          for N in 1 2 3; do
+            npx lighthouse https://rentmor.pl/ --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance --output=json --output-path="reports/mobile-before-$N.json" --quiet
+            python3 scripts/summarize_speed.py "reports/mobile-before-$N.json" | grep '^SPEED_RESULT'
+          done
       - name: Publish with backup, readback and rollback
         if: github.event_name != 'pull_request'
         env:
@@ -39,6 +46,19 @@ jobs:
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: bash scripts/publish_seo_structure.sh
+      - name: Capture after-release mobile performance
+        if: github.event_name != 'pull_request'
+        run: |
+          for N in 1 2 3; do
+            npx lighthouse https://rentmor.pl/ --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance --output=json --output-path="reports/mobile-after-$N.json" --quiet
+            python3 scripts/summarize_speed.py "reports/mobile-after-$N.json" | grep '^SPEED_RESULT'
+          done
+          python3 - <<'PY'
+          import json,statistics
+          for phase in ('before','after'):
+              values=[json.load(open(f'reports/mobile-{phase}-{i}.json'))['audits']['largest-contentful-paint']['numericValue'] for i in (1,2,3)]
+              print('MOBILE_LCP_MEDIAN',phase,round(statistics.median(values)), 'ms',list(map(round,values)))
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
