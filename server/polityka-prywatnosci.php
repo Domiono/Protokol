@@ -24,7 +24,7 @@ header('X-Content-Type-Options: nosniff');
 <link rel="stylesheet" href="/seo-structure.css?v=20261103-unified-header">
 </head>
 <body>
-<?= rm_public_site_header() ?>
+<header class="rm-category-header rm-site-header"><div class="rm-header-brand"><?= rm_category_menu() ?><a href="/" aria-label="RentMor.pl — strona główna"><img src="/assets/rentmor-logo-mobile-20261103.webp" width="224" height="48" alt="RentMor.pl"></a></div><a class="rm-header-phone" href="tel:+48733891281" aria-label="Zadzwoń do RentMor: 733 891 281">733 891 281</a></header>
 <section class="rm-privacy-hero"><div class="wrap hero"><div class="tag">Informacje o danych</div><h1>Polityka prywatności</h1><p>Dowiedz się, jakie dane przetwarzamy w związku z korzystaniem z RentMor.pl, zapytaniami o sprzęt i wynajmem.</p></div></section>
 <main>
 <article class="paper">
