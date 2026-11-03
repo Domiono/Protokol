@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/rental_categories.php';
 // Contact messages and optional analytics documented; hosting logs retain according to provider configuration.
 header('Content-Type: text/html; charset=UTF-8');
 header('X-Content-Type-Options: nosniff');
@@ -18,14 +19,13 @@ header('X-Content-Type-Options: nosniff');
 <link rel="icon" href="/assets/rm-20261030.ico" sizes="any">
 <link rel="apple-touch-icon" href="/assets/rm-20261030-180.png">
 <style>
-:root{color-scheme:light}*{box-sizing:border-box}html{scroll-behavior:smooth}body{font:16px/1.75 system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:#f5f7fa;color:#253246;margin:0}a{color:#12477d;text-underline-offset:3px}a:hover{color:#8a5a00}a:focus-visible{outline:3px solid #facc15;outline-offset:4px}header{background:#112640;color:white;border-bottom:4px solid #facc15}.wrap{max-width:900px;margin:auto;padding:0 20px}.nav{display:flex;justify-content:space-between;align-items:center;gap:15px;padding-top:16px;padding-bottom:16px}.brand{color:white;font-weight:800;text-decoration:none;font-size:22px}.brand span{color:#facc15}.back{color:white;font-size:14px}.hero{padding:26px 0 36px}.hero p{color:#d2dce8;max-width:650px}.tag{color:#fde047;font-size:13px;letter-spacing:.12em;text-transform:uppercase;font-weight:800}h1{font-size:clamp(28px,5vw,43px);line-height:1.2;margin:12px 0}main{max-width:900px;margin:24px auto 60px;padding:0 20px}.paper{background:white;border:1px solid #e2e8f0;border-radius:16px;padding:clamp(22px,5vw,42px);box-shadow:0 10px 28px rgba(11,28,50,.04)}h2{font-size:21px;line-height:1.4;margin:33px 0 10px;color:#142741}h2:first-child{margin-top:0}p,li{margin-top:8px;margin-bottom:8px}ul{padding-left:24px}strong{color:#172b46}.note{background:#fff9e7;border-left:4px solid #ecc24d;padding:12px 16px;border-radius:4px}.toc{border:1px solid #e2e8f0;border-radius:10px;padding:14px 20px;background:#fbfcfe}.toc ol{margin:0;padding-left:21px}.toc li{margin:3px 0}section{scroll-margin-top:18px}footer{text-align:center;border-top:1px solid #d6dce5;padding:28px 20px;font-size:14px;color:#475569}footer a{margin:0 7px}@media(max-width:520px){.paper{border-radius:12px}.nav{align-items:flex-start}.back{max-width:130px;text-align:right}body{font-size:15px}}
+:root{color-scheme:light}*{box-sizing:border-box}html{scroll-behavior:smooth}body{font:16px/1.75 system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:#f5f7fa;color:#253246;margin:0}a{color:#12477d;text-underline-offset:3px}a:hover{color:#8a5a00}a:focus-visible{outline:3px solid #facc15;outline-offset:4px}.rm-privacy-hero{background:#112640;color:white;border-bottom:4px solid #facc15}.wrap{max-width:900px;margin:auto;padding:0 20px}.nav{display:flex;justify-content:space-between;align-items:center;gap:15px;padding-top:16px;padding-bottom:16px}.brand{color:white;font-weight:800;text-decoration:none;font-size:22px}.brand span{color:#facc15}.back{color:white;font-size:14px}.hero{padding:26px 0 36px}.hero p{color:#d2dce8;max-width:650px}.tag{color:#fde047;font-size:13px;letter-spacing:.12em;text-transform:uppercase;font-weight:800}h1{font-size:clamp(28px,5vw,43px);line-height:1.2;margin:12px 0}main{max-width:900px;margin:24px auto 60px;padding:0 20px}.paper{background:white;border:1px solid #e2e8f0;border-radius:16px;padding:clamp(22px,5vw,42px);box-shadow:0 10px 28px rgba(11,28,50,.04)}h2{font-size:21px;line-height:1.4;margin:33px 0 10px;color:#142741}h2:first-child{margin-top:0}p,li{margin-top:8px;margin-bottom:8px}ul{padding-left:24px}strong{color:#172b46}.note{background:#fff9e7;border-left:4px solid #ecc24d;padding:12px 16px;border-radius:4px}.toc{border:1px solid #e2e8f0;border-radius:10px;padding:14px 20px;background:#fbfcfe}.toc ol{margin:0;padding-left:21px}.toc li{margin:3px 0}section{scroll-margin-top:18px}footer{text-align:center;border-top:1px solid #d6dce5;padding:28px 20px;font-size:14px;color:#475569}footer a{margin:0 7px}@media(max-width:520px){.paper{border-radius:12px}.nav{align-items:flex-start}.back{max-width:130px;text-align:right}body{font-size:15px}}
 </style>
+<link rel="stylesheet" href="/seo-structure.css?v=20261103-unified-header">
 </head>
 <body>
-<header>
-  <div class="wrap nav"><a class="brand" href="/">RM<span>.</span> RentMor.pl</a><a class="back" href="/">Wróć do oferty</a></div>
-  <div class="wrap hero"><div class="tag">Informacje o danych</div><h1>Polityka prywatności</h1><p>Dowiedz się, jakie dane przetwarzamy w związku z korzystaniem z RentMor.pl, zapytaniami o sprzęt i wynajmem.</p></div>
-</header>
+<?= rm_public_site_header() ?>
+<section class="rm-privacy-hero"><div class="wrap hero"><div class="tag">Informacje o danych</div><h1>Polityka prywatności</h1><p>Dowiedz się, jakie dane przetwarzamy w związku z korzystaniem z RentMor.pl, zapytaniami o sprzęt i wynajmem.</p></div></section>
 <main>
 <article class="paper">
 <p><strong>Data przygotowania:</strong> 1 listopada 2026 r.</p>
