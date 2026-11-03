@@ -28,6 +28,11 @@ curl --fail --silent --show-error --max-time 30 https://rentmor.pl/ -o "$DIR/hom
 if ! grep -q 'data-rm-home-structure="v1"' "$DIR/home.html"; then php scripts/test_seo_structure.php "$DIR/home.html"; fi
 # Prepare the same artwork with smaller mobile download sizes, before changing live PHP.
 test -s reports/rentmor-blueprint-mobile-20261103.webp
+test -s reports/rentmor-blueprint-mobile-20261103-lite.webp
+test "$(stat -c%s reports/rentmor-blueprint-mobile-20261103-lite.webp)" -lt 115000
+# Upload before the PHP switch; immutable URL and byte-for-byte verification prevent broken backgrounds.
+sftp_run "put reports/rentmor-blueprint-mobile-20261103-lite.webp -o public_html/assets/rentmor-blueprint-mobile-20261103-lite.webp; get public_html/assets/rentmor-blueprint-mobile-20261103-lite.webp -o $DIR/hero-lite-readback.webp"
+cmp reports/rentmor-blueprint-mobile-20261103-lite.webp "$DIR/hero-lite-readback.webp"
 sftp_run "get public_html/rentmor-logo.png -o $DIR/original-logo.png"
 cwebp -quiet -q 83 -m 6 -resize 640 0 "$DIR/original-logo.png" -o "$DIR/rentmor-logo-mobile-20261103.webp"
 test -s "$DIR/rentmor-logo-mobile-20261103.webp"
