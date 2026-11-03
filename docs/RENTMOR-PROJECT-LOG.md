@@ -6,6 +6,14 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 03.11.2026 — mobilne LCP i widoczność lokalna — w przygotowaniu
+
+- **Zatwierdzone przez właściciela:** dwa wysokie priorytety — szybszy mobilny baner/LCP i większa trafność lokalnych fraz Kraków. Gałąź `codex/lcp-local-seo-2026-11-03`; PR/merge/publikacja i finalny pomiar do potwierdzenia.
+- **W kodzie gałęzi:** nowy WebP z tej samej zaakceptowanej grafiki (1200 px / q68, limit 145 kB) oraz odchudzony wariant tego samego logo (640 px/q83, limit 50 kB). Wygenerowanie, kontrola rozmiaru, przesłanie i bajtowy readback wykonywane przed zmianą produkcyjnych plików. Tylko główna podmienia stary mobilny obraz i logo. Kategorie i strony ofert bez zmian logo; oryginalne pliki pozostają zachowane.
+- Zmieniono opis wypożyczalni na głównej i kontekstowy link do kategorii budowlanej. Kategoria budowlana ma tytuł z frazą „Wypożyczalnia sprzętu budowlanego Kraków” i praktyczny opis urządzeń/odbioru; wszystkie kategorie objaśniają terminy, firmy i kaucje. Brak sztucznych deklaracji stanów magazynowych, darmowej dostawy czy godzin otwarcia. Bez nowych podstron i bez usuwania menu.
+- Testy przygotowane: PHP, HTTP kategorii, reguła dokładnie tego samego pliku w preload/CSS, zgodność src/srcset logo, idempotencja, brak wpływu na ofertę, publiczne HTTP i bajty obrazów. Workflow `seo-structure.yml` po merge uruchamia SFTP, testy produkcyjne i rollback. **Do potwierdzenia:** CI, publikacja i porównanie LCP; nie deklarować poprawy pozycji Google ani stabilnego LCP < 2,5 s przed pomiarami.
+- Aktualny wcześniejszy baseline z 02.11: mobilne LCP mediana 5,757 s przy trzech laboratoryjnych przebiegach, bez stabilnego wyniku poniżej 2,5 s. Linki przychodzące i realne pozycje wymagają monitorowania GSC (dane te nie zmienią się automatycznie po publikacji).
+
 ## 03.11.2026 — menu kategorii w nagłówku
 
 - Użytkownik zatwierdził publikację kodu i wdrożenie: ikona menu po lewej stronie logo, kolejność budowlany → ogrodniczy → czyszczący. Kategorie rozwijają się po kliknięciu; dolna nawigacja kategorii usunięta. Poradniki i warunki wynajmu zachowane.
