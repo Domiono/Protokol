@@ -15,6 +15,18 @@ def main():
     assert 'Szukasz sprzętu do remontu' not in home
     assert home.count('id="rm-category-menu"') == 1
     assert 'class="rm-seo-links"' not in home
+    assert '<label for="searchInput" class="rm-sr-only">Szukaj sprzętu do wynajęcia</label>' in home
+    assert home.count('id="rentmor-catalogue-heading"') == 1
+    assert home.index('id="rentmor-catalogue-heading"') < home.index('class="product-item')
+    assert home.count('aria-pressed="true"') == 1
+    assert home.count('aria-pressed="false"') == 3
+    assert 'aria-label="Filtr: sprzęt budowlany"' in home
+    assert 'aria-label="Filtr: sprzęt ogrodniczy"' in home
+    assert '<button type="button" class="rm-cookie-settings-button" data-rm-cookie-settings>' in home
+    assert 'href="#ustawienia-cookies"' not in home
+    assert '<html lang="pl"' in home
+    assert 'title="Mapa dojazdu RentMor Kraków"' in home
+    assert '/seo-structure.css?v=20261103-wcag' in home
     assert '/assets/rentmor-blueprint-mobile-20261103.webp' in home
     assert '/assets/rentmor-blueprint-mobile-20261102.webp' not in home
     assert 'src="/assets/rentmor-logo-mobile-20261103.webp"' in home
@@ -43,6 +55,7 @@ def main():
         assert all(item['url'] in urls for item in items)
         assert '/polityka-prywatnosci.php' in category.links
         assert 'cookie-consent.js' in body and not hdrs.get('Set-Cookie')
+        assert '<button type="button" class="rm-cookie-settings-button" data-rm-cookie-settings>' in body
         verify_redirect(BASE+'/'+slug, BASE+path)
     offer, hdrs = fetch(MSW_OFFER)
     assert offer.count('id="rm-category-menu"') == 1
@@ -54,6 +67,7 @@ def main():
     assert rental['priceSpecification']['referenceQuantity'] == {'@type':'QuantitativeValue','value':1,'unitCode':'DAY'}
     assert 'availability' not in rental and 'data-rm-rental-terms="v1"' in offer
     assert 'id="poradniki"' not in offer
+    assert '<button type="button" class="rm-cookie-settings-button" data-rm-cookie-settings>' in offer
     verify_redirect(BASE+'/index.php', BASE+'/')
     verify_redirects() # legacy query-based products, www and HTTP must remain functional
     print('PASS: public categories, sitemap, consolidated home, rental schema and legacy redirects')

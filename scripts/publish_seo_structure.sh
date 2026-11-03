@@ -4,7 +4,7 @@ source scripts/secure_sftp_connection.sh
 DIR="$RUNNER_TEMP/seo-structure"
 mkdir -m 700 -p "$DIR/original" "$DIR/prepared" "$DIR/current" "$DIR/readback"
 sftp_run() { lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; $1; bye" >/dev/null; }
-FILES=(rental_categories.php category.php category_sitemap.php seo_structure.php seo-structure.css)
+FILES=(rental_categories.php category.php category_sitemap.php rentmor_accessibility.php seo_structure.php seo-structure.css)
 # A successful listing distinguishes absent new files from connection failures.
 lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; cls -1 public_html/; bye" > "$DIR/listing"
 for name in index.php .htaccess "${FILES[@]}"; do
