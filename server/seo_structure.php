@@ -30,12 +30,13 @@ function rm_speed_up_home(string $html): string {
                 $html = str_replace($previous, $lighterHero, $html);
             }
         }
-        $preload = '<link rel="preload" as="image" href="' . $lighterHero
-            . '" media="(max-width: 899px)" fetchpriority="high">';
-        // Start the network request immediately when the head is parsed,
-        // before the large inline stylesheet. Keep just one preload.
-        if (substr_count($html, $preload) === 1 &&
-            preg_match_all('~<head\b[^>]*>~i', $html) === 1) {
+        // Match any existing preload for this exact image, preserving media
+        // and fetchpriority regardless of HTML attribute order or other attributes.
+        $preloadPattern = '~<link\b(?=[^>]*\brel=["\x27]preload["\x27])'
+            . '(?=[^>]*\bhref=["\x27]' . preg_quote($lighterHero, '~') . '["\x27])[^>]*>~i';
+        if (preg_match_all($preloadPattern, $html, $preloads) === 1
+            && preg_match_all('~<head\b[^>]*>~i', $html) === 1) {
+            $preload = $preloads[0][0];
             $html = str_replace($preload, '', $html);
             $html = preg_replace_callback('~<head\b[^>]*>~i',
                 static fn($match) => $match[0] . "\n" . $preload, $html, 1);
