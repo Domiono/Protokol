@@ -20,10 +20,26 @@ function rm_home_sections(): string {
 /** Optimizes only already-approved images on the public homepage; preserves the artwork. */
 function rm_speed_up_home(string $html): string {
     $oldHero = '/assets/rentmor-blueprint-mobile-20261102.webp';
-    $newHero = '/assets/rentmor-blueprint-mobile-20261103.webp';
-    // The existing CSS and preload must reference the same file, or do nothing.
-    if (str_contains($html, 'data-rentmor-blueprint="v1"') && substr_count($html, $oldHero) >= 2) {
-        $html = str_replace($oldHero, $newHero, $html);
+    $currentHero = '/assets/rentmor-blueprint-mobile-20261103.webp';
+    $lighterHero = '/assets/rentmor-blueprint-mobile-20261103-lite.webp';
+    // The preload and the CSS background MUST always point to the same image.
+    // Convert either known previous production variant; unknown markup is left alone.
+    if (str_contains($html, 'data-rentmor-blueprint="v1"')) {
+        foreach ([$oldHero, $currentHero] as $previous) {
+            if (substr_count($html, $previous) >= 2) {
+                $html = str_replace($previous, $lighterHero, $html);
+            }
+        }
+        $preload = '<link rel="preload" as="image" href="' . $lighterHero
+            . '" media="(max-width: 899px)" fetchpriority="high">';
+        // Start the network request immediately when the head is parsed,
+        // before the large inline stylesheet. Keep just one preload.
+        if (substr_count($html, $preload) === 1 &&
+            preg_match_all('~<head\b[^>]*>~i', $html) === 1) {
+            $html = str_replace($preload, '', $html);
+            $html = preg_replace_callback('~<head\b[^>]*>~i',
+                static fn($match) => $match[0] . "\n" . $preload, $html, 1);
+        }
     }
     $oldLogo = '/rentmor-logo.png?v=rm-20261030-wordmark-v2';
     $newLogo = '/assets/rentmor-logo-mobile-20261103.webp';
