@@ -20,8 +20,11 @@ jobs:
       - name: Test structure and semantics
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq php-cli lftp
+          sudo apt-get install -y -qq php-cli lftp webp
           for file in server/{rental_categories,category,category_sitemap,seo_structure}.php; do php -l "$file"; done
+          mkdir -p reports
+          cwebp -quiet -q 68 -m 6 -resize 1200 0 server/assets/rentmor-blueprint-final-20261030.webp -o reports/rentmor-blueprint-mobile-20261103.webp
+          test "$(stat -c%s reports/rentmor-blueprint-mobile-20261103.webp)" -lt 145000
           python3 scripts/test_seo_structure.py
           php scripts/test_seo_structure.php
           php scripts/test_related_offers.php
