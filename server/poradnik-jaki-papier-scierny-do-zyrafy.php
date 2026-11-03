@@ -1,4 +1,4 @@
-<?php /* rentmor-public-metadata-v1 */ require_once __DIR__ . '/public_metadata.php'; ob_start('rentmor_public_metadata'); ?>
+<?php /* rentmor-public-metadata-v1 */ require_once __DIR__ . '/public_metadata.php'; require_once __DIR__ . '/rental_categories.php'; ob_start('rentmor_public_metadata'); ?>
 <!DOCTYPE html>
 <html lang="pl">
 <head>
@@ -17,6 +17,7 @@
 <style>
 *{box-sizing:border-box}body{margin:0;background:#f9fafb;color:#1f2937;font:17px/1.75 Arial,sans-serif}a{color:#1f2937;text-underline-offset:4px}a:hover{color:#854d0e}a:focus-visible{outline:3px solid #ca8a04;outline-offset:4px}nav{background:#fff;border-bottom:1px solid #e5e7eb}.nav-inner{max-width:1120px;margin:auto;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}.logo{display:block;width:180px;max-width:42vw;height:auto}.call,.button{display:inline-block;background:#facc15;color:#111827;padding:10px 18px;border-radius:30px;font-weight:bold;text-decoration:none}.call{background:#15803d;color:white;white-space:nowrap;font-size:15px}.call:hover{color:white;background:#166534}.hero{background:#111827;color:white;padding:44px 20px}.hero-inner,main{max-width:880px;margin:auto}.eyebrow{color:#facc15;font-size:14px;letter-spacing:2px;font-weight:bold;text-transform:uppercase}h1{font-size:clamp(28px,5vw,43px);line-height:1.2;margin:12px 0 22px}h2{font-size:clamp(23px,3vw,29px);line-height:1.3;margin:38px 0 16px;color:#111827}p{margin:14px 0}main{padding:24px 20px 48px}.crumb{font-size:14px;color:#6b7280}.tip{background:#fef9c3;border-left:4px solid #eab308;padding:16px 20px;border-radius:0 12px 12px 0;margin:24px 0}.table-wrap{overflow-x:auto;border:1px solid #d1d5db;border-radius:12px;background:#fff}table{border-collapse:collapse;width:100%;font-size:15px}th,td{text-align:left;padding:14px;vertical-align:top;border-bottom:1px solid #e5e7eb}th{background:#111827;color:#fff}td:first-child{font-weight:bold;white-space:nowrap}tr:last-child td{border:0}li{margin:9px 0}ul,ol{padding-left:24px}.toc{background:#fff;border:1px solid #e5e7eb;padding:18px 24px;border-radius:16px}.toc h2{font-size:20px;margin:0}.offer{background:#111827;color:#fff;padding:24px;border-radius:20px;margin-top:36px}.offer h2{color:white;margin-top:0}.offer a:not(.button){color:#fde047}.actions{display:flex;flex-wrap:wrap;gap:12px;margin:20px 0}.sources{font-size:14px;color:#4b5563}footer{text-align:center;padding:28px 20px;border-top:1px solid #e5e7eb;font-size:14px}section{scroll-margin-top:20px}@media(max-width:480px){body{font-size:16px}.nav-inner{padding:12px}.call{padding:9px 12px;font-size:13px}th,td{padding:10px;font-size:13px}.hero{padding:32px 20px}}
 </style>
+<link rel="stylesheet" href="/seo-structure.css?v=20261103-unified-header">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"Jaki papier ścierny do żyrafy? Jak dobrać gradację do gładzi","inLanguage":"pl-PL","datePublished":"2026-10-24","dateModified":"2026-10-24","mainEntityOfPage":"https://rentmor.pl/poradnik-jaki-papier-scierny-do-zyrafy.php","author":{"@type":"Organization","name":"RentMor.pl","url":"https://rentmor.pl/"},"publisher":{"@type":"Organization","name":"RentMor.pl","url":"https://rentmor.pl/"}}</script>
 <!-- rentmor-brand-icons-v1 -->
 <link rel="apple-touch-icon" sizes="180x180" href="/assets/rm-20261030-180.png">
@@ -25,7 +26,7 @@
 <!-- /rentmor-brand-icons-v1 -->
 </head>
 <body>
-<nav aria-label="Nawigacja główna"><div class="nav-inner"><a href="/" aria-label="RentMor.pl — strona główna"><img class="logo" src="/rentmor-logo.png?v=rm-20261030-wordmark-v1" alt="RentMor.pl"></a><a class="call" href="tel:+48733891281">733 891 281</a></div></nav>
+<?= rm_public_site_header() ?>
 <header class="hero"><div class="hero-inner"><div class="eyebrow">Poradniki RentMor</div><h1>Jaki papier ścierny do żyrafy? Jak dobrać gradację do gładzi</h1><p>Dobrze dobrany papier ułatwia wygładzenie ścian i sufitów. Zbyt gruby zostawia rysy, a zbyt drobny powoli usuwa nierówności. Sprawdź, od czego zacząć.</p></div></header>
 <main><p class="crumb"><a href="/">Strona główna</a> / Poradniki / Papier ścierny do żyrafy</p>
 <article>
