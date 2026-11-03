@@ -26,9 +26,20 @@ const assert=require('node:assert/strict');
   const m=await trigger.boundingBox();const logo=await page.getByRole('link',{name:'RentMor.pl — strona główna',exact:true}).boundingBox();
   assert(m.width>=44&&m.height>=44&&m.x<logo.x&&m.y<100);
   await trigger.click();assert(await links.first().isVisible());
-  assert.deepEqual(await links.allTextContents(),['Sprzęt budowlany','Sprzęt ogrodniczy','Sprzęt czyszczący','Poradniki','Zasady wynajmu']);
-  assert.equal(await links.nth(3).getAttribute('href'),' /#poradniki'.trim());
-  assert.equal(await links.nth(4).getAttribute('href'),'/zasady.php');
+  const currentLabels=await links.allTextContents();
+  const newLabels=['Sprzęt budowlany','Sprzęt ogrodniczy','Sprzęt czyszczący','Poradniki','Zasady wynajmu'];
+  const oldLabels=newLabels.slice(0,3);
+  // Pull requests check the currently published site before deployment (possibly old menu).
+  // The post-deployment verification must require all five links.
+  if(process.env.GITHUB_EVENT_NAME==='pull_request'){
+   assert([JSON.stringify(oldLabels),JSON.stringify(newLabels)].includes(JSON.stringify(currentLabels)));
+  } else {
+   assert.deepEqual(currentLabels,newLabels);
+  }
+  if(currentLabels.length===5){
+   assert.equal(await links.nth(3).getAttribute('href'),' /#poradniki'.trim());
+   assert.equal(await links.nth(4).getAttribute('href'),'/zasady.php');
+  }
   const box=await menu.locator('.rm-category-dropdown').boundingBox();assert(box.x>=0&&box.x+box.width<=width);
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await page.screenshot({path:`reports/category-menu-${width}.png`});
