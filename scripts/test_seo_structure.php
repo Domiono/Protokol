@@ -11,6 +11,8 @@ check(!str_contains($out, 'Szukasz sprzętu do remontu'), 'Removed duplicate int
 check(rentmor_seo_structure($out) === $out, 'Idempotent HTML');
 foreach (rm_categories() as $slug=>$cat) check(str_contains($out, 'href="/'.$slug.'/"'), 'Category linked');
 check(substr_count($out, 'id="rm-category-menu"') === 1, 'One header menu');
+check(str_contains($out, 'href="/#poradniki"'), 'Guide menu link');
+check(str_contains($out, 'href="/zasady.php"'), 'Rental rules in menu');
 check(!str_contains($out, 'class="rm-seo-links"'), 'No duplicate lower category navigation');
 preg_match('~<h1\\b~', $out, $firstHeading, PREG_OFFSET_CAPTURE);
 check(isset($firstHeading[0][1]) && strpos($out, 'id="rm-category-menu"') < $firstHeading[0][1], 'Menu above content');

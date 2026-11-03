@@ -18,6 +18,7 @@ def main():
     assert home.count('id="poradniki"') == home.count('id="wynajem-sprzetu-krakow"') == 1
     assert 'Szukasz sprzętu do remontu' not in home
     assert home.count('id="rm-category-menu"') == 1
+    assert 'href="/#poradniki"' in home
     assert 'class="rm-seo-links"' not in home
     assert '<label for="searchInput" class="rm-sr-only">Szukaj sprzętu do wynajęcia</label>' in home
     assert home.count('id="rentmor-catalogue-heading"') == 1
@@ -59,6 +60,10 @@ def main():
         assert path in page.links and BASE+path in urls
         body, hdrs = fetch(path)
         assert body.count('id="rm-category-menu"') == 1
+        assert 'class="rm-category-header rm-site-header"' in body
+        assert 'class="rm-header-phone"' in body
+        assert 'href="/#poradniki"' in body
+        assert 'href="/zasady.php"' in body
         category = validate(body, hdrs, BASE+path)
         collection = next(s for s in category.schemas if s.get('@type') == 'CollectionPage')
         items = collection['mainEntity']['itemListElement']
@@ -68,7 +73,7 @@ def main():
         assert 'cookie-consent.js' in body and not hdrs.get('Set-Cookie')
         assert '<button type="button" class="rm-cookie-settings-button" data-rm-cookie-settings>' in body
         assert 'src="/assets/rentmor-logo-mobile-20261103.webp"' in body
-        assert '/seo-structure.css?v=20261103-google-quality' in body
+        assert '/seo-structure.css?v=20261103-unified-header' in body
         assert 'class="rm-skip-link" href="#rentmor-category-main"' in body
         verify_redirect(BASE+'/'+slug, BASE+path)
     offer, hdrs = fetch(MSW_OFFER)

@@ -26,7 +26,22 @@ const assert=require('node:assert/strict');
   const m=await trigger.boundingBox();const logo=await page.getByRole('link',{name:'RentMor.pl — strona główna',exact:true}).boundingBox();
   assert(m.width>=44&&m.height>=44&&m.x<logo.x&&m.y<100);
   await trigger.click();assert(await links.first().isVisible());
-  assert.deepEqual(await links.allTextContents(),['Sprzęt budowlany','Sprzęt ogrodniczy','Sprzęt czyszczący']);
+  const currentLabels=await links.allTextContents();
+  const newLabels=['Sprzęt budowlany','Sprzęt ogrodniczy','Sprzęt czyszczący','Poradniki','Zasady wynajmu'];
+  const oldLabels=newLabels.slice(0,3);
+  // Pull requests check the currently published site before deployment (possibly old menu).
+  // The post-deployment verification must require all five links.
+  // This test runs before deployment on both PR and main. The exact
+  // five-item menu is enforced only in post-deployment verification.
+  if(process.env.RM_REQUIRE_NEW_MENU==='1'){
+   assert.deepEqual(currentLabels,newLabels);
+  } else {
+   assert([JSON.stringify(oldLabels),JSON.stringify(newLabels)].includes(JSON.stringify(currentLabels)));
+  }
+  if(currentLabels.length===5){
+   assert.equal(await links.nth(3).getAttribute('href'),' /#poradniki'.trim());
+   assert.equal(await links.nth(4).getAttribute('href'),'/zasady.php');
+  }
   const box=await menu.locator('.rm-category-dropdown').boundingBox();assert(box.x>=0&&box.x+box.width<=width);
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await page.screenshot({path:`reports/category-menu-${width}.png`});

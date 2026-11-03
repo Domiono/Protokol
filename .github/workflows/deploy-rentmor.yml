@@ -18,6 +18,7 @@ on:
       - 'scripts/test_privacy_page.py'
       - 'scripts/patch_public_metadata.py'
       - 'scripts/test_public_metadata.php'
+      - 'scripts/test_shared_header.php'
       - 'scripts/verify_public_metadata.py'
       - 'server/protocol_sync.php'
       - 'server/notebook_sync.php'
@@ -197,6 +198,7 @@ jobs:
           python3 scripts/test_mobile_rendering.py
           php -l server/public_metadata.php
           php scripts/test_public_metadata.php
+          php scripts/test_shared_header.php
           python3 scripts/test_privacy_page.py
           python3 scripts/test_legacy_consent_patch.py
           node --check server/cookie-consent.js
@@ -328,6 +330,7 @@ jobs:
           python3 scripts/test_mobile_rendering.py
           php -l server/public_metadata.php
           php scripts/test_public_metadata.php
+          php scripts/test_shared_header.php
           python3 scripts/test_privacy_page.py
           python3 scripts/test_legacy_consent_patch.py
           node --check server/cookie-consent.js

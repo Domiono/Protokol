@@ -6,6 +6,14 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 03.11.2026 — jednolity nagłówek kategorii, poradników i polityki — W PR
+
+- Zgłoszenie użytkownika: nagłówek `/sprzet-budowlany/` miał ciemne tło, ciemny logotyp i nieproporcjonalne odstępy względem głównej; niezależne szablony poradników i polityki używały odmiennych nagłówków.
+- Wspólna funkcja `rm_category_menu()` zawiera teraz pięć odsyłaczy: sprzęt budowlany, ogrodniczy, czyszczący, `/\u0023poradniki` na głównej i `/zasady.php`. Istniejące adresy poradników pozostają bez zmian, menu nadal działa bez JS przez `details/summary`.
+- Kategoria używa `rm_public_site_header()`, a trzy poradniki i polityka identycznego układu menu/logo/telefonu oraz wspólnego arkusza `seo-structure.css`. W poradnikach użyto wywołania stabilnego `rm_category_menu()` już istniejącego na produkcji, aby niezależny workflow wdrożenia nie wymagał atomowej publikacji nowego helpera. Nagłówek jasny, kontrastowy, z zielonym przyciskiem telefonu i zoptymalizowanym WebP logo. Bez zmian cen, formularzy, rezerwacji, danych klientów, SEO canonical i APK.
+- Testy: rozszerzono menu Playwright (3 → 5 pozycji), PHP/HTTP kategorii, read-only verification oraz nowy `scripts/test_shared_header.php` w dwóch workflow. **Wynik CI, PR, merge i publikacja: do potwierdzenia.** Potwierdzenie na żywo wymaga skutecznego wdrożenia obu workflow i testu na 360/390/1365 px.
+- **Zakres poza repo:** szablon `zasady.php` hosta nie jest wersjonowany jako samodzielny plik; jego nagłówka nie przebudowano bez weryfikacji rzeczywistego HTML. Do sprawdzenia po publikacji. Aplikacja Android bez zmian.
+
 ## 03.11.2026 — R-07: zastąpienie pełnej czcionki ikon SVG — W PR, publikacja do potwierdzenia
 
 - Po audycie Verseo (performance 66, LCP 4,3 s, TBT 830 ms) sprawdzono aktualny kod i raporty Lighthouse z wdrożenia #100. Raport `mobile-after-1.json`: Font Awesome WOFF2 **150810 B**, arkusz **19404 B** (99,19% nieużywanych reguł), baner **91276 B**; cztery fonty łącznie **229556 B**. Samo kolejne kompresowanie banera nie usuwa tego transferu. LCP pozostaje banerem; wyniki laboratoryjne są zmienne.

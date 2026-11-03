@@ -1,4 +1,4 @@
-<?php /* rentmor-public-metadata-v1 */ require_once __DIR__ . '/public_metadata.php'; ob_start('rentmor_public_metadata'); ?>
+<?php /* rentmor-public-metadata-v1 */ require_once __DIR__ . '/public_metadata.php'; require_once __DIR__ . '/rental_categories.php'; ob_start('rentmor_public_metadata'); ?>
 <!DOCTYPE html>
 <html lang="pl">
 <head>
@@ -34,6 +34,7 @@ ol,ul{padding-left:24px}li{margin:9px 0}table{width:100%;border-collapse:collaps
 footer{text-align:center;border-top:1px solid #e2e8f0;padding:28px 20px;color:#475569;font-size:14px}
 section{scroll-margin-top:20px}@media(max-width:480px){body{font-size:16px}.hero{padding:32px 20px}.nav-inner{padding:12px}th,td{padding:10px;font-size:14px}.call{padding:8px 11px;font-size:13px}}
 </style>
+<link rel="stylesheet" href="/seo-structure.css?v=20261103-unified-header">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"Jak korzystać z agregatu malarskiego i dobrać dyszę 511, 517 lub 521?","inLanguage":"pl-PL","datePublished":"2026-10-25","dateModified":"2026-10-25","description":"Poradnik o WABROTECH WT20i, dyszach malarskich, przygotowaniu, malowaniu i czyszczeniu; filmy producenta.","mainEntityOfPage":"https://rentmor.pl/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php","author":{"@type":"Organization","name":"RentMor.pl","url":"https://rentmor.pl/"},"publisher":{"@type":"Organization","name":"RentMor.pl","url":"https://rentmor.pl/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"RentMor.pl","item":"https://rentmor.pl/"},{"@type":"ListItem","position":2,"name":"Jak malować agregatem i dobrać dyszę","item":"https://rentmor.pl/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php"}]}]}
 </script>
@@ -44,7 +45,7 @@ section{scroll-margin-top:20px}@media(max-width:480px){body{font-size:16px}.hero
 <!-- /rentmor-brand-icons-v1 -->
 </head>
 <body>
-<nav aria-label="Nawigacja główna"><div class="nav-inner"><a href="/" aria-label="RentMor — strona główna"><img class="logo" src="/rentmor-logo.png?v=rm-20261030-wordmark-v1" alt="RentMor.pl"></a><a class="call" href="tel:+48733891281">733 891 281</a></div></nav>
+<header class="rm-category-header rm-site-header"><div class="rm-header-brand"><?= rm_category_menu() ?><a href="/" aria-label="RentMor.pl — strona główna"><img src="/assets/rentmor-logo-mobile-20261103.webp" width="224" height="48" alt="RentMor.pl"></a></div><a class="rm-header-phone" href="tel:+48733891281" aria-label="Zadzwoń do RentMor: 733 891 281">733 891 281</a></header>
 <header class="hero"><div class="hero-inner"><div class="eyebrow">Poradniki RentMor · Malowanie natryskowe</div><h1>Jak korzystać z agregatu malarskiego? Dysze 511, 517 i 521 – do czego służą?</h1><p>Wynajmujesz agregat malarski po raz pierwszy? Wyjaśniamy, jak przygotować urządzenie WABROTECH WT20i, wybrać dyszę do gruntu lub farby, wykonać próbny natrysk i bezpiecznie zakończyć pracę. Obejrzyj też filmy producenta.</p></div></header>
 <main><p class="crumb"><a href="/">Strona główna</a> / Poradniki / Malowanie agregatem</p>
 <article><p class="small">Autor: <a href="/">RentMor.pl</a> · Opublikowano <time datetime="2026-10-25">25 października 2026</time></p>

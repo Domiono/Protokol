@@ -210,6 +210,6 @@ function rentmor_seo_structure(string $html): string {
     $style = is_string($css) && strlen($css) > 500 && strlen($css) < 16000
         && stripos($css, '</style') === false
         ? '<style id="rm-public-accessibility-css">' . $css . '</style>'
-        : '<link rel="stylesheet" href="/seo-structure.css?v=20261103-google-quality">';
+        : '<link rel="stylesheet" href="/seo-structure.css?v=20261103-unified-header">';
     return str_replace('</head>', '<!-- rentmor-seo-structure-v1 -->' . $style . '</head>', $html);
 }

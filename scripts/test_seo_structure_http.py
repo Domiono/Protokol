@@ -41,6 +41,10 @@ with tempfile.TemporaryDirectory() as tmp:
             assert '<button type="button" class="rm-cookie-settings-button" data-rm-cookie-settings>' in html
             assert 'class="rm-skip-link" href="#rentmor-category-main"' in html
             assert 'src="/assets/rentmor-logo-mobile-20261103.webp"' in html
+            assert 'class="rm-category-header rm-site-header"' in html
+            assert 'class="rm-header-phone"' in html
+            assert 'href="/#poradniki"' in html
+            assert 'href="/zasady.php"' in html
             if slug=='sprzet-budowlany':
                 assert '/uploads/rentmor-webp/test-card.webp' in html
                 assert '/uploads/rentmor-webp/test-small.webp 320w' in html
