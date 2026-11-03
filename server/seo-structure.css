@@ -11,3 +11,16 @@ footer.bg-gray-900.text-gray-500{color:#cbd5e1!important}
 footer.bg-gray-900.text-gray-500 .opacity-40{opacity:.86!important}
 section.bg-white p .text-gray-400{color:#475569!important}
 
+/* Audited Lighthouse contrast corrections for the visible phone links,
+   product prices and daily rental labels (without changing brand accents). */
+body.bg-gray-50 a.bg-green-500{background-color:#15803d!important}
+body.bg-gray-50 a.bg-green-500:hover{background-color:#166534!important}
+body.bg-gray-50 span.text-2xl.text-yellow-500,
+body.bg-gray-50 span.text-4xl.text-yellow-500{color:#a16207!important}
+body.bg-gray-50 span.text-gray-400,
+body.bg-gray-50 a.text-gray-400{color:#475569!important}
+
+/* Visible only when reached by keyboard. */
+.rm-skip-link{position:fixed;top:-80px;left:12px;z-index:2147483646;padding:12px 16px;border:2px solid #facc15;border-radius:10px;background:#172337;color:#fff!important;font:700 16px/1.4 Arial,sans-serif;text-decoration:underline}
+.rm-skip-link:focus{top:12px;outline:3px solid #facc15;outline-offset:2px}
+
