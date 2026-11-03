@@ -6,7 +6,6 @@ function rm_home_sections(): string {
     return '<section id="wynajem-sprzetu-krakow" class="rm-seo-section" data-rm-home-structure="v1">'
         . '<h2>Wypożycz sprzęt w Krakowie, Czyżynach</h2>'
         . '<p>Sprzęt do remontu, ogrodu i sprzątania dla osób prywatnych oraz firm. Wybierz kategorię, porównaj urządzenia i sprawdź warunki konkretnej oferty.</p>'
-        . rm_category_nav()
         . '<h3>Jak wypożyczyć sprzęt?</h3><ol><li>Wybierz urządzenie i sprawdź cenę dobową, kaucję oraz dodatki.</li><li>Zadzwoń i ustal termin odbioru oraz zwrotu.</li><li>Przy odbiorze podpisz umowę i wpłać kaucję. Transport zapewniasz we własnym zakresie.</li></ol>'
         . '<p>Odbiór przy ul. Woźniców po wcześniejszej rezerwacji. Dokładny adres podajemy przy ustalaniu odbioru.</p>'
         . '<p><a href="tel:+48733891281">Zadzwoń: 733 891 281</a> · <a href="/zasady.php">Zasady wynajmu</a></p></section>'
@@ -58,5 +57,6 @@ function rentmor_seo_structure(string $html): string {
     if ($changedProduct) {
         $html = preg_replace('~(</h1>)~i', '$1<p class="rm-seo-muted" data-rm-rental-terms="v1">Cena podstawowa za dobę wynajmu. Kaucja i ewentualne dodatki zgodnie z opisem. Dostępność na termin potwierdzamy przy rezerwacji.</p>', $html, 1);
     }
-    return str_replace('</head>', '<!-- rentmor-seo-structure-v1 --><link rel="stylesheet" href="/seo-structure.css?v=20261102"></head>', $html);
+    $html = rm_add_header_category_menu($html);
+    return str_replace('</head>', '<!-- rentmor-seo-structure-v1 --><link rel="stylesheet" href="/seo-structure.css?v=20261103-menu"></head>', $html);
 }

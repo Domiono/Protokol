@@ -1,7 +1,7 @@
 <?php
 require __DIR__.'/../server/seo_structure.php';
 function check($ok, $message) { if (!$ok) throw new RuntimeException($message); }
-$home = '<html><head><link rel="canonical" href="https://rentmor.pl/"></head><body><h1>Katalog</h1><div id="products">KEEP CARDS</div><section><h2>Wynajem sprzętu budowlanego i ogrodniczego w Krakowie</h2><p>Szukasz sprzętu</p></section><section id="poradniki">old guide</section><section id="wynajem-sprzetu-krakow">old local</section><footer>KEEP FOOTER</footer></body></html>';
+$home = '<html><head><link rel="canonical" href="https://rentmor.pl/"></head><body><nav><div><a href="/" aria-label="RentMor.pl — strona główna"><img src="/rentmor-logo.png" alt="RentMor.pl"></a><a href="tel:733891281">Telefon</a></div></nav><h1>Katalog</h1><div id="products">KEEP CARDS</div><section><h2>Wynajem sprzętu budowlanego i ogrodniczego w Krakowie</h2><p>Szukasz sprzętu</p></section><section id="poradniki">old guide</section><section id="wynajem-sprzetu-krakow">old local</section><footer>KEEP FOOTER</footer></body></html>';
 if (isset($argv[1])) $home = file_get_contents($argv[1]);
 $out = rentmor_seo_structure($home);
 check(str_contains($out, 'data-rm-home-structure="v1"'), 'Known live home sections replaced');
@@ -10,6 +10,10 @@ check(substr_count($out, 'id="wynajem-sprzetu-krakow"') === 1, 'One rental secti
 check(!str_contains($out, 'Szukasz sprzętu do remontu'), 'Removed duplicate introduction');
 check(rentmor_seo_structure($out) === $out, 'Idempotent HTML');
 foreach (rm_categories() as $slug=>$cat) check(str_contains($out, 'href="/'.$slug.'/"'), 'Category linked');
+check(substr_count($out, 'id="rm-category-menu"') === 1, 'One header menu');
+check(!str_contains($out, 'class="rm-seo-links"'), 'No duplicate lower category navigation');
+check(strpos($out, 'id="rm-category-menu"') < strpos($out, '<h1>'), 'Menu above content');
+check(str_contains($out, 'href="tel:733891281"'), 'Phone preserved');
 $schema = ['@context'=>'https://schema.org','@type'=>'Product','name'=>'Test </script>','offers'=>['@type'=>'Offer','url'=>'https://rentmor.pl/test/','price'=>'130','priceCurrency'=>'PLN','availability'=>'https://schema.org/InStock']];
 $product = '<html><head><link rel="canonical" href="https://rentmor.pl/test/"><script type="application/ld+json">'.rm_category_json($schema).'</script></head><body><h1>Test</h1><p>130 zł / doba</p><form action="/">FORM</form></body></html>';
 $rendered = rentmor_seo_structure($product);

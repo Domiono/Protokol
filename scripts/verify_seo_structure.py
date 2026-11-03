@@ -13,6 +13,9 @@ def main():
     assert 'data-rm-home-structure="v1"' in home
     assert home.count('id="poradniki"') == home.count('id="wynajem-sprzetu-krakow"') == 1
     assert 'Szukasz sprzętu do remontu' not in home
+    assert home.count('id="rm-category-menu"') == 1
+    assert 'class="rm-seo-links"' not in home
+    assert home.index('id="rm-category-menu"') < home.index('<h1')
     categories = ['sprzet-budowlany', 'sprzet-ogrodniczy', 'sprzet-czyszczacy']
     xml, _ = fetch('/sitemap.xml')
     urls = [x.text for x in ET.fromstring(xml).findall('{*}url/{*}loc')]
@@ -21,6 +24,7 @@ def main():
         path = '/'+slug+'/'
         assert path in page.links and BASE+path in urls
         body, hdrs = fetch(path)
+        assert body.count('id="rm-category-menu"') == 1
         category = validate(body, hdrs, BASE+path)
         collection = next(s for s in category.schemas if s.get('@type') == 'CollectionPage')
         items = collection['mainEntity']['itemListElement']
@@ -30,6 +34,7 @@ def main():
         assert 'cookie-consent.js' in body and not hdrs.get('Set-Cookie')
         verify_redirect(BASE+'/'+slug, BASE+path)
     offer, hdrs = fetch(MSW_OFFER)
+    assert offer.count('id="rm-category-menu"') == 1
     parsed = validate(offer, hdrs, BASE+MSW_OFFER)
     schema = next(s for s in parsed.schemas if s.get('@type') == 'Product')
     rental = schema['offers']

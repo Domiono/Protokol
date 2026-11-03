@@ -6,6 +6,12 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 03.11.2026 — menu kategorii w nagłówku
+
+- Użytkownik zatwierdził publikację kodu i wdrożenie: ikona menu po lewej stronie logo, kolejność budowlany → ogrodniczy → czyszczący. Kategorie rozwijają się po kliknięciu; dolna nawigacja kategorii usunięta. Poradniki i warunki wynajmu zachowane.
+- Menu na głównej, ofertach i nowych stronach kategorii. Natywne details/summary obsługuje dotyk i klawiaturę bez JavaScript; skrypt zamyka menu po kliknięciu poza nim, Escape i wyjściu fokusu.
+- Workflow seo-structure sprawdza menu w przeglądarce przy szerokości 360, 390 i 1365 px przed publikacją oraz po publikacji (z rollbackiem). Bez zmian cen, rezerwacji i APK. Testy, PR i publikacja: do potwierdzenia.
+
 ## 02.11.2026 — SEO: punkty 3, 4, 5 i 9 — wdrożone (potwierdzenie 03.11.2026)
 
 - Zakres zatwierdzony przez właściciela: 301 bezparametrowego `/index.php` do `/`, uporządkowanie głównej, trzy strony kategorii i semantyka wynajmu w JSON-LD. Stare `?id=`, żądania POST, ceny, kaucje, dane klientów i Android bez zmian.

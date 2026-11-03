@@ -27,6 +27,8 @@ jobs:
           php scripts/test_related_offers.php
           bash -n scripts/publish_seo_structure.sh
           python3 scripts/test_seo_structure_http.py
+          npm install --no-save playwright@1.56.1
+          RM_MENU_PREVIEW=1 node scripts/seo_structure_browser.cjs
       - name: Publish with backup, readback and rollback
         if: github.event_name != 'pull_request'
         env:
@@ -34,3 +36,8 @@ jobs:
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: bash scripts/publish_seo_structure.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: category-menu-evidence
+          path: reports/

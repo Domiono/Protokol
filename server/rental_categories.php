@@ -46,3 +46,23 @@ function rm_category_nav(): string {
 function rm_category_json(array $data): string {
     return (string)json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 }
+
+/** Native disclosure remains usable with JavaScript disabled. */
+function rm_category_menu(): string {
+    $html = '<details class="rm-category-menu" id="rm-category-menu"><summary aria-label="Menu kategorii sprzętu" title="Kategorie sprzętu"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></summary><div class="rm-category-dropdown"><strong>Kategorie sprzętu</strong>';
+    foreach (rm_categories() as $slug=>$category) {
+        $html .= '<a href="/' . $slug . '/">' . rm_category_escape($category['name']) . '</a>';
+    }
+    return $html . '</div></details><script>(function(){var menu=document.getElementById("rm-category-menu");if(!menu)return;document.addEventListener("click",function(e){if(!menu.contains(e.target))menu.open=false;});document.addEventListener("keydown",function(e){if(e.key==="Escape"&&menu.open){menu.open=false;menu.querySelector("summary").focus();}});menu.addEventListener("focusout",function(e){if(e.relatedTarget&&!menu.contains(e.relatedTarget))menu.open=false;});})();</script>';
+}
+
+function rm_add_header_category_menu(string $html): string {
+    if (str_contains($html, 'id="rm-category-menu"')) return $html;
+    // Match only the known public header logo; leave unfamiliar templates intact.
+    return (string)preg_replace_callback('~<nav\b[^>]*>.*?</nav>~is', static function ($nav) {
+        if (!str_contains($nav[0], 'aria-label="RentMor.pl — strona główna"')) return $nav[0];
+        return preg_replace_callback('~<a\b[^>]*aria-label="RentMor.pl — strona główna"[^>]*>.*?</a>~is', static function ($logo) {
+            return '<div class="rm-header-brand">' . rm_category_menu() . $logo[0] . '</div>';
+        }, $nav[0], 1);
+    }, $html, 1);
+}
