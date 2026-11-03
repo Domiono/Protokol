@@ -5,10 +5,10 @@ require_once __DIR__ . '/related_offers.php';
 function rm_categories(): array {
     return [
         'sprzet-budowlany' => ['key'=>'budowlane', 'name'=>'Sprzęt budowlany',
-            'title'=>'Wynajem sprzętu budowlanego Kraków | RentMor',
+            'title'=>'Wypożyczalnia sprzętu budowlanego Kraków | RentMor',
             'heading'=>'Wynajem sprzętu budowlanego w Krakowie',
-            'description'=>'Sprzęt do remontu i prac budowlanych w Krakowie, Czyżynach. Sprawdź aktualne ceny wynajmu, kaucje i wyposażenie urządzeń w RentMor.',
-            'intro'=>'Wybierz urządzenie do przygotowania ścian, obróbki posadzek, cięcia lub prac instalacyjnych. W ofertach sprawdzisz parametry, wyposażenie i koszty wynajmu.',
+            'description'=>'Wypożyczalnia sprzętu budowlanego w Krakowie (Czyżyny). Wynajem szlifierek, młotów, zagęszczarek i innych maszyn. Sprawdź ceny dobowe i kaucje.',
+            'intro'=>'Szukasz wypożyczalni sprzętu budowlanego w Krakowie? W RentMor wypożyczysz między innymi szlifierkę do betonu, żyrafę do gładzi, młot wyburzeniowy, zagęszczarkę i urządzenia do cięcia. W ofertach sprawdzisz parametry, wyposażenie, ceny dobowe i kaucje. Sprzęt odbierzesz osobiście w Czyżynach po ustaleniu terminu.',
             'advice'=>'Przy wyborze podaj rodzaj materiału i zakres pracy. Do urządzeń wytwarzających pył dobierz odpowiedni odciąg, a przed odbiorem sprawdź masę maszyny i możliwości transportu. Dostępność osprzętu oraz urządzenia potwierdzamy przy rezerwacji.'],
         'sprzet-ogrodniczy' => ['key'=>'ogrodnicze', 'name'=>'Sprzęt ogrodniczy',
             'title'=>'Wypożyczalnia sprzętu ogrodniczego Kraków | RentMor',

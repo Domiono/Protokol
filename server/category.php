@@ -41,6 +41,8 @@ $e = 'rm_category_escape';
 <a href="/<?= $e($productSlug) ?>/">Szczegóły wynajmu</a></article>
 <?php endforeach; ?></div></section>
 <section class="rm-seo-section"><h2>Jak dobrać sprzęt?</h2><p><?= $e($category['advice']) ?></p>
+<h2>Wynajem sprzętu dla osób prywatnych i firm</h2><p>W RentMor w Krakowie można wynająć sprzęt zarówno do jednorazowego remontu, jak i prac realizowanych przez wykonawcę. Cena podana przy każdym urządzeniu to stawka podstawowa za dobę. Osprzęt, opłaty dodatkowe i kaucję sprawdzisz w szczegółach konkretnej oferty.</p>
+<h3>Czy sprzęt można odebrać tego samego dnia?</h3><p>Termin zależy od dostępności urządzenia. Skontaktuj się z nami przed przyjazdem — potwierdzimy możliwość odbioru i godzinę. Nie prowadzimy odbiorów bez wcześniejszego ustalenia terminu.</p>
 <h2>Odbiór w Krakowie, Czyżynach</h2><p>Odbiór osobisty przy ul. Woźniców po ustaleniu terminu. Dokładny adres podajemy przy rezerwacji. Transport zapewniasz we własnym zakresie. Przy odbiorze podpisujesz umowę i wpłacasz kaucję wskazaną w ofercie.</p><p><a href="tel:+48733891281">Zadzwoń i ustal termin: 733 891 281</a> · <a href="/zasady.php">Zasady wynajmu</a></p></section>
 </main><footer>RentMor.pl — Kraków Czyżyny · <a href="/">Wszystkie urządzenia</a> · <a href="/polityka-prywatnosci.php">Polityka prywatności</a> · <a href="#ustawienia-cookies" data-rm-cookie-settings>Ustawienia cookies</a></footer>
 <script src="/cookie-consent.js" defer></script></body></html>

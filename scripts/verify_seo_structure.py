@@ -15,6 +15,17 @@ def main():
     assert 'Szukasz sprzętu do remontu' not in home
     assert home.count('id="rm-category-menu"') == 1
     assert 'class="rm-seo-links"' not in home
+    assert '/assets/rentmor-blueprint-mobile-20261103.webp' in home
+    assert '/assets/rentmor-blueprint-mobile-20261102.webp' not in home
+    assert 'src="/assets/rentmor-logo-mobile-20261103.webp"' in home
+    assert 'srcset="/assets/rentmor-logo-mobile-20261103.webp 1x"' in home
+    assert 'sprzęt budowlany na wynajem' in home
+    for path, size_limit in [('/assets/rentmor-blueprint-mobile-20261103.webp', 145000),
+                              ('/assets/rentmor-logo-mobile-20261103.webp', 50000)]:
+        with urlopen(Request(BASE + path, headers={'User-Agent': 'RentMorSeoReleaseCheck/1.0'}),timeout=30) as response:
+            assert response.status == 200 and 'image/webp' in response.headers.get('Content-Type','')
+            assert len(response.read()) < size_limit
+
     assert home.index('id="rm-category-menu"') < home.index('<h1')
     categories = ['sprzet-budowlany', 'sprzet-ogrodniczy', 'sprzet-czyszczacy']
     xml, _ = fetch('/sitemap.xml')
