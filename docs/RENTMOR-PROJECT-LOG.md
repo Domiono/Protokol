@@ -6,7 +6,7 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
-## 02.11.2026 — SEO: punkty 3, 4, 5 i 9 — przygotowanie
+## 02.11.2026 — SEO: punkty 3, 4, 5 i 9 — wdrożone (potwierdzenie 03.11.2026)
 
 - Zakres zatwierdzony przez właściciela: 301 bezparametrowego `/index.php` do `/`, uporządkowanie głównej, trzy strony kategorii i semantyka wynajmu w JSON-LD. Stare `?id=`, żądania POST, ceny, kaucje, dane klientów i Android bez zmian.
 - `seo_structure.php` działa na wyrenderowanym HTML przez idempotentny hook w aktualnym pliku hostingu. Zastępuje tylko trzy rozpoznane bloki głównej; zachowuje katalog, mapę, formularze i cookies. Poradniki zebrane w jednej sekcji. Nieznany szablon pozostaje nietknięty, a kontrola publikacji wymaga poprawnego wyniku.
@@ -14,7 +14,7 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 - Wrapper `category_sitemap.php` rozszerza istniejący dynamiczny `sitemap.php` o kategorie. Pozostawia wszystkie dotychczasowe adresy. Jawne reguły są przed ogólnym routerem produktów i po regułach hosta.
 - Product/Offer zachowuje cenę i dostaje `businessFunction=LeaseOut`, UnitPriceSpecification na 1 DAY oraz widoczny opis rozliczenia; usunięto niepotwierdzone `InStock` (brak publicznego odczytu dostępności terminowej).
 - Testy lokalne: PHP lint, transformacja rzeczywistego publicznego HTML, idempotencja, ceny, escaping, formularze, kategorie HTTP, aktualizacja katalogu, sitemap, 404 i 503 — sukces. Workflow `seo-structure.yml` przygotowany z kopią chronioną HTTP, weryfikacją readback, porównaniem źródła oraz rollbackiem plików; publiczne testy obejmują stare przekierowania i prywatność.
-- PR, CI i publikacja: **do potwierdzenia**. Bez nowego APK. Nie deklarować poprawy pozycji lub indeksacji na podstawie wdrożenia.
+- **PUBLIKACJA POTWIERDZONA:** [PR #92](https://github.com/Domiono/Protokol/pull/92), commit `b99d229b1431738d8e9b309f5e8df74ff1f94ce7`. [Run 41498314500](https://github.com/Domiono/Protokol/actions/runs/41498314500) zakończony sukcesem 02.11.2026 o 18:14 UTC. Status i logi sprawdzone 03.11.2026. Testy po publikacji na publicznej stronie zaliczyły kategorie, sitemap, uporządkowanie głównej, semantykę wynajmu, stare przekierowania, poradniki, powiązany sprzęt i prywatność/cookies. Bez nowego APK. Nie deklarować poprawy pozycji lub indeksacji na podstawie wdrożenia.
 
 ## 02.11.2026 — R-07: końcowa kontrola wdrożonych poprawek mobilnych
 
