@@ -37,6 +37,7 @@ with tempfile.TemporaryDirectory() as tmp:
             collection=next(s for s in page.schemas if s.get('@type')=='CollectionPage')
             assert collection['mainEntity']['numberOfItems']==1
             assert '<test>' not in html and 'cookie-consent.js' in html
+            assert '<button type="button" class="rm-cookie-settings-button" data-rm-cookie-settings>' in html
             if slug=='sprzet-budowlany':
                 assert 'Wypożyczalnia sprzętu budowlanego Kraków' in html
                 assert 'szlifierkę do betonu' in html
