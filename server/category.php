@@ -26,13 +26,13 @@ $e = 'rm_category_escape';
 <html lang="pl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title><?= $e($category['title']) ?></title><meta name="description" content="<?= $e($category['description']) ?>">
 <link rel="canonical" href="<?= $url ?>"><meta name="robots" content="index, follow">
-<link rel="icon" href="/assets/rm-20261030-64.png"><link rel="stylesheet" href="/seo-structure.css?v=20261103-google-quality">
+<link rel="icon" href="/assets/rm-20261030-64.png"><link rel="stylesheet" href="/seo-structure.css?v=20261103-unified-header">
 <meta property="og:type" content="website"><meta property="og:title" content="<?= $e($category['title']) ?>"><meta property="og:description" content="<?= $e($category['description']) ?>"><meta property="og:url" content="<?= $url ?>"><meta property="og:image" content="https://rentmor.pl/assets/rm-20261030-512.png">
 <script type="application/ld+json"><?= rm_category_json(['@context'=>'https://schema.org','@type'=>'CollectionPage','name'=>$category['heading'],'url'=>$url,'mainEntity'=>['@type'=>'ItemList','numberOfItems'=>count($list),'itemListElement'=>$list]]) ?></script>
 <script type="application/ld+json"><?= rm_category_json(['@context'=>'https://schema.org','@type'=>'BreadcrumbList','itemListElement'=>[['@type'=>'ListItem','position'=>1,'name'=>'RentMor','item'=>'https://rentmor.pl/'],['@type'=>'ListItem','position'=>2,'name'=>$category['name'],'item'=>$url]]]) ?></script>
 </head><body class="rm-category-page">
 <a class="rm-skip-link" href="#rentmor-category-main">Przejdź do treści</a>
-<header class="rm-category-header"><div class="rm-header-brand"><?= rm_category_menu() ?><a href="/" aria-label="RentMor.pl — strona główna"><img src="/assets/rentmor-logo-mobile-20261103.webp" alt="RentMor.pl" width="224" height="48"></a></div><a href="tel:+48733891281">733 891 281</a></header>
+<?= rm_public_site_header() ?>
 <main id="rentmor-category-main" tabindex="-1"><nav aria-label="Okruszki"><a href="/">Strona główna</a> / <?= $e($category['name']) ?></nav>
 <h1><?= $e($category['heading']) ?></h1><p><?= $e($category['intro']) ?></p>
 <section class="rm-seo-section" aria-labelledby="category-offers"><h2 id="category-offers">Urządzenia i ceny wynajmu</h2>
