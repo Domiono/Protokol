@@ -20,8 +20,8 @@ for filename in sys.argv[1:]:
     failures = [
         {'id': key, 'title': audit.get('title', key),
          'score': round(audit['score'] * 100) if isinstance(audit.get('score'), (int, float)) else None,
-         'savings_ms': round(audit.get('details', {}).get('overallSavingsMs', 0) or 0),
-         'savings_bytes': round(audit.get('details', {}).get('overallSavingsBytes', 0) or 0)}
+         'savings_ms': round((audit.get('details') or {}).get('overallSavingsMs', 0) or 0),
+         'savings_bytes': round((audit.get('details') or {}).get('overallSavingsBytes', 0) or 0)}
         for key, audit in audits.items()
         if audit.get('scoreDisplayMode') not in ('informative', 'manual', 'notApplicable')
         and isinstance(audit.get('score'), (int, float)) and audit['score'] < 0.9
