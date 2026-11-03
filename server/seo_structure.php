@@ -31,8 +31,23 @@ function rm_product_lcp_preload(string $html, array $manifest): string {
         $sources = array_map('trim', explode(',', html_entity_decode($match[2], ENT_QUOTES | ENT_HTML5, 'UTF-8')));
     } elseif (preg_match('~\bsrc\s*=\s*(["\x27])(.*?)\1~is', $tag, $match)) {
         $path = parse_url(html_entity_decode($match[2], ENT_QUOTES | ENT_HTML5, 'UTF-8'), PHP_URL_PATH);
-        if (!is_string($path) || !preg_match('~^/uploads/([A-Za-z0-9_.-]+\.(?:jpe?g|png|webp))$~i', $path, $source)) return $html;
-        $asset = $manifest[$source[1]] ?? null;
+        if (!is_string($path)) return $html;
+        $asset = null;
+        if (preg_match('~^/uploads/([A-Za-z0-9_.-]+\.(?:jpe?g|png|webp))$~i', $path, $source)) {
+            $asset = $manifest[$source[1]] ?? null;
+        } elseif (preg_match('~^/uploads/rentmor-webp/[A-Za-z0-9_.-]+\.webp$~', $path)) {
+            // Some page templates render the already optimized public WebP as src.
+            // Reverse-match a *declared* variant in the safe manifest, never a free URL.
+            foreach ($manifest as $candidate) {
+                if (!is_array($candidate)) continue;
+                foreach (['card', 'detail'] as $kind) {
+                    if (($candidate[$kind]['url'] ?? null) === $path) {
+                        $asset = $candidate;
+                        break 2;
+                    }
+                }
+            }
+        }
         if (!is_array($asset)) return $html;
         foreach (['thumb', 'small', 'card', 'detail'] as $kind) {
             $variant = $asset[$kind] ?? null;
