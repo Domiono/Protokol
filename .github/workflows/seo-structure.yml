@@ -1,10 +1,10 @@
 name: RentMor SEO categories and rental structure
 on:
   pull_request:
-    paths: ['server/seo_structure.php', 'server/rental_categories.php', 'server/category.php', 'server/category_sitemap.php', 'server/seo-structure.css', 'scripts/*seo_structure*', '.github/workflows/seo-structure.yml']
+    paths: ['server/seo_structure.php', 'server/rental_categories.php', 'server/category.php', 'server/category_sitemap.php', 'server/seo-structure.css', 'scripts/*seo_structure*', 'scripts/audit_wcag_live.py', '.github/workflows/seo-structure.yml']
   push:
     branches: [main]
-    paths: ['server/seo_structure.php', 'server/rental_categories.php', 'server/category.php', 'server/category_sitemap.php', 'server/seo-structure.css', 'scripts/*seo_structure*', '.github/workflows/seo-structure.yml']
+    paths: ['server/seo_structure.php', 'server/rental_categories.php', 'server/category.php', 'server/category_sitemap.php', 'server/seo-structure.css', 'scripts/*seo_structure*', 'scripts/audit_wcag_live.py', '.github/workflows/seo-structure.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -30,6 +30,7 @@ jobs:
           php scripts/test_related_offers.php
           bash -n scripts/publish_seo_structure.sh
           python3 scripts/test_seo_structure_http.py
+          python3 scripts/audit_wcag_live.py
           npm install --no-save playwright@1.56.1 lighthouse@12.8.2
           node scripts/seo_structure_browser.cjs
       - name: Capture before-release mobile performance
