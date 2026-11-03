@@ -11,6 +11,10 @@ def main():
     home, headers = fetch('/')
     page = validate(home, headers, BASE+'/')
     assert 'data-rm-home-structure="v1"' in home
+    assert 'font-awesome/6.4.0/css/all.min.css' not in home
+    assert 'class="rm-inline-icon ' in home and 'fetchpriority="low"' in home
+    description = re.search(r'<meta name="description" content="([^"]+)"', home)
+    assert description and 70 <= len(description[1]) <= 155
     assert home.count('id="poradniki"') == home.count('id="wynajem-sprzetu-krakow"') == 1
     assert 'Szukasz sprzętu do remontu' not in home
     assert home.count('id="rm-category-menu"') == 1
@@ -82,6 +86,8 @@ def main():
     assert '<button type="button" class="rm-cookie-settings-button" data-rm-cookie-settings>' in offer
     # Product gallery's first WebP image starts fetching in HEAD before inline styles.
     puzzi, _ = fetch('/odkurzacz-pioracy-karcher-puzzi-10-1/')
+    assert 'font-awesome/6.4.0/css/all.min.css' not in puzzi
+    assert 'class="rm-inline-icon ' in puzzi
     assert puzzi.count('data-rm-lcp-preload="v1"') == 1
     assert '<link rel="preload" as="image" imagesrcset="/uploads/rentmor-webp/' in puzzi
     assert 'imagesizes="(max-width: 768px) 100vw, 900px"' in puzzi

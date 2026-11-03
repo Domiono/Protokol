@@ -64,3 +64,18 @@ check($fallback==='/uploads/a.jpg' && $srcset==='', 'Reject manifest URL outside
 $unknown = str_replace('Szukasz sprzętu', 'Changed layout', $home);
 if (!isset($argv[1])) check(str_contains(rentmor_seo_structure($unknown), 'old local'), 'Unknown layout retained');
 echo "PASS: homepage consolidation, categories, schema semantics, price preservation, escaping, forms, idempotence\n";
+
+$iconCss = '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">';
+$iconFixture = '<html><head>'.$iconCss.'</head><body><a href="tel:733891281" aria-label="Zadzwoń"><i class="fa-solid fa-phone mr-2" aria-hidden="true"></i></a><img data-rm-image-kind="card" src="/uploads/a.jpg"><img data-rm-image-kind="detail" src="/uploads/b.jpg" fetchpriority="high"><script>const original = \'<i class="fa-solid fa-phone"></i>\';</script></body></html>';
+$iconOut = rm_light_public_assets($iconFixture);
+check(!str_contains($iconOut, 'font-awesome'), 'No icon font for supported public icons');
+check(str_contains($iconOut, 'class="rm-inline-icon mr-2"'), 'Icon spacing preserved');
+check(str_contains($iconOut, 'href="tel:733891281" aria-label="Zadzwoń"'), 'Accessible phone link preserved');
+check(str_contains($iconOut, 'const original = \'<i class="fa-solid fa-phone"></i>\''), 'JavaScript untouched');
+check(substr_count($iconOut, 'fetchpriority="low"') === 1 && substr_count($iconOut, 'fetchpriority="high"') === 1, 'Only catalogue image priority changed');
+check(rm_light_public_assets($iconOut) === $iconOut, 'Asset optimizer idempotent');
+$unknownIcon = str_replace('fa-phone mr-2', 'fa-new-unknown mr-2', $iconFixture);
+check(str_contains(rm_light_public_assets($unknownIcon), $iconCss), 'Unknown icon keeps fallback stylesheet');
+$labelledIcon = str_replace('aria-hidden="true"', 'aria-label="Telefon"', $iconFixture);
+check(str_contains(rm_light_public_assets($labelledIcon), $iconCss), 'Labelled icon retains semantics');
+echo "PASS: inline icons, unknown-icon fallback, script preservation, priority and idempotence\n";

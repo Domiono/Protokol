@@ -37,6 +37,7 @@ jobs:
           python3 scripts/audit_wcag_live.py
           npm install --no-save playwright@1.56.1 lighthouse@12.8.2
           node scripts/seo_structure_browser.cjs
+          RM_ASSETS_PREVIEW=1 node scripts/seo_structure_assets_browser.cjs
       - name: Capture before-release mobile performance
         if: github.event_name != 'pull_request'
         run: |
@@ -70,6 +71,9 @@ jobs:
                   values=[source['audits']['largest-contentful-paint']['numericValue'] for source in sources]
                   scores=[source['categories']['performance']['score'] for source in sources]
                   print(prefix.upper()+'_LCP_MEDIAN', phase, round(statistics.median(values)), 'ms', list(map(round,values)), 'perf_med', round(statistics.median(scores)*100))
+                  for metric in ('total-blocking-time','cumulative-layout-shift','total-byte-weight'):
+                      samples=[source['audits'][metric]['numericValue'] for source in sources]
+                      print(prefix.upper(), phase, metric, statistics.median(samples))
           PY
       - uses: actions/upload-artifact@v4
         if: always()

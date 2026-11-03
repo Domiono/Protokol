@@ -3,6 +3,53 @@ declare(strict_types=1);
 require_once __DIR__ . '/rental_categories.php';
 require_once __DIR__ . '/rentmor_accessibility.php';
 
+/** Replace the small public icon set instead of downloading the entire icon font.
+ * Unknown icons retain Font Awesome, so editorial additions never disappear.
+ * Inline scripts are deliberately excluded from rewriting.
+ */
+function rm_light_public_assets(string $html): string {
+    $icons = [
+        'fa-phone' => '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L8 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.9.6 2.9.7a2 2 0 0 1 1.7 2z"/>',
+        'fa-location-dot' => '<path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="2.5"/>',
+        'fa-search' => '<circle cx="10.5" cy="10.5" r="7.5"/><path d="m16 16 5 5"/>',
+        'fa-circle-info' => '<circle cx="12" cy="12" r="10"/><path d="M12 11v6m0-10v.1"/>',
+        'fa-expand' => '<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>',
+    ];
+    $parts = preg_split('~(<script\b[^>]*>.*?</script>)~is', $html, -1, PREG_SPLIT_DELIM_CAPTURE);
+    if (!is_array($parts)) return $html;
+    $remaining = false;
+    foreach ($parts as $index => $part) {
+        if ($index % 2 !== 0) continue;
+        $parts[$index] = preg_replace_callback('~<i\b([^>]*)>\s*</i>~is', static function ($m) use ($icons) {
+            if (!preg_match('~\bclass="([^"]*)"~', $m[1], $classes)) return $m[0];
+            $tokens = preg_split('/\s+/', trim($classes[1]));
+            $names = array_values(array_intersect(array_keys($icons), $tokens));
+            // Preserve unusual labelled/interactive elements rather than drop attributes.
+            $rest = preg_replace('~\s*(?:class|aria-hidden)="[^"]*"~', '', $m[1]);
+            if (count($names) !== 1 || trim($rest) !== '') return $m[0];
+            $classes = array_filter($tokens, static fn($v) => !str_starts_with($v, 'fa-') && $v !== 'fas' && $v !== 'fa');
+            return '<svg class="rm-inline-icon ' . htmlspecialchars(implode(' ', $classes), ENT_QUOTES, 'UTF-8')
+                . '" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'
+                . $icons[$names[0]] . '</svg>';
+        }, $part);
+        if (preg_match('~class=["\x27][^"\x27]*\b(?:fa[srb]?|fa-[\w-]+)\b~', $parts[$index])) $remaining = true;
+        // Below-the-fold catalogue previews must not compete with the hero/detail LCP.
+        $parts[$index] = preg_replace_callback('~<img\b(?=[^>]*data-rm-image-kind="card")[^>]*>~is', static function ($m) {
+            if (preg_match('~\bfetchpriority\s*=~i', $m[0])) return $m[0];
+            return substr_replace($m[0], ' fetchpriority="low"', -1, 0);
+        }, $parts[$index]);
+    }
+    $html = implode('', $parts);
+    if (!$remaining) {
+        $html = preg_replace('~<link\b[^>]*href="https://cdnjs\.cloudflare\.com/ajax/libs/font-awesome/6\.4\.0/css/all\.min\.css"[^>]*>~i', '', $html);
+        $html = preg_replace('~<noscript>\s*</noscript>~i', '', $html);
+    }
+    if (str_contains($html, 'class="rm-inline-icon ') && !str_contains($html, 'id="rm-inline-icons-css"')) {
+        $html = str_replace('</head>', '<style id="rm-inline-icons-css">.rm-inline-icon{display:inline-block;vertical-align:-.125em;flex-shrink:0}</style></head>', $html);
+    }
+    return $html;
+}
+
 function rm_home_sections(): string {
     return '<section id="wynajem-sprzetu-krakow" class="rm-seo-section" data-rm-home-structure="v1">'
         . '<h2>Wypożycz sprzęt w Krakowie, Czyżynach</h2>'
@@ -111,6 +158,8 @@ function rentmor_seo_structure(string $html): string {
     $isHome = (bool)preg_match('~<link\b[^>]*rel=["\x27]canonical["\x27][^>]*href=["\x27]https://rentmor\.pl/["\x27]~i', $html);
     if ($isHome) {
         $html = rm_speed_up_home($html);
+        $description = 'Wypożyczalnia sprzętu budowlanego, ogrodniczego i czyszczącego w Krakowie, Czyżynach. Sprawdź ceny wynajmu i zadzwoń, aby ustalić termin.';
+        $html = preg_replace('~<meta\b(?=[^>]*\bname="description")[^>]*>~i', '<meta name="description" content="' . $description . '">', $html, 1);
         // Replace only the three known sections. On template drift leave all content intact.
         $section = '~<section\b[^>]*>(?:(?!<section\b|</section>).)*?</section>~is';
         $counts = ['intro'=>0, 'guide'=>0, 'local'=>0];
@@ -153,6 +202,7 @@ function rentmor_seo_structure(string $html): string {
     }
     $html = rm_add_header_category_menu($html);
     $html = rm_accessibility_html($html, $isHome);
+    $html = rm_light_public_assets($html);
     // This small public stylesheet is render-blocking as a separate request.
     // Inline it after the already-rendered critical styles on home and offers.
     // Category pages keep using the external, cached stylesheet.
