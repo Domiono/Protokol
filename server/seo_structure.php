@@ -95,5 +95,13 @@ function rentmor_seo_structure(string $html): string {
     }
     $html = rm_add_header_category_menu($html);
     $html = rm_accessibility_html($html, $isHome);
-    return str_replace('</head>', '<!-- rentmor-seo-structure-v1 --><link rel="stylesheet" href="/seo-structure.css?v=20261103-wcag"></head>', $html);
+    // This small public stylesheet is render-blocking as a separate request.
+    // Inline it after the already-rendered critical styles on home and offers.
+    // Category pages keep using the external, cached stylesheet.
+    $css = @file_get_contents(__DIR__ . '/seo-structure.css');
+    $style = is_string($css) && strlen($css) > 500 && strlen($css) < 16000
+        && stripos($css, '</style') === false
+        ? '<style id="rm-public-accessibility-css">' . $css . '</style>'
+        : '<link rel="stylesheet" href="/seo-structure.css?v=20261103-google-quality">';
+    return str_replace('</head>', '<!-- rentmor-seo-structure-v1 -->' . $style . '</head>', $html);
 }
