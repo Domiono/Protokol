@@ -122,75 +122,84 @@ public class FinanceAnalyticsTest {
         assertEquals(1500,r.addonUnclassified);assertEquals(0,r.addonPowder);
         assertEquals(10000,r.income);assertEquals(1,r.rentals);
     }
-    @Test public void averageDailyRevenueUsesBilledDaysFromAllSettledRentalsNotCalendarDays() throws Exception {
+    @Test public void dailyAverageDividesRevenueByFourSelectedCalendarDaysNotSevenRentals() throws Exception {
         JSONArray rentals=new JSONArray();
-        int[] days={2,1,1,1,2,1,1};
-        int[] amounts={100,90,80,70,110,100,70};
-        for(int i=0;i<days.length;i++)rentals.put(new JSONObject()
-            .put("settled",true).put("settled_at","2026-10-29")
+        int[] amounts={150,100,80,90,60,70,70};
+        for(int i=0;i<amounts.length;i++)rentals.put(new JSONObject()
+            .put("settled",true)
+            .put("settled_at","2026-11-0"+(2+i%4))
             .put("income",amounts[i]).put("loss",0)
-            .put("settlement",new JSONObject().put("days",days[i]).put("extra",i==0?10:0)));
-        rentals.put(new JSONObject().put("settled",false).put("start_date","2026-10-29")
+            .put("settlement",new JSONObject().put("days",i==0?3:1)
+                .put("extra",i==0?70:0)));
+        // Neither pending bookings nor settlements outside the selected window count as revenue.
+        rentals.put(new JSONObject().put("settled",false).put("start_date","2026-11-04")
             .put("income",1000));
-        rentals.put(new JSONObject().put("settled",true).put("settled_at","2026-09-29")
-            .put("income",999).put("loss",0).put("settlement",new JSONObject().put("days",1)));
+        rentals.put(new JSONObject().put("settled",true).put("settled_at","2026-11-01")
+            .put("income",999).put("loss",0));
         FinanceAnalytics.Report report=FinanceAnalytics.calculate(rentals,new JSONArray(),
-            d("2026-10-01"),d("2026-10-31"),2);
+            d("2026-11-02"),d("2026-11-05"),0);
         assertEquals(7,report.rentals);
         assertEquals(62000,report.income);
-        assertEquals(9,report.rentalDays);
-        assertEquals(0,report.rentalsWithoutDays);
-        assertEquals(Long.valueOf(6889),report.averageIncomePerDay());
-        assertEquals(62000,report.buckets.get(0).income);
+        assertEquals(4,report.periodDays());
+        assertEquals(15500,report.averageIncomePerDay());
+        assertEquals(0,report.loss);
+        // Extras are already part of income; no second addition.
+        assertEquals(62000,report.buckets.stream().mapToLong(b->b.income).sum());
     }
 
-    @Test public void averageDailyRevenueUsesApprovedDaysThenActualReturnThenOneDayFallback() throws Exception {
-        JSONArray rentals=new JSONArray()
-            .put(new JSONObject().put("settled",true).put("settled_at","2026-10-20")
-                .put("income",300).put("loss",0)
-                .put("start_date","2026-10-01").put("end_date","2026-10-15")
-                .put("actual_return","2026-10-10")
-                .put("settlement",new JSONObject().put("days",2)))
-            .put(new JSONObject().put("settled",true).put("settled_at","2026-10-21")
-                .put("income",120).put("loss",0)
-                .put("start_date","2026-10-05").put("end_date","2026-10-05"))
-            .put(new JSONObject().put("settled",true).put("settled_at","2026-10-22")
-                .put("income",200).put("loss",0)
-                .put("start_date","2026-10-01").put("end_date","2026-10-09")
-                .put("actual_return","2026-10-03"));
+    @Test public void dailyAverageIncludesBothDatesAndZeroRevenueDaysAcrossMonthBoundary() throws Exception {
+        JSONArray rentals=new JSONArray().put(new JSONObject()
+            .put("settled",true).put("settled_at","2026-12-31")
+            .put("income",200).put("loss",0));
         FinanceAnalytics.Report report=FinanceAnalytics.calculate(rentals,new JSONArray(),
-            d("2026-10-01"),d("2026-10-31"),2);
-        assertEquals(5,report.rentalDays);
-        assertEquals(0,report.rentalsWithoutDays);
-        assertEquals(Long.valueOf(12400),report.averageIncomePerDay());
+            d("2026-12-30"),d("2027-01-02"),2);
+        assertEquals(4,report.periodDays());
+        assertEquals(20000,report.income);
+        assertEquals(5000,report.averageIncomePerDay());
+        FinanceAnalytics.Report oneDay=FinanceAnalytics.calculate(rentals,new JSONArray(),
+            d("2026-12-31"),d("2026-12-31"),0);
+        assertEquals(1,oneDay.periodDays());
+        assertEquals(20000,oneDay.averageIncomePerDay());
+        FinanceAnalytics.Report noRevenue=FinanceAnalytics.calculate(new JSONArray(),new JSONArray(),
+            d("2026-12-30"),d("2027-01-02"),2);
+        assertEquals(4,noRevenue.periodDays());
+        assertEquals(0,noRevenue.averageIncomePerDay());
     }
 
-    @Test public void missingRentalDaysNeverProducesMisleadingDailyAverage() throws Exception {
-        JSONArray data=new JSONArray()
-            .put(new JSONObject().put("settled",true).put("settled_at","2026-10-20")
-                .put("income",100).put("loss",0)
-                .put("settlement",new JSONObject().put("days",2)))
-            .put(new JSONObject().put("settled",true).put("settled_at","2026-10-22")
-                .put("income",200).put("loss",0));
-        FinanceAnalytics.Report incomplete=FinanceAnalytics.calculate(data,new JSONArray(),
-            d("2026-10-01"),d("2026-10-31"),2);
-        assertEquals(30000,incomplete.income);
-        assertEquals(2,incomplete.rentalDays);
-        assertEquals(1,incomplete.rentalsWithoutDays);
-        assertNull(incomplete.averageIncomePerDay());
-        assertNull(FinanceAnalytics.calculate(new JSONArray(),new JSONArray(),
-            d("2026-10-01"),d("2026-10-31"),2).averageIncomePerDay());
+    @Test public void dailyAverageDoesNotDependOnBilledDaysOrMissingRentalDates() throws Exception {
+        JSONArray rentals=new JSONArray()
+            .put(new JSONObject().put("settled",true).put("settled_at","2026-11-02")
+                .put("income",300).put("loss",0)
+                .put("settlement",new JSONObject().put("days",9)))
+            .put(new JSONObject().put("settled",true).put("settled_at","2026-11-05")
+                .put("income",320).put("loss",0)); // legacy rental without start/end dates
+        FinanceAnalytics.Report report=FinanceAnalytics.calculate(rentals,new JSONArray(),
+            d("2026-11-02"),d("2026-11-05"),1);
+        assertEquals(62000,report.income);
+        assertEquals(4,report.periodDays());
+        assertEquals(15500,report.averageIncomePerDay());
+        // Equipment performance still uses charged days, independently of the finance average.
+        assertEquals(9,FinanceAnalytics.billedRentalDays(rentals.getJSONObject(0)));
+        assertEquals(0,FinanceAnalytics.billedRentalDays(rentals.getJSONObject(1)));
     }
 
-    @Test public void dashboardDisplaysDailyAverageAndBilledDays() throws Exception {
+    @Test public void dashboardShows155PerDayForNovemberSecondThroughFifth() throws Exception {
         android.app.Activity activity=org.robolectric.Robolectric.buildActivity(android.app.Activity.class).setup().get();
         JSONArray rentals=new JSONArray().put(new JSONObject()
-            .put("settled",true).put("settled_at",LocalDate.now().toString())
-            .put("income",310).put("loss",0).put("settlement",new JSONObject().put("days",2)));
+            .put("settled",true).put("settled_at","2026-11-05")
+            .put("income",620).put("loss",0).put("settlement",new JSONObject().put("days",7)));
         FinanceDashboard dashboard=new FinanceDashboard(activity,rentals,new JSONArray(),()->{},()->{});
+        java.lang.reflect.Field from=FinanceDashboard.class.getDeclaredField("from");
+        java.lang.reflect.Field to=FinanceDashboard.class.getDeclaredField("to");
+        from.setAccessible(true);to.setAccessible(true);
+        from.set(dashboard,d("2026-11-02"));to.set(dashboard,d("2026-11-05"));
+        java.lang.reflect.Method render=FinanceDashboard.class.getDeclaredMethod("render");
+        render.setAccessible(true);render.invoke(dashboard);
         assertNotNull(findText(dashboard.view(),"ŚREDNIA ZA DOBĘ"));
-        assertNotNull(findText(dashboard.view(),"NALICZONE DOBY"));
+        assertNotNull(findText(dashboard.view(),"DNI OKRESU"));
         assertNotNull(findText(dashboard.view(),"155,00 zł"));
+        assertNotNull(findText(dashboard.view(),"Rozliczone najmy: 1"));
+        assertNull(findText(dashboard.view(),"NALICZONE DOBY"));
     }
 
     private android.view.View findText(android.view.View root,String text){

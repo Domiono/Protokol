@@ -64,14 +64,11 @@ public final class FinanceDashboard {
         text(hero,"Przychód − straty − koszty bieżące − zakupy sprzętu",11,0xffb8c7da,false);
         LinearLayout summary=card();LinearLayout first=row(summary);kpi(first,"PRZYCHÓD",report.income,colors[0]);kpi(first,"ŁĄCZNE KOSZTY",report.costs(),colors[1]);
         LinearLayout second=row(summary);kpi(second,"ŚREDNIO ZA NAJEM",report.rentals==0?0:Math.round((double)report.income/report.rentals),0xff172b43);kpi(second,"WYNIK OPERACYJNY",report.income-report.loss-report.cost,colors[2]);
-        LinearLayout third=row(summary);Long averageDaily=report.averageIncomePerDay();
-        kpiValue(third,"ŚREDNIA ZA DOBĘ",averageDaily==null?"—":money(averageDaily),0xff172b43);
-        kpiValue(third,"NALICZONE DOBY",String.valueOf(report.rentalDays),0xff172b43);
+        LinearLayout third=row(summary);
+        kpiValue(third,"ŚREDNIA ZA DOBĘ",money(report.averageIncomePerDay()),0xff172b43);
+        kpiValue(third,"DNI OKRESU",String.valueOf(report.periodDays()),0xff172b43);
         text(summary,"Rozliczone najmy: "+report.rentals+"   •   Nierozliczone rezerwacje: "+report.pending,13,0xff475569,false);
-        if(report.rentalsWithoutDays>0)
-            text(summary,"Brakuje liczby dób w "+report.rentalsWithoutDays+" rozliczeniach. Średnia za dobę będzie widoczna po uzupełnieniu danych.",12,0xff925400,false);
-        else if(averageDaily!=null)
-            text(summary,"Średnia za dobę = przychód z rozliczonych najmów ÷ łączna liczba naliczonych dób (z dodatkami).",12,0xff64748b,false);
+        text(summary,"Średnia za dobę = przychód z rozliczonych najmów ÷ dni wybranego okresu (obie daty wliczone, również dni bez przychodu).",12,0xff64748b,false);
         if(!allHistory)text(summary,previous.income>0?String.format(PL,"Przychód: %+.1f%% względem poprzedniego okresu",100.0*(report.income-previous.income)/previous.income):"Zmiana % przychodu: brak dodatniej wartości porównawczej",12,0xff64748b,false);
         // One compact disclosure, not another tab or an additional chart.
         LinearLayout addons=card();
