@@ -15,7 +15,13 @@ public final class FinanceAnalytics {
         public long result(){return income-costs();}
     }
     public static class Report extends Bucket {
-        public int undated,invalid,pending,addonsUnknown;public long addonPowder,addonPaper,addonDisc,addonOther,addonCustom,addonUnclassified;
+        public int undated,invalid,pending,addonsUnknown,rentalsWithoutDays;
+        public long rentalDays;
+        /** Null means no complete denominator (no rental days, or missing days in settled rentals). */
+        public Long averageIncomePerDay() {
+            if(rentalDays==0||rentalsWithoutDays>0)return null;
+            return BigDecimal.valueOf(income).divide(BigDecimal.valueOf(rentalDays),0,RoundingMode.HALF_UP).longValue();
+        }public long addonPowder,addonPaper,addonDisc,addonOther,addonCustom,addonUnclassified;
         public Map<String,Long> addonCustomByName=new LinkedHashMap<>();
         public long addonTotal(){return addonPowder+addonPaper+addonDisc+addonOther+addonCustom+addonUnclassified;}
         public List<Bucket> buckets=new ArrayList<>();
@@ -24,6 +30,21 @@ public final class FinanceAnalytics {
         Report(LocalDate start,LocalDate end){super(start,end);}
     }
     public static LocalDate date(String s){try{return LocalDate.parse(s.length()>10?s.substring(0,10):s);}catch(Exception e){return null;}}
+    /**
+     * Prefer billed days approved at settlement. Historic records without a billing count
+     * may use dated rental duration (minimum one day); never guess without valid dates.
+     */
+    public static int billedRentalDays(JSONObject rental) {
+        JSONObject settlement=rental.optJSONObject("settlement");
+        int approved=settlement==null?0:settlement.optInt("days",0);
+        if(approved>0&&approved<=10000)return approved;
+        LocalDate start=date(rental.optString("start_date"));
+        String actual=rental.optString("actual_return","").trim();
+        LocalDate end=date(actual.isEmpty()?rental.optString("end_date"):actual);
+        if(start==null||end==null||end.isBefore(start))return 0;
+        long elapsed=ChronoUnit.DAYS.between(start,end);
+        return elapsed<3660?(int)Math.max(1,elapsed):0;
+    }
     static Long amount(JSONObject o,String key){
         try{if(!o.has(key)||o.isNull(key))return null;BigDecimal n=new BigDecimal(o.getString(key).replace(',','.'));if(n.signum()<0)return null;return n.movePointRight(2).setScale(0,RoundingMode.HALF_UP).longValueExact();}catch(Exception e){return null;}
     }
@@ -84,6 +105,8 @@ public final class FinanceAnalytics {
             LocalDate d=date(o.optString("settled_at"));if(d==null){r.undated++;continue;}if(d.isBefore(from)||d.isAfter(to))continue;
             Long inc=amount(o,"income"),loss=amount(o,"loss");if(inc==null||loss==null){r.invalid++;continue;}
             r.records.add(o);Bucket b=map.get(bucketStart(d,grain));r.income+=inc;r.loss+=loss;r.rentals++;b.income+=inc;b.loss+=loss;b.rentals++;countAddons(r,o);
+            int rentalDays=billedRentalDays(o);
+            if(rentalDays>0)r.rentalDays+=rentalDays;else r.rentalsWithoutDays++;
             String name=o.optString("equipment").trim();if(name.isEmpty())name="Nieprzypisany sprzęt";long[] sums=r.equipment.get(name);if(sums==null){sums=new long[3];r.equipment.put(name,sums);}sums[0]+=inc;sums[1]+=loss;sums[2]++;
         }
         for(int i=0;i<expenses.length();i++){
