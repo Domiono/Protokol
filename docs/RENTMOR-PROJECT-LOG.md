@@ -1,18 +1,18 @@
 # RentMor — stan projektu i dziennik zmian
 
 **Główna karta projektu: strona RentMor.pl + natywna aplikacja Android.**  
-Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i APK). Stan wdrożony: `main`, commit `42e164e1b90629d52bdede40b7e855416b4222c5`. Aplikacja: **1.7.21**, `versionCode 36`; [PR #73](https://github.com/Domiono/Protokol/pull/73), [#74](https://github.com/Domiono/Protokol/pull/74), [#75](https://github.com/Domiono/Protokol/pull/75). Historyczne statusy niżej zachowują datę swojej weryfikacji.
+Ostatnia weryfikacja: **05.11.2026** (Android: średnia za dobę najmu). Stan kodu: `main`, merge `20e210d5f395fb96df6fea9a446b153ded478d21`. Aplikacja: **1.7.23**, `versionCode 38`; [PR #103](https://github.com/Domiono/Protokol/pull/103), [testy](https://github.com/Domiono/Protokol/actions/runs/42103834465), [podpisany APK](https://github.com/Domiono/Protokol/actions/runs/42104197454). Weryfikacja na fizycznym urządzeniu pozostaje do wykonania. Starsze wpisy i statusy stron/SEO zachowują historyczne daty weryfikacji.
 
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
-## 05.11.2026 — Android: średnia przychodu za dobę najmu — W PR / testy do potwierdzenia
+## 05.11.2026 — Android: średnia przychodu za dobę najmu — SCALONE / APK OPUBLIKOWANE
 
 - **Zgłoszenie:** w panelu Finansów RentMor obok „Średnio za najem” (przychód podzielony przez liczbę rozliczeń) brakuje wskaźnika „Średnia za dobę”. Widok dostaje trzeci rząd KPI: **ŚREDNIA ZA DOBĘ** i **NALICZONE DOBY**; pozostałe statystyki nie zmieniają definicji.
 - **Definicja:** przychód z rozliczeń w wybranym okresie / suma naliczonych dób tych samych rozliczeń. Rozliczenia przypisuje się do okresu według `settled_at`, a nie dat rezerwacji. Preferowana liczba dni `settlement.days` zatwierdzona przy zwrocie; dla starych rekordów bez niej dopuszczony pomiar z `start_date` do `actual_return` (albo `end_date`), minimum jedna doba; bez wiarygodnych dat brak odgadywania. Dodatki pozostają częścią już zaksięgowanego przychodu.
 - **Jakość danych:** gdy któremukolwiek rozliczeniu w okresie brakuje liczby dób, średnia pokazuje **—** z komunikatem o brakujących rozliczeniach, zamiast potencjalnie fałszywej wartości. Liczba naliczonych dób pokazuje dostępne, rozpoznane doby. Przy zerowej liczbie rozliczeń nie dzieli przez zero.
 - **Kod:** `FinanceAnalytics` + `FinanceDashboard`; `EquipmentAnalytics` korzysta z tej samej reguły dni. Testy: suma 7 najmów / 9 dób / 620 zł = 68,89 zł za dobę; zatwierdzone doby, jednodniowy najem, wcześniejszy faktyczny zwrot, brak dat, zakres okresu i widok Androida.
-- **Wersja:** Android **1.7.23 / 38**. **Status:** przygotowane w gałęzi `codex/rentmor-average-daily-income-2026-11-05`, PR/CI, scalenie, podpisany APK i instalacja na fizycznym telefonie **do potwierdzenia**. Bez zmian danych klientów, serwera, API, cen, rezerwacji i WWW. Funkcja nie jest jeszcze potwierdzona w APK.
+- **Wersja i wdrożenie:** Android **1.7.23 / 38**, [PR #103](https://github.com/Domiono/Protokol/pull/103) scalony do `main` jako `20e210d5f395fb96df6fea9a446b153ded478d21`. [Test rental operations #42103834465](https://github.com/Domiono/Protokol/actions/runs/42103834465) — **SUCCESS** (testy JUnit/Robolectric i assembleDebug); preflight API/SEO [#42103834460](https://github.com/Domiono/Protokol/actions/runs/42103834460) — **SUCCESS**, bez wdrożenia API. [Build APK #42104197454](https://github.com/Domiono/Protokol/actions/runs/42104197454) — **SUCCESS**, podpisana paczka opublikowana jako [RentMor.apk](https://github.com/Domiono/Protokol/releases/download/latest/RentMor.apk), asset `RentMor.apk` sprawdzony w GitHub Release (`latest`, aktualizacja 05.11.2026 o 20:33 UTC). **Do potwierdzenia:** wygląd i działanie na fizycznym telefonie po aktualizacji. Bez zmian danych klientów, serwera, API, cen, rezerwacji i WWW.
 
 ## 03.11.2026 — jednolity nagłówek kategorii, poradników i polityki — W PR
 
