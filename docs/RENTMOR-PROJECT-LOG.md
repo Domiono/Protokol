@@ -6,6 +6,14 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia za dobę najmu). Stan ko
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 05.11.2026 — korekta znaczenia „Średnia za dobę” (Android 1.7.24/39) — W PR
+
+- **Weryfikacja na telefonie:** użytkownik pokazał błędny KPI wersji 1.7.23: dla okresu 02.11–05.11.2026 oraz przychodu 620,00 zł aplikacja wyświetlała 88,57 zł, ponieważ dzieliła przez 7 naliczonych dób. **Wymagana definicja biznesowa:** średni dzienny przychód w **wybranym okresie kalendarzowym**, czyli 620,00 zł / 4 dni (obie daty wliczone) = **155,00 zł/dzień**. Wybrane dni bez rozliczeń są w mianowniku; dane najmu nie zmieniają daty rozliczenia.
+- **Poprawka:** metoda `FinanceAnalytics.Report.averageIncomePerDay()` dzieli całkowity przychód z rozliczeń przez `ChronoUnit.DAYS.between(start,end)+1` bez użycia `settlement.days`. „NALICZONE DOBY” zastąpiono „DNI OKRESU”. Nie wprowadza błędów przy braku rozliczeń (0,00 zł na dzień). Definicja i komunikat na ekranie doprecyzowane.
+- **Bez zmian:** `EquipmentAnalytics` nadal liczy rzeczywiste doby naliczone przy rozliczeniu i zachowuje `FinanceAnalytics.billedRentalDays`. Nie zmieniono danych klientów, dat, cen, API, bazy, serwera ani publicznej strony. Dodatki nadal są częścią przychodu bez podwójnego doliczania.
+- **Testy:** nowe scenariusze 7 najmów / 620 zł / 4 dni = 155 zł, uwzględnienie obu dat, przeskok miesiąca/roku, dzień bez przychodu, brak historii i brak liczby dni konkretnego najmu; test UI po ustawieniu 02.11–05.11. Przed merge wymagany zielony `testDebugUnitTest assembleDebug`, następnie podpisany APK i potwierdzenie zasobu release.
+- **Status:** kod na gałęzi `fix/daily-average-selected-period-20261105`, **PR, testy, merge, APK i fizyczny telefon: do potwierdzenia**. To poprawka semantycznego błędu z PR #103, nie nowa statystyka sprzętu.
+
 ## 05.11.2026 — Android: średnia przychodu za dobę najmu — SCALONE / APK OPUBLIKOWANE
 
 - **Zgłoszenie:** w panelu Finansów RentMor obok „Średnio za najem” (przychód podzielony przez liczbę rozliczeń) brakuje wskaźnika „Średnia za dobę”. Widok dostaje trzeci rząd KPI: **ŚREDNIA ZA DOBĘ** i **NALICZONE DOBY**; pozostałe statystyki nie zmieniają definicji.
