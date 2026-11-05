@@ -4,7 +4,6 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -88,13 +87,8 @@ public final class EquipmentAnalytics {
             m.income+=income; m.losses+=loss; m.rentals++;
             m.history.add(r); m.month(date)[0]+=income; m.month(date)[1]+=loss;
             // Prefer billed days approved during return settlement; planned dates are only a fallback.
-            JSONObject settlement=r.optJSONObject("settlement");
-            int billed=settlement==null?0:settlement.optInt("days",0);
-            LocalDate start=FinanceAnalytics.date(r.optString("start_date"));
-            LocalDate end=FinanceAnalytics.date(r.optString("actual_return",r.optString("end_date")));
-            if(billed>0&&billed<=10000)m.knownDays+=billed;
-            else if(start!=null&&end!=null&&!end.isBefore(start)&&ChronoUnit.DAYS.between(start,end)<3660)
-                m.knownDays+=(int)Math.max(1,ChronoUnit.DAYS.between(start,end));
+            int days=FinanceAnalytics.billedRentalDays(r);
+            if(days>0)m.knownDays+=days;
             else m.missingDays++;
             result.settledRentals++;result.income+=income;
         }
