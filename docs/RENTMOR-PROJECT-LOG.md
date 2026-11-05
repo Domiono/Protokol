@@ -6,6 +6,14 @@ Ostatnia weryfikacja: **30.10.2026** (tło blueprint, logo witryny, ikony RM i A
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 05.11.2026 — Android: średnia przychodu za dobę najmu — W PR / testy do potwierdzenia
+
+- **Zgłoszenie:** w panelu Finansów RentMor obok „Średnio za najem” (przychód podzielony przez liczbę rozliczeń) brakuje wskaźnika „Średnia za dobę”. Widok dostaje trzeci rząd KPI: **ŚREDNIA ZA DOBĘ** i **NALICZONE DOBY**; pozostałe statystyki nie zmieniają definicji.
+- **Definicja:** przychód z rozliczeń w wybranym okresie / suma naliczonych dób tych samych rozliczeń. Rozliczenia przypisuje się do okresu według `settled_at`, a nie dat rezerwacji. Preferowana liczba dni `settlement.days` zatwierdzona przy zwrocie; dla starych rekordów bez niej dopuszczony pomiar z `start_date` do `actual_return` (albo `end_date`), minimum jedna doba; bez wiarygodnych dat brak odgadywania. Dodatki pozostają częścią już zaksięgowanego przychodu.
+- **Jakość danych:** gdy któremukolwiek rozliczeniu w okresie brakuje liczby dób, średnia pokazuje **—** z komunikatem o brakujących rozliczeniach, zamiast potencjalnie fałszywej wartości. Liczba naliczonych dób pokazuje dostępne, rozpoznane doby. Przy zerowej liczbie rozliczeń nie dzieli przez zero.
+- **Kod:** `FinanceAnalytics` + `FinanceDashboard`; `EquipmentAnalytics` korzysta z tej samej reguły dni. Testy: suma 7 najmów / 9 dób / 620 zł = 68,89 zł za dobę; zatwierdzone doby, jednodniowy najem, wcześniejszy faktyczny zwrot, brak dat, zakres okresu i widok Androida.
+- **Wersja:** Android **1.7.23 / 38**. **Status:** przygotowane w gałęzi `codex/rentmor-average-daily-income-2026-11-05`, PR/CI, scalenie, podpisany APK i instalacja na fizycznym telefonie **do potwierdzenia**. Bez zmian danych klientów, serwera, API, cen, rezerwacji i WWW. Funkcja nie jest jeszcze potwierdzona w APK.
+
 ## 03.11.2026 — jednolity nagłówek kategorii, poradników i polityki — W PR
 
 - Zgłoszenie użytkownika: nagłówek `/sprzet-budowlany/` miał ciemne tło, ciemny logotyp i nieproporcjonalne odstępy względem głównej; niezależne szablony poradników i polityki używały odmiennych nagłówków.
