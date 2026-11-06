@@ -6,6 +6,14 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 06.11.2026 — konfiguracja trybu autonomicznego agenta — W PR, PRODUKCJA NIEZMIENIONA
+
+- Dodano instrukcje pracy w `docs/RENTMOR-AI-AGENT.md` i powiązanie z `AGENTS.md`: samodzielna analiza, test regresyjny, gałąź robocza, draft PR, odczyt CI i raport. Twardy zakaz merge, auto-merge, publikacji PHP/API i wydawania APK.
+- Przed konfiguracją potwierdzono uprawnienia GitHub do `Domiono/Protokol`, istnienie testów PR oraz to, że kroki publikacji w `deploy-rentmor.yml` i `seo-structure.yml` pomijają zdarzenia `pull_request`.
+- Ten commit jest wyłącznie dokumentacją i nie uruchamia automatycznie harmonogramu. Harmonogram ChatGPT jest zarządzany osobno w Zaplanowanych; jego status wymaga oddzielnego potwierdzenia.
+- **PR: do potwierdzenia**; testy: wymagane sprawdzenie dokumentacji i działania pierwszego przebiegu agenta. Bez zmian kodu strony, rezerwacji, API, wersji Androida, cen i serwera. Bez wdrożenia.
+
+
 ## 06.11.2026 — bezpieczna zmiana egzemplarza przy edycji rezerwacji — W PR (bez potwierdzenia publikacji)
 
 - **Zgłoszenie:** istniejący wynajem zestawu żyrafy z odkurzaczem (06–07.11) nie daje się przedłużyć do niedzieli 08.11, bo kolejna rezerwacja wskazuje tę samą fizyczną sztukę mimo trzech zestawów. Dotychczas wymagało to przechodzenia przez osobny ekran egzemplarzy.
