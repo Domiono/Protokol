@@ -194,6 +194,39 @@ function rm_auto_pick_asset(array $item,array $reservations,array $assets): arra
     }
     return ['asset'=>$primary,'vacuum'=>$secondary,'error'=>''];
 }
+/**
+ * Reassign a future booking to another registered physical copy.
+ * Labels always come from inventory; availability is checked by the caller
+ * against all bookings under the shared reservations lock.
+ */
+function rm_select_reservation_copies(array &$item, array $original, array $selection, array $assets): string {
+    foreach (['asset_id'=>'asset_label', 'vacuum_asset_id'=>'vacuum_asset_label'] as $field=>$label) {
+        if (!array_key_exists($field, $selection)) continue;
+        if (!is_string($selection[$field])) return 'Nieprawidłowy egzemplarz.';
+        $requested=trim($selection[$field]);
+        $previous=(string)($original[$field]??'');
+        if ($requested===$previous) continue;
+        if (!empty($original['settled']) || !empty($original['returned'])
+            || (!empty($original['done']) && $previous!=='')) {
+            return 'Wydanego lub zwróconego egzemplarza nie można podmienić. Zmień przyszłą rezerwację.';
+        }
+        if ($requested==='') {
+            if ($previous!=='') return 'Nie usuwaj istniejącego przypisania. Wybierz inny egzemplarz.';
+            $item[$field]='';
+            $item[$label]='';
+            continue;
+        }
+        $copy=null;
+        foreach($assets as $asset) {
+            if(is_array($asset)&&(string)($asset['id']??'')===$requested) {$copy=$asset;break;}
+        }
+        if($copy===null) return 'Nie znaleziono wybranego egzemplarza.';
+        $item[$field]=$requested;
+        $item[$label]=(string)($copy['label']??'');
+    }
+    return '';
+}
+
 function rm_hide_rental_finance(array $r): array {
     foreach(['income','loss','loss_note','settled_at','daily_rate','paid','deposit','settlement'] as $key)unset($r[$key]);
     return $r;
