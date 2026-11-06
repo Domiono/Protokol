@@ -1430,7 +1430,52 @@ public class MainActivity extends Activity {
                     EditText equipmentEdit=new EditText(this);equipmentEdit.setSingleLine(false);equipmentEdit.setHint("Nazwa sprzętu");equipmentEdit.setText(displayedEquipment);f.addView(equipmentEdit);
                     EditText customerNameEdit=new EditText(this);customerNameEdit.setSingleLine(true);customerNameEdit.setHint("Imię i nazwisko / firma klienta");customerNameEdit.setText(item.optString("customer_name",item.optString("client","")));f.addView(customerNameEdit);
                     EditText phoneEdit=new EditText(this);phoneEdit.setSingleLine(true);phoneEdit.setHint("Telefon lub nick z OLX");phoneEdit.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);phoneEdit.setText(reservationPhoneForItem(item));f.addView(phoneEdit);
-                    TextView info=new TextView(this);info.setText("Możesz zmienić termin i kontakt. Zmiana modelu z przypisanym egzemplarzem wymaga osobnej zmiany przypisania.");info.setTextSize(12);info.setTextColor(0xff718096);info.setPadding(0,6,0,0);f.addView(info);
+                    // Select the physical copy in the same dialog as the booking dates.
+                    // Assignment is validated again for the edited dates before saving.
+                    JSONArray physical=store.assets();
+                    ArrayList<JSONObject> copyChoices=new ArrayList<>(),vacuumChoices=new ArrayList<>();
+                    ArrayList<String> copyNames=new ArrayList<>(),vacuumNames=new ArrayList<>();
+                    copyChoices.add(null);copyNames.add("Bez przypisania");
+                    vacuumChoices.add(null);vacuumNames.add("Bez przypisania");
+                    String rentalRole=RentalRules.kind(item.optString("equipment"));
+                    int copySelected=0,vacuumSelected=0;
+                    for(int i=0;i<physical.length();i++){
+                        JSONObject asset=physical.optJSONObject(i);
+                        if(asset==null)continue;
+                        String assetId=asset.optString("id"),assetRole=RentalRules.assetKind(asset);
+                        boolean appropriate="standard".equals(rentalRole)?
+                            item.optString("equipment").equals(asset.optString("equipment"))
+                                ||assetId.equals(item.optString("asset_id")):
+                            rentalRole.equals(assetRole);
+                        if(appropriate){
+                            copyChoices.add(asset);
+                            copyNames.add(asset.optString("label")+(asset.optBoolean("in_service")?" (serwis)":""));
+                            if(assetId.equals(item.optString("asset_id")))copySelected=copyChoices.size()-1;
+                        }
+                        if("vacuum".equals(assetRole)){
+                            vacuumChoices.add(asset);
+                            vacuumNames.add(asset.optString("label")+(asset.optBoolean("in_service")?" (serwis)":""));
+                            if(assetId.equals(item.optString("vacuum_asset_id")))vacuumSelected=vacuumChoices.size()-1;
+                        }
+                    }
+                    TextView copyTitle=new TextView(this);copyTitle.setText("Egzemplarz główny");f.addView(copyTitle);
+                    Spinner copyPick=new Spinner(this);
+                    copyPick.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,copyNames));
+                    copyPick.setSelection(copySelected);
+                    if(item.optBoolean("done")&&!item.optString("asset_id").isEmpty())copyPick.setEnabled(false);
+                    f.addView(copyPick);
+                    boolean hasVacuum=RentalRules.needsVacuum(item);
+                    Spinner vacuumPick=new Spinner(this);
+                    if(hasVacuum){
+                        TextView vacuumTitle=new TextView(this);vacuumTitle.setText("Odkurzacz do zestawu");f.addView(vacuumTitle);
+                        vacuumPick.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,vacuumNames));
+                        vacuumPick.setSelection(vacuumSelected);
+                        if(item.optBoolean("done")&&!item.optString("vacuum_asset_id").isEmpty())vacuumPick.setEnabled(false);
+                        f.addView(vacuumPick);
+                    }
+                    TextView info=new TextView(this);
+                    info.setText("Możesz przenieść niewydaną rezerwację na inny egzemplarz. Zajętość zostanie sprawdzona dla nowego terminu podczas zapisu i synchronizacji. Wydanego sprzętu nie można podmienić.");
+                    info.setTextSize(12);info.setTextColor(0xff718096);info.setPadding(0,6,0,0);f.addView(info);
                     new AlertDialog.Builder(this).setTitle("Edytuj rezerwację").setView(new ScrollView(this){{addView(f);}}).setNegativeButton("Anuluj",null).setPositiveButton("Zapisz",(d,w)->{
                         try{
                             String entered=timeEdit.getText().toString().trim(),normalizedTime="";
@@ -1457,6 +1502,27 @@ public class MainActivity extends Activity {
                             updated.put("start_date",from);updated.put("end_date",to);updated.put("end_day",editEnd[0].get(Calendar.DAY_OF_MONTH));
                             updated.put("end_month",new SimpleDateFormat("yyyy-MM",Locale.US).format(editEnd[0].getTime()));updated.put("time",normalizedTime);updated.put("phone",phoneValue);
                             updated.put("customer_name",customerNameValue);updated.put("client",customerNameValue);
+                            JSONObject selectedCopy=copyChoices.get(copyPick.getSelectedItemPosition());
+                            String mainId=selectedCopy==null?"":selectedCopy.optString("id");
+                            if(!item.optString("asset_id").isEmpty()&&mainId.isEmpty())
+                                throw new IllegalArgumentException("Wybierz egzemplarz zamiast usuwać istniejące przypisanie.");
+                            if(item.optBoolean("done")&&!item.optString("asset_id").isEmpty()
+                                &&!mainId.equals(item.optString("asset_id")))
+                                throw new IllegalArgumentException("Nie można podmienić wydanego egzemplarza.");
+                            updated.put("asset_id",mainId);
+                            updated.put("asset_label",selectedCopy==null?"":selectedCopy.optString("label"));
+                            if(hasVacuum){
+                                JSONObject selectedVacuum=vacuumChoices.get(vacuumPick.getSelectedItemPosition());
+                                String vacuumId=selectedVacuum==null?"":selectedVacuum.optString("id");
+                                if(!item.optString("vacuum_asset_id").isEmpty()&&vacuumId.isEmpty())
+                                    throw new IllegalArgumentException("Wybierz odkurzacz zamiast usuwać istniejące przypisanie.");
+                                if(item.optBoolean("done")&&!item.optString("vacuum_asset_id").isEmpty()
+                                    &&!vacuumId.equals(item.optString("vacuum_asset_id")))
+                                    throw new IllegalArgumentException("Nie można podmienić wydanego odkurzacza.");
+                                updated.put("vacuum_asset_id",vacuumId);
+                                updated.put("vacuum_asset_label",selectedVacuum==null?"":selectedVacuum.optString("label"));
+                            }
+                            updated.put("auto_assign",false);
                             String availability=RentalRules.conflict(updated,store.allReservations(),store.assets());if(!availability.isEmpty())throw new IllegalArgumentException(availability);store.saveRentalOperation(updated,"reservation_save");month[0]=monthValue;ReservationsWidgetProvider.refresh(this);render[0].run();if(isOnline())syncNow();
                             toast("Zaktualizowano rezerwację i dane klienta.");
                         }catch(Exception ex){toast("Nie udało się zapisać rezerwacji: "+ex.getMessage());}
