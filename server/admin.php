@@ -1158,6 +1158,13 @@ if (isset($_GET['edit_id'])) {
                                 $vacuum_options=rm_needs_vacuum($r)?rm_matching_assets($r,$rental_assets,'vacuum'):[];
                                 $assigned_main=(string)($r['asset_id']??'');
                                 $assigned_vacuum=(string)($r['vacuum_asset_id']??'');
+                                // Keep historic renamed assets in the edit list: editing only a
+                                // phone or date must not silently drop their selected copy.
+                                $main_visible=false;
+                                foreach($copy_options as $copy)if((string)($copy['id']??'')===$assigned_main){$main_visible=true;break;}
+                                if(!$main_visible&&$assigned_main!==''){
+                                    foreach($rental_assets as $old_copy)if((string)($old_copy['id']??'')===$assigned_main){array_unshift($copy_options,$old_copy);break;}
+                                }
                                 $copy_locked=!empty($r['done'])&&$assigned_main!=='';
                                 $vacuum_locked=!empty($r['done'])&&$assigned_vacuum!=='';
                             ?>
