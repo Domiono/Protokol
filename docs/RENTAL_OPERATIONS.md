@@ -45,6 +45,12 @@ Zestaw to **dwa fizyczne egzemplarze**, a nie samodzielna trzecia pula. Nie twó
 
 **Uwaga o starszych danych:** aplikacja nie wie, który konkretnie odkurzacz wydano w dawnym zestawie, dlatego nie przypisuje takiej sztuki na podstawie samej liczby rezerwacji.
 
+## Zmiana zestawu w istniejącej rezerwacji (Android 1.7.25 / panel WWW)
+
+Jeśli kolejna rezerwacja wskazuje tę samą sztukę, **najpierw przenieś niewydaną przyszłą rezerwację** na wolny egzemplarz. W Androidzie: Rezerwacje → Edytuj → Egzemplarz główny / Odkurzacz do zestawu → Zapisz; na WWW: Rezerwacje i rozliczenia → Edytuj rezerwację. Następnie przedłuż bieżący najem.
+
+Zmiana przypisania sprawdza dostępność obu fizycznych urządzeń dla docelowych dat oraz zachowuje identyfikatory rezerwacji, ceny, protokoły i historię. Sprzęt już wydany klientowi nie może być podmieniany. Obie daty graniczne liczą się do zajętości, więc niedzielny zwrot i niedzielne wydanie **tej samej sztuki** nadal wymagają decyzji operatora o rzeczywistym terminie/zwrocie. Funkcja nie przestawia automatycznie innych rezerwacji. Zmiany Androida są ostatecznie potwierdzane po synchronizacji serwera.
+
 ## Szybkie akcje egzemplarza (1.7.6)
 
 W widoku **Dostępność** każda karta ma przyciski **Edytuj**, **Awaria / wyłącz**, **Historia i serwis** oraz **Usuń egzemplarz** (administrator). Wyłączony egzemplarz jest oznaczony na czerwono, wszystkie dni widoczne jako niedostępne. Włączenie przywraca dostępność z uwzględnieniem dotychczasowych rezerwacji. Wyłączenie pokazuje ostrzeżenie o istniejących rezerwacjach i nie anuluje ich automatycznie. Historia napraw, przypisania oraz grupa żyrafa/odkurzacz pozostają zachowane.
