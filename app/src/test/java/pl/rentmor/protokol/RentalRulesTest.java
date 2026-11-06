@@ -139,4 +139,27 @@ public class RentalRulesTest {
   assertTrue(reason,reason.contains("nie ma przypisanego egzemplarza"));
  }
 
+ @Test public void changingUpcomingSetAllowsExtensionWithoutReassigningIssuedSet() throws Exception {
+  JSONArray assets=new JSONArray();
+  for(int n=1;n<=3;n++){
+   assets.put(new JSONObject().put("id","g"+n).put("label","Żyrafa "+n).put("equipment","Żyrafa").put("asset_kind","giraffe"));
+   assets.put(new JSONObject().put("id","v"+n).put("label","Odkurzacz "+n).put("equipment","Odkurzacz przemysłowy").put("asset_kind","vacuum"));
+  }
+  JSONObject issued=new JSONObject().put("id","now").put("equipment","Żyrafa + odkurzacz")
+      .put("asset_id","g1").put("vacuum_asset_id","v1").put("done",true)
+      .put("start_date","2030-11-06").put("end_date","2030-11-07");
+  JSONObject next=new JSONObject().put("id","next").put("equipment","Żyrafa + odkurzacz")
+      .put("asset_id","g1").put("vacuum_asset_id","v1")
+      .put("start_date","2030-11-08").put("end_date","2030-11-09");
+  JSONObject extension=new JSONObject(issued.toString()).put("end_date","2030-11-08");
+  assertFalse(RentalRules.conflict(extension,new JSONArray().put(next),assets).isEmpty());
+  JSONObject changed=new JSONObject(next.toString()).put("asset_id","g2").put("vacuum_asset_id","v2");
+  assertEquals("",RentalRules.conflict(changed,new JSONArray().put(issued),assets));
+  assertEquals("",RentalRules.conflict(extension,new JSONArray().put(changed),assets));
+  JSONObject overlapping=new JSONObject(changed.toString()).put("id","third");
+  assertFalse(RentalRules.conflict(changed,new JSONArray().put(overlapping),assets).isEmpty());
+  assets.getJSONObject(2).put("in_service",true);
+  assertFalse(RentalRules.conflict(changed,new JSONArray(),assets).isEmpty());
+ }
+
 }
