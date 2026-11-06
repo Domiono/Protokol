@@ -88,4 +88,31 @@ $soloVacuum=['id'=>'solo-vacuum','equipment'=>'Odkurzacz przemysłowy',
 $legacyBlock=rm_auto_pick_asset($soloVacuum,[$legacySet],$vacuumAssets);
 check(str_contains($legacyBlock['error'],'nie ma przypisanego egzemplarza'),'explain legacy unassigned');
 
+// Reassign the upcoming set rather than changing physical equipment already issued.
+$today=['id'=>'r-today','equipment'=>'Żyrafa + odkurzacz','asset_id'=>'g1','vacuum_asset_id'=>'v1',
+    'start_date'=>'2030-11-06','end_date'=>'2030-11-07','done'=>true];
+$sunday=['id'=>'r-sunday','equipment'=>'Żyrafa + odkurzacz','asset_id'=>'g1','vacuum_asset_id'=>'v1',
+    'start_date'=>'2030-11-08','end_date'=>'2030-11-09','done'=>false];
+$extended=$today;$extended['end_date']='2030-11-08';
+check(rm_rental_conflict($extended,[$sunday],$shared)!=='','extension blocked by same set on Sunday');
+$changed=$sunday;
+$reassign=rm_select_reservation_copies($changed,$sunday,
+    ['asset_id'=>'g2','vacuum_asset_id'=>'v2','asset_label'=>'FAKE'],$shared);
+check($reassign===''&&($changed['asset_id']??'')==='g2'&&($changed['vacuum_asset_id']??'')==='v2','both set copies reassign');
+check(($changed['asset_label']??'')==='Żyrafa 2'&&($changed['vacuum_asset_label']??'')==='Odkurzacz 2','real copy labels from server');
+check(rm_rental_conflict($changed,[$today],$shared)==='','different set permits Sunday booking');
+check(rm_rental_conflict($extended,[$changed],$shared)==='','extension allowed after upcoming set moves');
+$issued=$today;
+check(rm_select_reservation_copies($issued,$today,['asset_id'=>'g3'],$shared)!=='','no swap issued main copy');
+check(rm_select_reservation_copies($issued,$today,['vacuum_asset_id'=>'v3'],$shared)!=='','no swap issued auxiliary copy');
+$bad=$sunday;
+check(rm_select_reservation_copies($bad,$sunday,['asset_id'=>'unknown'],$shared)!=='','reject unknown copy');
+check(rm_select_reservation_copies($bad,$sunday,['asset_id'=>''],$shared)!=='','reject clearing assigned copy');
+$serviced=$shared;$serviced[2]['in_service']=true;
+$changed=$sunday;
+check(rm_select_reservation_copies($changed,$sunday,['asset_id'=>'g2'],$serviced)==='','selection parses registered asset');
+check(rm_rental_conflict($changed,[$today],$serviced)!=='','service still prevents reallocation');
+$occupied=$changed;$occupied['id']='other';
+check(rm_rental_conflict($changed,[$occupied],$shared)!=='','another simultaneous booking blocks selected copy');
+
 echo "Rental rules passed\n";

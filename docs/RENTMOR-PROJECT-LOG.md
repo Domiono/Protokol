@@ -6,6 +6,13 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 06.11.2026 — bezpieczna zmiana egzemplarza przy edycji rezerwacji — W PR (bez potwierdzenia publikacji)
+
+- **Zgłoszenie:** istniejący wynajem zestawu żyrafy z odkurzaczem (06–07.11) nie daje się przedłużyć do niedzieli 08.11, bo kolejna rezerwacja wskazuje tę samą fizyczną sztukę mimo trzech zestawów. Dotychczas wymagało to przechodzenia przez osobny ekran egzemplarzy.
+- **Android 1.7.25 / 40:** bezpośrednio w „Rezerwacje → Edytuj” dodano wybór głównego egzemplarza oraz odkurzacza dla zestawu. Przypisanie, daty i kontakt zapisują się razem; kontrola dostępności sprawdza nowy okres, włącznie z obydwoma datami granicznymi. Wydane egzemplarze są niedostępne do podmiany.
+- **Panel WWW:** w „Rezerwacje i rozliczenia → Edytuj rezerwację” dodano analogiczne pola. Serwer przyjmuje tylko ID istniejących egzemplarzy, pobiera etykiety z własnej ewidencji, wykrywa konflikty z innymi rezerwacjami oraz blokuje podmianę już wydanych/oddanych sztuk. Zmiana modelu wydanego sprzętu jest zablokowana. Zmiana nie automatyzuje przetasowania rezerwacji bez decyzji operatora.
+- **Weryfikacja:** regresja PHP testuje przeniesienie niedzielnego zestawu na inny, późniejsze przedłużenie dotychczasowego najmu, zabezpieczenie przed podmianą wydanych, konfliktem i serwisem. JUnit testuje ten sam scenariusz na Androidzie. **PR / CI: do potwierdzenia.** Publikacja API/WWW, podpisany APK i fizyczny test na telefonie: **niepotwierdzone**. Po pomyślnym wydaniu potwierdzić workflow wdrożenia i wersję APK.
+
 ## 05.11.2026 — korekta znaczenia „Średnia za dobę” (Android 1.7.24/39) — SCALONE / APK OPUBLIKOWANE
 
 - **Weryfikacja na telefonie:** użytkownik pokazał błędny KPI wersji 1.7.23: dla okresu 02.11–05.11.2026 oraz przychodu 620,00 zł aplikacja wyświetlała 88,57 zł, ponieważ dzieliła przez 7 naliczonych dób. **Wymagana definicja biznesowa:** średni dzienny przychód w **wybranym okresie kalendarzowym**, czyli 620,00 zł / 4 dni (obie daty wliczone) = **155,00 zł/dzień**. Wybrane dni bez rozliczeń są w mianowniku; dane najmu nie zmieniają daty rozliczenia.

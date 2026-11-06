@@ -523,6 +523,15 @@ foreach ($operations as $op) {
             if(array_key_exists('needs_vacuum',$op))$item['needs_vacuum']=!empty($op['needs_vacuum']);
             if(!array_key_exists('needs_vacuum',$item))$item['needs_vacuum']=rm_needs_vacuum($item);
             $assets=rm_read_assets();
+            $copyError='';
+            if ($existing!==null) {
+                if (!empty($existing['done']) && (string)($existing['equipment']??'')!==(string)($item['equipment']??'')) {
+                    $copyError='Nie można zmienić rodzaju sprzętu w wydanym najmie.';
+                } else {
+                    $selection=array_intersect_key($op,array_flip(['asset_id','vacuum_asset_id']));
+                    $copyError=rm_select_reservation_copies($item,$existing,$selection,$assets);
+                }
+            }
             $autoError='';
             if(!$bad&&$existing===null&&!empty($op['auto_assign'])&&empty($item['done'])&&empty($item['returned'])){
                 // Always re-evaluate on the server; another phone may have booked the locally selected copy.
@@ -533,7 +542,7 @@ foreach ($operations as $op) {
                 $item['vacuum_asset_id']=$chosen['vacuum']['id']??'';
                 $item['vacuum_asset_label']=$chosen['vacuum']['label']??'';
             }
-            $conflict=$bad?'Nieprawidłowa kwota.':($autoError!==''?$autoError:rm_rental_conflict($item,$reservations,$assets));
+            $conflict=$bad?'Nieprawidłowa kwota.':($copyError!==''?$copyError:($autoError!==''?$autoError:rm_rental_conflict($item,$reservations,$assets)));
             if($conflict!==''){flock($reservationLock,LOCK_UN);fclose($reservationLock);$results[]=['op_id'=>$opId,'ok'=>false,'error'=>$conflict];continue;}
             $found=false;
             foreach ($reservations as &$saved) { if (($saved['id'] ?? '') === $id) {
