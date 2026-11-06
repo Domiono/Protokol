@@ -29,3 +29,7 @@ Użytkownik pracuje na repozytorium `Domiono/Protokol`. Przy kontynuacji najpier
 - `docs/` — szczegółowe raporty i centralny dziennik projektu.
 
 **Cel:** utrzymać ciągłość pracy pomiędzy czatami i uniknąć powtarzania już wykonanych zmian. Instrukcja jest dla asystentów i programistów; nie uruchamia samoczynnych zadań ani zmian na serwerze.
+
+## Tryb samodzielnego agenta RentMor — obowiązkowe ograniczenia
+
+W zadaniach agenta przygotowującego kod i PR przestrzegaj [docs/RENTMOR-AI-AGENT.md](docs/RENTMOR-AI-AGENT.md). Agent może analizować, testować, commitować na **osobnej gałęzi** i otwierać **draft PR**, ale nie może scalać gałęzi, włączać auto-merge, wydawać APK ani wdrażać strony lub API. Przed każdą zmianą sprawdzaj, czy akcje uruchamiane dla `pull_request` nie publikują kodu na produkcji; jeśli mają taki efekt, przerwij i zgłoś problem. W przypadku braku możliwości uruchomienia testów nie deklaruj ich zaliczenia.
