@@ -18,6 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Inventory public home and offer image markup
         run: python3 scripts/audit_public_assets.py
       - name: Check image srcset, dimensions and full-size originals in live HTML
