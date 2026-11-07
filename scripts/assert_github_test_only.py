@@ -12,7 +12,7 @@ WORKFLOWS = ROOT / ".github" / "workflows"
 FORBIDDEN_WORKFLOW = {
     "accessing GitHub secrets": r"\bsecrets\s*\.",
     "SFTP/FTP command or credential": r"\b(lftp|sftp|scp|ssh-keyscan|FTP_SERVER|FTP_USERNAME|FTP_PASSWORD|LFTP_PASSWORD)\b|sftp://",
-    "release publishing": r"softprops/action-gh-release|gh\s+release\s+create|npm\s+publish|docker\s+push",
+    "release publishing": r"softprops/action-gh-release|gh\s+release\s+create|npm\s+publish|docker\s+push|actions/upload-artifact",
     "workflow chaining": r"(?m)^\s*workflow_run\s*:",
     "write token permissions": r"(?m)^\s*contents:\s*write\s*$",
     "deploy via curl": r"\bcurl\b[^\n]*(-X|--request)\s*(POST|PUT|PATCH|DELETE)\b",
@@ -22,6 +22,16 @@ FORBIDDEN_TRACKED_PATH = re.compile(
     r"service-account\.json|id_rsa|id_ed25519|.*\.(pem|p12|pfx|jks|keystore|sql|sqlite|db|bak))$",
     re.IGNORECASE,
 )
+REDACTED_TOKEN_PATTERNS = [
+    re.compile(x, re.ASCII) for x in [
+        r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
+        r"\bghp_[A-Za-z0-9]{30,}\b",
+        r"\bgithub_pat_[A-Za-z0-9_]{35,}\b",
+        r"\bAKIA[0-9A-Z]{16}\b",
+        r"\bsk_live_[A-Za-z0-9]{18,}\b",
+        r"\bxox[baprs]-[A-Za-z0-9-]{20,}\b",
+    ]
+]
 def main() -> int:
     errors=[]
     for item in sorted(WORKFLOWS.glob("*.yml"))+sorted(WORKFLOWS.glob("*.yaml")):
@@ -36,6 +46,18 @@ def main() -> int:
             continue
         if FORBIDDEN_TRACKED_PATH.search(item.relative_to(ROOT).as_posix()):
             errors.append("Forbidden secret-like path: "+item.relative_to(ROOT).as_posix())
+        if item.stat().st_size > 1_000_000:
+            continue
+        try:
+            raw=item.read_bytes()
+            if b"\x00" in raw: continue
+            content=raw.decode("utf-8",errors="ignore")
+            for pattern in REDACTED_TOKEN_PATTERNS:
+                if pattern.search(content):
+                    errors.append("Possible embedded secret (value redacted): "+item.relative_to(ROOT).as_posix())
+                    break
+        except (OSError,UnicodeError):
+            continue
     if errors:
         print("FAIL: public test-only CI security policy")
         print("\n".join(errors))
