@@ -6,6 +6,8 @@ on:
       - scripts/public_speed_browser.cjs
       - .github/workflows/public-browser-check.yml
   workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   browser:
     runs-on: ubuntu-latest
@@ -14,8 +16,3 @@ jobs:
       - uses: actions/checkout@v4
       - run: npm install --no-save playwright@1.56.1
       - run: mkdir -p reports && node scripts/public_speed_browser.cjs
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: public-browser-screenshots
-          path: reports/
