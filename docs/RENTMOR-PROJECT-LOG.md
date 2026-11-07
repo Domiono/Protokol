@@ -6,6 +6,11 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 07.11.2026 — RentMor Control 0.5: opis nowych uprawnień — DO WERYFIKACJI
+
+- Po udanej publikacji 0.5.0 wtyczka `rentmor_info` nadal zwracała historyczny opis „nigdy nie wykonuje zapisu”, chociaż osobny zakres `source:write` i zatwierdzanie właściciela są już dostępne w MCP.
+- Mała poprawka dotyczy **tylko jednego tekstu** w `mcp.php` (informacja o `source:read`, `source:write` i osobnej akceptacji). Żadna zmiana OAuth, narzędzi, hasła, kodu strony ani uprawnień. SFTP publikuje tylko po ścisłej kontroli wersji, backupie i z automatycznym rollbackiem. **Status CI do potwierdzenia.**
+
 ## 07.11.2026 — RentMor Control v0.5: edycja plików z osobną autoryzacją i zatwierdzaniem właściciela — OPUBLIKOWANE
 
 - Cel właściciela: zwiększyć bezpośrednie możliwości RentMor Control do pracy podobnej jak przez GitHub. Wtyczka 0.4.0 obsługuje odczyt 10 PHP, wyszukiwanie, SHA i podgląd zmian, ale nie potrafi zapisywać. Repozytorium i workflow GitHub pozostają dostępne osobno dla zmian wieloplikowych, historii commitów i operacji na kodzie zabezpieczeń.
