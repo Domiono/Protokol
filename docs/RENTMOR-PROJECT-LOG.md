@@ -6,12 +6,12 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
-## 07.11.2026 — RentMor Control: formularz zmiany hasła właściciela — DO WERYFIKACJI WDROŻENIA
+## 07.11.2026 — RentMor Control: formularz zmiany hasła właściciela — OPUBLIKOWANE
 
 - Użytkownik chce nowe, krótsze hasło, bo dotychczasowe może przekraczać 72 znaki i nie wysyłać się z przeglądarki na Androidzie.
 - Dodano do repozytorium skrypt `scripts/mcp_owner_change_password.php`, publikowany jako osobna strona `/rentmor-control-mcp/change-password.php`, bez modyfikowania istniejących plików OAuth. Formularz wymaga poprzedniego hasła, podpisu czasowego, nowego hasła 20–64 drukowalnych znaków ASCII i jego potwierdzenia. Hasło jest haszowane `password_hash`; nie występuje w repozytorium ani logach. Po powodzeniu usuwa stare tokeny, kody i sesje logowania OAuth przy zachowaniu zarejestrowanych klientów.
 - Dodano test offline na syntetycznym koncie i nowy, jednozadaniowy workflow `deploy-mcp-password-form.yml`, wykorzystujący SFTP GitHub Actions i pobrany na czas testów `oauth_core.php`; przed publikacją sprawdza składnię, testy, brak istniejącego pliku oraz po publikacji identyczność odczytu i stronę HTTPS.
-- **Przed publikacją:** brak weryfikacji. Po udanej zmianie hasła pomocniczy formularz powinien zostać usunięty z hostingu, aby ograniczyć publiczną powierzchnię ataku.
+- **Potwierdzona publikacja:** [GitHub Actions #42368116436](https://github.com/Domiono/Protokol/actions/runs/42368116436) — SUCCESS. Składnia nowego formularza i produkcyjnego oauth_core.php poprawna, testy na syntetycznym właścicielu przeszły (CSRF, nieprawidłowe/stare hasło, poprawna zmiana, unieważnienie tokenów, zachowanie zarejestrowanych klientów). SFTP readback oraz publiczny test HTTPS formularza zgodne. **Hasło właściciela nie było zmieniane przez CI** — użytkownik zmieni je samodzielnie przez formularz. Po udanej zmianie pomocniczy formularz powinien zostać usunięty z hostingu, aby ograniczyć publiczną powierzchnię ataku.
 
 ## 07.11.2026 — ponowny POST z Androida po logowaniu OAuth: obsługa identycznej próby — OPUBLIKOWANE
 
