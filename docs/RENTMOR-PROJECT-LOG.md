@@ -6,6 +6,12 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 07.11.2026 — CSP OAuth: poprawa produkcyjnego testu HTTP 403 — DO WERYFIKACJI
+
+- [Run #42372304296](https://github.com/Domiono/Protokol/actions/runs/42372304296): test przeglądarkowy odtworzył blokadę w Chromium i potwierdził jej usunięcie na syntetycznym OAuth. Live SFTP `put` i porównanie nowej wersji `oauth_core.php` zakończyły się sukcesem; jednak ręcznie niekompletny URL `?op=authorize` zwrócił na AZ.pl HTTP 403 zamiast zakładanego 400. Workflow automatycznie przywrócił pierwotną wersję. Ten niepełny URL nie odpowiada prawdziwemu żądaniu ChatGPT.
+- Produkcyjna kontrola zostaje zastąpiona krótkotrwałym, losowo nazwanym i chronionym jednorazowym sekretem PHP probe wewnątrz katalogu MCP, który bez danych klientów/kluczy sprawdza nagłówek `rm_html_head()` w dokładnym kontekście GET formularza OAuth. Po testach plik jest usuwany przez trap. Weryfikowane pozostają same rzeczywiste nagłówki HTTP, metadane OAuth i nienaruszony CSP formularza zmiany hasła. SFTP backup, odczyt po publikacji i rollback nadal obowiązują.
+- Wynik nowej publikacji i prawdziwego połączenia ChatGPT: do potwierdzenia.
+
 ## 07.11.2026 — CSP OAuth: test Chromium potwierdzony, produkcyjny rollback — BADANIE
 
 - [CI #42372074835](https://github.com/Domiono/Protokol/actions/runs/42372074835): PASS — pełny lokalny przepływ OAuth/PKCE i przechwycony redirect. **Chromium odtworzył brak reakcji przy form-action 'self' i poprawny redirect po dodaniu chatgpt.com tylko do formularza OAuth**. To bezpośrednie potwierdzenie przyczyny zewnętrznej wobec hasła właściciela.
