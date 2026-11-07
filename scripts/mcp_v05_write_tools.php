@@ -163,6 +163,8 @@ function rm_write_prepare(string $action,string $filename,?string $expected,?str
        'old_sha'=>$current===null?null:hash('sha256',$current),
        'new_sha'=>$after===null?null:hash('sha256',$after),
        'new_content'=>$after,
+       'preview_before'=>$action==='replace'?$old:($action==='delete'?substr((string)$current,0,16000):''),
+       'preview_after'=>$action==='replace'?$new:($action==='create'?$new:''),
        'status'=>'pending','created'=>time(),'expires'=>time()+RM_WRITE_TTL,
        'approved_until'=>0,'owner_fp'=>hash('sha256',$owner['password_hash'])
     ];
@@ -277,7 +279,10 @@ function rm_write_call(string $name,array $args): array {
        $newId=bin2hex(random_bytes(16));
        $stage=['id'=>$newId,'action'=>'replace','filename'=>$name,
            'old_sha'=>$nowSha,'new_sha'=>hash('sha256',$restore),
-           'new_content'=>$restore,'status'=>'pending','created'=>time(),
+           'new_content'=>$restore,
+           'preview_before'=>substr((string)$now,0,16000),
+           'preview_after'=>substr($restore,0,16000),
+           'status'=>'pending','created'=>time(),
            'expires'=>time()+RM_WRITE_TTL,'approved_until'=>0,
            'owner_fp'=>hash('sha256',$owner['password_hash'])];
        rm_write_stage_save($stage);
