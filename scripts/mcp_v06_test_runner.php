@@ -5,7 +5,7 @@ declare(strict_types=1);
  * external user code execution or modification to application files.
  * The fixture workspace and redacted reports are private, outside document root.
  */
-const RM_TEST_REPORT_MAX=32;
+const RM_TEST_REPORT_MAX=80;
 const RM_TEST_REPORT_TTL=604800;
 function rm_test_tools(): array {
     $read=['securitySchemes'=>[['type'=>'oauth2','scopes'=>['source:read']]]];
