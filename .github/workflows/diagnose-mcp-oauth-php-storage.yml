@@ -1,0 +1,54 @@
+name: Diagnose actual PHP OAuth private state (safe one-time probe)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-mcp-oauth-php-storage.yml'
+      - 'scripts/mcp_oauth_state_probe.php.template'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rentmor-mcp-oauth-php-storage-probe
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    if: github.repository == 'Domiono/Protokol'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+      FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+      LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PHP lint and SFTP
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq php-cli lftp
+      - name: Inspect only anonymous state indicators inside live PHP (no secret data)
+        shell: bash
+        run: |
+          set -euo pipefail
+          source scripts/secure_sftp_connection.sh
+          umask 077
+          TMP="$(mktemp -d "$RUNNER_TEMP/rm-oauth-php-state.XXXXXX")"
+          PROBE="rm-oauth-state-$(openssl rand -hex 16).php"
+          cleanup() {
+            RC=$?
+            lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; rm public_html/$PROBE; bye" >/dev/null 2>&1 || true
+            rm -rf "$TMP"
+            exit "$RC"
+          }
+          trap cleanup EXIT
+          TOKEN="$(openssl rand -hex 32)"
+          HASH="$(printf '%s' "$TOKEN" | sha256sum | cut -d' ' -f1)"
+          sed "s/__TOKEN_HASH__/$HASH/g" scripts/mcp_oauth_state_probe.php.template > "$TMP/probe.php"
+          php -l "$TMP/probe.php" >/dev/null
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $TMP/probe.php -o public_html/$PROBE; bye" >/dev/null
+          curl --fail --silent --show-error --max-time 30 --request POST --header "X-Rentmor-Oauth-Diag: $TOKEN" "https://rentmor.pl/$PROBE" |
+            python3 -c 'import json,sys; d=json.load(sys.stdin); expected={"php_private_dir_found","php_state_file_readable","php_state_json_valid","used_login_in_last_10min","issued_code_in_last_10min","issued_access_in_last_10min","note"}; assert set(d)==expected; assert all(isinstance(d[k],bool) for k in list(expected)[:0]); print("Sanitized live PHP OAuth diagnostic:",json.dumps(d,sort_keys=True))'
+          echo "One-time PHP state probe completed; cleanup restores production surface."
