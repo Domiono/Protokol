@@ -19,17 +19,22 @@ try {
     $approvalHash=hash_hmac('sha256','rm-source-approval|'.$id.'|'.$row['expires'],$owner['password_hash']);
     if(($_SERVER['REQUEST_METHOD']??'GET')==='GET') {
         $new=$row['new_content']??null;
-        $preview=$new===null?'(usunięcie pliku)':substr((string)$new,0,1800);
-        // New code is displayed only in a dedicated screen after opening an unpredictable URL.
+        $oldPreview=(string)($row['preview_before']??'');
+        $newPreview=(string)($row['preview_after']??($new??''));
+        // Show exact edited fragments (not only the first 1800 bytes of the resulting file).
+        // Full copy/rollback views can be large; the SHA identifies the exact stored version.
         $name=rm_write_html_safe((string)$row['filename']);
         $action=rm_write_html_safe((string)$row['action']);
         $body='<p><strong>Ta strona zatwierdza dokładnie jedną operację.</strong> Niczego nie publikuje sama.</p>'.
             '<p>Plik: <code>'.$name.'</code><br>Operacja: <code>'.$action.'</code></p>'.
             '<p>SHA256 przed: <code>'.rm_write_html_safe((string)($row['old_sha']??'brak')).'</code><br>'.
             'SHA256 po: <code>'.rm_write_html_safe((string)($row['new_sha']??'brak')).'</code></p>'.
-            '<p><strong>Podgląd wynikowego kodu (pierwsze 1800 znaków):</strong></p>'.
+            '<p><strong>Fragment PRZED zmianą:</strong></p>'.
             '<pre style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto;background:#f1f4fa;padding:12px">'.
-            $name." - ".rm_write_html_safe($preview).'</pre>'.
+            rm_write_html_safe($oldPreview===''?'(nowy plik)':$oldPreview).'</pre>'.
+            '<p><strong>Fragment PO zmianie:</strong></p>'.
+            '<pre style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto;background:#eaf5ed;padding:12px">'.
+            rm_write_html_safe($newPreview===''?'(usunięcie pliku)':$newPreview).'</pre>'.
             '<form method="post" action="approve-change.php">'.
             rm_hidden('change_id',$id).rm_hidden('proof',$approvalHash).
             '<label for="password">Hasło właściciela</label>'.
