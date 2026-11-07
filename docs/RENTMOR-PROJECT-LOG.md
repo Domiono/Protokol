@@ -6,12 +6,12 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
-## 07.11.2026 — usunięcie jednorazowego formularza zmiany hasła RentMor Control — DO WERYFIKACJI
+## 07.11.2026 — usunięcie jednorazowego formularza zmiany hasła RentMor Control — POTWIERDZONE
 
 - Po potwierdzeniu przez prywatną wtyczkę OAuth `authenticated: true` i poprawnym odczycie kodu źródłowego użytkownik zlecił usunięcie pomocniczego `/rentmor-control-mcp/change-password.php` z hostingu AZ.pl.
 - Nowy, jednorazowy workflow `remove-mcp-password-form.yml` pobiera tylko ten plik i porównuje go bajt po bajcie z wcześniej wdrożonym `scripts/mcp_owner_change_password.php`. Przy różnicy odmawia usunięcia. Po dopasowaniu usuwa wyłącznie ten jeden plik, potwierdza brak na liście SFTP, sprawdza, że publiczny URL nie zwraca HTTP 200, oraz odczytuje publiczne metadane OAuth bez logowania.
 - Usunięto poprzedni workflow publikowania formularza `deploy-mcp-password-form.yml`, aby nie odtworzyć tymczasowej strony przy przypadkowym ponownym uruchomieniu.
-- **Status usunięcia i kontrola na AZ.pl: do potwierdzenia po uruchomieniu CI.** Nie dotyczy `owner.json`, nowego hasła, `oauth.php`, `oauth_core.php`, prywatnych tokenów, rezerwacji ani danych klientów.
+- **Usunięcie potwierdzone:** [GitHub Actions #42373926521](https://github.com/Domiono/Protokol/actions/runs/42373926521) — SUCCESS. Porównano bieżący plik z wcześniej wdrożoną wersją; skasowano tylko `change-password.php`. SFTP potwierdził brak pliku, publiczny URL zwrócił HTTP 404, a metadane OAuth nadal działają. Workflow wcześniejszej publikacji formularza usunięty z repo. Nie dotyczy `owner.json`, nowego hasła, `oauth.php`, `oauth_core.php`, prywatnych tokenów, rezerwacji ani danych klientów.
 
 ## 07.11.2026 — CSP OAuth: poprawa produkcyjnego testu HTTP 403 — DO WERYFIKACJI
 
