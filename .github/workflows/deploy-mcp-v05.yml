@@ -1,0 +1,132 @@
+name: Deploy RentMor Control v0.5 owner-approved source editing
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-mcp-v05.yml'
+      - 'scripts/patch_mcp_v05.py'
+      - 'scripts/mcp_v05_write_tools.php'
+      - 'scripts/mcp_v05_approve_change.php'
+      - 'scripts/test_mcp_v05.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rentmor-control-v05-deployment
+  cancel-in-progress: false
+
+jobs:
+  test-and-deploy:
+    if: github.repository == 'Domiono/Protokol'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+      FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+      LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PHP and secure SFTP
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq php-cli lftp
+      - name: Validate real MCP code and publish scoped owner-approved edits
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${FTP_SERVER:?Missing SFTP server}"
+          : "${FTP_USERNAME:?Missing SFTP user}"
+          : "${LFTP_PASSWORD:?Missing SFTP password}"
+          source scripts/secure_sftp_connection.sh
+          umask 077
+          DIR="$(mktemp -d "$RUNNER_TEMP/mcp-v05.XXXXXX")"
+          ROOT="public_html/rentmor-control-mcp"
+          BK="rentmor-control-private/mcp-v05-backup-$GITHUB_RUN_ID"
+          MODIFIED=0
+          NEWFILES=0
+          SUCCESS=0
+          cleanup() {
+            rc=$?
+            if [ "$MODIFIED" = 1 ] && [ "$SUCCESS" != 1 ]; then
+              echo "::warning::MCP v0.5 failed verification. Restoring previous three PHP entrypoints."
+              if lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $DIR/orig-mcp.php -o $ROOT/mcp.php; put $DIR/orig-oauth.php -o $ROOT/oauth.php; put $DIR/orig-core.php -o $ROOT/oauth_core.php; get $ROOT/mcp.php -o $DIR/restored-mcp.php; get $ROOT/oauth.php -o $DIR/restored-oauth.php; get $ROOT/oauth_core.php -o $DIR/restored-core.php; bye" >/dev/null &&
+                 cmp -s "$DIR/orig-mcp.php" "$DIR/restored-mcp.php" &&
+                 cmp -s "$DIR/orig-oauth.php" "$DIR/restored-oauth.php" &&
+                 cmp -s "$DIR/orig-core.php" "$DIR/restored-core.php"; then
+                echo 'All original MCP/OAuth PHP files restored byte-for-byte.'
+              else
+                echo "::error::MCP rollback not fully verified. Originals backed up privately ($BK-*)."
+              fi
+            fi
+            if [ "$NEWFILES" = 1 ] && [ "$SUCCESS" != 1 ]; then
+              lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; rm $ROOT/mcp_write_tools.php; rm $ROOT/approve-change.php; bye" >/dev/null 2>&1 || true
+            fi
+            rm -rf "$DIR"
+            exit "$rc"
+          }
+          trap cleanup EXIT
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get $ROOT/mcp.php -o $DIR/orig-mcp.php; get $ROOT/oauth.php -o $DIR/orig-oauth.php; get $ROOT/oauth_core.php -o $DIR/orig-core.php; get $ROOT/mcp_tools_extra.php -o $DIR/mcp-extra.php; bye" >/dev/null
+          python3 scripts/patch_mcp_v05.py "$DIR/orig-mcp.php" "$DIR/orig-oauth.php" "$DIR/orig-core.php" "$DIR/mcp.php" "$DIR/oauth.php" "$DIR/oauth_core.php"
+          cp scripts/mcp_v05_write_tools.php "$DIR/mcp_write_tools.php"
+          cp scripts/mcp_v05_approve_change.php "$DIR/approve-change.php"
+          for phpfile in "$DIR/orig-mcp.php" "$DIR/orig-oauth.php" "$DIR/orig-core.php" "$DIR/mcp.php" "$DIR/oauth.php" "$DIR/oauth_core.php" "$DIR/mcp_write_tools.php" "$DIR/approve-change.php"; do
+            php -l "$phpfile"
+          done
+          python3 scripts/test_mcp_v05.py "$DIR/mcp.php" "$DIR/oauth.php" "$DIR/oauth_core.php" "$DIR/mcp-extra.php" "$DIR/mcp_write_tools.php" "$DIR/approve-change.php"
+          # Never clobber existing extension/approval pages.
+          NAMES="$(lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; cls -1 $ROOT; bye")"
+          if printf '%s\n' "$NAMES" | grep -Eq '^(mcp_write_tools.php|approve-change.php)$'; then
+            echo "::error::At least one v0.5 extension file already exists; refusing overwrite."
+            exit 1
+          fi
+          # Compare live source again before touching production.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get $ROOT/mcp.php -o $DIR/check-mcp.php; get $ROOT/oauth.php -o $DIR/check-oauth.php; get $ROOT/oauth_core.php -o $DIR/check-core.php; bye" >/dev/null
+          cmp "$DIR/orig-mcp.php" "$DIR/check-mcp.php"
+          cmp "$DIR/orig-oauth.php" "$DIR/check-oauth.php"
+          cmp "$DIR/orig-core.php" "$DIR/check-core.php"
+          # Verified full backups are private, outside public_html. No owner/state files are read.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $DIR/orig-mcp.php -o $BK-mcp.php; put $DIR/orig-oauth.php -o $BK-oauth.php; put $DIR/orig-core.php -o $BK-core.php; get $BK-mcp.php -o $DIR/back-mcp.php; get $BK-oauth.php -o $DIR/back-oauth.php; get $BK-core.php -o $DIR/back-core.php; bye" >/dev/null
+          cmp "$DIR/orig-mcp.php" "$DIR/back-mcp.php"
+          cmp "$DIR/orig-oauth.php" "$DIR/back-oauth.php"
+          cmp "$DIR/orig-core.php" "$DIR/back-core.php"
+          echo 'All three original PHP files backed up privately and verified.'
+          NEWFILES=1
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $DIR/mcp_write_tools.php -o $ROOT/mcp_write_tools.php; put $DIR/approve-change.php -o $ROOT/approve-change.php; get $ROOT/mcp_write_tools.php -o $DIR/write-readback.php; get $ROOT/approve-change.php -o $DIR/approval-readback.php; bye" >/dev/null
+          cmp "$DIR/mcp_write_tools.php" "$DIR/write-readback.php"
+          cmp "$DIR/approve-change.php" "$DIR/approval-readback.php"
+          MODIFIED=1
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $DIR/oauth_core.php -o $ROOT/oauth_core.php; put $DIR/oauth.php -o $ROOT/oauth.php; put $DIR/mcp.php -o $ROOT/mcp.php; get $ROOT/mcp.php -o $DIR/published-mcp.php; get $ROOT/oauth.php -o $DIR/published-oauth.php; get $ROOT/oauth_core.php -o $DIR/published-core.php; bye" >/dev/null
+          cmp "$DIR/mcp.php" "$DIR/published-mcp.php"
+          cmp "$DIR/oauth.php" "$DIR/published-oauth.php"
+          cmp "$DIR/oauth_core.php" "$DIR/published-core.php"
+          # HTTP smoke; no write token and NO live file mutation.
+          curl --fail --silent --show-error --max-time 30 -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","method":"tools/list","id":1}' "https://rentmor.pl/rentmor-control-mcp/index.php" > "$DIR/list.json"
+          python3 - "$DIR/list.json" <<'PY'
+          import json,sys
+          data=json.load(open(sys.argv[1]))
+          tools={t['name']:t for t in data['result']['tools']}
+          expected={'stage_site_change','apply_approved_site_change','list_site_changes','stage_site_rollback'}
+          assert expected<=set(tools), 'Missing write tools'
+          assert all('source:write' in tools[x]['_meta']['securitySchemes'][0]['scopes'] for x in expected)
+          print('Live MCP advertises all four owner-approved write tools.')
+          PY
+          curl --fail --silent --show-error --max-time 30 'https://rentmor.pl/rentmor-control-mcp/oauth.php?op=metadata' > "$DIR/oauthmeta.json"
+          python3 - "$DIR/oauthmeta.json" <<'PY'
+          import json,sys
+          data=json.load(open(sys.argv[1]))
+          assert 'source:write' in data['scopes_supported'] and 'source:read' in data['scopes_supported']
+          print('Live OAuth supports both source:read and separately approved source:write.')
+          PY
+          curl --silent --show-error --max-time 30 -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"apply_approved_site_change","arguments":{"change_id":"00000000000000000000000000000000"}},"id":2}' "https://rentmor.pl/rentmor-control-mcp/index.php" > "$DIR/denied.json"
+          python3 - "$DIR/denied.json" <<'PY'
+          import json,sys
+          data=json.load(open(sys.argv[1]))
+          assert data['result']['isError'] and 'source:write' in str(data['result'])
+          print('Unauthenticated site write is rejected by live MCP.')
+          PY
+          code="$(curl --silent --show-error --max-time 30 --output /dev/null --write-out '%{http_code}' 'https://rentmor.pl/rentmor-control-mcp/approve-change.php')"
+          test "$code" = 404
+          SUCCESS=1
+          echo 'SUCCESS: RentMor Control v0.5 deployed, write requires separate OAuth and owner approval.'
