@@ -60,6 +60,33 @@ jobs:
           print("OAuth core has state file locking:", b"flock(" in core)
           print("OAuth source and private state contents are not printed or published.")
           PY
+      - name: Inspect anonymized OAuth state lifecycle (read-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          source scripts/secure_sftp_connection.sh
+          umask 077
+          DIR="$(mktemp -d "$RUNNER_TEMP/rentmor-oauth-state.XXXXXX")"
+          trap 'rm -rf "$DIR"' EXIT
+          # OAuth state contains credentials: never print, archive, upload, or commit its contents.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get rentmor-control-private/state.json -o $DIR/state.json; bye" >/dev/null
+          python3 - "$DIR/state.json" <<'PY'
+          import json, pathlib, sys, time
+          data = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          now = int(time.time())
+          def fresh(group, ttl, seconds):
+              rows = data.get(group, {})
+              if not isinstance(rows, dict): return []
+              return [v for v in rows.values() if isinstance(v, dict) and 0 <= now - (int(v.get('expires', 0)) - ttl) <= seconds]
+          used = [v for v in fresh('login', 600, 600) if v.get('used') is True]
+          codes = fresh('codes', 300, 600)
+          access = fresh('access', 3600, 600)
+          print('Anonymized state indicators (last 10 min; no identifiers):')
+          print('Used login form observed:', bool(used))
+          print('Authorization code issuance observed:', bool(codes))
+          print('Access token issuance observed:', bool(access))
+          print('If used=True but code=False, code may have expired, been redeemed or been pruned; this alone is not proof of failure.')
+          PY
       - name: Check only public OAuth metadata (no password)
         run: |
           set -euo pipefail

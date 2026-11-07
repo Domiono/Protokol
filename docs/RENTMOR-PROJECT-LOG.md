@@ -6,6 +6,12 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 07.11.2026 — D06 po potwierdzonym wdrożeniu: diagnostyka anonimowa — DO WERYFIKACJI
+
+- Zgłoszenie użytkownika: po wdrożeniu atomowego zapisu OAuth (run #42363040975) nadal widać D06 podczas autoryzacji ChatGPT. Z lokalnego kodu wynika, że D06 oznacza ponowną próbę przesłania **tego samego** jednorazowego identyfikatora formularza oznaczonego wcześniej jako użyty. Nie zakładać automatycznie błędnego hasła.
+- Poszerzono wyłącznie read-only workflow diagnostyczny: SFTP pobiera plik rentmor-control-private/state.json do tymczasowego katalogu runnera, w Pythonie oblicza wyłącznie wartości logiczne dotyczące wystąpienia ostatnio użytego formularza i wydania kodu/tokena, po czym usuwa plik. Brak druku, publikacji, commitów i artefaktów z zawartością prywatnego stanu. **Zero zmian na AZ.pl**.
+- Wynik diagnostyki: do potwierdzenia. Przed dalszą zmianą logiki autoryzacji zweryfikować, czy pierwotny POST mógł zakończyć się kodem i dlaczego nastąpiło ponowienie.
+
 ## 07.11.2026 — RentMor Control OAuth: jednoczesne zużycie formularza i zapis kodu — OPUBLIKOWANE
 
 - Potwierdzono przez SFTP GitHub Actions [run #42362349450](https://github.com/Domiono/Protokol/actions/runs/42362349450), że host używa wersji `oauth.php` zawierającej D06 i podpisany formularz, oba pliki `oauth.php` / `oauth_core.php` przechodzą `php -l`, a publiczne metadane OAuth działają. Żadnych prywatnych danych nie pobrano.
