@@ -15,6 +15,7 @@ Status migracji: 07.11.2026. Cel: **brak dostępu GitHub Actions do AZ.pl**, bra
 - `ci-public-repository-safety.yml`: odrzuca workflow z dostępem do sekretów, SFTP, uprawnieniami zapisu i mechanizmami publikacji oraz pliki o nazwach sugerujących sekrety.
 - `test-rental-operations.yml`: testy składni PHP, reguł rezerwacji, API z danymi testowymi oraz testy jednostkowe Android i debug build; bez wypuszczania APK i bez dostępu do prywatnych API RentMor.
 - `audit-rentmor-performance.yml`, `diagnose-pagespeed.yml`, `google-quality-audit.yml`, `public-browser-check.yml`: testowanie ogólnodostępnych zasobów (publiczne HTML/SEO/wydajność), bez uwierzytelniania i bez wdrożeń.
+- `monitor-public-rentmor.yml`: cogodzinny test HTTP publicznej strony, robots.txt, sitemap oraz odmowy dostępu do nieautoryzowanego API; bez odczytu prywatnych logów, sekretów i bez powiadomień przez prywatne tokeny.
 
 Workflow publikacji, kopiowania danych prywatnych i komunikacji SFTP z AZ.pl zostały usunięte **z bieżącej gałęzi** przy migracji. Historia Git może nadal zawierać ich poprzednie wersje. Usunięcie plików z aktualnej gałęzi **nie usuwa ich z wcześniejszych publicznych commitów, forków ani pobranych kopii**.
 
