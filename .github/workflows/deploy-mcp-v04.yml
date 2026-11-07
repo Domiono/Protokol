@@ -1,0 +1,112 @@
+name: Deploy RentMor Control v0.4 guarded diagnostics
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-mcp-v04.yml'
+      - 'scripts/mcp_v04_tools_extra.php'
+      - 'scripts/patch_mcp_v04.py'
+      - 'scripts/test_mcp_v04.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rentmor-control-v04-deploy
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'Domiono/Protokol'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+      FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+      LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify live code and publish only guarded v0.4 MCP files
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${FTP_SERVER:?Missing SFTP server}"
+          : "${FTP_USERNAME:?Missing SFTP username}"
+          : "${LFTP_PASSWORD:?Missing SFTP password}"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq php-cli lftp
+          source scripts/secure_sftp_connection.sh
+          umask 077
+          DIR="$(mktemp -d "$RUNNER_TEMP/mcp-v04.XXXXXX")"
+          LIVE="public_html/rentmor-control-mcp/mcp.php"
+          EXTRA="public_html/rentmor-control-mcp/mcp_tools_extra.php"
+          BACKUP="rentmor-control-private/mcp-backup-before-v04-$GITHUB_RUN_ID.php"
+          SWITCH=0
+          EXTRA_PUBLISHED=0
+          VERIFIED=0
+          cleanup() {
+            rc=$?
+            if [ "$SWITCH" = 1 ] && [ "$VERIFIED" != 1 ]; then
+              echo "::warning::MCP v0.4 validation failed. Restoring only old MCP routing."
+              if lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $DIR/original.php -o $LIVE; get $LIVE -o $DIR/restored.php; bye" >/dev/null &&
+                 cmp -s "$DIR/original.php" "$DIR/restored.php"; then
+                echo 'Original MCP restored byte for byte.'
+              else
+                echo "::error::MCP restore not confirmed. Verified private backup is at $BACKUP."
+              fi
+            fi
+            if [ "$EXTRA_PUBLISHED" = 1 ] && [ "$VERIFIED" != 1 ]; then
+              lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; rm $EXTRA; bye" >/dev/null 2>&1 || true
+            fi
+            rm -rf "$DIR"
+            exit "$rc"
+          }
+          trap cleanup EXIT
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get $LIVE -o $DIR/original.php; get public_html/rentmor-control-mcp/oauth_core.php -o $DIR/oauth_core.php; get public_html/rentmor-control-mcp/index.php -o $DIR/index.php; bye" >/dev/null
+          # Never overwrite a separate extension that may have been added by someone else.
+          NAMES="$(lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; cls -1 public_html/rentmor-control-mcp; bye")"
+          if printf '%s\n' "$NAMES" | grep -Fxq 'mcp_tools_extra.php'; then
+            echo "::error::Extension already exists; refusing overwrite."
+            exit 1
+          fi
+          python3 scripts/patch_mcp_v04.py "$DIR/original.php" "$DIR/patched.php"
+          cp scripts/mcp_v04_tools_extra.php "$DIR/mcp_tools_extra.php"
+          php -l "$DIR/original.php"
+          php -l "$DIR/patched.php"
+          php -l "$DIR/mcp_tools_extra.php"
+          php -l "$DIR/oauth_core.php"
+          python3 scripts/test_mcp_v04.py "$DIR/patched.php" "$DIR/mcp_tools_extra.php" "$DIR/oauth_core.php" "$DIR/index.php"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get $LIVE -o $DIR/unchanged.php; bye" >/dev/null
+          cmp "$DIR/original.php" "$DIR/unchanged.php"
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $DIR/original.php -o $BACKUP; get $BACKUP -o $DIR/backup.php; bye" >/dev/null
+          cmp "$DIR/original.php" "$DIR/backup.php"
+          echo 'Verified private original MCP backup.'
+          EXTRA_PUBLISHED=1
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $DIR/mcp_tools_extra.php -o $EXTRA; get $EXTRA -o $DIR/extra-readback.php; bye" >/dev/null
+          cmp "$DIR/mcp_tools_extra.php" "$DIR/extra-readback.php"
+          SWITCH=1
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $DIR/patched.php -o $LIVE; get $LIVE -o $DIR/mcp-readback.php; bye" >/dev/null
+          cmp "$DIR/patched.php" "$DIR/mcp-readback.php"
+          curl --fail --silent --show-error --max-time 30 \
+            -H 'Content-Type: application/json' \
+            -d '{"jsonrpc":"2.0","method":"tools/list","id":1}' \
+            'https://rentmor.pl/rentmor-control-mcp/index.php' > "$DIR/tools.json"
+          python3 - "$DIR/tools.json" <<'PY'
+          import json,sys
+          data=json.load(open(sys.argv[1]))
+          names={x['name']:x for x in data['result']['tools']}
+          expected={'inspect_site_files','search_site_source','preview_site_patch'}
+          assert expected.issubset(names), 'New tools absent from live MCP'
+          assert all(names[n]['annotations']['readOnlyHint'] for n in expected)
+          print('Live MCP exposes three new read-only OAuth diagnostic tools.')
+          PY
+          curl --fail --silent --show-error --max-time 30 \
+            -H 'Content-Type: application/json' \
+            -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"rentmor_info","arguments":{}},"id":2}' \
+            'https://rentmor.pl/rentmor-control-mcp/index.php' |
+            python3 -c 'import json,sys; d=json.load(sys.stdin); assert d["result"]["structuredContent"]["version"]=="0.4.0"; print("Live MCP reports version 0.4.0")'
+          curl --fail --silent --show-error --max-time 30 'https://rentmor.pl/rentmor-control-mcp/oauth.php?op=metadata' |
+            python3 -c 'import json,sys; d=json.load(sys.stdin); assert "authorization_endpoint" in d and "token_endpoint" in d; print("Existing OAuth remains healthy.")'
+          VERIFIED=1
+          echo 'SUCCESS: RentMor Control v0.4 published, no write privileges granted.'
