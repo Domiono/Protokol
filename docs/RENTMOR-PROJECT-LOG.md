@@ -6,6 +6,14 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 07.11.2026 — RentMor Control OAuth: jednoczesne zużycie formularza i zapis kodu — DO PUBLIKACJI
+
+- Potwierdzono przez SFTP GitHub Actions [run #42362349450](https://github.com/Domiono/Protokol/actions/runs/42362349450), że host używa wersji `oauth.php` zawierającej D06 i podpisany formularz, oba pliki `oauth.php` / `oauth_core.php` przechodzą `php -l`, a publiczne metadane OAuth działają. Żadnych prywatnych danych nie pobrano.
+- Wykryto ryzyko niespójnego dwustopniowego zapisu: po poprawnym haśle formularz był oznaczany jako użyty, a kod OAuth zapisywany osobnym wywołaniem `rm_state()`. Błąd drugiego zapisu zostawiał użyty formularz bez kodu, z komunikatem D06 przy ponowieniu.
+- Naprawa: pojedyncza transakcja plikowa zapisuje **jednocześnie** znacznik wykorzystania formularza i kod autoryzacyjny. Nie zmienia właściciela, hasła, danych klientów, rejestracji aplikacji, istniejących tokenów ani stanu OAuth.
+- Testy: lokalna składnia PHP; testy HTTP OAuth na syntetycznym haśle i stanie: rejestracja klienta, PKCE, autoryzacja, zapis kodu, wymiana kodu na token, blokada ponowienia D06 i podpisany formularz mimo braku tymczasowego wiersza.
+- Wdrożenie: osobny workflow używa SFTP ze znanym kluczem, stosuje łatkę **tylko do dokładnie rozpoznanej wersji** `oauth.php`, robi sprawdzony prywatny backup, przenosi sprawdzony plik i w razie nieudanej weryfikacji próbuje przywrócić poprzedni. **Status publikacji i wyniku na AZ.pl: do potwierdzenia po merge.**
+
 ## 07.11.2026 — diagnostyka OAuth RentMor Control przez GitHub Actions — TYLKO ODCZYT
 
 - Problem: odmowa D02/D06 i incydentalny HTTP 500 podczas autoryzacji nierepozytoryjnego dodatku MCP na AZ.pl. Hasło właściciela działa w parowaniu; metadane publiczne OAuth odpowiadają JSON-em.
