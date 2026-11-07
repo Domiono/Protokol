@@ -43,7 +43,6 @@ jobs:
           LIVE="public_html/rentmor-control-mcp/oauth.php"
           CORE="public_html/rentmor-control-mcp/oauth_core.php"
           BACKUP="rentmor-control-private/oauth-backup-before-atomic-$GITHUB_RUN_ID.php"
-          RETIRED="rentmor-control-private/oauth-retired-before-atomic-$GITHUB_RUN_ID.php"
           STAGE="rentmor-control-private/oauth-staged-atomic-$GITHUB_RUN_ID.php"
           SWITCH_ATTEMPTED=0
           VERIFIED=0
@@ -78,8 +77,9 @@ jobs:
           cmp "$DIR/patched.php" "$DIR/stage-check.php"
           echo "Verified private backup and tested new OAuth PHP."
           SWITCH_ATTEMPTED=1
-          # SFTP rename; no deletion or write to OAuth state or owner credentials.
-          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; mv $LIVE $RETIRED; mv $STAGE $LIVE; get $LIVE -o $DIR/readback.php; bye" >/dev/null
+          # AZ.pl rejects SFTP rename for this live path. Existing RentMor deploys
+          # use put-to-target. A VERIFIED private backup is available for rollback.
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $DIR/patched.php -o $LIVE; get $LIVE -o $DIR/readback.php; bye" >/dev/null
           cmp "$DIR/patched.php" "$DIR/readback.php"
           curl --fail --silent --show-error --max-time 30 'https://rentmor.pl/rentmor-control-mcp/oauth.php?op=metadata' |
             python3 -c 'import sys,json; j=json.load(sys.stdin); assert j.get("issuer")=="https://rentmor.pl/rentmor-control-mcp"; print("OAuth metadata: HTTP 200 and issuer verified")'
