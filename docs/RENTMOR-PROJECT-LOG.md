@@ -6,6 +6,13 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 07.11.2026 — diagnostyka OAuth RentMor Control przez GitHub Actions — TYLKO ODCZYT
+
+- Problem: odmowa D02/D06 i incydentalny HTTP 500 podczas autoryzacji nierepozytoryjnego dodatku MCP na AZ.pl. Hasło właściciela działa w parowaniu; metadane publiczne OAuth odpowiadają JSON-em.
+- Kod `rentmor-control-mcp/oauth.php` i `oauth_core.php` **nie znajduje się w repozytorium**. Nie wdrażamy nowych wersji ani nie ujawniamy prywatnego katalogu.
+- Dodano workflow `diagnose-rentmor-control-oauth.yml`, uruchamiany na main po zmianie jego pliku. Wykorzystuje istniejące, zabezpieczone połączenie SFTP do pobrania tylko dwóch plików PHP na chwilowy runner, wykonuje `php -l`, bez ujawniania kodu i sekretów raportuje wariant obsługi D02/D06 oraz sprawdza publiczne metadane OAuth. Pliki tymczasowe są usuwane, a serwer **nie jest modyfikowany**.
+- Wynik CI / potwierdzenie na AZ.pl: **do potwierdzenia po merge**. Ewentualne poprawki i wdrożenie OAuth wymagają osobnej weryfikacji i kopii zapasowej.
+
 ## 06.11.2026 — bezpieczna zmiana egzemplarza przy edycji rezerwacji — W PR (bez potwierdzenia publikacji)
 
 - **Zgłoszenie:** istniejący wynajem zestawu żyrafy z odkurzaczem (06–07.11) nie daje się przedłużyć do niedzieli 08.11, bo kolejna rezerwacja wskazuje tę samą fizyczną sztukę mimo trzech zestawów. Dotychczas wymagało to przechodzenia przez osobny ekran egzemplarzy.
