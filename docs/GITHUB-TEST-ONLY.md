@@ -1,6 +1,6 @@
 # RentMor — GitHub wyłącznie do testów (publiczne repozytorium)
 
-Status migracji: 07.11.2026. Cel: **brak dostępu GitHub Actions do AZ.pl**, brak automatycznych wdrożeń, brak sekretów produkcyjnych w zadaniach GitHub.
+Status migracji: **opublikowano w GitHub 07.11.2026** ([PR #137](https://github.com/Domiono/Protokol/pull/137)); 7 test-only workflow na `main`, żadne z aktywnych workflow nie pobiera danych logowania do AZ.pl. Cel: **brak dostępu GitHub Actions do AZ.pl**, brak automatycznych wdrożeń, brak sekretów produkcyjnych w zadaniach GitHub.
 
 ## Docelowy przepływ
 
