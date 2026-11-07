@@ -64,7 +64,7 @@ with tempfile.TemporaryDirectory(prefix="rm-v04-") as folder:
             "filename":"category.php","expected_sha256":"0"*64,"old_text":"Kraków","new_text":"X"}},True)
         assert res["result"]["isError"] is True
         status,res=call("tools/call",{"name":"preview_site_patch","arguments":{
-            "filename":"category.php","expected_sha256":digest,"old_text":"a","new_text":"X"}},True)
+            "filename":"category.php","expected_sha256":digest,"old_text":"i","new_text":"X"}},True)
         assert res["result"]["isError"] is True
         status,res=call("tools/call",{"name":"read_source_file","arguments":{"filename":"../owner.json"}},True)
         assert res["result"]["isError"] is True
