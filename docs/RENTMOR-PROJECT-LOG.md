@@ -6,6 +6,14 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 07.11.2026 — RentMor Control 0.4: większe możliwości diagnostyczne — DO WDROŻENIA
+
+- Stan: RentMor Control Prywatny 7 po naprawie CSP działa przez OAuth (`authenticated=true`), ale w wersji 0.3.3 udostępnia tylko 6 narzędzi i 7 źródłowych plików PHP. Właściciel poprosił o zwiększenie możliwości bez ręcznej pracy w AZ.pl.
+- Wprowadzono rozszerzenie `mcp_tools_extra.php` z trzema narzędziami wymagającymi **tego samego, działającego OAuth `source:read`**: `inspect_site_files` (rozmiary, SHA256, dostępność i informacja o możliwości zapisu dla ściśle jawnych plików), `search_site_source` (wyszukiwanie dosłownych fraz w kodzie z listy dozwolonej) i `preview_site_patch` (symulacja podmiany z koniecznym SHA256 i dopasowaniem dokładnie jednego fragmentu). Rozszerzono dozwolone źródła o publiczny sitemap, metadane i poradnik agregatu malarskiego.
+- Żadne z nowych narzędzi nie wykonuje **zapisu ani publikacji**. Nie czytają plików administracyjnych, haseł, konfiguracji, klientów, rezerwacji ani prywatnego katalogu; `readOnlyHint=true`. Wersja 0.4.0 jest pierwszym etapem przygotowania kontrolowanego procesu zmian z wyraźnym zatwierdzeniem właściciela.
+- Testy: rzeczywisty PHP MCP uruchomiony na syntetycznej konfiguracji i danych, sprawdzenie OAuth, odmowy bez tokenu, deklaracji narzędzi, sum SHA, wyszukiwania, podglądu bez zmiany pliku, odmowy przy starym SHA, wielu dopasowaniach i próbie odczytu poza listą.
+- Wdrożenie: osobny workflow `deploy-mcp-v04.yml` pobiera aktualny `mcp.php` i `oauth_core.php` przez zabezpieczony SFTP, stosuje łatkę tylko do rozpoznanej wersji 0.3.3 i pięciu jednoznacznych fragmentów, testuje wersję 0.4 lokalnie; robi potwierdzony prywatny backup `mcp.php` i dopiero potem wgrywa dwa pliki MCP, z weryfikacją odczytu, HTTP narzędzi oraz automatycznym rollbackiem. Stan produkcji: **do potwierdzenia**.
+
 ## 07.11.2026 — usunięcie jednorazowego formularza zmiany hasła RentMor Control — POTWIERDZONE
 
 - Po potwierdzeniu przez prywatną wtyczkę OAuth `authenticated: true` i poprawnym odczycie kodu źródłowego użytkownik zlecił usunięcie pomocniczego `/rentmor-control-mcp/change-password.php` z hostingu AZ.pl.
