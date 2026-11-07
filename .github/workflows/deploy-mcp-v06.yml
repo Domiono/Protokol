@@ -1,0 +1,123 @@
+name: Bootstrap GitHub-independent RentMor Control self-tests 0.6
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-mcp-v06.yml'
+      - 'scripts/mcp_v06_test_runner.php'
+      - 'scripts/patch_mcp_v06.py'
+      - 'scripts/test_mcp_v06.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rentmor-control-v06-independent-tests
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    if: github.repository == 'Domiono/Protokol'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+      FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+      LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PHP and SFTP
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq php-cli lftp
+      - name: Test self-test runner offline, then publish only MCP 0.6 extension
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${FTP_SERVER:?Missing SFTP host}"
+          : "${FTP_USERNAME:?Missing SFTP user}"
+          : "${LFTP_PASSWORD:?Missing SFTP password}"
+          source scripts/secure_sftp_connection.sh
+          umask 077
+          TMP="$(mktemp -d "$RUNNER_TEMP/rentmor-selftests-v06.XXXXXX")"
+          ROOT=public_html/rentmor-control-mcp
+          LIVE="$ROOT/mcp.php"
+          ADDON="$ROOT/mcp_test_runner.php"
+          BACKUP="rentmor-control-private/mcp-v06-before-runner-$GITHUB_RUN_ID.php"
+          UPLOADED=0
+          MODIFIED=0
+          VERIFIED=0
+          cleanup() {
+            rc=$?
+            if [ "$MODIFIED" = 1 ] && [ "$VERIFIED" != 1 ]; then
+              echo "::warning::Self-test runner deployment failed verification; restoring previous MCP."
+              if lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $TMP/old-mcp.php -o $LIVE; get $LIVE -o $TMP/restored-mcp.php; bye" >/dev/null &&
+                 cmp -s "$TMP/old-mcp.php" "$TMP/restored-mcp.php"; then
+                 echo 'Original MCP restored byte for byte.'
+              else
+                 echo "::error::MCP restore unverified; private backup available at $BACKUP."
+              fi
+            fi
+            if [ "$UPLOADED" = 1 ] && [ "$VERIFIED" != 1 ]; then
+              lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; set cmd:fail-exit no; rm $ADDON; bye" >/dev/null 2>&1 || true
+            fi
+            rm -rf "$TMP"
+            exit "$rc"
+          }
+          trap cleanup EXIT
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get $LIVE -o $TMP/old-mcp.php; get $ROOT/oauth.php -o $TMP/oauth.php; get $ROOT/oauth_core.php -o $TMP/oauth_core.php; get $ROOT/mcp_tools_extra.php -o $TMP/mcp_tools_extra.php; get $ROOT/mcp_write_tools.php -o $TMP/mcp_write_tools.php; get $ROOT/approve-change.php -o $TMP/approve-change.php; bye" >/dev/null
+          python3 scripts/patch_mcp_v06.py "$TMP/old-mcp.php" "$TMP/new-mcp.php"
+          cp scripts/mcp_v06_test_runner.php "$TMP/mcp_test_runner.php"
+          php -l "$TMP/new-mcp.php"
+          php -l "$TMP/mcp_test_runner.php"
+          php -l "$TMP/oauth_core.php"
+          python3 scripts/test_mcp_v06.py "$TMP/new-mcp.php" "$TMP/oauth.php" "$TMP/oauth_core.php" "$TMP/mcp_tools_extra.php" "$TMP/mcp_write_tools.php" "$TMP/approve-change.php" "$TMP/mcp_test_runner.php"
+          echo 'Isolated synthetic OAuth, test-runner and write permission regressions passed.'
+          NAMES="$(lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; cls -1 $ROOT; bye")"
+          if printf '%s\n' "$NAMES" | grep -Fxq 'mcp_test_runner.php'; then
+            echo "::error::Runner addon already exists; refusing overwrite."
+            exit 1
+          fi
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get $LIVE -o $TMP/live-confirm.php; put $TMP/old-mcp.php -o $BACKUP; get $BACKUP -o $TMP/backup-check.php; bye" >/dev/null
+          cmp "$TMP/old-mcp.php" "$TMP/live-confirm.php"
+          cmp "$TMP/old-mcp.php" "$TMP/backup-check.php"
+          echo 'Original MCP privately backed up and verified.'
+          UPLOADED=1
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $TMP/mcp_test_runner.php -o $ADDON; get $ADDON -o $TMP/addon-readback.php; bye" >/dev/null
+          cmp "$TMP/mcp_test_runner.php" "$TMP/addon-readback.php"
+          MODIFIED=1
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $TMP/new-mcp.php -o $LIVE; get $LIVE -o $TMP/new-mcp-readback.php; bye" >/dev/null
+          cmp "$TMP/new-mcp.php" "$TMP/new-mcp-readback.php"
+          curl --fail --silent --show-error --max-time 30 \
+             -H 'Content-Type: application/json' \
+             -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
+             'https://rentmor.pl/rentmor-control-mcp/index.php' > "$TMP/list.json"
+          python3 - "$TMP/list.json" <<'PY'
+          import json,sys
+          tools=json.load(open(sys.argv[1]))['result']['tools']
+          by_name={x['name']:x for x in tools}
+          assert {'run_site_tests','test_staged_site_change','get_site_test_report'}<=set(by_name)
+          assert by_name['run_site_tests']['_meta']['securitySchemes'][0]['scopes']==['source:read']
+          assert by_name['test_staged_site_change']['_meta']['securitySchemes'][0]['scopes']==['source:write']
+          print('Public MCP advertises all 3 independent test tools with scoped OAuth.')
+          PY
+          curl --fail --silent --show-error --max-time 30 \
+             -H 'Content-Type: application/json' \
+             -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"rentmor_info","arguments":{}}}' \
+             'https://rentmor.pl/rentmor-control-mcp/index.php' |
+             python3 -c 'import json,sys; j=json.load(sys.stdin)["result"]["structuredContent"]; assert j["version"]=="0.6.0"; print("Live MCP now reports 0.6.0.")'
+          curl --fail --silent --show-error --max-time 30 \
+             -H 'Content-Type: application/json' \
+             -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"run_site_tests","arguments":{"suite":"runtime"}}}' \
+             'https://rentmor.pl/rentmor-control-mcp/index.php' > "$TMP/denied.json"
+          python3 - "$TMP/denied.json" <<'PY'
+          import json,sys
+          d=json.load(open(sys.argv[1]))['result']
+          assert d['isError'] is True and 'source:read' in str(d)
+          print('Live server denies test execution without owner OAuth read scope.')
+          PY
+          curl --fail --silent --show-error --max-time 30 'https://rentmor.pl/rentmor-control-mcp/oauth.php?op=metadata' |
+             python3 -c 'import json,sys; d=json.load(sys.stdin); assert "source:read" in d["scopes_supported"] and "source:write" in d["scopes_supported"]; print("OAuth scopes remain intact.")'
+          VERIFIED=1
+          echo 'SUCCESS: GitHub-independent, fixed-suite RentMor Control v0.6 tests deployed.'
