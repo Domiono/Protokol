@@ -24,8 +24,3 @@ jobs:
           npx lighthouse https://rentmor.pl/odkurzacz-pioracy-karcher-puzzi-10-1/ --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance,accessibility,best-practices,seo --output=json --output-path=reports/google-offer-mobile.json --quiet
           npx lighthouse https://rentmor.pl/ --preset=desktop --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance,accessibility,best-practices,seo --output=json --output-path=reports/google-home-desktop.json --quiet
           python3 scripts/report_google_quality.py reports/google-*.json
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: google-quality-report
-          path: reports/
