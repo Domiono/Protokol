@@ -4,7 +4,7 @@ import argparse
 import hashlib
 from pathlib import Path
 
-EXPECTED_SHA='91a1a3a804110f2270e625c4e92c1a607f9873056bc7916fa76f4085a69e3576'
+EXPECTED_SHA='5f4be972f6960880016f74216a8cca5fe6d329f4192474e536fc324effe68d37'
 OLD="""    header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");"""
 NEW="""    // Chromium checks form-action against the full POST->302 redirect chain.
     // Allow the trusted ChatGPT callback ONLY on the OAuth GET approval form.
