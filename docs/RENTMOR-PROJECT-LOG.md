@@ -6,6 +6,14 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 07.11.2026 — ponowny POST z Androida po logowaniu OAuth: obsługa identycznej próby — DO PUBLIKACJI
+
+- W zgłoszeniu użytkownika D06 pojawia się nadal po poprawce atomowego zapisu. Bezpieczny jednorazowy test PHP [#42363903942](https://github.com/Domiono/Protokol/actions/runs/42363903942) wykazał dostępność prawdziwego prywatnego katalogu PHP, niedawno wykorzystany formularz i wydany kod autoryzacyjny, ale brak nowo wydanego tokenu dostępu. Dane są agregowane (ostatnie 10 minut), więc nie dowodzą powiązania konkretnego wpisu z konkretnym żądaniem.
+- Błąd D06 w kodzie oznacza, że serwer otrzymał POST z identyfikatorem formularza już oznaczonym jako wykorzystany; podejrzany jest ponowiony POST, np. po utraconej odpowiedzi HTTP 302. Kontrola SFTP state.json z poprzedniego workflow nie działa, ponieważ ścieżka prywatna PHP nie pokrywa się z widokiem SFTP.
+- Naprawa w PR: z losowego kodu OAuth przejście na HMAC-SHA256 podpisujący nonce sekretem tylko w prywatnym owner.json (rozdzielony kontekstem). Dokładnie identyczny POST z poprawnym hasłem i podpisanym formularzem może odzyskać **ten sam, jeszcze niewykorzystany kod**, gdy wcześniej został już zapisany; nigdy nie powstaje drugi kod. Po odebraniu kodu przez endpoint token, kolejna próba jest odrzucana D06. PKCE, ważność kodu, zakres klienta i weryfikacja hasła pozostają obowiązkowe.
+- Testy izolowane (syntetyczne hasło/stan): podpisane POST, powtórzenie tego samego formularza, identyczność kodów, brak drugiego kodu, złe hasło, jednorazowy token, D06 po wymianie, utrata wpisu login, składnia PHP.
+- Wdrożenie: osobny workflow z rozpoznawaniem dokładnego SHA aktualnego oauth.php, zweryfikowaną kopią poza public_html, odczytem zwrotnym i rollbackiem; **status publikacji: do potwierdzenia**. Zmiany jedynie w oauth.php, bez modyfikacji danych klientów i prywatnego stanu.
+ 
 ## 07.11.2026 — OAuth: rzeczywisty katalog PHP różni się od ścieżki SFTP — BADANIE
 
 - Workflow #42363648732 potwierdził, że SFTP przy odczycie rentmor-control-private/state.json zwraca `No such file` mimo działającej autoryzacji PHP; nie należy wnioskować, że PHP nie ma swojego stanu. Zapis PHP może znajdować się na innym katalogu/fizycznej ścieżce niż ta eksponowana przez SFTP.
