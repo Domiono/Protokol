@@ -33,6 +33,7 @@ try {
     $recentUsed=false;
     if($valid){foreach($recent('login',600) as $row){if(!empty($row['used'])){$recentUsed=true;break;}}}
     echo json_encode([
+        'owner_change_completed'=>is_array($owner=rm_owner()) && is_string($owner['changed_at']??null) && $owner['changed_at']!=='',
         'php_private_dir_found'=>$seen,
         'php_state_file_readable'=>$exists,
         'php_state_json_valid'=>$valid,

@@ -6,6 +6,11 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 07.11.2026 — formularz zmiany hasła: diagnostyka pozornie nieaktywnego przycisku — WERYFIKACJA
+
+- Użytkownik zgłasza brak reakcji po próbie zmiany hasła. Sam wcześniejszy zielony wynik publikacji potwierdza obecność strony, lecz nie reakcję Android Chrome na walidację pól ani zapis hasła właściciela.
+- Do chronionego, jednorazowego testu PHP dodano pole boolowskie: czy w prywatnym owner.json zapisano znacznik changed_at (bez odczytywania skrótu hasła, daty czy identyfikatorów). Workflow pobiera ponadto wyłącznie publiczny HTML i nagłówki HTTP, raportuje ustawienia formularza i walidacji przeglądarki. Żadnych testów POST, prób hasła lub zmian w stanie. Wynik działania: do potwierdzenia.
+
 ## 07.11.2026 — RentMor Control: formularz zmiany hasła właściciela — OPUBLIKOWANE
 
 - Użytkownik chce nowe, krótsze hasło, bo dotychczasowe może przekraczać 72 znaki i nie wysyłać się z przeglądarki na Androidzie.
