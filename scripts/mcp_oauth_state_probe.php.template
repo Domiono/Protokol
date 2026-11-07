@@ -1,0 +1,47 @@
+<?php
+declare(strict_types=1);
+/** Ephemeral, secret-gated diagnostic. Never echoes private data or identifiers. */
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { http_response_code(404); exit; }
+$provided=(string)($_SERVER['HTTP_X_RENTMOR_OAUTH_DIAG'] ?? '');
+if (strlen($provided)!==64 || !hash_equals('__TOKEN_HASH__',hash('sha256',$provided))) {
+    http_response_code(404); exit;
+}
+header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store');
+header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: no-referrer');
+try {
+    require_once __DIR__.'/rentmor-control-mcp/oauth_core.php';
+    $dir=rm_private_dir();
+    $seen=$dir!==null;
+    $path=$seen ? $dir.'/state.json':null;
+    $exists=$path!==null && is_file($path) && is_readable($path);
+    $state=$exists ? json_decode((string)file_get_contents($path),true) : null;
+    $valid=is_array($state);
+    $now=time();
+    $recent=function (string $name,int $ttl) use ($state,$now): array {
+        $rows=$state[$name]??[];
+        if(!is_array($rows))return [];
+        $result=[];
+        foreach ($rows as $row) {
+            if(!is_array($row))continue;
+            $created=(int)($row['expires']??0)-$ttl;
+            if($created>0 && $created<=$now && $now-$created<=600)$result[]=$row;
+        }
+        return $result;
+    };
+    $recentUsed=false;
+    if($valid){foreach($recent('login',600) as $row){if(!empty($row['used'])){$recentUsed=true;break;}}}
+    echo json_encode([
+        'php_private_dir_found'=>$seen,
+        'php_state_file_readable'=>$exists,
+        'php_state_json_valid'=>$valid,
+        'used_login_in_last_10min'=>$valid ? $recentUsed : null,
+        'issued_code_in_last_10min'=>$valid ? count($recent('codes',300))>0 : null,
+        'issued_access_in_last_10min'=>$valid ? count($recent('access',3600))>0 : null,
+        'note'=>'Rows can be removed upon redemption or expiration; absence does not prove no earlier issuance'
+    ],JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
+} catch(Throwable $e) {
+    http_response_code(503);
+    echo json_encode(['ok'=>false,'reason'=>'safe_probe_unavailable']);
+}

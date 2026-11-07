@@ -6,6 +6,12 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 07.11.2026 — OAuth: rzeczywisty katalog PHP różni się od ścieżki SFTP — BADANIE
+
+- Workflow #42363648732 potwierdził, że SFTP przy odczycie rentmor-control-private/state.json zwraca `No such file` mimo działającej autoryzacji PHP; nie należy wnioskować, że PHP nie ma swojego stanu. Zapis PHP może znajdować się na innym katalogu/fizycznej ścieżce niż ta eksponowana przez SFTP.
+- Dodano osobny jednorazowy, chroniony losowym sekretem PHP probe w katalogu public_html, uruchamiany wyłącznie metodą POST z GitHub Actions i usuwany w pułapce shell EXIT. Probe oblicza w PHP wyłącznie sześć anonimowych pól dotyczących dostępności prywatnego katalogu, pliku i występowania użytego formularza/kodu/tokena w ostatnich 10 minutach. Nie wypisuje danych, ścieżek, tokenów, kodów, sekretów ani surowego JSON. Przeznaczony tylko do krótkiego testu jednorazowego; w stanie OAuth niczego nie zmienia.
+- Poprzedni błędny odczyt state.json przez SFTP usunięto z workflow diagnostycznego. Wynik nowego testu i usunięcie pliku probe: do potwierdzenia.
+
 ## 07.11.2026 — D06 po potwierdzonym wdrożeniu: diagnostyka anonimowa — DO WERYFIKACJI
 
 - Zgłoszenie użytkownika: po wdrożeniu atomowego zapisu OAuth (run #42363040975) nadal widać D06 podczas autoryzacji ChatGPT. Z lokalnego kodu wynika, że D06 oznacza ponowną próbę przesłania **tego samego** jednorazowego identyfikatora formularza oznaczonego wcześniej jako użyty. Nie zakładać automatycznie błędnego hasła.
