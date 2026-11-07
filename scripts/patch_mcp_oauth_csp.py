@@ -15,7 +15,7 @@ NEW="""    // Chromium checks form-action against the full POST->302 redirect ch
 
 def patch(raw: bytes) -> bytes:
     if hashlib.sha256(raw).hexdigest()!=EXPECTED_SHA:
-        raise ValueError('Unknown live core checksum: refuse deployment')
+        raise ValueError('Unknown live core checksum '+hashlib.sha256(raw).hexdigest()+'; original CSP line present='+str(raw.decode('utf-8').count(OLD)==1)+'; refuse deployment')
     text=raw.decode('utf-8')
     if text.count(OLD)!=1:
         raise ValueError('Missing/ambiguous original CSP line: refuse deployment')
