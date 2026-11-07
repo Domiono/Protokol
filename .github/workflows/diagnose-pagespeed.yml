@@ -6,6 +6,8 @@ on:
       - 'scripts/diagnose_pagespeed.py'
       - '.github/workflows/diagnose-pagespeed.yml'
   workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   diagnose:
     runs-on: ubuntu-latest
