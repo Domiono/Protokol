@@ -6,6 +6,14 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 07.11.2026 — Prawdziwa przyczyna braku reakcji po zatwierdzeniu OAuth: CSP blokuje 302 — W TESTACH
+
+- Użytkownik zgłasza, że po wpisaniu hasła i kliknięciu „Zatwierdź dostęp” strona nie przechodzi do ChatGPT. Test anonimowy [#42370978312](https://github.com/Domiono/Protokol/actions/runs/42370978312) wykazał zapisane `changed_at` właściciela (**hasło zostało już zmienione**), obecność wygenerowanego kodu OAuth bez niedawnego tokenu oraz publiczną poprawność formularza. Dalsza rotacja hasła nie rozwiąże przyczyny.
+- Identyfikacja przyczyny: `rm_html_head()` w `oauth_core.php` wysyła `Content-Security-Policy: form-action 'self'`. Formularz POST wraca HTTP 302 na `https://chatgpt.com/connector_platform_oauth_redirect`; Chromium/WebKit kontroluje też redirect w łańcuchu przesłania formularza i blokuje domenę spoza 'self'. Efekt: po stronie serwera kod OAuth już istnieje, ale przeglądarka stoi na formularzu i token nie jest wymieniony. Jest to udokumentowany problem OAuth (zgłoszenie django-oauth-toolkit #1623, MDN CSP form-action, kotauth ADR 09).
+- Minimalna zmiana: w `rm_html_head()` dopuść `form-action 'self' https://chatgpt.com` **wyłącznie na GET /rentmor-control-mcp/oauth.php?op=authorize**; pozostałe formularze (parowanie, zmiana hasła, setup) zachowują tylko `'self'`. Bez zmiany haseł, OAuth tokens, klientów, zakresów uprawnień lub danych najmu.
+- Test regresji: pobierz live oauth_core.php, oauth.php i change-password.php do tymczasowego runnera; sprawdź SHA i składnię, testy OAuth/PKCE na syntetycznym właścicielu oraz test Chromium na lokalnym serwerze PHP, który reprodukuje blokadę oryginału i skuteczne przekierowanie po poprawce. Wdrożenie tylko oauth_core.php, po sprawdzonym backupie SFTP i z automatycznym przywracaniem. Po publikacji sprawdzane prawdziwe nagłówki CSP dwóch stron i metadane OAuth.
+- Wynik publikacji: **do potwierdzenia po merge i CI**, rzeczywiste logowanie użytkownika pozostaje do sprawdzenia.
+
 ## 07.11.2026 — formularz zmiany hasła: diagnostyka pozornie nieaktywnego przycisku — WERYFIKACJA
 
 - Użytkownik zgłasza brak reakcji po próbie zmiany hasła. Sam wcześniejszy zielony wynik publikacji potwierdza obecność strony, lecz nie reakcję Android Chrome na walidację pól ani zapis hasła właściciela.
