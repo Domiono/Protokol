@@ -50,5 +50,33 @@ jobs:
           php -l "$TMP/probe.php" >/dev/null
           lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $TMP/probe.php -o public_html/$PROBE; bye" >/dev/null
           curl --fail --silent --show-error --max-time 30 --request POST --header "X-Rentmor-Oauth-Diag: $TOKEN" "https://rentmor.pl/$PROBE" |
-            python3 -c 'import json,sys; d=json.load(sys.stdin); expected={"php_private_dir_found","php_state_file_readable","php_state_json_valid","used_login_in_last_10min","issued_code_in_last_10min","issued_access_in_last_10min","note"}; assert set(d)==expected; assert all(isinstance(d[k],bool) for k in ("php_private_dir_found","php_state_file_readable","php_state_json_valid")); assert all(d[k] is None or isinstance(d[k],bool) for k in ("used_login_in_last_10min","issued_code_in_last_10min","issued_access_in_last_10min")); print("Sanitized live PHP OAuth diagnostic:",json.dumps(d,sort_keys=True))'
+            python3 -c 'import json,sys; d=json.load(sys.stdin); expected={"php_private_dir_found","php_state_file_readable","php_state_json_valid","used_login_in_last_10min","issued_code_in_last_10min","issued_access_in_last_10min","owner_change_completed","note"}; assert set(d)==expected; assert all(isinstance(d[k],bool) for k in ("php_private_dir_found","php_state_file_readable","php_state_json_valid","owner_change_completed")); assert all(d[k] is None or isinstance(d[k],bool) for k in ("used_login_in_last_10min","issued_code_in_last_10min","issued_access_in_last_10min")); print("Sanitized live PHP OAuth diagnostic:",json.dumps(d,sort_keys=True))'
+          # Inspect the actual public HTML and HTTP headers; do NOT POST a login/password.
+          curl --fail --silent --show-error --max-time 25 -D "$TMP/form-headers.txt"             "https://rentmor.pl/rentmor-control-mcp/change-password.php" -o "$TMP/form.html"
+          python3 - "$TMP/form.html" "$TMP/form-headers.txt" <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import sys
+          class Form(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.forms=[]; self.inputs=[]
+              def handle_starttag(self, tag, attrs):
+                  a=dict(attrs)
+                  if tag == 'form': self.forms.append(a)
+                  if tag == 'input': self.inputs.append(a)
+          form=Form()
+          form.feed(Path(sys.argv[1]).read_text())
+          headers=Path(sys.argv[2]).read_text().lower()
+          fields={i.get('name',''):i for i in form.inputs}
+          print('Public password form diagnostics:')
+          print('HTML password-change form present:',bool(form.forms))
+          print('Form POST points to change-password.php:',any(x.get('method','').lower()=='post' and x.get('action')=='change-password.php' for x in form.forms))
+          print('Old/new/confirm fields present:', all(k in fields for k in ['old','new','confirm']))
+          print('New password browser minimum:',fields.get('new',{}).get('minlength','missing'))
+          print('New password browser maximum:',fields.get('new',{}).get('maxlength','missing'))
+          print('Browser native validation enabled:',not any('novalidate' in x for x in form.forms))
+          print('Cache-Control no-store:', 'no-store' in headers)
+          print('CSP form-action self:', "form-action 'self'" in headers)
+          assert len(form.forms)==1 and all(k in fields for k in ['old','new','confirm'])
+          PY
           echo "One-time PHP state probe completed; cleanup restores production surface."
