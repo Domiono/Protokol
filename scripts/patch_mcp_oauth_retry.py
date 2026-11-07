@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 import hashlib
 
-EXPECTED_SHA = '28dc2b277fec5f2dbd16331e94c2b3db20a81f11fe7e04807aeff40d78a6d772'
+EXPECTED_SHA = '3e92177b7f3aedada56cc658daa4abc80fbae75843836989aa549462117f3e0e'
 REPLACEMENTS = [
     (
         "        $code=rm_random_token();\n        $result=rm_state(function (&$s)use($nonce,$verified,$signed,$ticketStatus,$code){",
