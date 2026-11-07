@@ -1,0 +1,67 @@
+name: Diagnose RentMor Control OAuth (read only)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-rentmor-control-oauth.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rentmor-control-oauth-readonly
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    if: github.repository == 'Domiono/Protokol'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+      FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+      LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install read-only SFTP and PHP lint tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lftp php-cli
+      - name: Inspect live RentMor Control PHP without changing hosting
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${FTP_SERVER:?Missing SFTP server secret}"
+          : "${FTP_USERNAME:?Missing SFTP user secret}"
+          : "${LFTP_PASSWORD:?Missing SFTP password secret}"
+          source scripts/secure_sftp_connection.sh
+          umask 077
+          DIR="$(mktemp -d "$RUNNER_TEMP/rentmor-oauth-readonly.XXXXXX")"
+          trap 'rm -rf "$DIR"' EXIT
+          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; get public_html/rentmor-control-mcp/oauth.php -o $DIR/oauth.php; get public_html/rentmor-control-mcp/oauth_core.php -o $DIR/oauth_core.php; bye" >/dev/null
+          php -l "$DIR/oauth.php" >/dev/null
+          php -l "$DIR/oauth_core.php" >/dev/null
+          echo 'PHP syntax: both OAuth files pass lint.'
+          python3 - "$DIR/oauth.php" "$DIR/oauth_core.php" <<'PY'
+          import hashlib
+          import pathlib
+          import sys
+          oauth = pathlib.Path(sys.argv[1]).read_bytes()
+          core = pathlib.Path(sys.argv[2]).read_bytes()
+          known = {
+              "864e7827ad1c0d41e210b085131b79a9a5b3df4a1f66053d4303ecfef15a7ca7": "signed-ticket D02 workaround",
+              "8656ea224c45c77a8ad29419cd5b85f5369da0a9baeeed8e48bb4e5b1bfbdb33": "D02 diagnostic version",
+          }
+          digest = hashlib.sha256(oauth).hexdigest()
+          print("Active OAuth file fingerprint matches:", known.get(digest, "other version"))
+          print("Live OAuth diagnostics: D06=%s, D02=%s, signed_ticket=%s" % (b"D06" in oauth, b"D02" in oauth, b"hash_hmac" in oauth))
+          print("OAuth core has atomic state write:", b"rm_atomically_write" in core)
+          print("OAuth core has state file locking:", b"flock(" in core)
+          print("OAuth source and private state contents are not printed or published.")
+          PY
+      - name: Check only public OAuth metadata (no password)
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 20 'https://rentmor.pl/rentmor-control-mcp/oauth.php?op=metadata' |
+            python3 -c 'import json,sys; j=json.load(sys.stdin); assert j.get("issuer")=="https://rentmor.pl/rentmor-control-mcp"; print("OAuth metadata: HTTP 200 and matching issuer")'
