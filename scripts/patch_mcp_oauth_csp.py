@@ -20,7 +20,7 @@ def patch(raw: bytes) -> bytes:
     if text.count(OLD)!=1:
         raise ValueError('Missing/ambiguous original CSP line: refuse deployment')
     result=text.replace(OLD,NEW,1)
-    if result.count("https://chatgpt.com")!=1:
+    if result.count("$formTargets=$isApprovalForm ?")!=1:
         raise ValueError('Unexpected ChatGPT CSP entries')
     return result.encode('utf-8')
 
