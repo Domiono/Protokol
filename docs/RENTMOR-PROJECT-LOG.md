@@ -6,6 +6,12 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 07.11.2026 — CSP OAuth: test Chromium potwierdzony, produkcyjny rollback — BADANIE
+
+- [CI #42372074835](https://github.com/Domiono/Protokol/actions/runs/42372074835): PASS — pełny lokalny przepływ OAuth/PKCE i przechwycony redirect. **Chromium odtworzył brak reakcji przy form-action 'self' i poprawny redirect po dodaniu chatgpt.com tylko do formularza OAuth**. To bezpośrednie potwierdzenie przyczyny zewnętrznej wobec hasła właściciela.
+- Wdrożenie wykonało i zweryfikowało prywatną kopię bazowego oauth_core.php, lecz późniejszy etap publikacji/HTTP sprawdzania nie przeszedł. Automatyczny rollback przywrócił i porównał oryginalny plik. Na produkcji nie potwierdzono nowej wersji.
+- Dodano granularne, niesekretne komunikaty kontrolne wokół SFTP put/readback, kodu HTTP żądania z nieważnymi parametrami OAuth, formularza zmiany hasła i polityk CSP. Niczego nie zmieniają w logice; następny run wskaże etap awarii.
+
 ## 07.11.2026 — Prawdziwa przyczyna braku reakcji po zatwierdzeniu OAuth: CSP blokuje 302 — W TESTACH
 
 - Użytkownik zgłasza, że po wpisaniu hasła i kliknięciu „Zatwierdź dostęp” strona nie przechodzi do ChatGPT. Test anonimowy [#42370978312](https://github.com/Domiono/Protokol/actions/runs/42370978312) wykazał zapisane `changed_at` właściciela (**hasło zostało już zmienione**), obecność wygenerowanego kodu OAuth bez niedawnego tokenu oraz publiczną poprawność formularza. Dalsza rotacja hasła nie rozwiąże przyczyny.

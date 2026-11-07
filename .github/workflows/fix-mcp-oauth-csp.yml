@@ -80,12 +80,25 @@ jobs:
           cmp "$DIR/original.php" "$DIR/backup-check.php"
           echo 'Original OAuth core privately backed up and verified.'
           SWITCH=1
-          lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $DIR/patched.php -o $CORE; get $CORE -o $DIR/readback.php; bye" >/dev/null
-          cmp "$DIR/patched.php" "$DIR/readback.php"
+          echo 'Uploading only OAuth core; rollback is armed.'
+          if ! lftp --env-password -u "$FTP_USERNAME" "sftp://$FTP_SERVER:22222" -e "$SFTP_CONNECT_SETUP; put $DIR/patched.php -o $CORE; get $CORE -o $DIR/readback.php; bye" >/dev/null; then
+            echo "::error::OAuth core SFTP upload or readback failed."
+            exit 1
+          fi
+          if ! cmp -s "$DIR/patched.php" "$DIR/readback.php"; then
+            echo "::error::OAuth core bytes after upload differ from tested candidate."
+            exit 1
+          fi
+          echo 'SFTP upload and readback verified.'
           # Invalid OAuth query returns HTTP 400 HTML, allowing safe CSP verification without credentials.
           code="$(curl -sS --max-time 30 -D "$DIR/auth-headers.txt" -o "$DIR/auth-body.html" -w '%{http_code}' 'https://rentmor.pl/rentmor-control-mcp/oauth.php?op=authorize')"
-          test "$code" = 400
+          echo "Public OAuth invalid-query status: HTTP $code (expect 400)"
+          if [ "$code" != 400 ]; then
+            echo "::error::OAuth invalid-query endpoint returned unexpected HTTP code."
+            exit 1
+          fi
           curl --fail --silent --show-error --max-time 30 -D "$DIR/change-headers.txt" -o /dev/null 'https://rentmor.pl/rentmor-control-mcp/change-password.php'
+          echo 'Public password-change page: HTTP 200.'
           curl --fail --silent --show-error --max-time 30 'https://rentmor.pl/rentmor-control-mcp/oauth.php?op=metadata' |
             python3 -c 'import json,sys; j=json.load(sys.stdin); assert j.get("issuer")=="https://rentmor.pl/rentmor-control-mcp"; print("OAuth metadata verified")'
           python3 - "$DIR/auth-headers.txt" "$DIR/change-headers.txt" <<'PY'
