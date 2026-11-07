@@ -1,0 +1,26 @@
+name: Public RentMor availability and API authorization tests
+on:
+  schedule:
+    - cron: '10 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/monitor_public.py'
+      - '.github/workflows/monitor-public-rentmor.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-public:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check test configuration
+        run: python3 scripts/monitor_public.py --self-test
+      - name: Probe public homepage, robots, sitemap, unauthenticated API refusal
+        run: python3 scripts/monitor_public.py

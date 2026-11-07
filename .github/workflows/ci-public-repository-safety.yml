@@ -1,0 +1,22 @@
+name: Enforce public GitHub test-only policy
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-safety:
+    name: No hosting secrets or deploy workflows
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run read-only test policy
+        run: python3 scripts/assert_github_test_only.py

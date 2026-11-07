@@ -1,9 +1,10 @@
 name: Test rental operations
 on:
   push:
-    branches: ['feature/rental-operations']
+    branches: [main, 'feature/rental-operations']
   pull_request:
     branches: [main]
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -11,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -18,6 +21,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - run: python3 scripts/assert_github_test_only.py
       - run: php -l server/protocol_sync.php
       - run: php -l server/admin.php
       - run: php scripts/test_admin_rental_stats.php
@@ -29,11 +33,4 @@ jobs:
       - run: python3 scripts/test_public_seo.py
       - run: php -l server/poradnik-pranie-tapicerki-karcher-puzzi.php
       - run: php -l server/sitemap.php
-      - name: Diagnose live API response format without device credentials
-        continue-on-error: true
-        run: python3 scripts/diagnose_live_sync_http.py
       - run: gradle --no-daemon testDebugUnitTest assembleDebug
-      - uses: actions/upload-artifact@v4
-        with:
-          name: rentmor-operations-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
