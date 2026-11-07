@@ -6,6 +6,12 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 07.11.2026 — aktualizacja testu publicznych obrazów po odłączeniu deployów GitHub — DO POTWIERDZENIA
+
+- Po scaleniu PR #137 samo zadanie testowania obrazów [GitHub Actions #42405118676](https://github.com/Domiono/Protokol/actions/runs/42405118676) zgłosiło błąd starego testu: oczekiwał obrazka `/rentmor-logo.png`, podczas gdy na stronie już od listopada występuje responsywne logo `/assets/rentmor-logo-mobile-20261103.webp` (25 obrazów i 25 `srcset` na stronie głównej według audytu). To rozbieżność starego testu z nowym brandingiem, nie dowód błędu strony.
+- Zmieniono tylko rozpoznawanie logo w `scripts/check_public_image_markup.py`, utrzymując wymóg `srcset` oraz podanych wymiarów `width`/`height`. Dodatkowo test obrazów uruchamia się już w PR, żeby następne przestarzałe asercje nie trafiały dopiero na `main`. Bez SFTP, danych prywatnych i zapisu do AZ.pl.
+- PR, nowe wyniki testów i publikacja: **do potwierdzenia**.
+
 ## 07.11.2026 — GitHub publiczny tylko do testów; publikacja przez RentMor Control — WDROŻONE W REPO
 
 - Decyzja właściciela: pozostać przy **publicznym** GitHub, by nie zużywać kończącego się limitu minut Actions w repozytorium prywatnym, ale GitHub ma służyć wyłącznie do testów. Publikacje na AZ.pl mają odbywać się przez **RentMor Control**, bez połączenia GitHub z hostingiem przez FTP/SFTP.

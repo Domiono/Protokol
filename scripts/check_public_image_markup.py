@@ -13,8 +13,8 @@ def main():
         photos=[a for a in parsed.images if "/uploads/" in (a.get("src") or a.get("data-rm-src") or "")]
         ready=[a for a in photos if a.get("data-rentmor-optimized")=="1"
                and (a.get("srcset") or a.get("data-rm-srcset")) and a.get("width") and a.get("height")]
-        logo=[a for a in parsed.images if a.get("src")=="/rentmor-logo.png"]
-        assert logo and logo[0].get("srcset"), ("Optimized logo missing",url)
+        logo=[a for a in parsed.images if "rentmor-logo" in (a.get("src") or "")]
+        assert any(a.get("srcset") and a.get("width") and a.get("height") for a in logo), ("Responsive brand logo missing",url)
         assert len(ready) >= (20 if url == "https://rentmor.pl/" else 1), ("Responsive photographs absent",url,len(ready),len(photos))
         for img in ready:
             original = img.get("src") or img.get("data-rm-src")
