@@ -10,14 +10,11 @@ on:
     paths:
       - 'scripts/audit_public_assets.py'
       - '.github/workflows/audit-rentmor-performance.yml'
-  workflow_run:
-    workflows: ['Optimize RentMor product photos']
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   audit:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
