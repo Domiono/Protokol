@@ -18,6 +18,8 @@ jobs:
         device: [mobile, desktop]
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Inspect public html head and resource hints
         run: |
           python3 - <<'PY'
