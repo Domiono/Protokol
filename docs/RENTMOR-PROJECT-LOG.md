@@ -12,7 +12,7 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 - Wykryto ryzyko niespójnego dwustopniowego zapisu: po poprawnym haśle formularz był oznaczany jako użyty, a kod OAuth zapisywany osobnym wywołaniem `rm_state()`. Błąd drugiego zapisu zostawiał użyty formularz bez kodu, z komunikatem D06 przy ponowieniu.
 - Naprawa: pojedyncza transakcja plikowa zapisuje **jednocześnie** znacznik wykorzystania formularza i kod autoryzacyjny. Nie zmienia właściciela, hasła, danych klientów, rejestracji aplikacji, istniejących tokenów ani stanu OAuth.
 - Testy: lokalna składnia PHP; testy HTTP OAuth na syntetycznym haśle i stanie: rejestracja klienta, PKCE, autoryzacja, zapis kodu, wymiana kodu na token, blokada ponowienia D06 i podpisany formularz mimo braku tymczasowego wiersza.
-- Wdrożenie: osobny workflow używa SFTP ze znanym kluczem, stosuje łatkę **tylko do dokładnie rozpoznanej wersji** `oauth.php`, robi sprawdzony prywatny backup, przenosi sprawdzony plik i w razie nieudanej weryfikacji próbuje przywrócić poprzedni. **Status publikacji i wyniku na AZ.pl: do potwierdzenia po merge.**
+- Wdrożenie: osobny workflow używa SFTP ze znanym kluczem, stosuje łatkę **tylko do dokładnie rozpoznanej wersji** `oauth.php`, robi sprawdzony prywatny backup i w razie nieudanej weryfikacji próbuje przywrócić poprzedni. [Run #42362911732](https://github.com/Domiono/Protokol/actions/runs/42362911732): testy offline PRZESZŁY, ale AZ.pl odmówił `mv` przy publikacji. Workflow przywrócił i porównał poprzedni plik. Zmieniono wyłącznie metodę publikacji na używane już na hostingu `put` z kontrolą odczytu i rollbackiem. **Ponowna publikacja: do potwierdzenia po merge.**
 
 ## 07.11.2026 — diagnostyka OAuth RentMor Control przez GitHub Actions — TYLKO ODCZYT
 
