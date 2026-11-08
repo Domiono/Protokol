@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/monitor_public.py'
+      - 'scripts/test_monitor_public.py'
       - '.github/workflows/monitor-public-rentmor.yml'
   workflow_dispatch:
 
@@ -22,5 +23,7 @@ jobs:
           persist-credentials: false
       - name: Check test configuration
         run: python3 scripts/monitor_public.py --self-test
+      - name: Offline monitor regression tests
+        run: python3 scripts/test_monitor_public.py
       - name: Probe public homepage, robots, sitemap, unauthenticated API refusal
         run: python3 scripts/monitor_public.py
