@@ -30,7 +30,7 @@ class FakeOpener:
 
     def open(self, req, timeout):
         self.requests.append((req.full_url, req.get_method(), timeout))
-        return self.response
+        return self.response() if callable(self.response) else self.response
 
 
 class MonitorTests(unittest.TestCase):
@@ -82,7 +82,7 @@ class MonitorTests(unittest.TestCase):
                 FakeResponse(200, "<html>broken</html>")))
 
     def test_final_failure_does_not_leak_body(self):
-        bad_opener = FakeOpener(FakeResponse(503, "PRIVATE_RESPONSE_BODY"))
+        bad_opener = FakeOpener(lambda: FakeResponse(503, "PRIVATE_RESPONSE_BODY"))
         with self.assertRaises(SystemExit) as error:
             monitor.run(checks=[("/", 200, "html")], opener=bad_opener, sleep=lambda _: None)
         self.assertNotIn("PRIVATE_RESPONSE_BODY", str(error.exception))
