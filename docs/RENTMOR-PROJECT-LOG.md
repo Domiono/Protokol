@@ -6,6 +6,12 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+
+## 08.11.2026 — testy zgodności paczek MCP 2–4 pliki — PR do potwierdzenia, BEZ PUBLIKACJI
+
+- W testowym symulatorze `scripts/test_synthetic_batch_deploy.py` skorygowano zakres liczby plików z 1–10 do 2–4, zgodny z deklaracją `stage_safe_batch` w RentMor Control Prywatny 7. Dodano test poprawnej aktualizacji czterech fikcyjnych plików, odmowy dla jednego/pięciu plików, pełnej blokady przy nieaktualnym SHA czwartego pliku i rollbacku wszystkich czterech po symulowanym błędzie czwartego zapisu.
+- Zmiana dotyczy wyłącznie offline testów GitHub w losowym katalogu tymczasowym. **Nie modyfikuje** prywatnego modułu MCP, danych klientów, logowania, OAuth, rezerwacji ani hostingu AZ.pl. Nie tworzy automatycznego dziennika. Testy CI / PR do potwierdzenia; nie dowodzą atomowości produkcyjnego addonu.
+
 ## 08.11.2026 — bezpieczne transakcje testowe, rollback i monitoring HTTP — PR #141, BEZ PUBLIKACJI
 
 - **Zakres:** na życzenie właściciela rozwijamy cofanie wdrożeń, testy syntetyczne, wieloplikowe zmiany i monitorowanie; **bez tworzenia automatycznego dziennika zmian**. W repo przygotowano `scripts/test_synthetic_batch_deploy.py` (wyłącznie pliki `fixture-*` w losowym katalogu tymczasowym, brak dostępu do AZ.pl) z pełnym preflight SHA dla wszystkich plików, walidacją PHP CLI, atomową podmianą, weryfikacją hash po zapisie i odzyskaniem wszystkich plików po błędzie zapisu lub health-check. Testy obejmują duplikaty, symlinki, niedozwolone ścieżki, SHA stale i awarie w połowie transakcji.

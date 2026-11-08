@@ -20,7 +20,8 @@ import unittest
 MARKER = ".rentmor-synthetic-test-only"
 MARKER_TEXT = "LOCAL TEST DATA ONLY\n"
 ALLOWED = re.compile(r"^fixture-[a-z0-9-]{1,45}\.(php|js|css)$")
-MAX_FILES = 10
+MIN_FILES = 2
+MAX_FILES = 4  # Mirrors RentMor Control stage_safe_batch contract
 MAX_BYTES = 65_536
 
 
@@ -49,7 +50,7 @@ def preflight(root: Path, changes: list[dict]) -> list[tuple[Path, bytes, bytes]
             not (root / MARKER).is_file() or
             (root / MARKER).read_text(encoding="utf-8") != MARKER_TEXT):
         raise ValueError("Only a marked synthetic temporary directory is allowed")
-    if not 1 <= len(changes) <= MAX_FILES:
+    if not MIN_FILES <= len(changes) <= MAX_FILES:
         raise ValueError("Invalid batch size")
     seen = set()
     prepared = []
@@ -144,6 +145,62 @@ class SyntheticTransactionTests(unittest.TestCase):
         self.assertEqual(len(resulting), 2)
         self.assertIn("blue", self.a.read_text())
         self.assertIn("count = 2", self.b.read_text())
+
+    def four_file_batch(self):
+        third = self.root / "fixture-third.css"
+        fourth = self.root / "fixture-fourth.js"
+        third.write_text("h1 { display: block; }\n", encoding="utf-8")
+        fourth.write_text("const ready = false;\n", encoding="utf-8")
+        return self.batch() + [
+            {"name": third.name, "expected_sha256": sha(third.read_bytes()),
+             "content": "h1 { display: flex; }\n"},
+            {"name": fourth.name, "expected_sha256": sha(fourth.read_bytes()),
+             "content": "const ready = true;\n"},
+        ]
+
+    def test_four_files_commit_after_full_preflight(self):
+        batch = self.four_file_batch()
+        hashes = simulate_batch(self.root, batch)
+        self.assertEqual(len(hashes), 4)
+        for entry, checksum in zip(batch, hashes):
+            data = (self.root / entry["name"]).read_bytes()
+            self.assertEqual(data, entry["content"].encode("utf-8"))
+            self.assertEqual(sha(data), checksum)
+
+    def test_one_file_refused_by_host_contract(self):
+        before = self.a.read_bytes()
+        with self.assertRaisesRegex(ValueError, "batch size"):
+            simulate_batch(self.root, self.batch()[:1])
+        self.assertEqual(self.a.read_bytes(), before)
+
+    def test_five_files_refused_by_host_contract(self):
+        batch = self.four_file_batch()
+        fifth = self.root / "fixture-fifth.css"
+        fifth.write_text("p { margin: 0; }\n", encoding="utf-8")
+        batch.append({"name": fifth.name, "expected_sha256": sha(fifth.read_bytes()),
+                      "content": "p { margin: 1px; }\n"})
+        with self.assertRaisesRegex(ValueError, "batch size"):
+            simulate_batch(self.root, batch)
+        self.assertEqual(self.a.read_text(), "body { color: black; }\n")
+
+    def test_stale_sha_on_fourth_file_aborts_whole_batch(self):
+        batch = self.four_file_batch()
+        before = {entry["name"]: (self.root / entry["name"]).read_bytes()
+                  for entry in batch}
+        batch[3]["expected_sha256"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "Stale"):
+            simulate_batch(self.root, batch)
+        for name, original in before.items():
+            self.assertEqual((self.root / name).read_bytes(), original)
+
+    def test_fourth_write_failure_restores_all_four_files(self):
+        batch = self.four_file_batch()
+        before = {entry["name"]: (self.root / entry["name"]).read_bytes()
+                  for entry in batch}
+        with self.assertRaisesRegex(RuntimeError, "restored"):
+            simulate_batch(self.root, batch, fail_after=4)
+        for name, original in before.items():
+            self.assertEqual((self.root / name).read_bytes(), original)
 
     def test_stale_sha_refuses_entire_batch(self):
         batch = self.batch()
