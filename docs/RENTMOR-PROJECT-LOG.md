@@ -1,5 +1,13 @@
 # RentMor — stan projektu i dziennik zmian
 
+## 08.11.2026 — plan własnego asystenta RentMor AI — PLAN, BEZ WDROŻENIA
+
+- Właściciel zdecydował o **samodzielnie hostowanym modelu AI** (gotowe otwarte wagi, nie płatne zewnętrzne API); prototyp na istniejącym laptopie Windows 11 / 8 GB RAM i osobne całodobowe środowisko docelowe. Hosting Basic AZ.pl pozostaje serwerem strony, katalogu i rezerwacji; nie uruchamia inferencji modelu.
+- Zakres: asystent czatu, źródła z aktualnej oferty, prywatna baza wiedzy z **obowiązkowym zatwierdzaniem** przez właściciela, ręczne dodawanie instrukcji maszyn, tygodniowe zakresy godzin odbioru/zwrotu (np. 12:00–18:00), publiczne zgłoszenia rezerwacji oczekujące na potwierdzenie administratora. Nie naruszać dotychczasowej zajętości obu dat granicznych, obsługi fizycznych egzemplarzy i wspólnych zasobów żyraf/odkurzaczy.
+- Szczegółowy plan, etapowanie, minimalne uprawnienia, kryteria testów oraz wymogi bezpiecznej publikacji: [docs/RENTMOR-LOCAL-AI-PLAN.md](RENTMOR-LOCAL-AI-PLAN.md).
+- Wykonano wyłącznie **plan dokumentacyjny**. Nie zainstalowano modelu, nie zmieniono rezerwacji, nie opublikowano plików na AZ.pl. Testy kodu: nie dotyczy dla samej dokumentacji; przyszłe zmiany produkcyjne wymagają oddzielnych testów i zatwierdzenia.
+
+
 **Główna karta projektu: strona RentMor.pl + natywna aplikacja Android.**  
 Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybranego okresu). Stan kodu: `main`, merge `d40ab548a1fec86f9f2d45081541438a053a5d2d`. Aplikacja: **1.7.24**, `versionCode 39`; [PR #104](https://github.com/Domiono/Protokol/pull/104), [testy](https://github.com/Domiono/Protokol/actions/runs/42105724381), [podpisany APK](https://github.com/Domiono/Protokol/actions/runs/42106047277). Weryfikacja instalacji na fizycznym urządzeniu pozostaje do wykonania. Starsze wpisy i statusy stron/SEO zachowują historyczne daty weryfikacji.
 
