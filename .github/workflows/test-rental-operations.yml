@@ -22,6 +22,8 @@ jobs:
         with:
           gradle-version: '8.9'
       - run: python3 scripts/assert_github_test_only.py
+      - run: python3 scripts/test_synthetic_batch_deploy.py
+      - run: python3 scripts/test_monitor_public.py
       - run: php -l server/protocol_sync.php
       - run: php -l server/admin.php
       - run: php scripts/test_admin_rental_stats.php
