@@ -100,7 +100,7 @@ def run(checks=CHECKS, base=BASE, opener=None, clock=None, sleep=None) -> None:
     if summary_path:
         lines = ["### RentMor public status (read-only)", "",
                  "| Path | HTTP | Latency |", "| --- | --- | --- |"]
-        lines.extend(f"| \`{row['path']}\` | {row['status']} | {row['duration_s']:.3f}s |"
+        lines.extend(f"| {chr(96)}{row['path']}{chr(96)} | {row['status']} | {row['duration_s']:.3f}s |"
                      for row in successes)
         if failures:
             lines.extend(["", f"**Failed checks:** {len(failures)} (see sanitized job logs)"])
