@@ -146,17 +146,16 @@ class SyntheticTransactionTests(unittest.TestCase):
         self.assertIn("blue", self.a.read_text())
         self.assertIn("count = 2", self.b.read_text())
 
-
     def four_file_batch(self):
         third = self.root / "fixture-third.css"
         fourth = self.root / "fixture-fourth.js"
-        third.write_text("h1 { display: block; }\\n", encoding="utf-8")
-        fourth.write_text("const ready = false;\\n", encoding="utf-8")
+        third.write_text("h1 { display: block; }\n", encoding="utf-8")
+        fourth.write_text("const ready = false;\n", encoding="utf-8")
         return self.batch() + [
             {"name": third.name, "expected_sha256": sha(third.read_bytes()),
-             "content": "h1 { display: flex; }\\n"},
+             "content": "h1 { display: flex; }\n"},
             {"name": fourth.name, "expected_sha256": sha(fourth.read_bytes()),
-             "content": "const ready = true;\\n"},
+             "content": "const ready = true;\n"},
         ]
 
     def test_four_files_commit_after_full_preflight(self):
@@ -177,12 +176,12 @@ class SyntheticTransactionTests(unittest.TestCase):
     def test_five_files_refused_by_host_contract(self):
         batch = self.four_file_batch()
         fifth = self.root / "fixture-fifth.css"
-        fifth.write_text("p { margin: 0; }\\n", encoding="utf-8")
+        fifth.write_text("p { margin: 0; }\n", encoding="utf-8")
         batch.append({"name": fifth.name, "expected_sha256": sha(fifth.read_bytes()),
-                      "content": "p { margin: 1px; }\\n"})
+                      "content": "p { margin: 1px; }\n"})
         with self.assertRaisesRegex(ValueError, "batch size"):
             simulate_batch(self.root, batch)
-        self.assertEqual(self.a.read_text(), "body { color: black; }\\n")
+        self.assertEqual(self.a.read_text(), "body { color: black; }\n")
 
     def test_stale_sha_on_fourth_file_aborts_whole_batch(self):
         batch = self.four_file_batch()
