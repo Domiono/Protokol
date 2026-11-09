@@ -89,6 +89,12 @@ public class SyncManager {
         JSONObject data=new JSONObject();data.put("token",token);data.put("enabled",enabled);
         return request(API+"?view=push_token","POST",data);
     }
+    public JSONObject decideMortii(String id,String action,String total,String revision) throws Exception {
+        JSONObject body=new JSONObject();body.put("id",id);body.put("action",action);body.put("total",total);body.put("catalogue_revision",revision);
+        JSONObject response=request(API+"?view=mortii","POST",body);
+        if(!response.optBoolean("ok",false))throw new IOException(response.optString("error","Nie potwierdzono rezerwacji. Odśwież zgłoszenia."));
+        return response;
+    }
     public JSONArray fetchMessages() throws Exception {
         JSONObject response=request(API+"?view=messages","GET",null);
         if(!"admin".equals(response.optString("role")))

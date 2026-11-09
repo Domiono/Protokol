@@ -460,3 +460,7 @@ Dodawaj **nowe wpisy na początku**, zachowując historię. Każdy wpis powinien
 
 - **28.10.2026 — rozpoczęcie centralnego rejestru.** Odtworzono stan na podstawie scalonych PR #4–#49, dokumentów technicznych i bieżącego kodu. Wskazano istniejące mechanizmy i rozdzielono je od luk R-01–R-07. [PR #50](https://github.com/Domiono/Protokol/pull/50). **Zmiana dokumentacyjna, bez modyfikowania aplikacji, witryny lub danych.**
 
+
+## 09.11.2026 — Mortii Android: isolated compilation test
+- Test-only branch adds booking-request approval/decline in the website inbox and a user-reviewed SMS composer after server-confirmed approval. Version1.7.26/code41. No automatic SMS, no SEND_SMS permission, no private pickup address or hosting configuration in the branch. Runtime server feature remains a separate unpublished candidate.
+- Workflow compiles debug APK and runs unit tests only; no hosting access, no deployment, no release signing, no secrets supplied. Validation results pending. No merge or publication authorized by this test.

@@ -1,0 +1,31 @@
+name: Mortii Android test only
+on:
+  push:
+    branches: [codex/mortii-android-test-20261109]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - run: gradle --no-daemon testDebugUnitTest assembleDebug
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mortii-android-test-only
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/reports/tests/
+          retention-days: 7
