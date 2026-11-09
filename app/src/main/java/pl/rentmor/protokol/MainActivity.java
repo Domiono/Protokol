@@ -354,7 +354,7 @@ public class MainActivity extends Activity {
                     .setPositiveButton("Pobierz",(d,w)->{
                         try{
                             Intent i=new Intent(Intent.ACTION_VIEW,android.net.Uri.parse(
-                                "https://github.com/Domiono/Protokol/releases/latest/download/RentMor.apk"));
+                                "https://rentmor.pl/RentMor.apk"));
                             startActivity(i);
                         }catch(Exception e){toast("Nie można otworzyć pobierania: "+e.getMessage());}
                     }).show();
