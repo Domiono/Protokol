@@ -1,12 +1,11 @@
-name: Mortii Android test only
+name: Mortii signed build validation only
 on:
   push:
     branches: [codex/mortii-android-test-20261109]
-  workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  android:
+  signed-validation:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -20,12 +19,55 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - run: gradle --no-daemon testDebugUnitTest assembleDebug
+      - name: Check signing secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RENTMOR_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.RENTMOR_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RENTMOR_KEY_ALIAS }}
+        run: |
+          test -n "$KEYSTORE_BASE64" || (echo "Missing GitHub secret RENTMOR_KEYSTORE_BASE64" && exit 1)
+          test -n "$KEYSTORE_PASSWORD" || (echo "Missing GitHub secret RENTMOR_KEYSTORE_PASSWORD" && exit 1)
+          test -n "$KEY_ALIAS" || (echo "Missing GitHub secret RENTMOR_KEY_ALIAS" && exit 1)
+      - name: Prepare signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RENTMOR_KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/rentmor-release.jks"
+      - name: Configure Firebase Android app (optional)
+        env:
+          FIREBASE_ANDROID_JSON: ${{ secrets.RENTMOR_FIREBASE_ANDROID_JSON }}
+        run: |
+          set -eu
+          if [ -z "$FIREBASE_ANDROID_JSON" ]; then
+            echo "Firebase Android config not set: APK keeps 15-minute polling fallback."
+          else
+            printf '%s' "$FIREBASE_ANDROID_JSON" > app/google-services.json
+            python3 - <<'PY'
+          import json
+          with open('app/google-services.json',encoding='utf-8') as file:
+              conf=json.load(file)
+          assert any(c.get('client_info',{}).get('android_client_info',{}).get('package_name')=='pl.rentmor.protokol' for c in conf.get('client',[])), 'Wrong Firebase Android package'
+          assert conf.get('project_info',{}).get('project_id'), 'Missing Firebase project'
+          print('Validated Firebase Android application configuration.')
+          PY
+          fi
+      - name: Build signed release APK
+        env:
+          RENTMOR_KEYSTORE_PATH: ${{ runner.temp }}/rentmor-release.jks
+          RENTMOR_KEYSTORE_PASSWORD: ${{ secrets.RENTMOR_KEYSTORE_PASSWORD }}
+          RENTMOR_KEY_ALIAS: ${{ secrets.RENTMOR_KEY_ALIAS }}
+        run: gradle --no-daemon testDebugUnitTest assembleRelease
+      - name: Verify signed installer
+        run: |
+          signer=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
+          "$signer" verify --print-certs app/build/outputs/apk/release/app-release.apk
+          sha256sum app/build/outputs/apk/release/app-release.apk
       - uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: mortii-android-test-only
-          path: |
-            app/build/outputs/apk/debug/*.apk
-            app/build/reports/tests/
-          retention-days: 7
+          name: mortii-signed-validated
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 3
+      - name: Clean temporary signing material
+        if: always()
+        run: rm -f "$RUNNER_TEMP/rentmor-release.jks" app/google-services.json
