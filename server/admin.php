@@ -114,9 +114,8 @@ if(isset($_POST['totp_code'])){
 }
 if(isset($_GET['logout'])){session_destroy();header('Location: admin.php');exit();}
 $is_logged=!empty($_SESSION['logged_in'])&&!empty($_SESSION['rm_mfa_verified']);
-// Search Console: after the existing password, MFA and session validation.
-require_once __DIR__ . '/search_console_admin.php';
-rm_gsc_admin_handle($is_logged);
+// Obsolete integration links return to the ordinary panel without OAuth handling.
+if (($_GET['tab'] ?? '') === 'google' || isset($_GET['gsc_callback'])) { header('Location: admin.php', true, 303); exit; }
 require_once __DIR__ . '/traffic_filter.php';
 if ($is_logged) rm_stats_remember_owner();
 
@@ -848,8 +847,6 @@ if (isset($_GET['edit_id'])) {
                     STATY
                 </a>
 
-                <a href="?tab=google" class="px-4 py-2 rounded-lg text-xs font-black transition <?php echo $active_tab == 'google' ? 'bg-yellow-400 text-black' : ''; ?>">GOOGLE / SEO</a>
-
                 <a href="?tab=messages"
                    class="px-4 py-2 rounded-lg text-xs font-black transition <?php echo $active_tab == 'messages' ? 'bg-yellow-400 text-black' : ''; ?>">
                     PYTANIA
@@ -903,8 +900,6 @@ if (isset($_GET['edit_id'])) {
     </nav>
 
     <div class="max-w-6xl mx-auto p-4 py-8 admin-container">
-
-        <?php if ($active_tab == 'google') rm_gsc_admin_render($is_logged, $products); ?>
 
         <?php if ($active_tab == 'dashboard'): ?>
             <?php if (!empty($stats['browser_filter_since'])): ?>

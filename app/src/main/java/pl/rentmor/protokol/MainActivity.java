@@ -209,8 +209,6 @@ public class MainActivity extends Activity {
                 protocolBackAction=null;
                 new NotebookPage(this,root,notebook,sync,()->showHome()).show();
             });
-        if(isAdmin()) homeMenuItem(page,android.R.drawable.ic_menu_search,"Google / SEO",
-            "Wyniki i frazy z Search Console dla sprzętu",0xffe4efff,()->searchConsolePage());
         if(isAdmin()) homeMenuItem(page,android.R.drawable.ic_menu_info_details,"AI — Wiedza",
             "Instrukcje i zasady dla Mortii oraz wiedza prywatna",0xffe4efff,()->aiKnowledgePage());
         homeSectionTitle(page,"DOKUMENTY I FINANSE","Dokumenty i wyniki wypożyczalni");
@@ -550,7 +548,6 @@ public class MainActivity extends Activity {
         TextView h=new TextView(this);h.setText("STRONA RENTMOR");h.setTextSize(25);h.setTypeface(null,1);h.setTextColor(0xff172235);root.addView(h);
         TextView sub=new TextView(this);sub.setText("Zarządzaj publiczną ofertą i sprawdzaj ruch na stronie.");sub.setTextColor(0xff697386);sub.setPadding(0,5,0,14);root.addView(sub);
         menuCard(root,"▥","Statystyki strony","Odsłony, źródła wejść i popularny sprzęt",()->siteStatsPage(),0xfffff1c2);
-        menuCard(root,"G","Google / SEO","Kliknięcia, wyświetlenia i frazy wyszukiwania",()->searchConsolePage(),0xffe4efff);
         menuCard(root,"＋","Dodaj sprzęt","Opublikuj nową ofertę na RentMor.pl",()->productForm(null),0xfffff6d9);
         menuCard(root,"▤","Lista sprzętu","Edytuj lub usuń opublikowane oferty",()->siteProductsPage(),0xffedf0f5);
         addButton("WRÓĆ DO MENU",()->showHome());
@@ -1909,11 +1906,6 @@ public class MainActivity extends Activity {
     }
     private String customerMoney(double amount){
         return String.format(new Locale("pl","PL"),"%,.2f zł",amount);
-    }
-    private void searchConsolePage(){
-        if(!isAdmin()){toast("Search Console jest dostępne tylko dla administratora.");showHome();return;}
-        SearchConsolePage google=new SearchConsolePage(this,root,sync,()->showHome());
-        google.show();protocolBackAction=()->google.back();
     }
     private void aiKnowledgePage(){
         if(!isAdmin()){toast("Wiedza AI jest dostępna tylko dla administratora.");showHome();return;}

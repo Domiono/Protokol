@@ -1,10 +1,22 @@
 # RentMor — stan projektu i dziennik zmian
 
 **Główna karta projektu: strona RentMor.pl + natywna aplikacja Android.**  
-Ostatnia aktualizacja: **10.11.2026**. Search Console: panel WWW i natywna aplikacja Android opublikowane, [PR #151](https://github.com/Domiono/Protokol/pull/151), [PR #152](https://github.com/Domiono/Protokol/pull/152). Android: **1.7.30 / versionCode45**, [potwierdzone wydanie](https://github.com/Domiono/Protokol/actions/runs/42908629092). Rzeczywiste wyniki wymagają wspólnego połączenia Google skonfigurowanego w WWW. Starsze wpisy zachowują historyczne daty i statusy; najnowszy potwierdzony wpis ma pierwszeństwo.
+Ostatnia aktualizacja: **10.11.2026**. Integracja Search Console zWWW iAndroida **WYCOFANA na prośbę właściciela**, [PR #153](https://github.com/Domiono/Protokol/pull/153), [testy i publikacja](https://github.com/Domiono/Protokol/actions/runs/42915561164). Android: **1.7.31 / versionCode46**. Pozostałe SEO, statystyki i funkcjeRentMor zachowane. Najnowszy potwierdzony wpis ma pierwszeństwo przed historycznymi statusami.
 
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
+
+## 10.11.2026 — Search Console wycofane z WWW i aplikacji
+
+Na wyraźne polecenie właściciela cofnięto integrację zPR151/152: usunięto menu i konfiguracjęWWW, natywny ekranAndroida, metody klienta, helpery, testy i jednorazowe skrypty poprzedniej integracji. Dotychczasowe metadaneSEO, edycja ofert, poradniki, statystyki strony, wiedzaAI, Mortii, rezerwacje i klienci zachowane. Niezależne połączenieWindsor wChatGPT pozostaje. Nie usuwano projektu ani klientaGoogleCloud.
+
+**OPUBLIKOWANE**, PR153, run42915561164 SUCCESS. Android **1.7.31/code46**, ten sam certyfikat co1.7.30; instalacja na obecną aplikację bez odinstalowania. Sprawdzono także brak klasySearchConsolePage i menuGoogle/SEO wDEX oraz zachowanieAiKnowledgePage. NowyAPK SHA256 **85ad13f24ad1dc7d397568f4db175123cd3855c7dedf5f22003134776392e846**, instalator https://rentmor.pl/download-app.php?release=46 . PubliczneAPK i endpointpobierania zgodne bajtowo, no-store i filenameRentMor-1.7.31.apk.
+
+Z bieżących plików hostingu usunięto dokładnie znane hookiGSC, zachowując pozostały kod. admin.php SHA256f2bda759d8ad74034a05c031056ce39643515fa579a3fa0e7d9b4f0d563434ad, protocol_sync.php SHA2568e2982039832f3ebd044b40786d5ce7f87573697f65c9683f52e572a8b176642. Trzy helpery usunięte, publiczne404. Staryendpoint po aktywacji zwraca410 z samymbłędem, zamiast pełnej synchronizacji; bezaktywacji401. Stare linkiGoogle wpanelu kierują do admin.php, bezobsługiOAuth.
+
+Testy: pełnyAndroid/testDebugUnitTest i podpisanyassembleReleasePASS;4testytransakcji usunięcia/przywrócenia na fikcyjnych danych,5testówHTTPstaregoendpointu i4testypobieraniaPASS. Po publikacji dokładnyreadback i zgodność obu dokumentów0700/0600. Fizyczna instalacja na telefonie właściciela pozostaje do wykonania.
+
+Końcowe porządkowanie: katalog połączenia jest sprawdzany pod ścieżką wynikającą z dirname(realpath(public_html)), tak jak wcześniejszyhelper; aliasy webrootu mogą różnić się od katalogu bieżącegoSSH. Jeżeli istnieje, cały katalog konfiguracji/tokenów/raportów jest przenoszony do prywatnej kopii0700, bez odczytu sekretów i bez żądańGoogle. Wynik jest potwierdzany w końcowym zadaniu REMOVE_GSC_RESULT/connection_disabled oraz REMOVE_GSC_TWO_PROGRESS_DOCUMENTS_SHA256_0600_VERIFIED. Ten tryb nie podmienia ponownieAPK ani źródeł. Tymczasowyworkflow publikacji/synchronizacji usunąć po zakończeniu; główna politykatest-only zachowana.
 
 ## 10.11.2026 — Search Console w aplikacji Android, OPUBLIKOWANE
 

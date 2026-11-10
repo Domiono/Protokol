@@ -1,0 +1,24 @@
+{
+  "docs": {
+    "CONTINUE-RENTMOR.md": "9dd677395de14ec83223eefe42ae7fb8f1267541",
+    "RENTMOR-PROJECT-LOG.md": "d9672685572289570761f270848631269fb0b6d5"
+  },
+  "source_before": {
+    "admin.php": "7e73d144c818e8bd5d49d5f4231b4a18307d5e9f9ee28cec8eff2dee2d231ef8",
+    "protocol_sync.php": "e9b8491a0d2e7f21fc8e8b0c9e8d0b6c3012c202813448ac070ffcb1697b24bd"
+  },
+  "helper_blobs": {
+    "search_console.php": "d0f28b2b3a189f1d738b53487fec534a45dd8374",
+    "search_console_admin.php": "1d18ae60254205c353b1b57c6457800c11038f25",
+    "search_console_app.php": "d936b122219bb5467712fc3b81fb16e47d8adcbd"
+  },
+  "admin_remove": [
+    "\n// Search Console: after the existing password, MFA and session validation.\nrequire_once __DIR__ . '/search_console_admin.php';\nrm_gsc_admin_handle($is_logged);",
+    "                <a href=\"?tab=google\" class=\"px-4 py-2 rounded-lg text-xs font-black transition <?php echo $active_tab == 'google' ? 'bg-yellow-400 text-black' : ''; ?>\">GOOGLE / SEO</a>\n\n",
+    "        <?php if ($active_tab == 'google') rm_gsc_admin_render($is_logged, $products); ?>\n\n"
+  ],
+  "admin_auth": "$is_logged=!empty($_SESSION['logged_in'])&&!empty($_SESSION['rm_mfa_verified']);",
+  "admin_redirect": "\n// Obsolete integration links return to the ordinary panel without OAuth handling.\nif (($_GET['tab'] ?? '') === 'google' || isset($_GET['gsc_callback'])) { header('Location: admin.php', true, 303); exit; }",
+  "api_remove": "if (($_GET['view'] ?? '') === 'search_console') {\n    require_once __DIR__.'/search_console_app.php';\n    rm_gsc_app_handle($role,$method);\n}\n",
+  "api_tombstone": "if (($_GET['view'] ?? '') === 'search_console') {\n    rm_json_response(410, ['ok'=>false, 'error'=>'Integracja Search Console została wycofana. Zaktualizuj aplikację.']);\n}\n"
+}
