@@ -1,4 +1,4 @@
-name: Repair Mortii at source and verify mobile production
+name: Verify Mortii character after normal cookie choice
 on:
   push:
     branches: [codex/mortii-visual-20261110]

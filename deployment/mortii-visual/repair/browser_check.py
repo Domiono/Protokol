@@ -16,12 +16,16 @@ async def main():
    page.on('response',lambda r:resources.append({'url':r.url,'status':r.status}) if 'mortii' in r.url else None)
    await page.goto('https://rentmor.pl'+path,wait_until='domcontentloaded',timeout=60000)
    launch=page.locator('#mortii-launcher');await launch.wait_for();await page.wait_for_timeout(800)
+   deny=page.get_by_role('button',name='Tylko niezbędne',exact=True)
+   if await deny.is_visible():await deny.click()
    state=await launch.evaluate('(e)=>({html:e.outerHTML,width:e.getBoundingClientRect().width,height:e.getBoundingClientRect().height,round:getComputedStyle(e).borderRadius,images:[...e.querySelectorAll("img")].map(i=>({src:i.src,loaded:i.complete&&i.naturalWidth>0}))})')
    await page.screenshot(path=str(out/f'{"after" if args.after else "before"}-{i}-closed.png'))
    if args.after:
     assert 60<=state['width']<=64 and 60<=state['height']<=64,state
     assert state['images'] and all(x['loaded'] for x in state['images']),state
     assert 'rentmor-ai-mortii-visual' not in await page.content()
+    assert all('mortii.js?v=6' in x['url'] for x in resources if '/mortii.js?' in x['url'])
+    assert all('mortii.css?v=3' in x['url'] for x in resources if '/mortii.css?' in x['url'])
     await launch.click();await page.locator('#mortii-chat textarea').wait_for(state='visible')
     assert not await launch.is_visible()
     avatar=page.locator('#mortii-chat .mortii-avatar').first
