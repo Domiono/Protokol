@@ -28,6 +28,6 @@ Konfiguracja klienta, tokeny i raporty znajdują się w `rentmor-private/search-
 
 Nowe helpery publikować przed trzema hookami w aktualnym produkcyjnym admin.php. `scripts/patch_search_console.py` akceptuje wyłącznie znane, pojedyncze kotwice i zachowuje pozostałe bajty; nie nadpisywać całego produkcyjnego panelu wersją z main. Wymagane: kopia prywatna, preflight źródła, lint, readback i sprawdzenie niezalogowanej strony. Wraz z każdą zmianą aktualizować `CONTINUE-RENTMOR.md`, `RENTMOR-PROJECT-LOG.md` oraz ich identyczne prywatne kopie na hostingu; status synchronizacji potwierdzać odczytem SHA256.
 
-Android nie otrzymuje tej zakładki w tym etapie. Repozytorium dokumentuje wdrożone funkcje witryny oraz aplikacji oddzielnie.
+Android1.7.30/code45 otrzymał natywny ekran Google / SEO na panelu głównym i w sekcji Strona (wyłącznie administrator). Korzysta ze wspólnych raportów, katalogu i połączeniaGoogle; konfiguracjaOAuth otwierana w zewnętrznej przeglądarce. API wymaga aktywnego urządzenia z roląadmin i nagłówkaPOST; tokenyGoogle nie trafiają do telefonu. Publikacja42908629092 SUCCESS, pełny opis wPR152 i dzienniku projektu. Instalator: https://rentmor.pl/download-app.php?release=45 .
 
 Źródła: https://developers.google.com/webmaster-tools/v1/how-tos/authorizing oraz https://developers.google.com/webmaster-tools/v1/searchanalytics/query .
