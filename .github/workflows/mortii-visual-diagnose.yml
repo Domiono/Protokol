@@ -1,0 +1,23 @@
+name: Diagnose real mobile Mortii
+on:
+  push:
+    branches: [codex/mortii-visual-20261110]
+    paths: [.github/workflows/mortii-visual-diagnose.yml]
+permissions:
+  contents: read
+jobs:
+  mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: python3 -m pip install 'playwright==1.56.0'
+      - run: python3 deployment/mortii-visual/repair/browser_check.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mortii-mobile-before
+          path: mortii-browser-proof/
+          retention-days: 7
