@@ -1,3 +1,7 @@
+## Aktualizacja 10.11.2026: opublikowano
+
+PR #144: preflight42766482713 i wdrożenie42766581986 zakończone powodzeniem. Tymczasowy aktywny workflow usunięty po wdrożeniu; pozostał nieaktywny szablon. Poniższe instrukcje są opisem przygotowanego procesu, a nie wezwaniem do ponownego wdrożenia. Manifest wskazuje wersje sprzed publikacji, więc ponowny apply zatrzyma się na SHA.
+
 # Mortii: jednorazowe wdrożenie tekstów formularza
 
 Status 10.11.2026: przygotowane i przetestowane syntetycznie; NIE uruchomiono SFTP ani publikacji. Szablon workflow jest nieaktywny (`workflow.yml.example`). Bieżące workflow test-only i ich zabezpieczenia pozostają bez zmian.
