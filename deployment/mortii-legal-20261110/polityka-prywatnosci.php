@@ -33,7 +33,7 @@ header('X-Content-Type-Options: nosniff');
 <li><a href="#administrator">Administrator danych</a></li><li><a href="#zakres">Jakie dane przetwarzamy?</a></li>
 <li><a href="#cele">Cele i podstawy prawne</a></li><li><a href="#odbiorcy">Odbiorcy danych i usługi zewnętrzne</a></li>
 <li><a href="#okres">Okres przechowywania</a></li><li><a href="#cookies">Cookies i statystyki</a></li>
-<li><a href="#prawa">Prawa użytkownika</a></li><li><a href="#pozostale">Pozostałe informacje</a></li><li><a href="#mortii">Mortii i formularz rezerwacji</a></li>
+<li><a href="#prawa">Prawa użytkownika</a></li><li><a href="#pozostale">Pozostałe informacje</a></li><li><a href="#mortii">Mortii i formularz rezerwacji</a></li><li><a href="#regulamin-mortii">Regulamin czatu i rezerwacji</a></li>
 </ol></nav>
 <section id="administrator"><h2>1. Administrator danych</h2>
 <p>Administratorem danych osobowych przetwarzanych w związku z działaniem serwisu <strong>RentMor.pl</strong> jest osoba fizyczna prowadząca wypożyczalnię pod tą nazwą: <strong>Dominik Morawski</strong>, Kraków (Czyżyny). Nazwa RentMor.pl jest nazwą serwisu i marki.</p>
@@ -88,9 +88,13 @@ header('X-Content-Type-Options: nosniff');
 <h3>Formularz zgłoszenia wynajmu</h3>
 <p>Formularz zbiera imię i nazwisko, numer telefonu, e-mail, wybrany sprzęt, proponowaną datę i godzinę odbioru, liczbę dób oraz ewentualną dodatkową wiadomość. Dane służą wyłącznie obsłudze zgłoszenia, ustaleniu warunków najmu i kontaktowi z klientem (art. 6 ust. 1 lit. b RODO; w zakresie bezpieczeństwa – lit. f). Dane z formularza są obsługiwane w systemie RentMor i <strong>nie są przekazywane do modelu AI w ramach zgłoszenia</strong>. Mogą być przetwarzane przez dostawców hostingu i powiadomień niezbędnych do obsługi zgłoszenia.</p>
 <p>Po wysłaniu formularza system może nadać numer zgłoszenia. <strong>Samo zgłoszenie nie stanowi umowy najmu, nie rezerwuje automatycznie sprzętu i nie powoduje obowiązku zapłaty.</strong> Dostępność i warunki są weryfikowane przez obsługę RentMor, a potwierdzenie może zostać przesłane SMS-em. Dane zgłoszeń przechowujemy do 12 miesięcy, chyba że dłuższy okres jest konieczny ze względu na obowiązki prawne lub roszczenia; zasady dotyczące kopii zapasowych opisano w pkt 5.</p>
-<p>Niezbędne identyfikatory sesji służą utrzymaniu rozmowy i zabezpieczeniu formularza. Mechanizmy antyspamowe mogą używać okresowo zmienianego skrótu adresu IP. Więcej o zasadach korzystania z tych funkcji: <a href="/rentmor-ai-regulamin-mortii.html">Regulamin czatu Mortii i formularza zgłoszenia wynajmu</a>.</p>
-</section></main>
-<footer><a href="/">Strona główna</a> · <a href="/zasady.php">Zasady wynajmu</a> · <a href="/rentmor-ai-regulamin-mortii.html">Regulamin Mortii</a> · RentMor.pl © 2026 · <a href="#ustawienia-cookies" data-rm-cookie-settings>Ustawienia cookies</a></footer>
-<script src="/cookie-consent.js" defer></script>
-</body>
-</html>
+<p>Niezbędne identyfikatory sesji służą utrzymaniu rozmowy i zabezpieczeniu formularza. Mechanizmy antyspamowe mogą używać okresowo zmienianego skrótu adresu IP. Więcej o zasadach korzystania z tych funkcji: <a href="#regulamin-mortii">Regulamin czatu Mortii i formularza zgłoszenia wynajmu</a>.</p>
+</section>
+<section class="paper" id="regulamin-mortii">
+<h2>Regulamin korzystania z czatu Mortii i formularza zgłoszenia wynajmu</h2>
+<p><strong>Wersja: 10 listopada 2026 r.</strong> Ten regulamin uzupełnia <a href="/zasady.php">zasady wynajmu sprzętu</a> RentMor.pl. Dotyczy wyłącznie bezpłatnych funkcji czatu AI i internetowego formularza zgłoszenia; nie zastępuje umowy najmu.</p>
+<h3>§ 1. Operator i cel usług</h3>
+<p>Usługi udostępnia podmiot prowadzący wypożyczalnię RentMor w Krakowie (Czyżynach), którego dane i kontakt wskazano w sekcji „Administrator danych” powyżej. Mortii pomaga wyszukiwać informacje o sprzęcie, cenach i warunkach wynajmu. Formularz umożliwia przesłanie propozycji terminu wynajmu do obsługi RentMor.</p>
+<h3>§ 2. Zasady czatu AI</h3>
+<p>Odpowiedzi Mortii są tworzone automatycznie i mogą być niekompletne lub błędne. Nie stanowią wiążącego potwierdzenia dostępności sprzętu, ceny końcowej, rezerwacji ani instrukcji jego bezpiecznej obsługi. Wiążące ustalenia należy potwierdzić z RentMor; przy korzystaniu z urządzeń obowiązują instrukcje producentów i zasady wypożyczalni.</p>
+<p>Nie należy umieszczać w rozmowie danych osobowych, danych dokumentów tożsamości, danych płatniczych ani informacji wrażliwych. Wiadomości wysłane w czacie mogą być przekazane do OpenAI API w celu uzyskania odpowiedzi, na zasadach opisanych w polityce prywatności powyżej.</p>
