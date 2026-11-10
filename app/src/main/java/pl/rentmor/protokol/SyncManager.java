@@ -80,6 +80,22 @@ public class SyncManager {
         if(!result.optBoolean("ok",false))throw new IOException(result.optString("error","Serwer nie potwierdził synchronizacji."));
         return result;
     }
+    public JSONObject fetchAiKnowledge(String audience) throws Exception {
+        checkAiAudience(audience);
+        return requireAiAdmin(request(API+"?view=ai_knowledge&audience="+audience,"GET",null));
+    }
+    public JSONObject saveAiKnowledge(String audience,String text,String revision) throws Exception {
+        checkAiAudience(audience);
+        JSONObject body=new JSONObject();body.put("audience",audience);body.put("text",text);body.put("revision",revision);
+        return requireAiAdmin(request(API+"?view=ai_knowledge","POST",body));
+    }
+    private static void checkAiAudience(String audience){
+        if(!"public".equals(audience)&&!"private".equals(audience))throw new IllegalArgumentException("Nieprawidłowy rodzaj wiedzy.");
+    }
+    static JSONObject requireAiAdmin(JSONObject response){
+        if(!"admin".equals(response.optString("role")))throw new SecurityException("Wiedza AI jest dostępna tylko dla administratora.");
+        return response;
+    }
     /** Only the logged-in administrator can view their own Firebase registration health. */
     public JSONObject fetchPushStatus() throws Exception {
         return request(API+"?view=push_status","GET",null);
@@ -88,6 +104,12 @@ public class SyncManager {
         if(token==null)throw new IllegalArgumentException("Token is missing");
         JSONObject data=new JSONObject();data.put("token",token);data.put("enabled",enabled);
         return request(API+"?view=push_token","POST",data);
+    }
+    public JSONObject decideMortii(String id,String action,String total,String revision) throws Exception {
+        JSONObject body=new JSONObject();body.put("id",id);body.put("action",action);body.put("total",total);body.put("catalogue_revision",revision);
+        JSONObject response=request(API+"?view=mortii","POST",body);
+        if(!response.optBoolean("ok",false))throw new IOException(response.optString("error","Nie potwierdzono rezerwacji. Odśwież zgłoszenia."));
+        return response;
     }
     public JSONArray fetchMessages() throws Exception {
         JSONObject response=request(API+"?view=messages","GET",null);

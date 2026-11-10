@@ -92,6 +92,10 @@ if ($method === 'POST' && ($_SERVER['HTTP_X_RENTMOR_SYNC'] ?? '') !== '1') {
 }
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
+if (($_GET['view'] ?? '') === 'ai_knowledge') {
+    require_once __DIR__.'/ai_app_knowledge.php';
+    rm_ai_app_knowledge_handle($role,$method);
+}
 if (($_GET['view'] ?? '') === 'notebook') {
     require_once __DIR__ . '/notebook_sync.php';
     rm_notebook_handle($role,$method);
@@ -144,6 +148,27 @@ if (($_GET['view'] ?? '') === 'push_status') {
     ]);
 }
 
+// Mortii decisions use the same activated admin device and native write header.
+if(($_GET['view']??'')==='mortii'){
+    if($role!=='admin')rm_json_response(403,['ok'=>false,'error'=>'Tylko administrator.']);
+    if($method!=='POST')rm_json_response(405,['ok'=>false,'error'=>'Wymagany POST.']);
+    if(($_SERVER['HTTP_X_RENTMOR_SYNC']??'')!=='1')rm_json_response(403,['ok'=>false,'error'=>'Brak nagłówka aplikacji.']);
+    require_once __DIR__.'/ai_chat_service.php';require_once __DIR__.'/mortii_service.php';
+    $locks=[];
+    try{
+        $raw=(string)file_get_contents('php://input',false,null,0,6001);if(strlen($raw)>6000)throw new InvalidArgumentException('Za dużo danych.');
+        $op=json_decode($raw,true);if(!is_array($op))throw new InvalidArgumentException('Nieprawidłowe dane.');
+        foreach(['id','action','total','catalogue_revision'] as $k)if(!is_string($op[$k]??null))throw new InvalidArgumentException('Uzupełnij decyzję.');
+        $dir=rm_ai_chat_dir(dirname(__DIR__).'/rentmor-private',$_SERVER['DOCUMENT_ROOT']??__DIR__);
+        $locks[]=rm_booking_lock($dir.'/handover.lock');$locks[]=rm_booking_lock($dir.'/mortii-requests.lock');
+        $path=rm_rental_file('reservations.json');$locks[]=rm_booking_lock($path.'.lock');$al=rm_lock_assets();if(!$al)throw new RuntimeException('Baza zajęta.');$locks[]=$al;
+        $pickupAddress=rm_mortii_pickup_address($dir);
+        $r=rm_mortii_decide($dir,$op['id'],$op['action'],$op['total'],'',$op['catalogue_revision'],rm_booking_schedule_read($dir),rm_ai_catalogue(__DIR__.'/data.json'),rm_booking_list($path),rm_read_assets(),$path);
+        rm_json_response(200,['ok'=>true,'status'=>$r['status'],'phone'=>$r['phone'],'sms_body'=>$r['status']==='accepted'?rm_mortii_sms($r,rm_mortii_pickup_address($dir)):'']);
+    }catch(Throwable $e){rm_json_response(409,['ok'=>false,'error'=>$e instanceof RuntimeException||$e instanceof InvalidArgumentException?$e->getMessage():'Nie udało się potwierdzić. Odśwież.']);}
+    finally{foreach(array_reverse($locks) as $lock){flock($lock,LOCK_UN);fclose($lock);}}
+}
+
 // A small authenticated inbox response for Android background checks.
 // Never send customer contact details to assistant devices.
 if (($_GET['view'] ?? '') === 'messages') {
@@ -168,6 +193,10 @@ if (($_GET['view'] ?? '') === 'messages') {
             'message'=>substr((string)($entry['message'] ?? ''),0,8000)
         ];
     }
+    require_once __DIR__.'/ai_chat_service.php';require_once __DIR__.'/mortii_service.php';
+    try{$mortiiDir=rm_ai_chat_dir(dirname(__DIR__).'/rentmor-private',$_SERVER['DOCUMENT_ROOT']??__DIR__);$mortiiLock=rm_booking_lock($mortiiDir.'/mortii-requests.lock');
+        try{$messages=array_merge($messages,rm_mortii_messages($mortiiDir,rm_ai_catalogue(__DIR__.'/data.json')));}finally{flock($mortiiLock,LOCK_UN);fclose($mortiiLock);}
+    }catch(Throwable $e){rm_json_response(503,['ok'=>false,'error'=>'Zgłoszenia rezerwacji chwilowo niedostępne.']);}
     rm_json_response(200, ['ok'=>true, 'role'=>'admin', 'messages'=>$messages]);
 }
 rm_expire_protocol_photos(rm_rental_file('protocols.json'));
@@ -513,7 +542,7 @@ foreach ($operations as $op) {
                 $results[]=['op_id'=>$opId,'ok'=>false,'error'=>'Zmiana rozliczonego najmu jest dostępna tylko dla administratora.']; continue;
             }
             // Preserve new metadata when an older APK edits a reservation.
-            foreach(['asset_id','asset_label','vacuum_asset_id','vacuum_asset_label','needs_vacuum','actual_return','returned','daily_rate','paid','deposit'] as $key){if($existing!==null&&array_key_exists($key,$existing)&&!array_key_exists($key,$op))$item[$key]=$existing[$key];}
+            foreach(['asset_id','asset_label','vacuum_asset_id','vacuum_asset_label','needs_vacuum','actual_return','returned','daily_rate','paid','deposit','return_time','rental_days','email','quoted_total','quoted_deposit','quoted_daily_rate','source'] as $key){if($existing!==null&&array_key_exists($key,$existing)&&!array_key_exists($key,$op))$item[$key]=$existing[$key];}
             if(array_key_exists('returned',$op))$item['returned']=!empty($op['returned']);
             $bad=false;
             foreach(['daily_rate','paid','deposit'] as $key){

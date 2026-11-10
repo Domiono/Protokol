@@ -1,0 +1,26 @@
+[
+  {
+    "name": "protocol_sync.php",
+    "before": "f9dbcde75d7c695d170522f8c7c5cf0ec28559af72f03189a9b7aa27939de6cc",
+    "after": "127c983627e568bd2a9c51a80681e65157ee4dd1476cc594f645656e23e41b7c",
+    "source": "server/protocol_sync.php"
+  },
+  {
+    "name": "mortii_api.php",
+    "before": "8465a6e73338f22ae2266fcfc39ce5e9534c0706934e135860d43ab980c8304a",
+    "after": "fc007aecf294eb14776862fc98b517ab9a7edffaf5b0c8595cf8956262353ff7",
+    "source": "server/mortii_api.php"
+  },
+  {
+    "name": "ai_chat_service.php",
+    "before": "4be780caaf376fbf2041095b86029ab07c4c8446d17b2053fccaec3575e100c7",
+    "after": "565bb87a36498ff4d18a29a126a3bdec07abbd31ff602710053d6fa2794bf327",
+    "source": "server/ai_chat_service.php"
+  },
+  {
+    "name": "ai_app_knowledge.php",
+    "before": null,
+    "after": "5d28f8c8a5864f51d36296094456ec2fb1769676673bd2b8cb76617f4523b141",
+    "source": "server/ai_app_knowledge.php"
+  }
+]
