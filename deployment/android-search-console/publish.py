@@ -35,7 +35,7 @@ def remote(t,payload):
     lines=execute(t,'php -d memory_limit=512M',source.encode())
     return next((json.loads(line.removeprefix('NATIVE_GSC_RESULT '))for line in lines if line.startswith('NATIVE_GSC_RESULT ')),None)
 def stage(t,apk):
-    path='rentmor-control-private/native-gsc-stage-'+uuid.uuid4().hex+'.apk'
+    path='rentmor-control-private/native-gsc-stage-'+uuid.uuid4().hex[:24]+'.apk'
     # Command code contains only a generated allowlisted path and public APK hash.
     code="""umask(0077);$d='rentmor-control-private';if(is_link($d)||!is_dir($d)||(fileperms($d)&0077))exit(1);
 $p=PATH_VALUE;$f=fopen($p,'xb');if(!$f)exit(1);$n=stream_copy_to_stream(STDIN,$f,100000001);fflush($f);fclose($f);chmod($p,0600);
