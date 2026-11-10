@@ -1,6 +1,6 @@
 # Search Console w panelu RentMor
 
-Status: kod przygotowany; testy CI i publikacja wymagają potwierdzenia w centralnym dzienniku. Konto Google nie zostało jeszcze połączone z hostingiem. Dostęp Windsor w ChatGPT jest oddzielnym połączeniem i nie jest kopiowany na serwer.
+Status: panel WWW opublikowany 10.11.2026, PR151, testy i publikacja42905989222 SUCCESS (36PHP +3patch +4HTTP +4transakcja). Konto Google nie zostało jeszcze połączone z hostingiem. Dostęp Windsor w ChatGPT jest oddzielnym połączeniem i nie jest kopiowany na serwer.
 
 ## Funkcje
 
