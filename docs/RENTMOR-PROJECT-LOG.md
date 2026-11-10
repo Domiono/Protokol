@@ -6,6 +6,27 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 10.11.2026 — czat Mortii: dymek znika podczas rozmowy, OPUBLIKOWANE
+
+Na polecenie właściciela usunięto wyłącznie zdanie „Wiadomości trafiają do OpenAI” z widocznego pouczenia czatu. Pozostaje informacja o AI i niewpisywaniu danych osobowych, dokumentacja prywatności bez zmian. Duży launcher jest hidden/display:none po otwarciu rozmowy i wraca po Zamknij/Escape z przywróceniem fokusu. Czat wykorzystuje wolne miejsce przy dole (22px, zamiast95px); wysokość uwzględnia mniejszy odstęp. Cache JSv5/CSSv2. 17testów DOM i składnia JS PASS. Run42770178880 krok publikacji SUCCESS: preflight5plików, parsery PHP/JS, prywatne kopie, readback i HTTP JS/CSS. W przeglądarce potwierdzono hidden/display:none, powrót przycisku i panelBottom22px, krótszy tekst. Bez wysyłania AI/SMS/zgłoszenia. Tymczasowy workflow usunięto po sukcesie; main bez zmian.
+
+## 10.11.2026 — Bosch230 i opcjonalna wiadomość: OPUBLIKOWANE
+
+Zdiagnozowano brak fizycznego egzemplarza pod publiczną nazwą Bosch GWS2200 230mm (read-only run42767251374 attempt2). Po potwierdzeniu właściciela dodano dokładnie jedną sztukę przez istniejący SSH/PHP CLI, pod natywnymi blokadami, z zachowaniem starej listy i prywatną zweryfikowaną kopią. Run42768160814 SUCCESS, TARGET_TERM_AVAILABLE dla 11.11.2026 15:30 do12.11.2026 15:30. Nie tworzono rzeczywistej rezerwacji ani nie wysyłano wiadomości.
+
+Na kolejne polecenie dodano opcjonalne customer_message do formularza, prywatnego zgłoszenia, kart właściciela w WWW i natywnej skrzynki wiadomości. Limit2000znaków, poprawny UTF8 i odrzucanie kontrolek, obsługa pustego pola i starych zgłoszeń, HTML escape w panelu/text w aplikacji. Dane nie są dołączane do AI. Publiczny cache JS v=4. Lokalnie33testy usługi,14DOM,9kontrolerów,44regułybooking PASS. Wdrożenie sześciu plików run42768478237 SUCCESS: preflight SHA, parsery, kopia, readback, publiczneHTTP. Opcjonalne pole potwierdzone w przeglądarce. Brak realnego zgłoszenia/płatnego AI/SMS/push. Po pracach tymczasowe workflow rejestracji i publikacji usunięto z gałęzi; main bez zmian. Test-only skaner zgłaszał tymczasowe wyjątki zgodnie z założeniem, nie wyłączano go. Końcowe CI po sprzątaniu: do potwierdzenia.
+
+## 10.11.2026 — Mortii: publikacja wskazanych tekstów przez SFTP GitHub POTWIERDZONA
+
+Na polecenie właściciela wykonano jednorazowy wyjątek wdrożeniowy wyłącznie na gałęzi PR #144. Kontrola bez zapisu run42766482713 SUCCESS; publikacja run42766581986 SUCCESS (krok wdrożenia, readback czterech plików, prywatna kopia oraz publiczne HTTP i JS zgodne). Usunięto zaznaczoną cenę orientacyjną, tekst o 90 minutach i tekst o danych/Mortii/OpenAI; sam bufor i reguły rezerwacji działają bez zmian. Cache JS v=3. Nie odczytano sekretów ani danych klientów. Workflow polityki test-only zgłosił tymczasowy workflow jako naruszenie zgodnie z oczekiwaniem; skanera nie wyłączano. Po wdrożeniu tymczasowy aktywny workflow usunięto z gałęzi, main bez zmian. Sekrety SFTP istnieją i uwierzytelnienie z runnera działa; ich wartości nie były ujawniane. Historyczne workflow nadal mogą zawierać odniesienia do istniejących sekretów. Problem odrzucania terminów pozostaje otwarty, nie naprawiono go zmianą tekstów.
+
+## 10.11.2026 — przygotowany awaryjny proces GitHub dla Mortii, BEZ WDROŻENIA
+
+Na polecenie właściciela po problemach z WebFTP przygotowano `deployment/mortii-copy/`: nieaktywny szablon ręcznego workflow, skrypt SFTP z weryfikacją wcześniej przypiętego klucza hosta przed hasłem, manifest SHA czterech plików, prywatną kopię i readback oraz próbę rollbacku przy błędzie. Zakres: tylko usunięcie wskazanych tekstów formularza i cache JS v=3; bufor/reguły backendu bez zmian. Osiem testów syntetycznych PASS, patch lokalnych kopii dokładny; składnia Node/PHP sprawdzana przed wdrożeniem. Żadne SFTP ani rzeczywiste wdrożenie nie zostało wykonane, sekrety w ustawieniach niezweryfikowane. Dotychczasowa globalna polityka GitHub test-only nie jest wyłączana. Aktywacja workflow wymaga jawnego wyjątku dla tego procesu; dokumentacja pakietu opisuje kroki. PR i CI: do potwierdzenia. APK pozostaje 1.7.26/code41, podpisany instalator na rentmor.pl/RentMor.apk opublikowany wcześniej, bez przebudowy w tej zmianie. Problem odrzucania zgłoszenia terminu pozostaje otwarty.
+
+
+
+
 ## 08.11.2026 — bezpieczne transakcje testowe, rollback i monitoring HTTP — PR #141, BEZ PUBLIKACJI
 
 - **Zakres:** na życzenie właściciela rozwijamy cofanie wdrożeń, testy syntetyczne, wieloplikowe zmiany i monitorowanie; **bez tworzenia automatycznego dziennika zmian**. W repo przygotowano `scripts/test_synthetic_batch_deploy.py` (wyłącznie pliki `fixture-*` w losowym katalogu tymczasowym, brak dostępu do AZ.pl) z pełnym preflight SHA dla wszystkich plików, walidacją PHP CLI, atomową podmianą, weryfikacją hash po zapisie i odzyskaniem wszystkich plików po błędzie zapisu lub health-check. Testy obejmują duplikaty, symlinki, niedozwolone ścieżki, SHA stale i awarie w połowie transakcji.

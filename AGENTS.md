@@ -29,3 +29,7 @@ Użytkownik pracuje na repozytorium `Domiono/Protokol`. Przy kontynuacji najpier
 - `docs/` — szczegółowe raporty i centralny dziennik projektu.
 
 **Cel:** utrzymać ciągłość pracy pomiędzy czatami i uniknąć powtarzania już wykonanych zmian. Instrukcja jest dla asystentów i programistów; nie uruchamia samoczynnych zadań ani zmian na serwerze.
+
+## Trwałe zapisy postępów — decyzja właściciela 10.11.2026
+
+Po każdej zmianie aktualizuj docs/CONTINUE-RENTMOR.md i docs/RENTMOR-PROJECT-LOG.md w repozytorium oraz identyczne kopie na serwerze w rentmor-control-private/progress/. Kopie serwera muszą pozostać prywatne (katalog0700, pliki0600); sprawdź odczyt zwrotny/SHA256. W zapisie podaj stan wdrożenia, testy i następne kroki. Nie deklaruj zapisu na serwerze, jeżeli synchronizacja się nie udała. Repo publiczne: bez danych klientów, sekretów i pełnego adresu odbioru. Przy kontynuacji najpierw odczytaj te dwa pliki. Nie pushuj prywatnej lokalnej historii ani całego hostingu do publicznego repozytorium.
