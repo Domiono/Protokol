@@ -145,6 +145,18 @@ public final class MessageInbox {
         text(details,"TREŚĆ WIADOMOŚCI",11,MUTED,true);
         TextView full=text(details,body,15,NAVY,false);
         full.setTextIsSelectable(true);
+        if(!message.optString("booking_request_id").isEmpty()){
+            text(details,"REZERWACJA: "+message.optString("booking_status"),13,NAVY,true);
+            if("pending".equals(message.optString("booking_status"))){
+                Button approve=button(details,"Zatwierdź rezerwację",0xffffcc18);
+                approve.setOnClickListener(v->decideBooking(message,"accept"));
+                Button decline=button(details,"Odrzuć zgłoszenie",0xffe9eef5);
+                decline.setOnClickListener(v->decideBooking(message,"decline"));
+            }else if("accepted".equals(message.optString("booking_status"))){
+                Button confirmedSms=button(details,"Otwórz SMS z potwierdzeniem",0xffffcc18);
+                confirmedSms.setOnClickListener(v->openBookingSms(message.optString("contact"),message.optString("sms_body")));
+            }
+        }
         String contact=message.optString("contact","").trim();
         if(!contact.isEmpty())text(details,"Kontakt: "+contact,13,NAVY,true);
         if(contact.matches("[+0-9() .\\-]{7,28}") && contact.replaceAll("[^0-9]","").length()>=7){
@@ -179,6 +191,38 @@ public final class MessageInbox {
         };
         disclosure.setOnClickListener(toggle);headline.setOnClickListener(toggle);snippet.setOnClickListener(toggle);
     }
+    private void openBookingSms(String phone,String body){
+        try{
+            Intent sms=new Intent(Intent.ACTION_SENDTO,Uri.fromParts("smsto",phone.replaceAll("[^+0-9]",""),null));
+            sms.putExtra("sms_body",body);activity.startActivity(sms);
+        }catch(Exception e){new android.app.AlertDialog.Builder(activity).setTitle("Nie można otworzyć SMS-a").setMessage(body).setPositiveButton("OK",null).show();}
+    }
+    private boolean decidingBooking=false;
+    private void decideBooking(JSONObject message,String action){
+        if(decidingBooking)return;
+        final EditText price=new EditText(activity);price.setInputType(android.text.InputType.TYPE_CLASS_NUMBER|android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);price.setText(message.optString("booking_estimate"));
+        android.app.AlertDialog.Builder dialog=new android.app.AlertDialog.Builder(activity).setTitle("accept".equals(action)?"Potwierdź termin i cenę":"Odrzucić zgłoszenie?")
+            .setMessage(message.optString("message")+"\n\nTermin zostanie ponownie sprawdzony na serwerze. SMS nie zostanie wysłany automatycznie.").setNegativeButton("Anuluj",null);
+        if("accept".equals(action))dialog.setView(price);
+        dialog.setPositiveButton("accept".equals(action)?"Zatwierdzam":"Odrzuć",(d,w)->{
+            if(decidingBooking)return;decidingBooking=true;status.setText("Zapisywanie decyzji…");
+            final String enteredTotal=price.getText().toString();
+            new Thread(()->{
+                JSONObject result=null;String error=null;
+                try{result=new SyncManager(activity,store).decideMortii(message.optString("booking_request_id"),action,enteredTotal,message.optString("catalogue_revision"));}
+                catch(Exception ex){error=ex.getMessage();}
+                final JSONObject response=result;final String failure=error;
+                activity.runOnUiThread(()->{
+                    decidingBooking=false;if(activity.isFinishing()||activity.isDestroyed())return;
+                    if(failure!=null){status.setText("Nie potwierdzono decyzji. Odśwież zgłoszenia przed ponowieniem. "+failure);refresh();return;}
+                    refresh();
+                    if(response!=null&&"accepted".equals(response.optString("status")))new android.app.AlertDialog.Builder(activity).setTitle("Rezerwacja zapisana")
+                        .setMessage("Otworzyć SMS z potwierdzeniem? Sprawdź treść i wyślij go z telefonu.").setNegativeButton("Później",null)
+                        .setPositiveButton("Otwórz SMS",(sd,sw)->openBookingSms(response.optString("phone"),response.optString("sms_body"))).show();
+                });
+            },"rentmor-booking-decision").start();
+        }).show();
+    }
     public void refresh(){
         status.setText("Pobieranie wiadomości…");
         new Thread(()->{
@@ -194,3 +238,4 @@ public final class MessageInbox {
         },"rentmor-inbox-refresh").start();
     }
 }
+

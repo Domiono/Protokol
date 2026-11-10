@@ -209,6 +209,8 @@ public class MainActivity extends Activity {
                 protocolBackAction=null;
                 new NotebookPage(this,root,notebook,sync,()->showHome()).show();
             });
+        if(isAdmin()) homeMenuItem(page,android.R.drawable.ic_menu_info_details,"AI — Wiedza",
+            "Instrukcje i zasady dla Mortii oraz wiedza prywatna",0xffe4efff,()->aiKnowledgePage());
         homeSectionTitle(page,"DOKUMENTY I FINANSE","Dokumenty i wyniki wypożyczalni");
         homeMenuItem(page,android.R.drawable.ic_menu_agenda,"Lista protokołów",
             "Przeglądaj i pobieraj dokumenty PDF",0xffedf1fa,()->protocolList());
@@ -354,7 +356,7 @@ public class MainActivity extends Activity {
                     .setPositiveButton("Pobierz",(d,w)->{
                         try{
                             Intent i=new Intent(Intent.ACTION_VIEW,android.net.Uri.parse(
-                                "https://github.com/Domiono/Protokol/releases/latest/download/RentMor.apk"));
+                                "https://rentmor.pl/RentMor.apk"));
                             startActivity(i);
                         }catch(Exception e){toast("Nie można otworzyć pobierania: "+e.getMessage());}
                     }).show();
@@ -1901,6 +1903,11 @@ public class MainActivity extends Activity {
     private String customerMoney(double amount){
         return String.format(new Locale("pl","PL"),"%,.2f zł",amount);
     }
+    private void aiKnowledgePage(){
+        if(!isAdmin()){toast("Wiedza AI jest dostępna tylko dla administratora.");showHome();return;}
+        AiKnowledgePage knowledge=new AiKnowledgePage(this,root,sync,()->showHome());
+        knowledge.show();protocolBackAction=()->knowledge.back();
+    }
     private boolean isAdmin() {
         return "admin".equals(getSharedPreferences("rentmor",0).getString("role",""));
     }
@@ -2620,6 +2627,7 @@ public class MainActivity extends Activity {
     private void toast(String s){runOnUiThread(()->Toast.makeText(this,s,Toast.LENGTH_LONG).show());}
     @Override public void onBackPressed(){if(protocolBackAction!=null)protocolBackAction.run();else if(showingApp)showHome();else super.onBackPressed();}
 }
+
 
 
 
