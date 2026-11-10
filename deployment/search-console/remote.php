@@ -21,6 +21,11 @@ function gsc_deploy_put(string $path,string $data,int $mode):void {
 function gsc_deploy_rollback(string $backup):void {
     if(!preg_match('~^rentmor-control-private/search-console-ssh-[a-f0-9]{24}$~D',$backup))throw new RuntimeException('Invalid backup');
     $manifest=json_decode((string)file_get_contents($backup.'/manifest.json'),true,512,JSON_THROW_ON_ERROR);
+    // Preflight the entire rollback before restoring any file.
+    foreach($manifest as $row){
+        $current=gsc_deploy_read($row['path']);$hash=$current===null?null:hash('sha256',$current['data']);
+        if($hash!==$row['before_sha']&&$hash!==$row['after_sha'])throw new RuntimeException('Concurrent change blocks rollback');
+    }
     foreach(array_reverse($manifest) as $i=>$row){
         $current=gsc_deploy_read($row['path']);
         if(($current===null?null:hash('sha256',$current['data']))===$row['before_sha'])continue;
