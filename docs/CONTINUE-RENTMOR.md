@@ -13,13 +13,16 @@ Aktualizacja: 10.11.2026 (Europe/Warsaw). Ten plik i RENTMOR-PROJECT-LOG.md maj�
 - Android1.7.26/code41 podpisany tym samym kluczem co poprzedni, instalator https://rentmor.pl/RentMor.apk. Aktualizacja bez odinstalowania aplikacji.
 - Bosch GWS2200 230mm: po potwierdzeniu właściciela dodano dokładnie jeden fizyczny egzemplarz. Run42768160814 SUCCESS (SSH/PHP CLI, natywne blokady, backup/readback); termin11.11.2026 15:30→12.11.2026 15:30 sprawdzony jako dostępny w chwili testu. Nie jest to gwarancja bieżącej dostępności.
 - Opcjonalna wiadomość klienta:2000znaków, prywatne zgłoszenie i widok właściciela WWW/Android; bez kontekstuAI. Run42768478237 SUCCESS,6plików SHA/backup/readback/HTTP.
-- Czat: usunięto zaznaczone zdanie o OpenAI, pozostaje informacja oAI i niewpisywaniu danych osobowych. Dymek znika przy otwartym czacie, wraca przy Zamknij/Escape. Panel bottom22px. JSv5/CSSv2. Run42770178880 SUCCESS,5plików, kopia/readback/HTTP; działanie obejrzane w przeglądarce.
+- Czat: usunięto zaznaczone zdanie o OpenAI, pozostaje informacja oAI i niewpisywaniu danych osobowych. Dymek znika przy otwartym czacie, wraca przy Zamknij/Escape. Panel bottom22px. JSv6/CSSv3. Postać jest tworzona bezpośrednio w mortii.js, koło62×62px, WebP0644; starego dekoratora nie przywracać. Run42770178880 SUCCESS,5plików, kopia/readback/HTTP; działanie obejrzane w przeglądarce.
 - Pakiety i szczegółowy dziennik w PR144: https://github.com/Domiono/Protokol/pull/144 . Tymczasowe workflow wdrożeniowe usunięto po użyciu. Nie uruchamiaj starych wdrożeń ponownie; manifesty SHA dotyczą poprzednich wersji.
 
 ## Dostęp techniczny
 - WebFTP AZ.pl działa niestabilnie; obecnie potwierdzono działające SFTP oraz SSH/PHP CLI przez istniejące konto. Klucze hosta weryfikować przed hasłem. Istniejące sekrety GitHub są używane wyłącznie w runnerze, wartości nigdy nie czytać/drukować.
 - GitHub pozostał publiczny, dotychczasowy skaner test-only nie został wyłączony. Jednorazowe wdrożenia są świadomymi wyjątkami właściciela; tymczasowe workflow usuwać po zakończeniu. Nie utożsamiać zielonego wdrożenia z całym CI: ogólny rentaloperations miał osobne błędy, przyczyna jeszcze nieprzeanalizowana.
 - RentMor Control MCP i zaufana sesja24h wymagają osobnego aktualnego sprawdzenia; nie twierdzić, że pierwotny problem odnowienia OAuth został już rozwiązany.
+
+## Ostatnia naprawa wyglądu Mortii
+PR146: produkcyjny dekorator JS/CSS miał0600 i HTTP403; stary core tworzyłtekst230px. Usunięto ładowanie dekoratora, zintegrowano WebP/avatary w coreJS/CSS. Run42784823755 SUCCESS na4produkcyjnychstronach wChromiumAndroid390×844:62×62/radius50%, loadedimages, nowequeryJS6/CSS3, brakpageerrors, close/open/hidePASS. Artefakt13748920706 zawiera zrzuty iJSON. 17DOMPASS, bookingpodfunkcja zachowana bajtowo; API/klienci/SMS bez zmian. Pełnyopis: deployment/mortii-visual/README.md. Nie przywracać poprzednich nakładek ani zaufanychplików0600 jako publicznegoJS.
 
 ## Dalej
 1. Właściciel ponawia swoje zgłoszenie i testuje na telefonie powiadomienie→akceptację→edytorSMS→ręczne wysłanie. Nie twórz rezerwacji na prawdziwe kontakty ani nie wysyłaj SMS bez konkretnego zlecenia.
