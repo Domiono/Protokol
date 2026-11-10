@@ -1,0 +1,86 @@
+[
+  {
+    "name": "mortii.js",
+    "sha256": "05a2d39f2925bf269e60e22eca1366a0ff5f8686a4a3abbdde2e9d259feb4e60",
+    "source": "mortii.js",
+    "mode": 420
+  },
+  {
+    "name": "mortii.css",
+    "sha256": "3ed2c878fb7a441dc79a0d33aeb9f3e2ae36aaf6b806d3a0cfd1cbf61acf2249",
+    "source": "mortii.css",
+    "mode": 420
+  },
+  {
+    "name": "public_metadata.php",
+    "sha256": "0d5aef18802d8dbd11efb8829a18b33b6b255aa344cd3643b2815c479852ccc6",
+    "replacements": [
+      [
+        "    $html=str_replace(['src=\"/rentmor-ai-mortii-visual.js?v=1\"','src=\"/rentmor-ai-mortii-visual.js?v=2\"'],'src=\"/rentmor-ai-mortii-visual.js?v=3\"',$html);\n",
+        ""
+      ],
+      [
+        "    if(str_contains($html,'</head>')&&!str_contains($html,'/rentmor-ai-mortii-visual.js'))$html=str_replace('</head>','<script src=\"/rentmor-ai-mortii-visual.js?v=3\" defer></script></head>',$html);\n",
+        ""
+      ],
+      [
+        "mortii.js?v=5",
+        "mortii.js?v=6"
+      ],
+      [
+        "mortii.css?v=2",
+        "mortii.css?v=3"
+      ]
+    ]
+  },
+  {
+    "name": "category.php",
+    "sha256": "02c655066b1696b486d9501b9a2ebc5598f39a560dc4bec4f137e92ad835d85b",
+    "replacements": [
+      [
+        "<script src=\"/rentmor-ai-mortii-visual.js?v=3\" defer></script>",
+        ""
+      ],
+      [
+        "mortii.js?v=5",
+        "mortii.js?v=6"
+      ],
+      [
+        "mortii.css?v=2",
+        "mortii.css?v=3"
+      ]
+    ]
+  },
+  {
+    "name": "polityka-prywatnosci.php",
+    "sha256": "e1ce19d6e1ec9dbe01e73e49794f4380e93c8587735d82bde996cccae213166d",
+    "replacements": [
+      [
+        "<script src=\"/rentmor-ai-mortii-visual.js?v=3\" defer></script>",
+        ""
+      ],
+      [
+        "mortii.js?v=5",
+        "mortii.js?v=6"
+      ],
+      [
+        "mortii.css?v=2",
+        "mortii.css?v=3"
+      ]
+    ]
+  },
+  {
+    "name": "rental_categories.php",
+    "sha256": "699c372780dcdda8248b70876ec9dbe7e0b8b0ca407b9ed2324da8cf96b2e8fe",
+    "replacements": [
+      [
+        "mortii.js?v=5",
+        "mortii.js?v=6"
+      ],
+      [
+        "mortii.css?v=2",
+        "mortii.css?v=3"
+      ]
+    ]
+  }
+]
