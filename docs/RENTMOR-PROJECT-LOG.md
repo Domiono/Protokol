@@ -1,10 +1,22 @@
 # RentMor — stan projektu i dziennik zmian
 
 **Główna karta projektu: strona RentMor.pl + natywna aplikacja Android.**  
-Ostatnia aktualizacja: **10.11.2026**. Panel WWW: zakładka **GOOGLE / SEO opublikowana**, [PR #151](https://github.com/Domiono/Protokol/pull/151), [testy i publikacja](https://github.com/Domiono/Protokol/actions/runs/42905989222). Połączenie konta Google na hostingu wymaga jeszcze konfiguracji właściciela. Android: **1.7.29 / versionCode44**, [PR #150](https://github.com/Domiono/Protokol/pull/150), [potwierdzone wydanie](https://github.com/Domiono/Protokol/actions/runs/42834469996). Starsze wpisy zachowują historyczne daty i statusy; najnowszy potwierdzony wpis ma pierwszeństwo.
+Ostatnia aktualizacja: **10.11.2026**. Search Console: panel WWW i natywna aplikacja Android opublikowane, [PR #151](https://github.com/Domiono/Protokol/pull/151), [PR #152](https://github.com/Domiono/Protokol/pull/152). Android: **1.7.30 / versionCode45**, [potwierdzone wydanie](https://github.com/Domiono/Protokol/actions/runs/42908629092). Rzeczywiste wyniki wymagają wspólnego połączenia Google skonfigurowanego w WWW. Starsze wpisy zachowują historyczne daty i statusy; najnowszy potwierdzony wpis ma pierwszeństwo.
 
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
+
+## 10.11.2026 — Search Console w aplikacji Android, OPUBLIKOWANE
+
+PR152: natywny ekran Google / SEO, tylko dla administratora, na panelu głównym i w sekcji Strona. Wspólne raporty i połączenieGoogle zWWW: wybór7/28/90dni i sprzętu, kliknięcia/wyświetlenia/CTR/średnia pozycja z porównaniem, do100fraz. Odśwież widok odczytuje zapisany raport; Pobierz dane zGoogle wykonuje jawnyPOST, bez automatycznego ponawiania. KonfiguracjaOAuth jest otwierana w zewnętrznej przeglądarce; urządzenie nie otrzymuje sekretów ani tokenówGoogle.
+
+API view=search_console sprawdza aktywne urządzenie i rolęadmin oraz nagłówekPOST. Autoryzacja poprzedza odczyt raportów. Odpowiedź zawiera tylko podsumowania i stan połączenia. Zera odróżnione od braku raportu; stare dane pozostają po błędzie; spóźniona odpowiedź po wyjściu/zmianie roli jest odrzucana. Wspólny katalog i mapowanie starychURL zachowane. Bez zmian klientów, rezerwacji, SMS i dotychczasowej wiedzyAI.
+
+**Wydanie1.7.30/code45 OPUBLIKOWANE**, run42908629092 SUCCESS. Podpis zgodny z publicznym1.7.29/code44, aapt potwierdził pakiet i wersję. API uzupełniono punktowo na dokładnymblobSHAf5febb1aa9f592dbeff51050e87cf50cbf56c8e0; nowyprotocol_sync.php SHA256e9b8491a0d2e7f21fc8e8b0c9e8d0b6c3012c202813448ac070ffcb1697b24bd. Prywatne kopie, blokada, podmiany atomowe i pełnyreadback. Oba dokumenty zapisane identycznie0700/0600. Publicznydownload zgodny bajtowo, no-store i nazwaRentMor-1.7.30.apk; API bez aktywacji401, bezpośrednihelper404.
+
+Testy:19kontroliPHP natywnegoAPI,36wspólnegoSearchConsole,4testytransakcji na fałszywymAPK i4testyendpointupobierania PASS. PełnytestAndroida i podpisanyassembleRelease w etapie run42908180288 PASS, w tym8testówSearchConsolePage oraz kontrola menu pracownika/admina. Ten pierwszy run zatrzymał się później naSSH po stagingu, przed zmianą produkcji; końcowy42908629092 użył świeżego połączeniaSSH i zakończył publikację poprawnie. Nie wykonywano rzeczywistych zapytańGoogle ani testów na danych klientów. Fizyczna instalacja na telefonie właściciela pozostaje do wykonania.
+
+APK: https://rentmor.pl/download-app.php?release=45 . SHA256 **228a2fa287a228b95b359e8fa22581079a1a4786b5d2e24daeb833a7d93ed61f**. Aktualizacja na istniejącą aplikację, bez odinstalowania. Jeśli Google nie jest jeszcze połączone, skonfigurować je raz wWWW; aplikacja korzysta z tego samego połączenia. Końcowa aktualizacja tego wpisu synchronizowana oddzielnym trybemprogress-only, z potwierdzeniemNATIVE_GSC_TWO_PROGRESS_DOCUMENTS_SHA256_0600_VERIFIED. Tymczasowyworkflow podpisania/publikacji ma zostać usunięty po synchronizacji; główna politykatest-only zachowana.
 
 ## 10.11.2026 — aktualny zakres SEO i panel Search Console
 

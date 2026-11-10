@@ -73,6 +73,9 @@ public class AdminStatisticsAccessTest {
         MainActivity activity=open("assistant");
         View screen=activity.findViewById(android.R.id.content);
         assertFalse(shows(screen,"Strona"));
+        assertFalse(shows(screen,"Google / SEO"));
+        Method google=MainActivity.class.getDeclaredMethod("searchConsolePage");google.setAccessible(true);google.invoke(activity);
+        assertFalse(shows(activity.findViewById(android.R.id.content),"Google / SEO"));
         Method site=MainActivity.class.getDeclaredMethod("sitePage");
         site.setAccessible(true);site.invoke(activity);
         assertFalse(shows(activity.findViewById(android.R.id.content),"STRONA RENTMOR"));
@@ -105,6 +108,7 @@ public class AdminStatisticsAccessTest {
     @Test public void administratorSeesFinanceNavigation() {
         MainActivity activity=open("admin");
         View screen=activity.findViewById(android.R.id.content);
+        assertTrue(shows(screen,"Google / SEO"));
         assertTrue(shows(screen,"Statystyki najmu"));
         assertTrue(shows(screen,"Pozostałe koszty"));
     }
