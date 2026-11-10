@@ -26,6 +26,8 @@ jobs:
       - run: python3 scripts/test_monitor_public.py
       - run: php -l server/search_console_app.php
       - run: php scripts/test_search_console_app.php
+      - run: php -l deployment/android-search-console/remote.php
+      - run: python3 scripts/test_native_search_console_deploy.py
       - run: php -l server/protocol_sync.php
       - run: php -l server/ai_app_knowledge.php
       - run: php scripts/test_ai_app_knowledge.php
