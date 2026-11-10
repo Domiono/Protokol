@@ -89,6 +89,17 @@ public class SyncManager {
         JSONObject body=new JSONObject();body.put("audience",audience);body.put("text",text);body.put("revision",revision);
         return requireAiAdmin(request(API+"?view=ai_knowledge","POST",body));
     }
+    public JSONObject fetchAiKnowledge(String audience,String equipment) throws Exception {
+        if(equipment.isEmpty())return fetchAiKnowledge(audience);
+        checkAiAudience(audience);
+        return requireAiAdmin(request(API+"?view=ai_knowledge&audience="+audience+"&equipment="+java.net.URLEncoder.encode(equipment,"UTF-8"),"GET",null));
+    }
+    public JSONObject saveAiKnowledge(String audience,String equipment,String text,String revision) throws Exception {
+        if(equipment.isEmpty())return saveAiKnowledge(audience,text,revision);
+        checkAiAudience(audience);
+        JSONObject body=new JSONObject();body.put("audience",audience);body.put("equipment",equipment);body.put("text",text);body.put("revision",revision);
+        return requireAiAdmin(request(API+"?view=ai_knowledge","POST",body));
+    }
     private static void checkAiAudience(String audience){
         if(!"public".equals(audience)&&!"private".equals(audience))throw new IllegalArgumentException("Nieprawidłowy rodzaj wiedzy.");
     }

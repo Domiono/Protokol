@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/ai_equipment_knowledge.php';
 /** Reads only whitelisted public catalogue fields and a dedicated private knowledge note. */
 function rm_ai_knowledge_text(string $text,int $max): string {
     if(preg_match('//u',$text)!==1)throw new RuntimeException('Nieprawidłowy tekst wiedzy.');
@@ -24,14 +25,14 @@ function rm_ai_catalogue(string $file): array {
     }
     return ['products'=>$out,'sha256'=>hash('sha256',(string)$raw)];
 }
-function rm_ai_knowledge_read(string $dir): array {
+function rm_ai_knowledge_read(string $dir,bool $equipment=true): array {
     $file=$dir.'/knowledge.json';
     if(is_link($file))throw new RuntimeException('Niebezpieczna ścieżka wiedzy.');
-    if(!file_exists($file))return ['text'=>'','revision'=>hash('sha256',''),'updated_at'=>null];
+    if(!file_exists($file))return ['text'=>'','revision'=>hash('sha256',''),'updated_at'=>null,'equipment_notes'=>$equipment?rm_ai_equipment_notes($dir):[]];
     if(!is_file($file)||filesize($file)>25000)throw new RuntimeException('Wiedza jest niedostępna.');
     $raw=file_get_contents($file);$data=json_decode((string)$raw,true);
     if(!is_array($data)||!is_string($data['text']??null)||strlen($data['text'])>12000||preg_match('//u',$data['text'])!==1||!is_string($data['updated_at']??null))throw new RuntimeException('Wiedza jest uszkodzona. Zapis wstrzymany.');
-    return ['text'=>$data['text'],'revision'=>hash('sha256',(string)$raw),'updated_at'=>$data['updated_at']];
+    return ['text'=>$data['text'],'revision'=>hash('sha256',(string)$raw),'updated_at'=>$data['updated_at'],'equipment_notes'=>$equipment?rm_ai_equipment_notes($dir):[]];
 }
 function rm_ai_knowledge_atomic(string $path,string $raw): void {
     if(is_link($path))throw new RuntimeException('Niebezpieczna ścieżka wiedzy.');
@@ -48,7 +49,7 @@ function rm_ai_knowledge_save(string $dir,string $text,string $revision): void {
     if(!$lock||!flock($lock,LOCK_EX)){if($lock)fclose($lock);throw new RuntimeException('Blokada wiedzy niedostępna.');}
     try{
         if(!chmod($dir.'/knowledge.lock',0600))throw new RuntimeException('Blokada wiedzy niedostępna.');
-        $current=rm_ai_knowledge_read($dir);
+        $current=rm_ai_knowledge_read($dir,false);
         if(!hash_equals($current['revision'],$revision))throw new RuntimeException('Wiedzę zmieniono w innym oknie. Odśwież stronę przed zapisem.');
         $file=$dir.'/knowledge.json';
         if(is_file($file))rm_ai_knowledge_atomic($dir.'/knowledge.previous.json',(string)file_get_contents($file));
@@ -65,9 +66,13 @@ function rm_ai_knowledge_context(array $catalogue,array $note,string $question):
     usort($scored,fn($a,$b)=>($b['score']<=>$a['score'])?:($a['i']<=>$b['i']));
     $detail=array_column(array_slice(array_filter($scored,fn($r)=>$r['score']>0),0,3),'i');
     foreach($products as$i=>&$p){if(!in_array($i,$detail,true))unset($p['description']);else$p['description']=rm_ai_knowledge_text($p['description'],3500);}unset($p);
+    $equipmentNotes=[];
+    foreach($detail as$i){$name=$products[$i]['name'];$text=$note['equipment_notes'][$name]??'';if($text!==''&&count($equipmentNotes)<2)$equipmentNotes[]=['equipment'=>$name,'text'=>$text];}
     $data=['source'=>'Aktualny katalog RentMor.pl odczytany podczas zapytania','products'=>$products,
-        'owner_knowledge'=>$note['text'],'owner_updated_at'=>$note['updated_at']];
+        'owner_knowledge'=>$note['text'],'owner_updated_at'=>$note['updated_at'],'equipment_knowledge'=>$equipmentNotes];
     $context=json_encode($data,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);
+    if(strlen($context)>80000){foreach($data['products']as&$product)unset($product['description']);unset($product);$context=json_encode($data,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);}
+    while(strlen($context)>80000&&count($data['equipment_knowledge'])>0){array_pop($data['equipment_knowledge']);$context=json_encode($data,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);}
     if(strlen($context)>80000)throw new RuntimeException('Za dużo wiedzy w zapytaniu.');
     return $context;
 }

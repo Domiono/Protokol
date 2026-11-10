@@ -19,23 +19,31 @@ function rm_ai_app_knowledge_dir(string $dir,string $audience,bool $create=false
     return $path;
 }
 /** Role is resolved from an active device on every request, never from JSON. */
-function rm_ai_app_knowledge_request(string $role,string $method,string $header,array $query,?array $input,string $dir): array {
+function rm_ai_app_knowledge_request(string $role,string $method,string $header,array $query,?array $input,string $dir,array $catalogue=[]): array {
     if($role!=='admin')return [403,['ok'=>false,'error'=>'Wiedza AI jest dostępna tylko dla administratora.']];
     if(!in_array($method,['GET','POST'],true))return [405,['ok'=>false,'error'=>'Niedozwolona metoda.']];
     if($method==='POST'&&$header!=='1')return [403,['ok'=>false,'error'=>'Brak nagłówka aplikacji.']];
     $audience=$method==='GET'?($query['audience']??'public'):($input['audience']??null);
     if(!is_string($audience)||!in_array($audience,['public','private'],true))return [400,['ok'=>false,'error'=>'Wybierz rodzaj wiedzy.']];
     try {
+        $base=rm_ai_app_knowledge_dir($dir,$audience,$method==='POST');
+        $notes=rm_ai_equipment_notes($base);
+        $names=array_values(array_unique(array_merge(array_column($catalogue['products']??[],'name'),array_keys($notes))));
+        sort($names,SORT_NATURAL|SORT_FLAG_CASE);
+        $equipment=$method==='GET'?($query['equipment']??''):($input['equipment']??'');
+        if(!is_string($equipment)||($equipment!==''&&!in_array($equipment,$names,true)))return [400,['ok'=>false,'error'=>'Wybierz sprzęt z listy.']];
+        $path=$equipment===''?$base:rm_ai_equipment_dir($base,$equipment,false);
         if($method==='POST'){
             if(!is_string($input['text']??null)||!is_string($input['revision']??null))return [400,['ok'=>false,'error'=>'Nieprawidłowy zapis wiedzy.']];
             if(!preg_match('/^[a-f0-9]{64}$/D',$input['revision']))return [400,['ok'=>false,'error'=>'Odśwież wiedzę przed zapisem.']];
             // Validate before mkdir as well as in the existing atomic storage layer.
             if(strlen($input['text'])>12000)return [400,['ok'=>false,'error'=>'Wiedza: maksymalnie 12000 bajtów.']];
-            $path=rm_ai_app_knowledge_dir($dir,$audience,true);
+            if($equipment!=='')$path=rm_ai_equipment_dir($base,$equipment,true);
             rm_ai_knowledge_save($path,$input['text'],$input['revision']);
         }
-        $note=$audience==='public'?rm_ai_public_knowledge_read($dir):rm_ai_knowledge_read($dir);
-        return [200,['ok'=>true,'role'=>'admin','audience'=>$audience,'knowledge'=>$note,'max_bytes'=>12000]];
+        $note=rm_ai_knowledge_read($path,false);
+        unset($note['equipment_notes']);
+        return [200,['ok'=>true,'role'=>'admin','audience'=>$audience,'knowledge'=>$note,'max_bytes'=>12000,'equipment'=>$equipment,'equipment_options'=>$names]];
     }catch(InvalidArgumentException $e){return [400,['ok'=>false,'error'=>$e->getMessage()]];}
     catch(RuntimeException $e){
         if(str_starts_with($e->getMessage(),'Wiedzę zmieniono'))return [409,['ok'=>false,'error'=>'Wiedzę zmieniono na innym urządzeniu. Skopiuj swój tekst i pobierz aktualną wersję.']];
@@ -56,6 +64,7 @@ function rm_ai_app_knowledge_handle(string $role,string $method): never {
     require_once __DIR__.'/ai_chat_service.php';
     try{$dir=rm_ai_chat_dir(dirname(__DIR__).'/rentmor-private',$_SERVER['DOCUMENT_ROOT']??__DIR__);}
     catch(Throwable $e){rm_json_response(503,['ok'=>false,'error'=>'Magazyn wiedzy jest niedostępny.']);}
-    [$status,$body]=rm_ai_app_knowledge_request($role,$method,$_SERVER['HTTP_X_RENTMOR_SYNC']??'',$_GET,$input,$dir);
+    try{$catalogue=rm_ai_catalogue(__DIR__.'/data.json');}catch(Throwable $e){rm_json_response(503,['ok'=>false,'error'=>'Lista sprzętu jest niedostępna.']);}
+    [$status,$body]=rm_ai_app_knowledge_request($role,$method,$_SERVER['HTTP_X_RENTMOR_SYNC']??'',$_GET,$input,$dir,$catalogue);
     rm_json_response($status,$body);
 }

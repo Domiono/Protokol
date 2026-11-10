@@ -1,6 +1,9 @@
 # RentMor — kontynuacja prac
 Aktualizacja: 10.11.2026 (Europe/Warsaw). Ten plik i RENTMOR-PROJECT-LOG.md mają być zapisywane w repozytorium oraz identycznie na serwerze. Dokumentacja nie zastępuje sprawdzenia aktualnego kodu i wyników wdrożeń.
 
+## 10.11.2026 — wiedza osobno dla sprzętu, PR do potwierdzenia, PRZYGOTOWANE
+Nowy wybór „Sprzęt: Zasady ogólne” wAI — Wiedza: osobne notatki dla produktów z katalogu, oddzielnie publiczne/prywatne. Dotychczasowyknowledge.json pozostaje bez migracji wZasadachogólnych. Osobne rewizje/blokady/kopie0600/limit12000bajtów dla każdejnotatki, katalogi0700; nazwy sprzętu są hashowane, nigdy ścieżkami. Wpisy po zmianie/usunięciu nazwy katalogowej pozostają na liście, bez automatycznego przypisania do nowejnazwy. AI dobiera do kontekstu do dwóch notatek dopasowanych sprzętów, prywatne notatki nie trafiają do publicznegoMortii. Ochrona niezapisanego tekstu przy zmianie sprzętu. Android1.7.29/code44. Testy/publikacja do potwierdzenia; istniejącytekst nie jest automatycznie rozdzielany ani odczytywany do repo. Bez zmian klientów/rezerwacji, bez płatnegoAI.
+
 ## 10.11.2026 — pobieranie aktualnej aplikacji, PR149, OPUBLIKOWANE
 Telefon właściciela wskazywał1.7.25 mimo próby aktualizacji. Diagnostyka42829878778 potwierdziła, że trzy warianty publicznegoURL zawierały prawidłowy1.7.27/code42 zAI wDEX; cache lub wybór poprzednio pobranego pliku pozostaje hipotezą, bez dowodu błędu menu1.7.27.
 Poprawka1.7.28/code43 pokazuje zainstalowaną wersję przy „Pobierz aplikację” i w dialogu. Każde pobieranie otwiera download-app.php?request=czas. Endpoint odczytuje bieżącyAPK i publiczne metadane wydania; sprawdza SHA/rozmiar, blokuje symlinki, niezgodność daje503. No-store/no-cache, nazwa RentMor-1.7.28.apk zamiast powtarzalnego RentMor.apk. Stary1.7.25 wymaga jednorazowej ręcznej instalacji z nowegolinku https://rentmor.pl/download-app.php?release=43 . Nie odinstalowywać obecnejaplikacji.
