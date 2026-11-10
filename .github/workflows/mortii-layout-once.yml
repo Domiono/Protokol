@@ -1,0 +1,28 @@
+name: Publish requested Mortii chat layout
+on:
+  push:
+    branches: [codex/mortii-copy-deployment-preparation]
+    paths: [.github/workflows/mortii-layout-once.yml]
+permissions:
+  contents: read
+concurrency:
+  group: rentmor-public-homepage
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: python3 -m pip install 'paramiko==3.5.1'
+      - name: Validate versions and publish with backup and readback
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          CONFIRM_DEPLOY: MORTII-LAYOUT-ONLY
+        run: |
+          python3 deployment/mortii-chat-layout/deploy.py
+          python3 deployment/mortii-chat-layout/deploy.py --apply

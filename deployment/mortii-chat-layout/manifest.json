@@ -1,0 +1,80 @@
+[
+  {
+    "name": "mortii.js",
+    "sha256": "9da4248e44e0e21a44b6be99901b472134e60f1ec017794f30de6e1e714ab54e",
+    "replacements": [
+      [
+        "Rozmawiasz z AI. Wiadomości trafiają do OpenAI. Nie wpisuj",
+        "Rozmawiasz z AI. Nie wpisuj"
+      ],
+      [
+        "panel.hidden=false;launcher.setAttribute",
+        "panel.hidden=false;launcher.hidden=true;launcher.setAttribute"
+      ],
+      [
+        "function hide(){panel.hidden=true;launcher.setAttribute",
+        "function hide(){panel.hidden=true;launcher.hidden=false;launcher.setAttribute"
+      ]
+    ]
+  },
+  {
+    "name": "mortii.css",
+    "sha256": "7296b1e3f67e7d5b2df0f79a007f162b85f31b8e8f29ab357e0d2cc543ae91d8",
+    "replacements": [
+      [
+        "#mortii-chat[hidden]{",
+        "#mortii-launcher[hidden],#mortii-chat[hidden]{"
+      ],
+      [
+        "bottom:calc(95px + env(safe-area-inset-bottom))",
+        "bottom:calc(22px + env(safe-area-inset-bottom))"
+      ],
+      [
+        "calc(100dvh - 125px)",
+        "calc(100dvh - 44px)"
+      ]
+    ]
+  },
+  {
+    "name": "public_metadata.php",
+    "sha256": "82f4865ce1dc1e75eebeb8201ec6e2a1cd126bc4e1c2d93704239abf87fc5fa9",
+    "replacements": [
+      [
+        "mortii.js?v=4",
+        "mortii.js?v=5"
+      ],
+      [
+        "mortii.css?v=1",
+        "mortii.css?v=2"
+      ]
+    ]
+  },
+  {
+    "name": "rental_categories.php",
+    "sha256": "ebc61ca3c0434d121eea367722c90ae6f4a39e3e0bb095af4c5b02e16c23ae2b",
+    "replacements": [
+      [
+        "mortii.js?v=4",
+        "mortii.js?v=5"
+      ],
+      [
+        "mortii.css?v=1",
+        "mortii.css?v=2"
+      ]
+    ]
+  },
+  {
+    "name": "polityka-prywatnosci.php",
+    "sha256": "176cce6d3dec92de68ffa8db2d295bc59272120ab229db67efdd183c76b8332d",
+    "replacements": [
+      [
+        "mortii.js?v=4",
+        "mortii.js?v=5"
+      ],
+      [
+        "mortii.css?v=1",
+        "mortii.css?v=2"
+      ]
+    ]
+  }
+]
