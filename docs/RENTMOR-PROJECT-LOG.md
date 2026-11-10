@@ -6,6 +6,10 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 10.11.2026 — czat Mortii: dymek znika podczas rozmowy, OPUBLIKOWANE
+
+Na polecenie właściciela usunięto wyłącznie zdanie „Wiadomości trafiają do OpenAI” z widocznego pouczenia czatu. Pozostaje informacja o AI i niewpisywaniu danych osobowych, dokumentacja prywatności bez zmian. Duży launcher jest hidden/display:none po otwarciu rozmowy i wraca po Zamknij/Escape z przywróceniem fokusu. Czat wykorzystuje wolne miejsce przy dole (22px, zamiast95px); wysokość uwzględnia mniejszy odstęp. Cache JSv5/CSSv2. 17testów DOM i składnia JS PASS. Run42770178880 krok publikacji SUCCESS: preflight5plików, parsery PHP/JS, prywatne kopie, readback i HTTP JS/CSS. W przeglądarce potwierdzono hidden/display:none, powrót przycisku i panelBottom22px, krótszy tekst. Bez wysyłania AI/SMS/zgłoszenia. Tymczasowy workflow usunięto po sukcesie; main bez zmian.
+
 ## 10.11.2026 — Bosch230 i opcjonalna wiadomość: OPUBLIKOWANE
 
 Zdiagnozowano brak fizycznego egzemplarza pod publiczną nazwą Bosch GWS2200 230mm (read-only run42767251374 attempt2). Po potwierdzeniu właściciela dodano dokładnie jedną sztukę przez istniejący SSH/PHP CLI, pod natywnymi blokadami, z zachowaniem starej listy i prywatną zweryfikowaną kopią. Run42768160814 SUCCESS, TARGET_TERM_AVAILABLE dla 11.11.2026 15:30 do12.11.2026 15:30. Nie tworzono rzeczywistej rezerwacji ani nie wysyłano wiadomości.
