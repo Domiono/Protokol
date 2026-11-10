@@ -45,6 +45,9 @@ class RemoveTests(unittest.TestCase):
   r=self.remote(self.payload);self.assertEqual(r.returncode,0,r.stdout+r.stderr);receipt=self.receipt(r);self.active.mkdir(mode=0o700)
   r=self.remote({'mode':'rollback','backup':receipt['backup']});self.assertNotEqual(r.returncode,0);self.assertEqual((self.web/'RentMor.apk').read_bytes(),self.new)
  def test_finalize_uses_resolved_webroot_for_connection(self):
+  actual=self.root/'sites'/'rentmor';actual.mkdir(parents=True);target=actual/'public_html';self.web.rename(target);self.web.symlink_to(target,target_is_directory=True)
+  private=actual/'rentmor-private';private.mkdir(mode=0o700);moved=private/'search-console';self.active.rename(moved);self.active=moved
   self.payload.update(progress_only=True,disable_connection=True)
-  r=self.remote(self.payload);self.assertEqual(r.returncode,0,r.stdout+r.stderr);self.assertFalse(self.active.exists());self.assertTrue(self.receipt(r)['connection_disabled'])
+  r=self.remote(self.payload);self.assertEqual(r.returncode,0,r.stdout+r.stderr);self.assertFalse(self.active.exists());receipt=self.receipt(r);self.assertTrue(receipt['connection_disabled'])
+  r=self.remote({'mode':'rollback','backup':receipt['backup']});self.assertEqual(r.returncode,0,r.stdout+r.stderr);self.assertTrue((self.active/'client.json').exists())
 if __name__=='__main__':unittest.main()
