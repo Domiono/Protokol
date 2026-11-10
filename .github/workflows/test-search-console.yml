@@ -18,3 +18,4 @@ jobs:
       - run: php -l server/search_console.php && php -l server/search_console_admin.php && php -l server/admin.php
       - run: php scripts/test_search_console.php
       - run: python3 scripts/test_search_console_patch.py
+      - run: python3 scripts/test_search_console_http.py
