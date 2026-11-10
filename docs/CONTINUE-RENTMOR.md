@@ -1,13 +1,17 @@
 # RentMor — kontynuacja prac
 Aktualizacja: 10.11.2026 (Europe/Warsaw). Ten plik i RENTMOR-PROJECT-LOG.md mają być zapisywane w repozytorium oraz identycznie na serwerze. Dokumentacja nie zastępuje sprawdzenia aktualnego kodu i wyników wdrożeń.
 
-## 10.11.2026 — Search Console w aplikacji Android, w przygotowaniu
+## 10.11.2026 — Search Console w aplikacji Android, OPUBLIKOWANE
 
-Na polecenie właściciela dodano natywny ekran Google / SEO, widoczny tylko dla administratora w panelu głównym i w sekcji Strona. Korzysta z tych samych raportów i połączeniaGoogle co WWW: wybór7/28/90dni i sprzętu, kliknięcia/wyświetlenia/CTR/średnia pozycja z porównaniem, do100fraz. Odśwież widok odczytuje zapisany raport, Pobierz dane zGoogle uruchamia jawnyPOST bez automatycznego ponawiania. KonfiguracjaOAuth otwierana w przeglądarce; tokenyGoogle pozostają wyłącznie na serwerze.
+PR152: natywny ekran Google / SEO, tylko dla administratora, na panelu głównym i w sekcji Strona. Wspólne raporty i połączenieGoogle zWWW: wybór7/28/90dni i sprzętu, kliknięcia/wyświetlenia/CTR/średnia pozycja z porównaniem, do100fraz. Odśwież widok odczytuje zapisany raport; Pobierz dane zGoogle wykonuje jawnyPOST, bez automatycznego ponawiania. KonfiguracjaOAuth jest otwierana w zewnętrznej przeglądarce; urządzenie nie otrzymuje sekretów ani tokenówGoogle.
 
-API view=search_console wymaga aktywnego urządzenia z roląadmin, a POST nagłówka aplikacji. Odpowiedź zawiera wyłącznie podsumowania i stan połączenia, bez sekretów i danych klientów. Kontrola roli przed odczytem, ograniczenie fraz, rozróżnienie braku raportu od zerowego ruchu, stare dane zachowane po błędzie. Aplikacja odrzuca odpowiedź po wyjściu z ekranu/zmianie roli. Nowa wersja1.7.30/code45, z zachowaniemAI — Wiedza i wszystkich funkcji1.7.29.
+API view=search_console sprawdza aktywne urządzenie i rolęadmin oraz nagłówekPOST. Autoryzacja poprzedza odczyt raportów. Odpowiedź zawiera tylko podsumowania i stan połączenia. Zera odróżnione od braku raportu; stare dane pozostają po błędzie; spóźniona odpowiedź po wyjściu/zmianie roli jest odrzucana. Wspólny katalog i mapowanie starychURL zachowane. Bez zmian klientów, rezerwacji, SMS i dotychczasowej wiedzyAI.
 
-Status: kod przygotowany, PR/testy/podpisanie/publikacjaAPK i API do potwierdzenia. Dotychczas wydanyAPK pozostaje1.7.29/code44. Obie kopie dokumentów mają zostać zsynchronizowane po walidacji. Rzeczywiste kontoGoogle nadal wymaga jednorazowej konfiguracji wWWW; nie wysyłano zapytańGoogle ani nie odczytywano danych klientów.
+**Wydanie1.7.30/code45 OPUBLIKOWANE**, run42908629092 SUCCESS. Podpis zgodny z publicznym1.7.29/code44, aapt potwierdził pakiet i wersję. API uzupełniono punktowo na dokładnymblobSHAf5febb1aa9f592dbeff51050e87cf50cbf56c8e0; nowyprotocol_sync.php SHA256e9b8491a0d2e7f21fc8e8b0c9e8d0b6c3012c202813448ac070ffcb1697b24bd. Prywatne kopie, blokada, podmiany atomowe i pełnyreadback. Oba dokumenty zapisane identycznie0700/0600. Publicznydownload zgodny bajtowo, no-store i nazwaRentMor-1.7.30.apk; API bez aktywacji401, bezpośrednihelper404.
+
+Testy:19kontroliPHP natywnegoAPI,36wspólnegoSearchConsole,4testytransakcji na fałszywymAPK i4testyendpointupobierania PASS. PełnytestAndroida i podpisanyassembleRelease w etapie run42908180288 PASS, w tym8testówSearchConsolePage oraz kontrola menu pracownika/admina. Ten pierwszy run zatrzymał się później naSSH po stagingu, przed zmianą produkcji; końcowy42908629092 użył świeżego połączeniaSSH i zakończył publikację poprawnie. Nie wykonywano rzeczywistych zapytańGoogle ani testów na danych klientów. Fizyczna instalacja na telefonie właściciela pozostaje do wykonania.
+
+APK: https://rentmor.pl/download-app.php?release=45 . SHA256 **228a2fa287a228b95b359e8fa22581079a1a4786b5d2e24daeb833a7d93ed61f**. Aktualizacja na istniejącą aplikację, bez odinstalowania. Jeśli Google nie jest jeszcze połączone, skonfigurować je raz wWWW; aplikacja korzysta z tego samego połączenia. Końcowa aktualizacja tego wpisu synchronizowana oddzielnym trybemprogress-only, z potwierdzeniemNATIVE_GSC_TWO_PROGRESS_DOCUMENTS_SHA256_0600_VERIFIED. Tymczasowyworkflow podpisania/publikacji ma zostać usunięty po synchronizacji; główna politykatest-only zachowana.
 
 ## 10.11.2026 — aktualny zakres SEO i panel Search Console
 
@@ -44,7 +48,7 @@ Końcowe dokumenty są synchronizowane przez osobny dokładnySHA workflow; potwi
 
 ## Potwierdzone wdrożenia
 - Publiczny Mortii i formularze są dostępne na RentMor. SMS wysyła ręcznie właściciel po zaakceptowaniu zgłoszenia; brak automatycznego SMS/e-mail. Zgłoszenia pending nie blokują sprzętu. Akceptacja ponownie sprawdza dostępność i bufor90min, doba24h; rozliczony/oddany najem zwalnia egzemplarz.
-- Android1.7.29/code44 podpisany tym samym kluczem co poprzedni, instalator https://rentmor.pl/RentMor.apk. Aktualizacja bez odinstalowania aplikacji.
+- Android1.7.30/code45 podpisany tym samym kluczem co poprzedni, instalator https://rentmor.pl/download-app.php?release=45 . Aktualizacja bez odinstalowania aplikacji. Google / SEO dostępne wyłącznie dla administratora.
 - Bosch GWS2200 230mm: po potwierdzeniu właściciela dodano dokładnie jeden fizyczny egzemplarz. Run42768160814 SUCCESS (SSH/PHP CLI, natywne blokady, backup/readback); termin11.11.2026 15:30→12.11.2026 15:30 sprawdzony jako dostępny w chwili testu. Nie jest to gwarancja bieżącej dostępności.
 - Opcjonalna wiadomość klienta:2000znaków, prywatne zgłoszenie i widok właściciela WWW/Android; bez kontekstuAI. Run42768478237 SUCCESS,6plików SHA/backup/readback/HTTP.
 - Czat: usunięto zaznaczone zdanie o OpenAI, pozostaje informacja oAI i niewpisywaniu danych osobowych. Dymek znika przy otwartym czacie, wraca przy Zamknij/Escape. Panel bottom22px. JSv6/CSSv3. Postać jest tworzona bezpośrednio w mortii.js, koło62×62px, WebP0644; starego dekoratora nie przywracać. Run42770178880 SUCCESS,5plików, kopia/readback/HTTP; działanie obejrzane w przeglądarce.
