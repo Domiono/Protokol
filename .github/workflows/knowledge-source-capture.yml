@@ -32,7 +32,7 @@ jobs:
            assert fp in {'nJyQovQRMmJEJuzI44hZS/VhZPrOhzRoEyh92Go6TEk','GDfRh92pfMOviF06fYXQSIHQ0OSKwDNOXqzr+Tslrr0'},'Host key'
            t.auth_password(os.environ['FTP_USERNAME'],os.environ['FTP_PASSWORD'],fallback=False)
            s=paramiko.SFTPClient.from_transport(t);s.get_channel().settimeout(30)
-           files=['ai_chat.php','ai_chat_service.php','ai_booking_service.php']
+           files=['ai_chat.php','ai_chat_service.php','ai_booking_store.php']
            files += sorted(n for n in s.listdir('public_html') if n.startswith('mortii') and n.endswith('.php') and '/' not in n)
            buf=io.BytesIO()
            with zipfile.ZipFile(buf,'w',zipfile.ZIP_DEFLATED) as z:
