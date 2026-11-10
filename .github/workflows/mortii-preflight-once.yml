@@ -1,4 +1,4 @@
-name: One-time Mortii preflight
+name: One-time Mortii copy publication
 on:
   push:
     branches: [codex/mortii-copy-deployment-preparation]
@@ -19,9 +19,10 @@ jobs:
           persist-credentials: false
       - run: python3 deployment/mortii-copy/test_deploy.py
       - run: python3 -m pip install 'paramiko==3.5.1'
-      - name: SFTP preflight without writes
+      - name: Publish authorized Mortii copy after successful preflight
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-        run: python3 deployment/mortii-copy/deploy.py
+          CONFIRM_DEPLOY: MORTII-COPY-ONLY
+        run: python3 deployment/mortii-copy/deploy.py --apply
