@@ -1,0 +1,74 @@
+[
+  {
+    "name": "mortii_service.php",
+    "sha256": "900249ec1658f87a1ffe0963b4cb018a3520983e2401a78a162e46d9918c6023",
+    "replacements": [
+      [
+        "/** Creates a pending enquiry",
+        "/** Optional customer note stays in the private enquiry, never in AI context. */\nfunction rm_mortii_customer_message($value): string {\n    if(!is_string($value)||strlen($value)>8000||preg_match('//u',$value)!==1\n        ||preg_match('/[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]/',$value))throw new InvalidArgumentException('Wiadomość może mieć maksymalnie 2000 znaków.');\n    $value=trim(str_replace([\"\\r\\n\",\"\\r\"],\"\\n\",$value));\n    if(preg_match_all('/./us',$value)>2000)throw new InvalidArgumentException('Wiadomość może mieć maksymalnie 2000 znaków.');\n    return $value;\n}\n/** Creates a pending enquiry"
+      ],
+      [
+        "$contacts=rm_mortii_contacts($input);",
+        "$contacts=rm_mortii_contacts($input);\n    $customerMessage=rm_mortii_customer_message($input['customer_message']??'');"
+      ],
+      [
+        "['id'=>$id,'status'=>'pending','created_at'=>gmdate('c')]",
+        "['id'=>$id,'status'=>'pending','created_at'=>gmdate('c'),'customer_message'=>$customerMessage]"
+      ],
+      [
+        "$rate.' zł/doba, kaucja '.$deposit.' zł.',",
+        "$rate.' zł/doba, kaucja '.$deposit.' zł.'.(!empty($r['customer_message'])?\"\\nWiadomość klienta: \".$r['customer_message']:''),"
+      ]
+    ]
+  },
+  {
+    "name": "mortii_requests.php",
+    "sha256": "4a62ac28add4421f467a39c954d0b511b9158b0caee4c71cd0fb169db2e086a9",
+    "replacements": [
+      [
+        "'email'=>'E-mail','start_date'",
+        "'email'=>'E-mail','customer_message'=>'Wiadomość klienta','start_date'"
+      ]
+    ]
+  },
+  {
+    "name": "mortii.js",
+    "sha256": "72414f915986f054a1cd3376e4ce8d22ff16577de3b95e2ff05132f744d217d4",
+    "replacements": [
+      [
+        "const trap=el('input'",
+        "const noteLabel=el('label','Wiadomość do RentMor (opcjonalnie)');const note=el('textarea','',{name:'customer_message',maxlength:'2000',rows:'3',placeholder:'Dodatkowe informacje lub pytania do rezerwacji'});fields.customer_message=note;noteLabel.append(note);f.append(noteLabel);\nconst trap=el('input'"
+      ]
+    ]
+  },
+  {
+    "name": "public_metadata.php",
+    "sha256": "fd954c04f2de4a4a17da854e4575770da898d7e084c6c9bd7643f3ec7d0638c5",
+    "replacements": [
+      [
+        "mortii.js?v=3",
+        "mortii.js?v=4"
+      ]
+    ]
+  },
+  {
+    "name": "rental_categories.php",
+    "sha256": "6af01ae7613faa4ec9b5dfc2dfc3084d795602164ab5be0cc0a9f4ae7396838b",
+    "replacements": [
+      [
+        "mortii.js?v=3",
+        "mortii.js?v=4"
+      ]
+    ]
+  },
+  {
+    "name": "polityka-prywatnosci.php",
+    "sha256": "f1e9c578544a7a2eb209046721d728dd04c1b6519bb63f11c1c876dedadbd0f4",
+    "replacements": [
+      [
+        "mortii.js?v=3",
+        "mortii.js?v=4"
+      ]
+    ]
+  }
+]

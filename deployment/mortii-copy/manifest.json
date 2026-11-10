@@ -1,0 +1,50 @@
+[
+  {
+    "name": "mortii.js",
+    "sha256": "28eb51d5b87b09c3e9a3b13643bdf10088dbfe2a109afdc9948268fe6da5cbc2",
+    "replacements": [
+      [
+        "Orientacyjnie: ${product.rate*(days||1)} zł; kaucja ${product.deposit} zł.",
+        "Kaucja: ${product.deposit} zł."
+      ],
+      [
+        "Doba to 24 godziny; po planowanym zwrocie obowiązuje 90 minut buforu.",
+        "Doba to 24 godziny."
+      ],
+      [
+        "Dane służą obsłudze zgłoszenia. Nie trafiają do Mortii ani OpenAI. ",
+        ""
+      ]
+    ]
+  },
+  {
+    "name": "public_metadata.php",
+    "sha256": "d52b839178ab1f11741e45ea7084ff2c673a81ca5337b0f5527470dd271595ae",
+    "replacements": [
+      [
+        "mortii.js?v=2",
+        "mortii.js?v=3"
+      ]
+    ]
+  },
+  {
+    "name": "rental_categories.php",
+    "sha256": "286df9bc2e0e89391512c0963164a5d6a37c359c777eab663871246a0a22f699",
+    "replacements": [
+      [
+        "mortii.js?v=2",
+        "mortii.js?v=3"
+      ]
+    ]
+  },
+  {
+    "name": "polityka-prywatnosci.php",
+    "sha256": "c07ec30cc54d47674206b6de04c928e05b86553b44a28db3dc2d46a522336819",
+    "replacements": [
+      [
+        "mortii.js?v=2",
+        "mortii.js?v=3"
+      ]
+    ]
+  }
+]
