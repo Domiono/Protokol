@@ -28,7 +28,7 @@ async def main():
     assert all('mortii.css?v=3' in x['url'] for x in resources if '/mortii.css?' in x['url'])
     await launch.click();await page.locator('#mortii-chat textarea').wait_for(state='visible')
     assert not await launch.is_visible()
-    avatar=page.locator('#mortii-chat .mortii-avatar').first
+    avatar=page.locator('#mortii-chat .mortii-messages .mortii-avatar').first
     await avatar.wait_for();assert await avatar.evaluate('(i)=>i.complete&&i.naturalWidth>0')
     await page.screenshot(path=str(out/f'after-{i}-open.png'))
     await page.get_by_role('button',name='Zamknij',exact=True).click();assert await launch.is_visible()
