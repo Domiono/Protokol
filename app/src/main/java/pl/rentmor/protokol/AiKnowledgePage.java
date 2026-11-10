@@ -18,7 +18,9 @@ final class AiKnowledgePage {
     private LinearLayout page;
     private EditText editor;
     private TextView status,counter;
-    private Button save,refresh,switchAudience;
+    private Button save,refresh,switchAudience,equipmentButton;
+    private String equipment="";
+    private JSONArray equipmentOptions=new JSONArray();
     private String audience="public",revision="",saved="";
     private boolean busy=false,ready=false;
     AiKnowledgePage(Activity activity,LinearLayout root,SyncManager sync,Runnable home){
@@ -34,9 +36,10 @@ final class AiKnowledgePage {
         root.removeAllViews();page=new LinearLayout(activity);page.setOrientation(1);root.addView(page,new LinearLayout.LayoutParams(-1,-2));
         button("‹ Panel główny",()->leave(home));
         text("AI — Wiedza",26);
-        text("Wiedza dla klientów jest używana w odpowiedziach Mortii. Wiedza prywatna pozostaje wyłącznie w czacie administratora na stronie. Nie wpisuj danych klientów, haseł ani kluczy. Zapis nie wywołuje płatnego zapytania AI.",14);
+        text("Wybierz sprzęt z listy. Dotychczasowy wspólny tekst znajdziesz w Zasadach ogólnych. Każdy sprzęt ma osobną notatkę. Wiedza dla klientów jest używana w odpowiedziach Mortii. Wiedza prywatna pozostaje wyłącznie w czacie administratora na stronie. Nie wpisuj danych klientów, haseł ani kluczy. Zapis nie wywołuje płatnego zapytania AI.",14);
         status=text("",15);
-        switchAudience=button("Otwórz wiedzę prywatną",()->leave(()->{audience=audience.equals("public")?"private":"public";load();}));
+        switchAudience=button("Otwórz wiedzę prywatną",()->leave(()->{audience=audience.equals("public")?"private":"public";equipment="";load();}));
+        equipmentButton=button("Sprzęt: Zasady ogólne ▼",this::chooseEquipment);
         editor=new EditText(activity);editor.setHint("Dopisz zasady, instrukcje i porady o sprzęcie…");editor.setContentDescription("Treść wiedzy AI");editor.setGravity(android.view.Gravity.TOP);editor.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE|android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);editor.setMinLines(10);editor.setMaxLines(18);editor.setTextSize(16);page.addView(editor,new LinearLayout.LayoutParams(-1,-2));
         counter=text("0 / 12000 bajtów",13);
         save=button("Zapisz i udostępnij Mortii",()->{
@@ -58,22 +61,33 @@ final class AiKnowledgePage {
         if(editor==null)return;
         int count=bytes(editor.getText().toString());counter.setText(count+" / 12000 bajtów");counter.setTextColor(count>12000?0xffb91c1c:0xff526174);
         editor.setEnabled(ready&&!busy);save.setEnabled(admin()&&ready&&!busy&&count<=12000&&!editor.getText().toString().equals(saved));
-        refresh.setEnabled(!busy);switchAudience.setEnabled(!busy);
+        refresh.setEnabled(!busy);switchAudience.setEnabled(!busy);equipmentButton.setEnabled(!busy&&ready);
+        equipmentButton.setText("Sprzęt: "+(equipment.isEmpty()?"Zasady ogólne":equipment)+" ▼");
         save.setText(audience.equals("public")?"Zapisz i udostępnij Mortii":"Zapisz wiedzę prywatną");
         switchAudience.setText(audience.equals("public")?"Otwórz wiedzę prywatną":"Otwórz wiedzę dla klientów");
+    }
+    private void chooseEquipment(){
+        if(busy||!ready||!admin())return;
+        String[] names=new String[equipmentOptions.length()+1];names[0]="Zasady ogólne";
+        for(int i=1;i<names.length;i++)names[i]=equipmentOptions.optString(i-1);
+        new AlertDialog.Builder(activity).setTitle("Wybierz sprzęt").setItems(names,(dialog,which)->{
+            String selected=which==0?"":names[which];
+            if(!selected.equals(equipment))leave(()->{equipment=selected;load();});
+        }).setNegativeButton("Anuluj",null).show();
     }
     private void load(){
         if(!admin()){home.run();return;}
         busy=true;ready=false;saved="";revision="";editor.setText("");status.setText("Pobieranie…");controls();
         final String requested=audience;
-        new Thread(()->{try{JSONObject data=sync.fetchAiKnowledge(requested);activity.runOnUiThread(()->{if(!active())return;if(!admin()){home.run();return;}apply(data);});}
+        new Thread(()->{try{JSONObject data=sync.fetchAiKnowledge(requested,equipment);activity.runOnUiThread(()->{if(!active())return;if(!admin()){home.run();return;}apply(data);});}
         catch(Exception e){activity.runOnUiThread(()->{if(!active())return;busy=false;status.setText("Nie pobrano wiedzy. "+e.getMessage());controls();});}}).start();
     }
     private void apply(JSONObject data){
         JSONObject note=data.optJSONObject("knowledge");
-        if(note==null||!data.optString("audience").equals(audience)||!note.optString("revision").matches("[a-f0-9]{64}")){
+        if(note==null||!data.optString("equipment","").equals(equipment)||!data.optString("audience").equals(audience)||!note.optString("revision").matches("[a-f0-9]{64}")){
             busy=false;status.setText("Nieprawidłowa odpowiedź serwera. Pobierz wiedzę ponownie.");controls();return;
         }
+        if(data.optJSONArray("equipment_options")!=null)equipmentOptions=data.optJSONArray("equipment_options");
         saved=note.optString("text");revision=note.optString("revision");busy=false;ready=true;editor.setText(saved);
         String updated=note.isNull("updated_at")?"brak zapisu":note.optString("updated_at");
         status.setText((audience.equals("public")?"Wiedza dla klientów — Mortii":"Wiedza prywatna — administrator")+"\nOstatni zapis: "+updated);controls();
@@ -84,7 +98,7 @@ final class AiKnowledgePage {
         final String draft=editor.getText().toString(),base=revision,kind=audience;
         if(bytes(draft)>12000)return;
         busy=true;status.setText("Zapisywanie…");controls();
-        new Thread(()->{try{JSONObject data=sync.saveAiKnowledge(kind,draft,base);activity.runOnUiThread(()->{if(!active())return;if(!admin()){home.run();return;}apply(data);});}
+        new Thread(()->{try{JSONObject data=sync.saveAiKnowledge(kind,equipment,draft,base);activity.runOnUiThread(()->{if(!active())return;if(!admin()){home.run();return;}apply(data);});}
         catch(Exception e){activity.runOnUiThread(()->{if(!active())return;busy=false;status.setText("Nie potwierdzono zapisu. Twój tekst pozostaje w polu. "+e.getMessage());controls();});}}).start();
     }
 }

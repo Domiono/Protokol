@@ -1,0 +1,22 @@
+[
+  {
+    "name": "ai_app_knowledge.php",
+    "before": "5d28f8c8a5864f51d36296094456ec2fb1769676673bd2b8cb76617f4523b141",
+    "after": "a8db7f43c36cd132dbfb016fc48481f3baf9429ef2dde3da1acd26781ecc16c0"
+  },
+  {
+    "name": "ai_knowledge_store.php",
+    "before": "6e9b822af6ecdbc85e39c4424b89811926a34d5f4082d9804f634fe4bc344913",
+    "after": "e76b60be5f07da05819d87017a63479ec14edce4de282f9ea6cdf4c423c8b97d"
+  },
+  {
+    "name": "mortii_api.php",
+    "before": "fc007aecf294eb14776862fc98b517ab9a7edffaf5b0c8595cf8956262353ff7",
+    "after": "c96c5c3f58a1aa34c639d133dc4e7ea8ffb7c6a6e0001e19004813742ba24a50"
+  },
+  {
+    "name": "ai_equipment_knowledge.php",
+    "before": null,
+    "after": "3eae050aec37b9e66a439b255c5469c5d10a5f877fcee90a8fd770a675e6aa1e"
+  }
+]

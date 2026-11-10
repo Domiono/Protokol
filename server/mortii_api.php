@@ -36,7 +36,8 @@ try{
         if(preg_match('/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|(?:\+?\d[ ()-]*){9,}/i',$message))throw new InvalidArgumentException('Dane kontaktowe wpisz w formularzu Rezerwuj, nie w czacie.');
         $history=rm_ai_history($_SESSION['history']??[]);
         $cat=rm_ai_catalogue(__DIR__.'/data.json');
-        $context=rm_ai_knowledge_context($cat,rm_ai_public_knowledge_read($dir),$message);
+        $lookup=implode(' ',array_column(array_slice($history,-4),'content')).' '.$message;
+        $context=rm_ai_knowledge_context($cat,rm_ai_public_knowledge_read($dir),$lookup);
         $answer=rm_ai_chat(dirname(__DIR__).'/rentmor-private',$_SERVER['DOCUMENT_ROOT']??__DIR__,$message,$context,$history,true);
         $history[]=['role'=>'user','content'=>$message];$history[]=['role'=>'assistant','content'=>$answer];
         $_SESSION['history']=rm_ai_history($history);$out=['history'=>$_SESSION['history']];
