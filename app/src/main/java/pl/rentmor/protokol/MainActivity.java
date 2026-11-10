@@ -344,19 +344,23 @@ public class MainActivity extends Activity {
         lp.bottomMargin=dp(7);lp.leftMargin=dp(3);lp.rightMargin=dp(3);
         parent.addView(card,lp);card.setOnClickListener(v->action.run());card.setFocusable(true);
     }
+    private String installedAppVersion(){
+        try{return getPackageManager().getPackageInfo(getPackageName(),0).versionName;}
+        catch(android.content.pm.PackageManager.NameNotFoundException e){return "nieznana";}
+    }
     private void addAdminDownloadCard(){
         if(adminDownloadAdded||homeToolsList==null)return;
         if(!"admin".equals(getSharedPreferences("rentmor",0).getString("role","")))return;
         adminDownloadAdded=true;
         homeMenuItem(homeToolsList,android.R.drawable.stat_sys_download_done,"Pobierz aplikację",
-            "Instalator na kolejny telefon lub tablet",0xffffe8ac,()->{
+            "Zainstalowana wersja: "+installedAppVersion()+" • Pobierz aktualizację",0xffffe8ac,()->{
                 new AlertDialog.Builder(this).setTitle("Pobierz Pro RentMor")
-                    .setMessage("Otworzyć najnowszy instalator APK?")
+                    .setMessage("Zainstalowana wersja: "+installedAppVersion()+". Pobrać aktualną wersję? Po pobraniu otwórz plik APK i wybierz Aktualizuj.")
                     .setNegativeButton("Anuluj",null)
                     .setPositiveButton("Pobierz",(d,w)->{
                         try{
                             Intent i=new Intent(Intent.ACTION_VIEW,android.net.Uri.parse(
-                                "https://rentmor.pl/RentMor.apk"));
+                                ApkDownloads.url(System.currentTimeMillis())));
                             startActivity(i);
                         }catch(Exception e){toast("Nie można otworzyć pobierania: "+e.getMessage());}
                     }).show();
@@ -2627,6 +2631,7 @@ public class MainActivity extends Activity {
     private void toast(String s){runOnUiThread(()->Toast.makeText(this,s,Toast.LENGTH_LONG).show());}
     @Override public void onBackPressed(){if(protocolBackAction!=null)protocolBackAction.run();else if(showingApp)showHome();else super.onBackPressed();}
 }
+
 
 
 

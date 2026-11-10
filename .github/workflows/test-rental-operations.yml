@@ -27,6 +27,7 @@ jobs:
       - run: php -l server/protocol_sync.php
       - run: php -l server/ai_app_knowledge.php
       - run: php scripts/test_ai_app_knowledge.php
+      - run: python3 deployment/apk-download/test_endpoint.py
       - run: php -l server/admin.php
       - run: php scripts/test_admin_rental_stats.php
       - run: php scripts/test_rental_rules.php
