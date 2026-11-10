@@ -92,6 +92,10 @@ if ($method === 'POST' && ($_SERVER['HTTP_X_RENTMOR_SYNC'] ?? '') !== '1') {
 }
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
+if (($_GET['view'] ?? '') === 'search_console') {
+    require_once __DIR__.'/search_console_app.php';
+    rm_gsc_app_handle($role,$method);
+}
 if (($_GET['view'] ?? '') === 'ai_knowledge') {
     require_once __DIR__.'/ai_app_knowledge.php';
     rm_ai_app_knowledge_handle($role,$method);

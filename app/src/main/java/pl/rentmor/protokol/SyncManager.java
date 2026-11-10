@@ -29,7 +29,7 @@ public class SyncManager {
             int code=0;
             try{
                 c.setInstanceFollowRedirects(false);
-                c.setRequestMethod(method);c.setConnectTimeout(12000);c.setReadTimeout(20000);
+                c.setRequestMethod(method);c.setConnectTimeout(12000);c.setReadTimeout(endpoint.equals(API+"?view=search_console")&&"POST".equals(method)?240000:20000);
                 c.setRequestProperty("Accept","application/json");
                 c.setRequestProperty("Cookie",ck);
                 if(body!=null){
@@ -79,6 +79,25 @@ public class SyncManager {
         if(code<200||code>=300)throw new IOException(result.optString("error","Błąd serwera "+code));
         if(!result.optBoolean("ok",false))throw new IOException(result.optString("error","Serwer nie potwierdził synchronizacji."));
         return result;
+    }
+    private void checkSearchConsoleAccess(int days) {
+        if(!"admin".equals(context.getSharedPreferences("rentmor",0).getString("role","")))
+            throw new SecurityException("Search Console jest dostępne tylko dla administratora.");
+        if(days!=7&&days!=28&&days!=90)throw new IllegalArgumentException("Wybierz okres 7, 28 lub 90 dni.");
+    }
+    static JSONObject requireSearchConsoleAdmin(JSONObject response) {
+        if(!"admin".equals(response.optString("role")))
+            throw new SecurityException("Search Console jest dostępne tylko dla administratora.");
+        return response;
+    }
+    public JSONObject fetchSearchConsole(int days) throws Exception {
+        checkSearchConsoleAccess(days);
+        return requireSearchConsoleAdmin(request(API+"?view=search_console&days="+days,"GET",null));
+    }
+    public JSONObject refreshSearchConsole(int days) throws Exception {
+        checkSearchConsoleAccess(days);
+        JSONObject body=new JSONObject().put("action","refresh").put("days",days);
+        return requireSearchConsoleAdmin(request(API+"?view=search_console","POST",body));
     }
     public JSONObject fetchAiKnowledge(String audience) throws Exception {
         checkAiAudience(audience);

@@ -6,6 +6,14 @@ Ostatnia aktualizacja: **10.11.2026**. Panel WWW: zakładka **GOOGLE / SEO opubl
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 10.11.2026 — Search Console w aplikacji Android, w przygotowaniu
+
+Na polecenie właściciela dodano natywny ekran Google / SEO, widoczny tylko dla administratora w panelu głównym i w sekcji Strona. Korzysta z tych samych raportów i połączeniaGoogle co WWW: wybór7/28/90dni i sprzętu, kliknięcia/wyświetlenia/CTR/średnia pozycja z porównaniem, do100fraz. Odśwież widok odczytuje zapisany raport, Pobierz dane zGoogle uruchamia jawnyPOST bez automatycznego ponawiania. KonfiguracjaOAuth otwierana w przeglądarce; tokenyGoogle pozostają wyłącznie na serwerze.
+
+API view=search_console wymaga aktywnego urządzenia z roląadmin, a POST nagłówka aplikacji. Odpowiedź zawiera wyłącznie podsumowania i stan połączenia, bez sekretów i danych klientów. Kontrola roli przed odczytem, ograniczenie fraz, rozróżnienie braku raportu od zerowego ruchu, stare dane zachowane po błędzie. Aplikacja odrzuca odpowiedź po wyjściu z ekranu/zmianie roli. Nowa wersja1.7.30/code45, z zachowaniemAI — Wiedza i wszystkich funkcji1.7.29.
+
+Status: kod przygotowany, PR/testy/podpisanie/publikacjaAPK i API do potwierdzenia. Dotychczas wydanyAPK pozostaje1.7.29/code44. Obie kopie dokumentów mają zostać zsynchronizowane po walidacji. Rzeczywiste kontoGoogle nadal wymaga jednorazowej konfiguracji wWWW; nie wysyłano zapytańGoogle ani nie odczytywano danych klientów.
+
 ## 10.11.2026 — aktualny zakres SEO i panel Search Console
 
 Potwierdzono na publicznej głównej, kategorii budowlanej, szlifierce250 i agregacieWT20i: treści lokalne, opisy zastosowań/ograniczeń, FAQ, poradniki i kontekstowe linki oraz automatyczne powiązane urządzenia już działają. W kodzie admin.php istnieje edycja seo_title/seo_description. Nie proponować tych funkcji ponownie jako nowych. Odczytano main7ca178c7, najnowsze PR148–150 oraz ten dziennik. Połączenie Windsor Search Console sc-domain:rentmor.pl dostępne wChatGPT; nie daje ono hostingowi automatycznego dostępu Google.
