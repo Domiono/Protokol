@@ -1,6 +1,10 @@
 # RentMor — kontynuacja prac
 Aktualizacja: 10.11.2026 (Europe/Warsaw). Ten plik i RENTMOR-PROJECT-LOG.md mają być zapisywane w repozytorium oraz identycznie na serwerze. Dokumentacja nie zastępuje sprawdzenia aktualnego kodu i wyników wdrożeń.
 
+## 10.11.2026 — aktualny instalator z aplikacji, PR do potwierdzenia, PRZYGOTOWANE
+Właściciel zgłosił brakAIpoaktualizacji; telefon pokazywał1.7.25. Read-only run42829878778 potwierdził trzy warianty publicznegoURL: dokładnyAPK1.7.27/code42, oczekiwanySHA i obecne wDEXmenu/strona/nawigacjaAI. Nie ma dowodu na błąd renderowania1.7.27 na telefonie; potwierdzono uruchamianie1.7.25. Przyczyna pozostania starej instalacji (cache lub wybór poprzedniego pobrania) niepotwierdzona.
+Przygotowano1.7.28/code43: przycisk z numerem faktycznie zainstalowanej wersji i świeżym adresem download-app.php?request=czas. Endpoint pobiera bieżącyAPK zgodny z publicznąmetadanymiwersji/SHA/rozmiaru, wysyła no-store i nazwę RentMor-1.7.28.apk zamiast powtarzalnej nazwy. Testy i publikacja do potwierdzenia. IstniejącyAI/backend/uprawnienia pozostają zPR148. Jeden wyjątek GitHub/SFTP w ramach naprawy tego samego zadania, bez danych klientów/sekretów wrepo.
+
 ## Potwierdzenie publikacji AI — Wiedza, 10.11.2026
 PR148, walidacja42825160844 SUCCESS (31PHP +10Android), wdrożenie42825501988 SUCCESS. API i publiczny Mortii opublikowane z dokładnym preflightSHA, prywatnymi kopiami i pełnym readback. APK1.7.27/code42 opublikowany na https://rentmor.pl/RentMor.apk, zgodny podpis z poprzednią1.7.26/code41; SHA256584bb66dade23ecab75a2d77ccac496226c36fd624c6c1f199f81277908fd784. Publiczny download zgodny bajtowo; niezalogowane GET obu rodzajów wiedzy zwracają401bez treści. Testy uprawnień pracownika/konfliktów/izolacji wykonano na fikcyjnych danych; nie aktywowano testowego urządzenia produkcyjnego i nie wysyłano płatnegoAI. Fizyczna instalacja na telefonie właściciela pozostaje do wykonania. W aplikacji panelgłówny→AI — Wiedza→Zapisz i udostępnij Mortii. Dotychczasowa prywatna wiedza WWW nie została skopiowana do publicznej.
 
