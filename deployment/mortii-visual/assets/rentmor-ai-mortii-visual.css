@@ -8,4 +8,4 @@
 #mortii-chat .rm-mortii-answer-row{display:flex;align-items:flex-start;gap:8px;margin:8px 0}
 #mortii-chat .rm-mortii-reply-img{display:block;object-fit:contain;width:35px;height:35px;border-radius:50%;flex:none}
 #mortii-chat .rm-mortii-answer-row>p{flex:1;min-width:0;margin:0!important}
-@media(max-width:520px){#mortii-launcher.rm-mortii-branded{min-height:62px;padding:4px 11px 4px 4px;font-size:12px;max-width:175px}#mortii-launcher .rm-mortii-launcher-img{width:54px;height:54px}#mortii-launcher .rm-mortii-launcher-label{max-width:77px}}
+@media(max-width:520px){#mortii-launcher.rm-mortii-branded{min-height:62px;max-width:62px;width:62px;padding:4px;gap:0;justify-content:center;border-radius:50%}#mortii-launcher .rm-mortii-launcher-img{width:50px;height:50px}#mortii-launcher .rm-mortii-launcher-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}}
