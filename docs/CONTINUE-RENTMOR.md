@@ -1,6 +1,12 @@
 # RentMor — kontynuacja prac
 Aktualizacja: 10.11.2026 (Europe/Warsaw). Ten plik i RENTMOR-PROJECT-LOG.md mają być zapisywane w repozytorium oraz identycznie na serwerze. Dokumentacja nie zastępuje sprawdzenia aktualnego kodu i wyników wdrożeń.
 
+## Potwierdzenie publikacji AI — Wiedza, 10.11.2026
+PR148, walidacja42825160844 SUCCESS (31PHP +10Android), wdrożenie42825501988 SUCCESS. API i publiczny Mortii opublikowane z dokładnym preflightSHA, prywatnymi kopiami i pełnym readback. APK1.7.27/code42 opublikowany na https://rentmor.pl/RentMor.apk, zgodny podpis z poprzednią1.7.26/code41; SHA256584bb66dade23ecab75a2d77ccac496226c36fd624c6c1f199f81277908fd784. Publiczny download zgodny bajtowo; niezalogowane GET obu rodzajów wiedzy zwracają401bez treści. Testy uprawnień pracownika/konfliktów/izolacji wykonano na fikcyjnych danych; nie aktywowano testowego urządzenia produkcyjnego i nie wysyłano płatnegoAI. Fizyczna instalacja na telefonie właściciela pozostaje do wykonania. W aplikacji panelgłówny→AI — Wiedza→Zapisz i udostępnij Mortii. Dotychczasowa prywatna wiedza WWW nie została skopiowana do publicznej.
+
+Końcowe dokumenty są synchronizowane przez osobny dokładnySHA workflow; potwierdzenie wymaga PROGRESS_SYNC_SHA256_OK dla obuplików. Docelowo tymczasowe workflow źródeł,walidacji,publikacji i synchronizacji usunięte z gałęzi, globalna polityka test-only zachowana. Nie uruchamiać ponownie starego manifestu wdrożenia; aktualna produkcja ma już noweSHA.
+
+
 ## Jak kontynuować
 1. Przeczytaj ten plik, AGENTS.md i najnowsze wpisy docs/RENTMOR-PROJECT-LOG.md.
 2. Porównaj SHA/wersje hostingu z planowaną zmianą. Kod produkcyjny Mortii powstał później niż obecny main: NIE nadpisuj całego hostingu plikami z main ani nie pushuj całej lokalnej historii.

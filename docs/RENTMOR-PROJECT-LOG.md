@@ -6,7 +6,13 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
-## 10.11.2026 — Android: AI — Wiedza, PR148, TESTY PASS, PUBLIKACJA DO POTWIERDZENIA
+## Potwierdzenie publikacji AI — Wiedza, 10.11.2026
+PR148, walidacja42825160844 SUCCESS (31PHP +10Android), wdrożenie42825501988 SUCCESS. API i publiczny Mortii opublikowane z dokładnym preflightSHA, prywatnymi kopiami i pełnym readback. APK1.7.27/code42 opublikowany na https://rentmor.pl/RentMor.apk, zgodny podpis z poprzednią1.7.26/code41; SHA256584bb66dade23ecab75a2d77ccac496226c36fd624c6c1f199f81277908fd784. Publiczny download zgodny bajtowo; niezalogowane GET obu rodzajów wiedzy zwracają401bez treści. Testy uprawnień pracownika/konfliktów/izolacji wykonano na fikcyjnych danych; nie aktywowano testowego urządzenia produkcyjnego i nie wysyłano płatnegoAI. Fizyczna instalacja na telefonie właściciela pozostaje do wykonania. W aplikacji panelgłówny→AI — Wiedza→Zapisz i udostępnij Mortii. Dotychczasowa prywatna wiedza WWW nie została skopiowana do publicznej.
+
+Końcowe dokumenty są synchronizowane przez osobny dokładnySHA workflow; potwierdzenie wymaga PROGRESS_SYNC_SHA256_OK dla obuplików. Docelowo tymczasowe workflow źródeł,walidacji,publikacji i synchronizacji usunięte z gałęzi, globalna polityka test-only zachowana. Nie uruchamiać ponownie starego manifestu wdrożenia; aktualna produkcja ma już noweSHA.
+
+
+## 10.11.2026 — Android: AI — Wiedza, PR148, OPUBLIKOWANE, TESTY PASS
 
 Na zlecenie właściciela dodano natywny edytor „AI — Wiedza”, wyłącznie dla administratora. Publiczna wiedza Mortii jest oddzielona od dotychczasowej prywatnej wiedzy czatu administratora. Istniejące prywatne notatki nie są automatycznie ujawniane klientom. Publiczny czat odczytuje wyłącznie nowy magazyn public-knowledge/knowledge.json poza public_html. Ekran wymaga świadomego „Zapisz i udostępnij”; zapis prywatny korzysta z dotychczasowego magazynu i jest widoczny w WWW. Do 12000 bajtów UTF-8, kopia poprzedniej wersji0600, blokada i rewizja, konflikt409, tekst zachowany po błędzie. API sprawdza aktywne urządzenie i rolęadmin przy GET/POST oraz nagłówek aplikacji przy zapisie. Pracownicy bez pozycji menu i bez dostępu API.
 
