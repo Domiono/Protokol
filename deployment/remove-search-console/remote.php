@@ -16,7 +16,7 @@ function rg_put(string $path,string $data,int $mode):void{
 function rg_restore(string $backup):void{
     if(!preg_match('~^rentmor-control-private/remove-gsc-backup-[a-f0-9]{24}$~D',$backup))throw new RuntimeException('Invalid backup');
     $rows=json_decode((string)file_get_contents($backup.'/manifest.json'),true,512,JSON_THROW_ON_ERROR);
-    $active='rentmor-private/search-console';$archived=$backup.'/google-connection-disabled';
+    $active=dirname((string)realpath('public_html')).'/rentmor-private/search-console';$archived=$backup.'/google-connection-disabled';
     if(is_dir($archived)&&file_exists($active))throw new RuntimeException('Concurrent connection blocks rollback');
     foreach($rows as $row){$r=rg_read($row['path']);$h=$r===null?null:hash('sha256',$r['data']);if($h!==$row['before_sha']&&$h!==$row['after_sha'])throw new RuntimeException('Concurrent source blocks rollback');}
     foreach(array_reverse($rows)as $row){$r=rg_read($row['path']);if(($r===null?null:hash('sha256',$r['data']))===$row['before_sha'])continue;
@@ -35,7 +35,8 @@ try{
     foreach(['CONTINUE-RENTMOR.md','RENTMOR-PROJECT-LOG.md']as $n){$p='rentmor-control-private/progress/'.$n;$before=rg_read($p);
         if($before===null||($before['mode']&0077)||sha1('blob '.strlen($before['data'])."\0".$before['data'])!==$payload['docs'][$n]['before_blob'])throw new RuntimeException('Private progress changed');
         $new=base64_decode($payload['docs'][$n]['content'],true);if($new===false)throw new RuntimeException('Payload');$changes[]=['path'=>$p,'before'=>$before,'after'=>$new,'mode'=>0600];}
-    $connection='rentmor-private/search-console';$hasConnection=false;
+    // Match the removed helper's dirname(__DIR__), including hosting webroot aliases.
+    $connection=dirname((string)realpath('public_html')).'/rentmor-private/search-console';$hasConnection=false;
     if(empty($payload['progress_only'])){
         $phase='source-baseline';$sources=[];
         foreach(['admin.php','protocol_sync.php']as $name){$p='public_html/'.$name;$before=rg_read($p);if($before===null||hash('sha256',$before['data'])!==$payload['source_before'][$name])throw new RuntimeException('Source changed');$new=$before['data'];
@@ -54,9 +55,11 @@ try{
         if($old===null||hash('sha256',$old['data'])!==$payload['apk_before_sha256']||$meta===null)throw new RuntimeException('APK changed');
         $metadata=json_decode($meta['data'],true,512,JSON_THROW_ON_ERROR);if(($metadata['version_code']??0)!==45||($metadata['sha256']??'')!==$payload['apk_before_sha256'])throw new RuntimeException('Metadata changed');
         $newMeta=json_encode(['version'=>'1.7.31','version_code'=>46,'size'=>strlen($new['data']),'sha256'=>$payload['apk_sha256']],JSON_PRETTY_PRINT|JSON_THROW_ON_ERROR)."\n";
+        $changes=array_merge($sources,[['path'=>'public_html/RentMor.apk','before'=>$old,'after'=>$new['data'],'mode'=>$old['mode']],['path'=>'public_html/app-release.json','before'=>$meta,'after'=>$newMeta,'mode'=>$meta['mode']]],$removed,$changes);
+    }
+    if(empty($payload['progress_only'])||!empty($payload['disable_connection'])){
         if(is_link($connection))throw new RuntimeException('Connection symlink');$hasConnection=is_dir($connection);
         if($hasConnection){if(fileperms($connection)&0077)throw new RuntimeException('Connection permissions');$gl=$connection.'/operation.lock';if(is_link($gl))throw new RuntimeException('Google lock symlink');$googleLock=fopen($gl,'c+');if(!$googleLock||!chmod($gl,0600)||!flock($googleLock,LOCK_EX|LOCK_NB))throw new RuntimeException('Google request busy');}
-        $changes=array_merge($sources,[['path'=>'public_html/RentMor.apk','before'=>$old,'after'=>$new['data'],'mode'=>$old['mode']],['path'=>'public_html/app-release.json','before'=>$meta,'after'=>$newMeta,'mode'=>$meta['mode']]],$removed,$changes);
     }
     $phase='backup';$backup='rentmor-control-private/remove-gsc-backup-'.bin2hex(random_bytes(12));if(!mkdir($backup,0700))throw new RuntimeException('Backup directory');$rows=[];
     foreach($changes as $i=>$row){if($row['before']!==null)rg_put($backup.'/'.$i,$row['before']['data'],0600);$rows[]=['index'=>$i,'path'=>$row['path'],'before_sha'=>$row['before']===null?null:hash('sha256',$row['before']['data']),'before_mode'=>$row['before']['mode']??null,'after_sha'=>$row['after']===null?null:hash('sha256',$row['after'])];}
