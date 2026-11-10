@@ -25,3 +25,9 @@
 - Strona główna i polityka prywatności odpowiadają publicznie. Klikanie dymka, zamykanie oraz wyświetlenie awatara po odpowiedzi wymagają potwierdzenia w normalnej przeglądarce.
 
 Wdrożenie zmienia wyłącznie wygląd przycisku/awatarów. Zmiana wyglądu jest zapisana w gałęzi i PR #146; nie scalać jej ze starą produkcją przez automatyczne zastępowanie całego katalogu.
+
+## Poprawka 10.11.2026 – stary przycisk na telefonie
+
+Po zgłoszeniu, że na telefonie nadal widoczny jest stary przycisk, na hostingu zmieniono **wyłącznie** `public_metadata.php`: dołączenie `/rentmor-ai-mortii-visual.js?v=2` nie wymaga już dosłownego znacznika `/mortii.js?v=5`, tylko obecności `/mortii.js` w HTML i braku wizualnego dekoratora. Stary plik JS oraz obsługa rezerwacji pozostawione bez zmian.
+
+Zmiana wdrożona przez aktywną zaufaną sesję RentMor Control (backup dostępny). Nowy SHA256 `public_metadata.php`: `e34ed59bfbc2835467c75c2eb2a3bb842b79a8318d56830b5c21b02d45f2aeae`. Zestaw testów źródłowych: 26 PASS / 0 FAIL. **Nie potwierdzono w prawdziwej mobilnej przeglądarce**, że strona główna przeszła przez `rentmor_public_metadata()`; należy przetestować odświeżenie bez cache/incognito i wyświetlenie przycisku. Nie synchronizować ślepo całego starego `main` na produkcję.
