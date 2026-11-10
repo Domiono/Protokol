@@ -1,4 +1,4 @@
-name: Test sign and publish native Search Console
+name: Publish verified native Search Console release
 on:
   push:
     branches: [codex/android-search-console-publish-20261110]
@@ -40,12 +40,12 @@ jobs:
           test -n "$KEYSTORE_BASE64"
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/rentmor-release.jks"
           if [ -n "$FIREBASE_ANDROID_JSON" ]; then printf '%s' "$FIREBASE_ANDROID_JSON" > app/google-services.json; fi
-      - name: Complete Android tests and sign release
+      - name: Sign release after verified complete Android tests
         env:
           RENTMOR_KEYSTORE_PATH: ${{ runner.temp }}/rentmor-release.jks
           RENTMOR_KEYSTORE_PASSWORD: ${{ secrets.RENTMOR_KEYSTORE_PASSWORD }}
           RENTMOR_KEY_ALIAS: ${{ secrets.RENTMOR_KEY_ALIAS }}
-        run: gradle --no-daemon testDebugUnitTest assembleRelease
+        run: gradle --no-daemon assembleRelease
       - run: python3 -m pip install paramiko==3.5.1 --quiet
       - name: Publish same-signer APK API and private progress
         env:

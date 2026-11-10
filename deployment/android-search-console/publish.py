@@ -19,6 +19,14 @@ OLD_APK_SHA='146b0e810235bffed327d7c613be0d4814a16acb6474bad366708fa44452316d'
 logging.getLogger('paramiko').addHandler(logging.NullHandler());logging.getLogger('paramiko').propagate=False
 def sha(data):return hashlib.sha256(data).hexdigest()
 def b64(data):return base64.b64encode(data).decode()
+def connect():
+    t=paramiko.Transport((os.environ['FTP_SERVER'],22222))
+    try:
+        t.start_client(timeout=25)
+        if b64(hashlib.sha256(t.get_remote_server_key().asbytes()).digest()).rstrip('=')not in PINS:raise ValueError('Host key')
+        t.auth_password(os.environ['FTP_USERNAME'],os.environ['FTP_PASSWORD'],fallback=False)
+        return t
+    except Exception:t.close();raise
 def execute(t,command,data):
     c=t.open_session(timeout=30);c.settimeout(180);c.exec_command(command);c.sendall(data);c.shutdown_write();out=b''
     while True:
@@ -35,7 +43,7 @@ def remote(t,payload):
     lines=execute(t,'php -d memory_limit=512M',source.encode())
     return next((json.loads(line.removeprefix('NATIVE_GSC_RESULT '))for line in lines if line.startswith('NATIVE_GSC_RESULT ')),None)
 def stage(t,apk):
-    path='rentmor-control-private/native-gsc-stage-'+uuid.uuid4().hex+'.apk'
+    path='rentmor-control-private/native-gsc-stage-'+uuid.uuid4().hex[:24]+'.apk'
     # Command code contains only a generated allowlisted path and public APK hash.
     code="""umask(0077);$d='rentmor-control-private';if(is_link($d)||!is_dir($d)||(fileperms($d)&0077))exit(1);
 $p=PATH_VALUE;$f=fopen($p,'xb');if(!$f)exit(1);$n=stream_copy_to_stream(STDIN,$f,100000001);fflush($f);fclose($f);chmod($p,0600);
@@ -83,12 +91,13 @@ def main():
         payload.update({'protocol_before_blob':baseline['protocol_blob'],'core_sha256':'1edc843a4ca931c203a97bf2c5f0799ab96946afcf50a18c8f7cd5eea2981b34',
             'hook':["if (($_GET['view'] ?? '') === 'ai_knowledge') {","if (($_GET['view'] ?? '') === 'search_console') {\n    require_once __DIR__.'/search_console_app.php';\n    rm_gsc_app_handle($role,$method);\n}\n"],
             'helper':b64((ROOT/'server/search_console_app.php').read_bytes()),'apk_before_sha256':OLD_APK_SHA,'apk_sha256':sha(apk),'apk_size':len(apk)})
-    t=paramiko.Transport((os.environ['FTP_SERVER'],22222))
+    t=connect()
     try:
-        t.start_client(timeout=25)
-        if b64(hashlib.sha256(t.get_remote_server_key().asbytes()).digest()).rstrip('=')not in PINS:raise ValueError('Host key')
-        t.auth_password(os.environ['FTP_USERNAME'],os.environ['FTP_PASSWORD'],fallback=False)
-        if apk is not None:payload['staged_apk']=stage(t,apk)
+        if apk is not None:
+            payload['staged_apk']=stage(t,apk)
+            # This host may close a transport after the binary stdin command.
+            # Use a fresh host-key-verified connection for the PHP transaction.
+            t.close();t=connect()
         result=remote(t,payload)
         if not result:raise RuntimeError('Missing publication receipt')
         try:
@@ -96,6 +105,7 @@ def main():
             for name,row in docs.items():
                 if result['sha256'][name]!=sha(base64.b64decode(row['content'])):raise RuntimeError('Progress receipt differs')
         except Exception:
+            t.close();t=connect()
             remote(t,{'mode':'rollback','backup':result['backup']})
             raise RuntimeError('Public checks failed; rollback requested')from None
         print('NATIVE_GSC_TWO_PROGRESS_DOCUMENTS_SHA256_0600_VERIFIED')
