@@ -1,9 +1,20 @@
 # RentMor — stan projektu i dziennik zmian
 
 **Główna karta projektu: strona RentMor.pl + natywna aplikacja Android.**  
-Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybranego okresu). Stan kodu: `main`, merge `d40ab548a1fec86f9f2d45081541438a053a5d2d`. Aplikacja: **1.7.24**, `versionCode 39`; [PR #104](https://github.com/Domiono/Protokol/pull/104), [testy](https://github.com/Domiono/Protokol/actions/runs/42105724381), [podpisany APK](https://github.com/Domiono/Protokol/actions/runs/42106047277). Weryfikacja instalacji na fizycznym urządzeniu pozostaje do wykonania. Starsze wpisy i statusy stron/SEO zachowują historyczne daty weryfikacji.
+Ostatnia aktualizacja: **10.11.2026**. Panel WWW: zakładka **GOOGLE / SEO opublikowana**, [PR #151](https://github.com/Domiono/Protokol/pull/151), [testy i publikacja](https://github.com/Domiono/Protokol/actions/runs/42905989222). Połączenie konta Google na hostingu wymaga jeszcze konfiguracji właściciela. Android: **1.7.29 / versionCode44**, [PR #150](https://github.com/Domiono/Protokol/pull/150), [potwierdzone wydanie](https://github.com/Domiono/Protokol/actions/runs/42834469996). Starsze wpisy zachowują historyczne daty i statusy; najnowszy potwierdzony wpis ma pierwszeństwo.
 
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
+
+
+## 10.11.2026 — aktualny zakres SEO i panel Search Console
+
+Potwierdzono na publicznej głównej, kategorii budowlanej, szlifierce250 i agregacieWT20i: treści lokalne, opisy zastosowań/ograniczeń, FAQ, poradniki i kontekstowe linki oraz automatyczne powiązane urządzenia już działają. W kodzie admin.php istnieje edycja seo_title/seo_description. Nie proponować tych funkcji ponownie jako nowych. Odczytano main7ca178c7, najnowsze PR148–150 oraz ten dziennik. Połączenie Windsor Search Console sc-domain:rentmor.pl dostępne wChatGPT; nie daje ono hostingowi automatycznego dostępu Google.
+
+Na polecenie właściciela przygotowano zakładkę WWW GOOGLE / SEO: sprzęt/frazy, kliknięcia, wyświetlenia, CTR, średnia pozycja i porównanie7/28/90dni; stare i noweURL łączone poID katalogu. Osobne sumy stron i zapytania, jawne ograniczenia danych, OAuthreadonly/PKCE/state/CSRF, prywatne tokeny i raporty0700/0600. Pobieranie ręczne zGoogle i zapisany raport; brak harmonogramu. Szczegóły: docs/SEARCH-CONSOLE.md. Android bez zmian,1.7.29/code44 pozostaje bieżącym potwierdzonym wydaniem.
+
+Status: **OPUBLIKOWANE**, PR151. Test42905989222 SUCCESS:36kontroliPHP,3testypatchera,4testyHTTP uprawnień/CSRF/bezpośrednichhelperów i4testytransakcji/rollbacku na fikcyjnych danych. Publikacja przez przypięty kluczSSH iPHPCLI: bieżący admin.php miał dokładnySHA2564cbf795e663e73fe893a209138366cca4662ab8e982448242b86a2f4b2d03783; zachowano nowszy kod i dodano3hooki. NowySHA256admin=7e73d144c818e8bd5d49d5f4231b4a18307d5e9f9ee28cec8eff2dee2d231ef8. Nowehelpery0644, prywatna kopia źródeł i odczytzwrotny. Publiczny loginHTTP200, bezpośredniehelpery404, niezalogowanycallback403. Bez logowania do prawdziwych danych, bez wywołańGoogleAI/rezerwacji/SMS. Pierwsza próba42905143918 zatrzymana błędemSFTP; odczytSSH42905446836 potwierdził brak zmian i zgodność prywatnych dokumentów zmain. Ostateczna publikacja42905989222 poprawnie zapisała oba dokumenty0700/0600 i potwierdziła identycznośćSHA256 zrepozytorium. Końcowa aktualizacja niniejszego wpisu podlega ponownej synchronizacji i sprawdzeniuTWO_PROGRESS_DOCUMENTS_SHA256_AND_0600_VERIFIED; sam zapisGit nie potwierdza synchronizacji.
+
+**Pozostaje konfiguracja właściciela:** wpaneluWWW → GOOGLE / SEO utworzyć/zapisać klientaGoogleOAuth i połączyć konto z dostępem do sc-domain:rentmor.pl, następnie Pobierz dane. KontoGoogle hostingu nie zostało jeszcze połączone; brak rzeczywistych raportów nie jest zerowym ruchem. PołączenieWindsor wChatGPT pozostaje osobne. Android1.7.29/code44 bez zmian, brak harmonogramu automatycznego odświeżania.
 
 
 ## 10.11.2026 — wiedza osobno dla sprzętu, PR150, OPUBLIKOWANE
