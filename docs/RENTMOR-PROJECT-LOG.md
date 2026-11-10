@@ -6,6 +6,14 @@ Ostatnia aktualizacja: **10.11.2026**. Search Console: panel WWW i natywna aplik
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 10.11.2026 — wycofanie integracji Search Console na prośbę właściciela
+
+Właściciel zlecił cofnięcie integracji Search Console z panelu WWW i Androida (PR151/152). Przygotowano usunięcie menu, natywnego ekranu, metod klienta i helperów OAuth/raportów. Dotychczasowe opisy SEO, metadane ofert, poradniki, statystyki strony i połączenie Windsor wChatGPT nie są częścią cofanej integracji. Kod aktualizowany punktowo; bez przywracania całego hostingu lub danych do wcześniejszego stanu.
+
+Android1.7.31/code46 jest aktualizacją usuwającą ekranGoogle/SEO; numer musi rosnąć, aby aktualizować z1.7.30 bez odinstalowania. Staryendpoint ma zwracać410 dla aktywnego urządzenia, bez danych rezerwacji/klientów i bez Google. Stare linki panelu kierują do zwykłego logowania. Konfiguracja/tokeny/raporty Google na hostingu mają zostać wyłączone przez przeniesienie całego katalogu do prywatnej kopii, bez odczytu sekretów i bez zmian wGoogleCloud.
+
+Status: przygotowane; PR/testy/podpisanyAPK, wdrożenie i synchronizacja obu kopii dokumentów do potwierdzenia. Publiczne wydanie pozostaje1.7.30/code45 do ukończenia publikacji. Nie cofać wiedzyAI, Mortii, rezerwacji, klientów ani innych prac.
+
 ## 10.11.2026 — Search Console w aplikacji Android, OPUBLIKOWANE
 
 PR152: natywny ekran Google / SEO, tylko dla administratora, na panelu głównym i w sekcji Strona. Wspólne raporty i połączenieGoogle zWWW: wybór7/28/90dni i sprzętu, kliknięcia/wyświetlenia/CTR/średnia pozycja z porównaniem, do100fraz. Odśwież widok odczytuje zapisany raport; Pobierz dane zGoogle wykonuje jawnyPOST, bez automatycznego ponawiania. KonfiguracjaOAuth jest otwierana w zewnętrznej przeglądarce; urządzenie nie otrzymuje sekretów ani tokenówGoogle.
