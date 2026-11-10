@@ -6,6 +6,13 @@ Ostatnia weryfikacja: **05.11.2026** (Android: średnia przychodu za dzień wybr
 > **Przeczytaj przed rozpoczęciem kolejnej pracy.** Nie proponuj jako nowości funkcji, która już działa; sprawdź jej zakres i tylko brakujący element. Ten plik jest dokumentacją stanu na podaną datę, **nie** dowodem aktualnego działania produkcji. Przy następnej pracy porównaj go z kodem `main`, historią PR, testami i — gdy dotyczy — rzeczywistym wdrożeniem. Po zmianie zaktualizuj sekcje poniżej w tym samym PR.
 
 
+## 10.11.2026 — przygotowany awaryjny proces GitHub dla Mortii, BEZ WDROŻENIA
+
+Na polecenie właściciela po problemach z WebFTP przygotowano `deployment/mortii-copy/`: nieaktywny szablon ręcznego workflow, skrypt SFTP z weryfikacją wcześniej przypiętego klucza hosta przed hasłem, manifest SHA czterech plików, prywatną kopię i readback oraz próbę rollbacku przy błędzie. Zakres: tylko usunięcie wskazanych tekstów formularza i cache JS v=3; bufor/reguły backendu bez zmian. Osiem testów syntetycznych PASS, patch lokalnych kopii dokładny; składnia Node/PHP sprawdzana przed wdrożeniem. Żadne SFTP ani rzeczywiste wdrożenie nie zostało wykonane, sekrety w ustawieniach niezweryfikowane. Dotychczasowa globalna polityka GitHub test-only nie jest wyłączana. Aktywacja workflow wymaga jawnego wyjątku dla tego procesu; dokumentacja pakietu opisuje kroki. PR i CI: do potwierdzenia. APK pozostaje 1.7.26/code41, podpisany instalator na rentmor.pl/RentMor.apk opublikowany wcześniej, bez przebudowy w tej zmianie. Problem odrzucania zgłoszenia terminu pozostaje otwarty.
+
+
+
+
 ## 08.11.2026 — bezpieczne transakcje testowe, rollback i monitoring HTTP — PR #141, BEZ PUBLIKACJI
 
 - **Zakres:** na życzenie właściciela rozwijamy cofanie wdrożeń, testy syntetyczne, wieloplikowe zmiany i monitorowanie; **bez tworzenia automatycznego dziennika zmian**. W repo przygotowano `scripts/test_synthetic_batch_deploy.py` (wyłącznie pliki `fixture-*` w losowym katalogu tymczasowym, brak dostępu do AZ.pl) z pełnym preflight SHA dla wszystkich plików, walidacją PHP CLI, atomową podmianą, weryfikacją hash po zapisie i odzyskaniem wszystkich plików po błędzie zapisu lub health-check. Testy obejmują duplikaty, symlinki, niedozwolone ścieżki, SHA stale i awarie w połowie transakcji.

@@ -1,0 +1,49 @@
+# Inactive template: activate only for this explicitly authorized operation.
+name: Manual Mortii copy deployment
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [check, apply]
+        default: check
+      confirmation:
+        description: 'For apply, enter MORTII-COPY-ONLY'
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: rentmor-public-homepage
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Validate explicit apply request
+        env:
+          MODE: ${{ inputs.mode }}
+          CONFIRM_DEPLOY: ${{ inputs.confirmation }}
+        run: |
+          if [ "$MODE" = apply ] && [ "$CONFIRM_DEPLOY" != MORTII-COPY-ONLY ]; then exit 1; fi
+      - name: Synthetic transaction tests
+        run: python3 deployment/mortii-copy/test_deploy.py
+      - name: Install SFTP client
+        run: python3 -m pip install 'paramiko==3.5.1'
+      - name: Preflight or narrowly scoped deployment
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          CONFIRM_DEPLOY: ${{ inputs.confirmation }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          if [ "$MODE" = apply ]; then
+            python3 deployment/mortii-copy/deploy.py --apply
+          else
+            python3 deployment/mortii-copy/deploy.py
+          fi
