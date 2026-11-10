@@ -46,13 +46,23 @@
   function init() {
     const css = document.createElement('link');
     css.rel = 'stylesheet';
-    css.href = '/rentmor-ai-mortii-visual.css?v=1';
+    css.href = '/rentmor-ai-mortii-visual.css?v=3';
     document.head.append(css);
     enhance();
-    const chat = document.getElementById('mortii-chat');
-    if (!chat) return;
-    const observer = new MutationObserver(() => enhance());
-    observer.observe(chat, {childList: true, subtree: true});
+    const bindChat = () => {
+      const chat = document.getElementById('mortii-chat');
+      if (!chat) return false;
+      const observer = new MutationObserver(() => enhance());
+      observer.observe(chat, {childList: true, subtree: true});
+      enhance();
+      return true;
+    };
+    if (!bindChat()) {
+      const waiting = new MutationObserver(() => {
+        if (bindChat()) waiting.disconnect();
+      });
+      waiting.observe(document.body || document.documentElement, {childList: true, subtree: true});
+    }
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init, {once: true});
