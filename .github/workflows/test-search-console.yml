@@ -19,3 +19,4 @@ jobs:
       - run: php scripts/test_search_console.php
       - run: python3 scripts/test_search_console_patch.py
       - run: python3 scripts/test_search_console_http.py
+      - run: php -l deployment/search-console/remote.php && python3 scripts/test_search_console_deploy.py
