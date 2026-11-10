@@ -1,0 +1,27 @@
+name: One-time Mortii preflight
+on:
+  push:
+    branches: [codex/mortii-copy-deployment-preparation]
+    paths: [.github/workflows/mortii-preflight-once.yml]
+permissions:
+  contents: read
+concurrency:
+  group: rentmor-public-homepage
+  cancel-in-progress: false
+jobs:
+  check:
+    if: github.ref == 'refs/heads/codex/mortii-copy-deployment-preparation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: python3 deployment/mortii-copy/test_deploy.py
+      - run: python3 -m pip install 'paramiko==3.5.1'
+      - name: SFTP preflight without writes
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: python3 deployment/mortii-copy/deploy.py
