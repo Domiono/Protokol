@@ -105,6 +105,8 @@ public class AdminStatisticsAccessTest {
     @Test public void administratorSeesFinanceNavigation() {
         MainActivity activity=open("admin");
         View screen=activity.findViewById(android.R.id.content);
+        assertFalse("Search Console was withdrawn",shows(screen,"Google / SEO"));
+        assertTrue("AI knowledge must remain",shows(screen,"AI — Wiedza"));
         assertTrue(shows(screen,"Statystyki najmu"));
         assertTrue(shows(screen,"Pozostałe koszty"));
     }
