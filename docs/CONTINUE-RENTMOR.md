@@ -1,13 +1,17 @@
 # RentMor — kontynuacja prac
 Aktualizacja: 10.11.2026 (Europe/Warsaw). Ten plik i RENTMOR-PROJECT-LOG.md mają być zapisywane w repozytorium oraz identycznie na serwerze. Dokumentacja nie zastępuje sprawdzenia aktualnego kodu i wyników wdrożeń.
 
-## 10.11.2026 — wycofanie integracji Search Console na prośbę właściciela
+## 10.11.2026 — Search Console wycofane z WWW i aplikacji
 
-Właściciel zlecił cofnięcie integracji Search Console z panelu WWW i Androida (PR151/152). Przygotowano usunięcie menu, natywnego ekranu, metod klienta i helperów OAuth/raportów. Dotychczasowe opisy SEO, metadane ofert, poradniki, statystyki strony i połączenie Windsor wChatGPT nie są częścią cofanej integracji. Kod aktualizowany punktowo; bez przywracania całego hostingu lub danych do wcześniejszego stanu.
+Na wyraźne polecenie właściciela cofnięto integrację zPR151/152: usunięto menu i konfiguracjęWWW, natywny ekranAndroida, metody klienta, helpery, testy i jednorazowe skrypty poprzedniej integracji. Dotychczasowe metadaneSEO, edycja ofert, poradniki, statystyki strony, wiedzaAI, Mortii, rezerwacje i klienci zachowane. Niezależne połączenieWindsor wChatGPT pozostaje. Nie usuwano projektu ani klientaGoogleCloud.
 
-Android1.7.31/code46 jest aktualizacją usuwającą ekranGoogle/SEO; numer musi rosnąć, aby aktualizować z1.7.30 bez odinstalowania. Staryendpoint ma zwracać410 dla aktywnego urządzenia, bez danych rezerwacji/klientów i bez Google. Stare linki panelu kierują do zwykłego logowania. Konfiguracja/tokeny/raporty Google na hostingu mają zostać wyłączone przez przeniesienie całego katalogu do prywatnej kopii, bez odczytu sekretów i bez zmian wGoogleCloud.
+**OPUBLIKOWANE**, PR153, run42915561164 SUCCESS. Android **1.7.31/code46**, ten sam certyfikat co1.7.30; instalacja na obecną aplikację bez odinstalowania. Sprawdzono także brak klasySearchConsolePage i menuGoogle/SEO wDEX oraz zachowanieAiKnowledgePage. NowyAPK SHA256 **85ad13f24ad1dc7d397568f4db175123cd3855c7dedf5f22003134776392e846**, instalator https://rentmor.pl/download-app.php?release=46 . PubliczneAPK i endpointpobierania zgodne bajtowo, no-store i filenameRentMor-1.7.31.apk.
 
-Status: przygotowane; PR/testy/podpisanyAPK, wdrożenie i synchronizacja obu kopii dokumentów do potwierdzenia. Publiczne wydanie pozostaje1.7.30/code45 do ukończenia publikacji. Nie cofać wiedzyAI, Mortii, rezerwacji, klientów ani innych prac.
+Z bieżących plików hostingu usunięto dokładnie znane hookiGSC, zachowując pozostały kod. admin.php SHA256f2bda759d8ad74034a05c031056ce39643515fa579a3fa0e7d9b4f0d563434ad, protocol_sync.php SHA2568e2982039832f3ebd044b40786d5ce7f87573697f65c9683f52e572a8b176642. Trzy helpery usunięte, publiczne404. Staryendpoint po aktywacji zwraca410 z samymbłędem, zamiast pełnej synchronizacji; bezaktywacji401. Stare linkiGoogle wpanelu kierują do admin.php, bezobsługiOAuth.
+
+Testy: pełnyAndroid/testDebugUnitTest i podpisanyassembleReleasePASS;4testytransakcji usunięcia/przywrócenia na fikcyjnych danych,5testówHTTPstaregoendpointu i4testypobieraniaPASS. Po publikacji dokładnyreadback i zgodność obu dokumentów0700/0600. Fizyczna instalacja na telefonie właściciela pozostaje do wykonania.
+
+Końcowe porządkowanie: katalog połączenia jest sprawdzany pod ścieżką wynikającą z dirname(realpath(public_html)), tak jak wcześniejszyhelper; aliasy webrootu mogą różnić się od katalogu bieżącegoSSH. Jeżeli istnieje, cały katalog konfiguracji/tokenów/raportów jest przenoszony do prywatnej kopii0700, bez odczytu sekretów i bez żądańGoogle. Wynik jest potwierdzany w końcowym zadaniu REMOVE_GSC_RESULT/connection_disabled oraz REMOVE_GSC_TWO_PROGRESS_DOCUMENTS_SHA256_0600_VERIFIED. Ten tryb nie podmienia ponownieAPK ani źródeł. Tymczasowyworkflow publikacji/synchronizacji usunąć po zakończeniu; główna politykatest-only zachowana.
 
 ## 10.11.2026 — Search Console w aplikacji Android, OPUBLIKOWANE
 
@@ -56,7 +60,7 @@ Końcowe dokumenty są synchronizowane przez osobny dokładnySHA workflow; potwi
 
 ## Potwierdzone wdrożenia
 - Publiczny Mortii i formularze są dostępne na RentMor. SMS wysyła ręcznie właściciel po zaakceptowaniu zgłoszenia; brak automatycznego SMS/e-mail. Zgłoszenia pending nie blokują sprzętu. Akceptacja ponownie sprawdza dostępność i bufor90min, doba24h; rozliczony/oddany najem zwalnia egzemplarz.
-- Android1.7.30/code45 podpisany tym samym kluczem co poprzedni, instalator https://rentmor.pl/download-app.php?release=45 . Aktualizacja bez odinstalowania aplikacji. Google / SEO dostępne wyłącznie dla administratora.
+- Android1.7.31/code46 podpisany tym samym kluczem co poprzedni, instalator https://rentmor.pl/download-app.php?release=46 . Aktualizacja bez odinstalowania aplikacji. IntegracjaGoogle/SEO wycofana na polecenie właściciela.
 - Bosch GWS2200 230mm: po potwierdzeniu właściciela dodano dokładnie jeden fizyczny egzemplarz. Run42768160814 SUCCESS (SSH/PHP CLI, natywne blokady, backup/readback); termin11.11.2026 15:30→12.11.2026 15:30 sprawdzony jako dostępny w chwili testu. Nie jest to gwarancja bieżącej dostępności.
 - Opcjonalna wiadomość klienta:2000znaków, prywatne zgłoszenie i widok właściciela WWW/Android; bez kontekstuAI. Run42768478237 SUCCESS,6plików SHA/backup/readback/HTTP.
 - Czat: usunięto zaznaczone zdanie o OpenAI, pozostaje informacja oAI i niewpisywaniu danych osobowych. Dymek znika przy otwartym czacie, wraca przy Zamknij/Escape. Panel bottom22px. JSv6/CSSv3. Postać jest tworzona bezpośrednio w mortii.js, koło62×62px, WebP0644; starego dekoratora nie przywracać. Run42770178880 SUCCESS,5plików, kopia/readback/HTTP; działanie obejrzane w przeglądarce.

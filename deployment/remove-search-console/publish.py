@@ -87,7 +87,7 @@ def main():
     progress_only='--progress-only'in sys.argv
     baseline=json.loads((ROOT/'deployment/remove-search-console'/('progress-baseline.json'if progress_only else 'baseline.json')).read_text())
     docs={name:{'before_blob':blob,'content':b64((ROOT/'docs'/name).read_bytes())}for name,blob in baseline['docs'].items()}
-    payload={'mode':'publish','progress_only':progress_only,'docs':docs}
+    payload={'mode':'publish','progress_only':progress_only,'docs':docs,'disable_connection':'--disable-connection'in sys.argv}
     apk=None
     if not progress_only:
         apk=checked_apk()
@@ -112,3 +112,4 @@ def main():
 if __name__=='__main__':
     try:main()
     except Exception as e:print('REMOVE_GSC_RELEASE_STOPPED_'+type(e).__name__);raise SystemExit(1)
+
