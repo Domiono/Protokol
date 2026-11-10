@@ -1,0 +1,26 @@
+name: Verify published AI menu installer
+on:
+  push:
+    branches: [codex/verify-ai-menu-apk-20261110]
+    paths: [.github/workflows/verify-ai-menu-apk.yml]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Inspect public installer bytes and version
+        shell: python
+        run: |
+          import urllib.request,hashlib,zipfile,io,subprocess,pathlib,os,json,time
+          aapt=sorted(pathlib.Path(os.environ['ANDROID_HOME']).glob('build-tools/*/aapt'))[-1]
+          for i,suffix in enumerate(['','?v=42','?verify-ai-menu='+str(int(time.time()))]):
+           req=urllib.request.Request('https://rentmor.pl/RentMor.apk'+suffix,headers={'Cache-Control':'no-cache'})
+           with urllib.request.urlopen(req,timeout=90)as r:
+            data=r.read(100000001);meta={k:r.headers.get(k)for k in ['Cache-Control','Age','ETag','Last-Modified','Content-Length']}
+           p=pathlib.Path('/tmp/public-'+str(i)+'.apk');p.write_bytes(data)
+           info=subprocess.check_output([str(aapt),'dump','badging',str(p)],text=True,stderr=subprocess.DEVNULL).splitlines()[0]
+           z=zipfile.ZipFile(io.BytesIO(data));dex=b''.join(z.read(n)for n in z.namelist()if n.endswith('.dex'))
+           print(json.dumps({'url_suffix':suffix,'sha256':hashlib.sha256(data).hexdigest(),'package':info,'has_menu':('AI — Wiedza'.encode()in dex),'has_page':b'AiKnowledgePage'in dex,'has_navigation':b'aiKnowledgePage'in dex,'headers':meta},ensure_ascii=False),flush=True)
+          
