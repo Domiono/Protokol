@@ -1,0 +1,31 @@
+name: Test booking calendar
+on:
+  push:
+    branches: [main, codex/booking-calendar-20261111]
+    paths:
+      - server/booking_calendar*
+      - server/mortii.js
+      - scripts/test_booking_calendar*
+      - deployment/booking-calendar/baseline/**
+      - .github/workflows/booking-calendar-test.yml
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  calendar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Parse and test PHP on fixtures only
+        run: |
+          php -l server/booking_calendar.php
+          php -l server/booking_calendar_rules.php
+          php scripts/test_booking_calendar.php
+      - name: Test calendar interactions
+        run: |
+          node --check server/mortii.js
+          node scripts/test_booking_calendar_dom.cjs
