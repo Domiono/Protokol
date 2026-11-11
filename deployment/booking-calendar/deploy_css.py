@@ -7,8 +7,8 @@ BEFORE='98dde0ba4261133cb882491b4acbc96e400fe9ddd00cbcdbba0ce2fd7ad8b402'
 def digest(b):return hashlib.sha256(b).hexdigest()
 def read(s,p):
  m=s.lstat(p)
- if not stat.S_ISREG(m.st_mode) or m.st_size>100000:raise ValueError('Invalid regular file')
- with s.open(p,'rb') as f:return f.read(100001)
+ if not stat.S_ISREG(m.st_mode) or m.st_size>500000:raise ValueError('Invalid regular file')
+ with s.open(p,'rb') as f:return f.read(500001)
 def write(s,p,b,mode):
  with s.open(p,'wb') as f:f.write(b)
  s.chmod(p,mode)
@@ -41,7 +41,7 @@ def main():
    if read(s,path)!=candidate:raise RuntimeError('Production readback mismatch')
    request=urllib.request.Request('https://rentmor.pl/mortii.css?booking='+digest(candidate)[:16],headers={'Cache-Control':'no-cache'})
    with urllib.request.urlopen(request,timeout=30) as response:
-    if response.status!=200 or response.read(100001)!=candidate:raise RuntimeError('Public CSS differs')
+    if response.status!=200 or response.read(500001)!=candidate:raise RuntimeError('Public CSS differs')
   except Exception:
    if changed:
     write(s,folder+'/mortii.css.rollback',before,0o644)
