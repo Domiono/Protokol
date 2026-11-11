@@ -35,16 +35,19 @@ $e = 'rm_category_escape';
 <?= rm_public_site_header() ?>
 <main id="rentmor-category-main" tabindex="-1"><nav aria-label="Okruszki"><a href="/">Strona główna</a> / <?= $e($category['name']) ?></nav>
 <h1><?= $e($category['heading']) ?></h1><p><?= $e($category['intro']) ?></p>
+<?php $featuredSetSlug = 'zestaw-szlifierka-stanley-zyrafa-do-gladzi-i-odkurzacz-bosch-metabo'; if (isset($items[$featuredSetSlug])): ?>
+<p class="rm-seo-section">Szukasz zestawu do szlifowania gładzi? <a href="/<?= $e($featuredSetSlug) ?>/">Wynajem żyrafy z odkurzaczem w Krakowie</a> — zobacz wyposażenie, zdjęcia i cenę zestawu.</p>
+<?php endif; ?>
 <section class="rm-seo-section" aria-labelledby="category-offers"><h2 id="category-offers">Urządzenia i ceny wynajmu</h2>
 <p>Dostępność na wybrany termin potwierdzamy przy rezerwacji. Kaucję i ewentualne koszty dodatków sprawdzisz w szczegółach oferty.</p>
 <?php if (!$items): ?><p>Obecnie nie ma urządzeń w tej kategorii. <a href="/">Zobacz cały katalog</a>.</p><?php endif; ?>
 <div class="rm-seo-grid">
 <?php foreach ($items as $productSlug=>$item): $rawImage = rm_related_image($item); [$image, $srcset] = rm_category_responsive_image($rawImage, $imageManifest); $price = rm_related_price($item); ?>
 <article class="rm-seo-card"><a href="/<?= $e($productSlug) ?>/">
-<?php if ($image !== ''): ?><img src="<?= $e($image) ?>" alt="" width="300" height="180" loading="lazy" decoding="async"<?php if ($srcset !== ''): ?> srcset="<?= $e($srcset) ?>" sizes="(max-width: 600px) calc(100vw - 72px), (max-width: 1120px) 48vw, 310px"<?php endif; ?>><?php endif; ?>
+<?php if ($image !== ''): ?><img src="<?= $e($image) ?>" alt="<?= $e($item['name']) ?>" width="300" height="180" loading="lazy" decoding="async"<?php if ($srcset !== ''): ?> srcset="<?= $e($srcset) ?>" sizes="(max-width: 600px) calc(100vw - 72px), (max-width: 1120px) 48vw, 310px"<?php endif; ?>><?php endif; ?>
 <h3><?= $e($item['name']) ?></h3></a>
 <?php if ($price !== ''): ?><p class="rm-seo-price"><?= $e($price) ?></p><?php endif; ?>
-<a href="/<?= $e($productSlug) ?>/">Szczegóły wynajmu</a></article>
+<a href="/<?= $e($productSlug) ?>/">Wynajem: <?= $e($item['name']) ?></a></article>
 <?php endforeach; ?></div></section>
 <section class="rm-seo-section"><h2>Jak dobrać sprzęt?</h2><p><?= $e($category['advice']) ?></p>
 <h2>Wynajem sprzętu dla osób prywatnych i firm</h2><p>W RentMor w Krakowie można wynająć sprzęt zarówno do jednorazowego remontu, jak i prac realizowanych przez wykonawcę. Cena podana przy każdym urządzeniu to stawka podstawowa za dobę. Osprzęt, opłaty dodatkowe i kaucję sprawdzisz w szczegółach konkretnej oferty.</p>
