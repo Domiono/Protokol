@@ -7,7 +7,7 @@ function rentmor_public_metadata(string $html): string {
     $head = preg_replace_callback('~(<script\\b[^>]*type=["\\x27]application/ld\\+json["\\x27][^>]*>)(.*?)(</script>)~is', static function ($m) {
         $data = json_decode($m[2], true);
         if (!is_array($data) || ($data['@id'] ?? '') !== 'https://rentmor.pl/#organization' || ($data['@type'] ?? '') !== 'Organization') return $m[0];
-        $data['address'] = ['@type'=>'PostalAddress', 'streetAddress'=>'ul. Woźniców', 'addressLocality'=>'Kraków', 'addressCountry'=>'PL'];
+        $data['address'] = ['@type'=>'PostalAddress', 'streetAddress'=>'ul. Woźniców', 'addressLocality'=>'Kraków', 'postalCode'=>'31-982', 'addressCountry'=>'PL'];
         $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
         return $json === false ? $m[0] : $m[1] . $json . $m[3];
     }, $head);
