@@ -1,8 +1,12 @@
 # RentMor — kontynuacja prac
 
+## 11.11.2026 — PR154 OPUBLIKOWANE przez GitHub
+
+Run42984272470 SUCCESS: punktowa podmiana category.php, zachowany aktualny Mortii, prywatny backup i odczyt zwrotny SHA2561148fb0e5f6821dd9344499abcd9bf5c98b6bae206202127a45432d789794656. Oba dokumenty zsynchronizowane prywatnie0600 w katalogu0700 i porównane bajtowo. Kontrole składniPHP/Python PASS. Opisy alt i nazwy w linkach dotyczą wszystkich kart kategorii; kontekstowy link żyrafy wyłącznie tam, gdzie zestaw jest w katalogu. Brak gwarancji wyboru miniatury ani pozycjiGoogle. Końcowy run synchronizacji i publicznej weryfikacji należy sprawdzić po zakończeniu; jednorazowy workflow zostaje usunięty przed scaleniem dokumentacji.
+
 ## 11.11.2026 — kontekst zdjęć i linków katalogu, PR do potwierdzenia
 
-SCALONE W MAIN (PR154, eb9ccc6), PUBLIKACJA W TOKU PRZEZ JEDNORAZOWY WORKFLOW GITHUB. Wynik wdrożenia wymaga potwierdzenia. category.php: opisowe alt z nazwą sprzętu dla wszystkich zdjęć kart, linki wynajmu z nazwą urządzenia oraz kontekstowy link do istniejącej oferty żyrafy z odkurzaczem (tylko gdy oferta jest w kategorii). Bez zmiany nazw, slugów, cen i danych katalogu. Przegląd shared template wykazał puste alt dla wszystkich kategorii; related_offers.php ma już prawidłowe alt z nazwą sprzętu. Nie potwierdzono wizualnie zgodności wszystkich zdjęć ani metadanych szablonu index.php (nieobecny w repo i niedostępny do odczytu MCP). Nie ustalono błędu schema strony głównej; nie usuwać go na podstawie przypuszczenia.
+OPUBLIKOWANE, PR154, run42984272470 SUCCESS. Najnowszy wpis potwierdzenia ma pierwszeństwo przed historyczną blokadąMCP403. category.php: opisowe alt z nazwą sprzętu dla wszystkich zdjęć kart, linki wynajmu z nazwą urządzenia oraz kontekstowy link do istniejącej oferty żyrafy z odkurzaczem (tylko gdy oferta jest w kategorii). Bez zmiany nazw, slugów, cen i danych katalogu. Przegląd shared template wykazał puste alt dla wszystkich kategorii; related_offers.php ma już prawidłowe alt z nazwą sprzętu. Nie potwierdzono wizualnie zgodności wszystkich zdjęć ani metadanych szablonu index.php (nieobecny w repo i niedostępny do odczytu MCP). Nie ustalono błędu schema strony głównej; nie usuwać go na podstawie przypuszczenia.
 
 GSC 13.10–08.11.2026: brak wiersza dla dokładnej frazy użytkownika; wariant „żyrafa do gładzi wynajem” ma jedno wyświetlenie / średnią pozycję 11, więc brak podstaw do wniosku o stabilnej pozycji. Stare adresy obu ofert żyrafy przekierowują do slugów według publicznego odczytu. Miniatura w przesłanym wyniku dotyczy strony głównej; zmiana alt/linków nie gwarantuje jej podmiany ani wzrostu pozycji.
 
