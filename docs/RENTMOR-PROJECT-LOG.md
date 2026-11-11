@@ -1,5 +1,13 @@
 # RentMor — stan projektu i dziennik zmian
 
+## 11.11.2026 — kontekst zdjęć i linków katalogu, PR do potwierdzenia
+
+PRZYGOTOWANE W KODZIE, NIEOPUBLIKOWANE. category.php: opisowe alt z nazwą sprzętu dla wszystkich zdjęć kart, linki wynajmu z nazwą urządzenia oraz kontekstowy link do istniejącej oferty żyrafy z odkurzaczem (tylko gdy oferta jest w kategorii). Bez zmiany nazw, slugów, cen i danych katalogu. Przegląd shared template wykazał puste alt dla wszystkich kategorii; related_offers.php ma już prawidłowe alt z nazwą sprzętu. Nie potwierdzono wizualnie zgodności wszystkich zdjęć ani metadanych szablonu index.php (nieobecny w repo i niedostępny do odczytu MCP). Nie ustalono błędu schema strony głównej; nie usuwać go na podstawie przypuszczenia.
+
+GSC 13.10–08.11.2026: brak wiersza dla dokładnej frazy użytkownika; wariant „żyrafa do gładzi wynajem” ma jedno wyświetlenie / średnią pozycję 11, więc brak podstaw do wniosku o stabilnej pozycji. Stare adresy obu ofert żyrafy przekierowują do slugów według publicznego odczytu. Miniatura w przesłanym wyniku dotyczy strony głównej; zmiana alt/linków nie gwarantuje jej podmiany ani wzrostu pozycji.
+
+Walidacja: sprawdzono obecność jednoznacznych fragmentów źródła przed podmianą. Testy wykonania i publikacja do potwierdzenia. RentMor Control stage_site_change zwrócił HTTP403, sesja zaufana nieaktywna. Prywatne kopie postępów na hostingu NIEZSYNCHRONIZOWANE z powodu niedostępnego zapisu. Następne kroki: przegląd PR/CI, wdrożenie dokładnej poprawki na świeżym pliku hostingu z zachowaniem nowszych hooków Mortii, synchronizacja obu dokumentów i publiczny odczyt zwrotny. Repo ma politykę test-only; merge nie stanowi publikacji.
+
 **Główna karta projektu: strona RentMor.pl + natywna aplikacja Android.**  
 Ostatnia aktualizacja: **10.11.2026**. Integracja Search Console zWWW iAndroida **WYCOFANA na prośbę właściciela**, [PR #153](https://github.com/Domiono/Protokol/pull/153), [testy i publikacja](https://github.com/Domiono/Protokol/actions/runs/42915561164). Android: **1.7.31 / versionCode46**. Pozostałe SEO, statystyki i funkcjeRentMor zachowane. Najnowszy potwierdzony wpis ma pierwszeństwo przed historycznymi statusami.
 
