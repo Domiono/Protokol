@@ -1,3 +1,7 @@
+## 11.11.2026 — Organization: publiczna ulica i miasto, OPUBLIKOWANE
+
+Dodano PostalAddress: ul. Woźniców, Kraków, PL, bez numeru budynku. Typ Organization, Product, ceny i URL zachowane. RentMor Control change4f95d419e06baeca0a0918adca096277 zastosowany po zgodzie właściciela; backup dostępny, produkcyjny SHA256 aa1575c136f9f3d1adb3e7cbcd7c7af6daef74676751777ffaebdbcc4ae5d2c7. Publiczny odczyt JSON potwierdził adres. Google Rich Results Test:4poprawne elementy, bez błędów krytycznych; Organization ma opcjonalny brak postalCode. Raport https://search.google.com/test/rich-results/result?id=NYLxNksfqd69yxgnnfzEyg . Repozytorium utrwala punktową poprawkę bez nadpisywania nowszego hookaMortii hostingu. Synchronizacja prywatnych kopii dokumentów na serwer NIE WYKONANA — brak dostępnego zapisu dla tych ścieżek. PR/CI do potwierdzenia; Android bez zmian.
+
 # RentMor — stan projektu i dziennik zmian
 
 ## 11.11.2026 — PR154 OPUBLIKOWANE przez GitHub
