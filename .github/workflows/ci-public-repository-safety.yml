@@ -1,4 +1,4 @@
-name: Enforce public GitHub test-only policy
+name: Check public repository deployment safety
 on:
   push:
     branches: [main]
@@ -11,12 +11,12 @@ permissions:
 
 jobs:
   public-safety:
-    name: No hosting secrets or deploy workflows
+    name: Protect secrets and deployment triggers
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Run read-only test policy
+      - name: Check public repository safety
         run: python3 scripts/assert_github_test_only.py

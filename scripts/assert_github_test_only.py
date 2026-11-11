@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Policy for PUBLIC RentMor test-only GitHub Actions; no production credentials.
+"""Policy for PUBLIC RentMor GitHub Actions; credentials only in authorized workflows.
 This test checks tracked workflow source and high-risk secret file names.
 It DOES NOT rewrite git history or claim all historical contents are clean.
 """
@@ -32,13 +32,22 @@ REDACTED_TOKEN_PATTERNS = [
         r"\bxox[baprs]-[A-Za-z0-9-]{20,}\b",
     ]
 ]
+# Owner authorization 2026-11-11: narrowly scoped deployment workflows may use Secrets.
+AUTHORIZED_HOSTING_WORKFLOWS = {"booking-source.yml", "booking-deploy.yml"}
 def main() -> int:
     errors=[]
     for item in sorted(WORKFLOWS.glob("*.yml"))+sorted(WORKFLOWS.glob("*.yaml")):
         source=item.read_text(encoding="utf-8")
         if not re.search(r"(?m)^permissions:\s*\n\s+contents:\s*read\s*$",source):
             errors.append(f"{item.relative_to(ROOT)}: no minimal read-only permissions")
+        if item.name in AUTHORIZED_HOSTING_WORKFLOWS:
+            if re.search(r"(?m)^\s*(pull_request|pull_request_target|workflow_run)\s*:",source):
+                errors.append(f"{item.relative_to(ROOT)}: hosting workflow must not run on PR input")
+            if "persist-credentials: false" not in source:
+                errors.append(f"{item.relative_to(ROOT)}: checkout must not retain token")
         for label,pattern in FORBIDDEN_WORKFLOW.items():
+            if item.name in AUTHORIZED_HOSTING_WORKFLOWS and label in {"accessing GitHub secrets", "SFTP/FTP command or credential"}:
+                continue
             if re.search(pattern,source,re.IGNORECASE):
                 errors.append(f"{item.relative_to(ROOT)}: forbidden {label}")
     for item in ROOT.rglob("*"):
@@ -59,10 +68,10 @@ def main() -> int:
         except (OSError,UnicodeError):
             continue
     if errors:
-        print("FAIL: public test-only CI security policy")
+        print("FAIL: public repository CI security policy")
         print("\n".join(errors))
         return 1
-    print("PASS: all active workflows are test-only, no FTP/SFTP, GitHub secrets or release publishing")
+    print("PASS: hosting credentials limited to authorized workflows; other workflows read-only")
     print("PASS: no risky credential file names in the working tree")
     print("NOTE: this cannot certify historical Git commits or external GitHub settings")
     return 0

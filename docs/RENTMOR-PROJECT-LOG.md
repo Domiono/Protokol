@@ -1,5 +1,9 @@
 # RentMor — stan projektu i dziennik zmian
 
+## 11.11.2026 — GitHub: testy i wdrożenia DOZWOLONE
+
+Właściciel jawnie zezwolił na wdrożenie formularza/kalendarza przez GitHub oraz trwale zmienił zasadę: można wdrażać przez repozytorium. AGENTS.md zawiera aktualną decyzję; historyczne wpisy test-only są nieaktualne jako ograniczenie. Kontrola CI zachowuje skanowanie sekretów, minimalne uprawnienia i blokuje niebezpieczne triggery dla wskazanych workflow hostingu. Stan formularza/kalendarza: PR157 w przygotowaniu, NIEOPUBLIKOWANE. Odczyt źródła przez workflow43095489666 w kolejce. APK bez zmian. Prywatne kopie tego wpisu do synchronizacji po uzyskaniu wykonawcyGitHub; nie potwierdzono zapisu na serwerze.
+
 ## 11.11.2026 — PR154 OPUBLIKOWANE przez GitHub
 
 Run42984272470 SUCCESS: punktowa podmiana category.php, zachowany aktualny Mortii, prywatny backup i odczyt zwrotny SHA2561148fb0e5f6821dd9344499abcd9bf5c98b6bae206202127a45432d789794656. Oba dokumenty zsynchronizowane prywatnie0600 w katalogu0700 i porównane bajtowo. Kontrole składniPHP/Python PASS. Opisy alt i nazwy w linkach dotyczą wszystkich kart kategorii; kontekstowy link żyrafy wyłącznie tam, gdzie zestaw jest w katalogu. Brak gwarancji wyboru miniatury ani pozycjiGoogle. Końcowy run synchronizacji i publicznej weryfikacji należy sprawdzić po zakończeniu; jednorazowy workflow zostaje usunięty przed scaleniem dokumentacji.
