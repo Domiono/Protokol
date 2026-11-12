@@ -1,5 +1,5 @@
 name: Publish full booking calendar
-# Checkpointed verification attempt 2
+# Checkpointed verification attempt 3: atomic SSH rename
 on:
   push:
     branches: [codex/booking-calendar-20261111]
