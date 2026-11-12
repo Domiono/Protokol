@@ -39,6 +39,18 @@ def main():
   if pin not in PINS:raise ValueError('Host key mismatch')
   t.auth_password(os.environ['FTP_USERNAME'],os.environ['FTP_PASSWORD'],fallback=False)
   s=paramiko.SFTPClient.from_transport(t);s.get_channel().settimeout(30)
+  if os.environ.get('BOOKING_PROGRESS_ONLY')=='1':
+   private='rentmor-control-private'
+   if s.lstat(private).st_mode&0o077:raise ValueError('Private directory')
+   progress=private+'/progress'
+   try:s.mkdir(progress,mode=0o700)
+   except IOError:pass
+   s.chmod(progress,0o700)
+   for name in ['CONTINUE-RENTMOR.md','RENTMOR-PROJECT-LOG.md']:
+    b=(ROOT/'docs'/name).read_bytes();write(s,progress+'/'+name+'.stage',b,0o600);checked_move(s,progress+'/'+name+'.stage',progress+'/'+name)
+    if read(s,progress+'/'+name)!=b or s.lstat(progress+'/'+name).st_mode&0o777!=0o600:raise RuntimeError('Progress readback')
+   print('TWO_PROGRESS_DOCUMENTS_SHA256_0600_VERIFIED')
+   return
   for name in ['booking_schedule.php','rental_inventory.php']:
    if read(s,'public_html/'+name)!=(ROOT/'deployment/booking-calendar/baseline'/name).read_bytes():raise ValueError('Booking rules changed')
   print('BASELINE_RULES_OK')
