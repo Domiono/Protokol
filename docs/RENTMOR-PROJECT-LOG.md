@@ -1,6 +1,6 @@
 ## 12.11.2026 — PR #106: aktualizacja dokumentacji agenta do bieżącego main (BEZ WDROŻENIA)
 
-- Zaktualizowano **istniejący** draft PR #106 względem main `93f76bc4c879`, bez modyfikacji kodu wykonywalnego, workflowów, cen ani danych klientów. Zmiana obejmuje wyłącznie cztery dokumenty.
+- Zaktualizowano **istniejący** draft PR #106 względem main `93f76bc4c879`, bez modyfikacji kodu wykonywalnego, workflowów, cen ani danych klientów. Zmiana obejmuje wyłącznie trzy dokumenty: AGENTS.md, docs/RENTMOR-AI-AGENT.md i niniejszy dziennik.
 - Zachowano aktualne decyzje właściciela: GitHub jest dopuszczonym kanałem wdrożeniowym **dla innych, zatwierdzonych prac**, ale autonomiczny agent w tym zadaniu nadal **nie może scalać ani wdrażać**. Historyczny zapis „GitHub tylko testy” nie obowiązuje globalnie.
 - Najnowszy main potwierdza wdrożony kalendarz dostępności (PR157, run43178603518 SUCCESS); nie proponować ponownego wdrożenia kalendarza. Nie wykonywano synchronizacji prywatnych dokumentów na hostingu ani zmian produkcyjnych.
 - Kontrola dokumentacji: porównanie diff z main; testy lokalne PHP/Android nie są wymagane dla zmian wyłącznie dokumentacyjnych. CI aktualnego commitu PR: do odczytu po aktualizacji gałęzi. Status PR: draft, do oceny właściciela.
