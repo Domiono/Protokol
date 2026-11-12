@@ -1,5 +1,5 @@
 name: Publish full booking calendar
-# Checkpointed verification attempt 4: standard SFTP rename with recovery
+# Checkpointed verification attempt 5: verified SFTP write with backup and recovery
 on:
   push:
     branches: [codex/booking-calendar-20261111]
