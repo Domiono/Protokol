@@ -1,4 +1,5 @@
 name: Publish full booking calendar
+# Checkpointed verification attempt 2
 on:
   push:
     branches: [codex/booking-calendar-20261111]
