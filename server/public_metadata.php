@@ -3,6 +3,14 @@
 function rentmor_public_metadata(string $html): string {
     if (!preg_match('~<head\b[^>]*>.*?</head>~is', $html, $match)) return $html;
     $head = $match[0];
+    // Public street and city only; preserve Organization and all product data.
+    $head = preg_replace_callback('~(<script\\b[^>]*type=["\\x27]application/ld\\+json["\\x27][^>]*>)(.*?)(</script>)~is', static function ($m) {
+        $data = json_decode($m[2], true);
+        if (!is_array($data) || ($data['@id'] ?? '') !== 'https://rentmor.pl/#organization' || ($data['@type'] ?? '') !== 'Organization') return $m[0];
+        $data['address'] = ['@type'=>'PostalAddress', 'streetAddress'=>'ul. Woźniców', 'addressLocality'=>'Kraków', 'postalCode'=>'31-982', 'addressCountry'=>'PL'];
+        $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+        return $json === false ? $m[0] : $m[1] . $json . $m[3];
+    }, $head);
     if (strpos($head, 'rentmor-sharing-v1') !== false) return $html;
     $titles = [
         'Szlifierka do betonu MSW-FG-250 250 mm – wynajem Kraków | RentMor' => 'Szlifierka MSW-FG-250 do betonu – wynajem Kraków | RentMor',

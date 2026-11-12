@@ -1,3 +1,11 @@
+## 11.11.2026 — kod pocztowy Organization, OPUBLIKOWANE
+
+Po zatwierdzeniu właściciela dodano postalCode31-982 przez RentMor Control change6ef16c4e3bb899815ecf01860480d499. Produkcyjny SHA25689a47eef779a8963c6cbdc013b4f612ccf6697745d67fd11124d830e6b8ceff8, kopia dostępna. Odczyt publicznego JSON-LD karty zestawu potwierdził ul.Woźniców/Kraków/31-982/PL i zachowany Organization. Po tej konkretnej zmianie nie ponowiono Rich Results Test; poprzedni wynik dotyczy wersji bez kodu. PR156 aktualizowany, CI do potwierdzenia. Prywatne kopie dokumentacji serwerowej niezsynchronizowane: brak zapisu tych ścieżek w aktualnych narzędziach.
+
+## 11.11.2026 — Organization: publiczna ulica i miasto, OPUBLIKOWANE
+
+Dodano PostalAddress: ul. Woźniców, Kraków, PL, bez numeru budynku. Typ Organization, Product, ceny i URL zachowane. RentMor Control change4f95d419e06baeca0a0918adca096277 zastosowany po zgodzie właściciela; backup dostępny, produkcyjny SHA256 aa1575c136f9f3d1adb3e7cbcd7c7af6daef74676751777ffaebdbcc4ae5d2c7. Publiczny odczyt JSON potwierdził adres. Google Rich Results Test:4poprawne elementy, bez błędów krytycznych; Organization ma opcjonalny brak postalCode. Raport https://search.google.com/test/rich-results/result?id=NYLxNksfqd69yxgnnfzEyg . Repozytorium utrwala punktową poprawkę bez nadpisywania nowszego hookaMortii hostingu. Synchronizacja prywatnych kopii dokumentów na serwer NIE WYKONANA — brak dostępnego zapisu dla tych ścieżek. PR/CI do potwierdzenia; Android bez zmian.
+
 # RentMor — stan projektu i dziennik zmian
 
 ## 11.11.2026 — GitHub: testy i wdrożenia DOZWOLONE
