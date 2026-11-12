@@ -1,3 +1,10 @@
+## 12.11.2026 — PR #106: aktualizacja dokumentacji agenta do bieżącego main (BEZ WDROŻENIA)
+
+- Zaktualizowano **istniejący** draft PR #106 względem main `93f76bc4c879`, bez modyfikacji kodu wykonywalnego, workflowów, cen ani danych klientów. Zmiana obejmuje wyłącznie cztery dokumenty.
+- Zachowano aktualne decyzje właściciela: GitHub jest dopuszczonym kanałem wdrożeniowym **dla innych, zatwierdzonych prac**, ale autonomiczny agent w tym zadaniu nadal **nie może scalać ani wdrażać**. Historyczny zapis „GitHub tylko testy” nie obowiązuje globalnie.
+- Najnowszy main potwierdza wdrożony kalendarz dostępności (PR157, run43178603518 SUCCESS); nie proponować ponownego wdrożenia kalendarza. Nie wykonywano synchronizacji prywatnych dokumentów na hostingu ani zmian produkcyjnych.
+- Kontrola dokumentacji: porównanie diff z main; testy lokalne PHP/Android nie są wymagane dla zmian wyłącznie dokumentacyjnych. CI aktualnego commitu PR: do odczytu po aktualizacji gałęzi. Status PR: draft, do oceny właściciela.
+
 # 12.11.2026 — kalendarz OPUBLIKOWANY, PR157
 
 Run43178603518 SUCCESS, commit831caef: 25kontroli PHP, interakcje DOM, polityka publicznego repo PASS. Opublikowano booking_calendar.php/rules, mortii.js/css i podbito 4 integracje do JSv7/CSSv4, zachowując aktualne pliki hostingu. Baseline fizycznych egzemplarzy i harmonogramu zgodny. Prywatne kopie, pełny readback, publiczny JS/CSS identyczny, bootstrap i GET kalendarza dla produktu/miesiąca z prawidłowym ograniczonym payloadem, cache hooki głównej PASS. Bez tworzenia zgłoszeń, płatnego AI i wysyłki SMS. Android1.7.31/code46 bez zmian. Wizualny test na fizycznym telefonie pozostaje po stronie właściciela.
