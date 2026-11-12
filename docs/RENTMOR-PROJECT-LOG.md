@@ -1,3 +1,9 @@
+# 12.11.2026 — kalendarz OPUBLIKOWANY, PR157
+
+Run43178603518 SUCCESS, commit831caef: 25kontroli PHP, interakcje DOM, polityka publicznego repo PASS. Opublikowano booking_calendar.php/rules, mortii.js/css i podbito 4 integracje do JSv7/CSSv4, zachowując aktualne pliki hostingu. Baseline fizycznych egzemplarzy i harmonogramu zgodny. Prywatne kopie, pełny readback, publiczny JS/CSS identyczny, bootstrap i GET kalendarza dla produktu/miesiąca z prawidłowym ograniczonym payloadem, cache hooki głównej PASS. Bez tworzenia zgłoszeń, płatnego AI i wysyłki SMS. Android1.7.31/code46 bez zmian. Wizualny test na fizycznym telefonie pozostaje po stronie właściciela.
+
+SFTP rename/posix rename odrzucone; kanał SSH na tym porcie Administratively prohibited. Udana publikacja używa zwykłego zapisu SFTP z backupem/odczytem/rollbackiem. Próby43177948476/43178101251/43178251132/43178419511 zakończone przed zmianą plików; potwierdzony powrót do oryginałów. Oba dokumenty zsynchronizowane0700/0600 w udanym run; niniejsze potwierdzenie synchronizowane osobnym trybem progress-only, wynik sprawdzić w jego run. Nie uruchamiać ponownie starego manifestu publikacji na już zmienionych hookach.
+
 # 12.11.2026 — pełne wdrożenie kalendarza zlecone przez właściciela
 
 PR157: testy PHP, DOM i rental operations SUCCESS dla 3d6dc4aa. Przygotowano pełne wdrożenie 2 endpointów, JS/CSS i 4 hooków cache na aktualnych plikach hostingu. Ścisły baseline reguł i JS/CSS, prywatny backup, readback, rollback i publiczny GET dostępności bez zapisu rezerwacji. Publikacja i synchronizacja dokumentów wymagają potwierdzenia run; NIE deklarować sukcesu na podstawie commitów. Android bez zmian (1.7.31/code46). WebFTP nadal zablokowane, nie ponawiać. Po sukcesie sprawdzić formularz na telefonie i uzupełnić wynik w obu dokumentach.
