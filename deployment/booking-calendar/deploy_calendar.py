@@ -26,6 +26,7 @@ def main():
   s=paramiko.SFTPClient.from_transport(t);s.get_channel().settimeout(30)
   for name in ['booking_schedule.php','rental_inventory.php']:
    if read(s,'public_html/'+name)!=(ROOT/'deployment/booking-calendar/baseline'/name).read_bytes():raise ValueError('Booking rules changed')
+  print('BASELINE_RULES_OK')
   changes=[]
   for name in ['booking_calendar_rules.php','booking_calendar.php','mortii.css','mortii.js']:
    try:old=read(s,'public_html/'+name)
@@ -41,6 +42,7 @@ def main():
     if text.count(before)!=1:raise ValueError('Unexpected asset hook: '+name)
     text=text.replace(before,after)
    changes.append((name,old,text.encode()))
+  print('PREFLIGHT_FILES_OK')
   for name,old,new in changes:
    if name.endswith(('.php','.js')):
     with tempfile.TemporaryDirectory() as tmp:
@@ -52,6 +54,7 @@ def main():
   for name,old,new in changes:
    if old is not None:write(s,folder+'/'+name+'.before',old,0o600)
    write(s,folder+'/'+name+'.stage',new,0o644)
+  print('BACKUP_AND_STAGE_OK')
   applied=[]
   try:
    for name,old,new in changes:
@@ -60,19 +63,25 @@ def main():
     if current!=old:raise ValueError('Concurrent modification')
     s.posix_rename(folder+'/'+name+'.stage','public_html/'+name);applied.append((name,old,new))
     if read(s,'public_html/'+name)!=new:raise RuntimeError('Published readback')
+   print('PRODUCTION_FILES_READBACK_OK')
    for name in ['mortii.js','mortii.css']:
     if get(name+'?calendar='+uuid.uuid4().hex)!=(ROOT/'server'/name).read_bytes():raise RuntimeError('Public asset differs')
+   print('PUBLIC_ASSETS_OK')
    from datetime import datetime
    from zoneinfo import ZoneInfo
+   print('CHECKING_BOOTSTRAP')
    boot=json.loads(get('mortii_api.php'))
    product=boot['products'][0]['name']
    month=datetime.now(ZoneInfo('Europe/Warsaw')).strftime('%Y-%m')
+   print('CHECKING_AVAILABILITY')
    data=json.loads(get('booking_calendar.php?'+urllib.parse.urlencode({'equipment':product,'month':month,'rental_days':'1'})))
    if data['month']!=month or not 28<=len(data['days'])<=31:raise RuntimeError('Availability response')
    if any(set(d)!={'date','status','slots'} for d in data['days']):raise RuntimeError('Unexpected public fields')
+   print('PUBLIC_CALENDAR_OK')
    home=get('?calendar='+uuid.uuid4().hex)
    if b'mortii.js?v=7' not in home or b'mortii.css?v=4' not in home:raise RuntimeError('Homepage cache hooks')
-  except Exception:
+  except Exception as failure:
+   print('PUBLICATION_CHECK_FAILED_'+type(failure).__name__)
    for name,old,new in reversed(applied):
     if read(s,'public_html/'+name)!=new:raise RuntimeError('Concurrent change blocks rollback')
     if old is None:s.remove('public_html/'+name)
@@ -80,6 +89,7 @@ def main():
      write(s,folder+'/'+name+'.rollback',old,0o644)
      s.posix_rename(folder+'/'+name+'.rollback','public_html/'+name)
      if read(s,'public_html/'+name)!=old:raise RuntimeError('Rollback readback')
+   print('ORIGINAL_FILES_RESTORED')
    raise RuntimeError('Publication verification failed; restored') from None
   print('CALENDAR_PUBLISHED_BACKUP_READBACK_PUBLIC_GET_OK')
   progress=private+'/progress'
