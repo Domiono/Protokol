@@ -14,17 +14,20 @@ def write(s,p,b,mode):
  s.chmod(p,mode)
  if read(s,p)!=b:raise RuntimeError('Readback')
 def checked_move(s,source,target):
- # Standard SFTP rename: preserve existing destination before switching.
- saved='rentmor-control-private/booking-swap-'+uuid.uuid4().hex
- try:s.lstat(target);exists=True
- except FileNotFoundError:exists=False
- if exists:s.rename(target,saved)
- try:s.rename(source,target)
- except Exception:
-  if exists:s.rename(saved,target)
+ # Server rejects rename; use verified write with an immediate original restore.
+ data=read(s,source)
+ try:old=read(s,target)
+ except FileNotFoundError:old=None
+ try:write(s,target,data,0o644 if target.startswith('public_html/') else 0o600)
+ except Exception as failure:
+  print('SFTP_WRITE_FAILED_ERRNO_'+str(getattr(failure,'errno',None)))
+  try:current=read(s,target)
+  except FileNotFoundError:current=None
+  if current!=old:
+   if old is None:
+    if current is not None:s.remove(target)
+   else:write(s,target,old,0o644 if target.startswith('public_html/') else 0o600)
   raise
- # Saved destination remains private in its 0700 parent for recovery.
- if exists:s.chmod(saved,0o600)
 def get(path):
  req=urllib.request.Request('https://rentmor.pl/'+path,headers={'Cache-Control':'no-cache','Accept':'application/json'})
  with urllib.request.urlopen(req,timeout=40) as r:return r.read(2000001)
