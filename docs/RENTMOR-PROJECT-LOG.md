@@ -1,3 +1,7 @@
+# 12.11.2026 — pełne wdrożenie kalendarza zlecone przez właściciela
+
+PR157: testy PHP, DOM i rental operations SUCCESS dla 3d6dc4aa. Przygotowano pełne wdrożenie 2 endpointów, JS/CSS i 4 hooków cache na aktualnych plikach hostingu. Ścisły baseline reguł i JS/CSS, prywatny backup, readback, rollback i publiczny GET dostępności bez zapisu rezerwacji. Publikacja i synchronizacja dokumentów wymagają potwierdzenia run; NIE deklarować sukcesu na podstawie commitów. Android bez zmian (1.7.31/code46). WebFTP nadal zablokowane, nie ponawiać. Po sukcesie sprawdzić formularz na telefonie i uzupełnić wynik w obu dokumentach.
+
 # RentMor — stan projektu i dziennik zmian
 
 ## 11.11.2026 — ZIP aktualnych reguł, kalendarz API PR157: ZAIMPLEMENTOWANE, NIEOPUBLIKOWANE
