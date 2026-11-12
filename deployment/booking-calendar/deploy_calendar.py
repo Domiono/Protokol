@@ -1,5 +1,5 @@
 """Owner-authorized calendar deployment, strict baseline guards and rollback."""
-import base64,hashlib,json,os,stat,subprocess,tempfile,urllib.request,urllib.parse,uuid
+import base64,hashlib,json,os,stat,subprocess,tempfile,urllib.request,urllib.parse,uuid,shlex
 from pathlib import Path
 import paramiko
 ROOT=Path(__file__).resolve().parents[2]
@@ -13,6 +13,11 @@ def write(s,p,b,mode):
  with s.open(p,'wb') as f:f.write(b)
  s.chmod(p,mode)
  if read(s,p)!=b:raise RuntimeError('Readback')
+def atomic_move(t,source,target):
+ channel=t.open_session(timeout=30)
+ channel.exec_command('mv -f -- '+shlex.quote(source)+' '+shlex.quote(target))
+ if channel.recv_exit_status()!=0:raise RuntimeError('Atomic SSH rename failed')
+ channel.close()
 def get(path):
  req=urllib.request.Request('https://rentmor.pl/'+path,headers={'Cache-Control':'no-cache','Accept':'application/json'})
  with urllib.request.urlopen(req,timeout=40) as r:return r.read(2000001)
@@ -61,7 +66,7 @@ def main():
     try:current=read(s,'public_html/'+name)
     except FileNotFoundError:current=None
     if current!=old:raise ValueError('Concurrent modification')
-    s.posix_rename(folder+'/'+name+'.stage','public_html/'+name);applied.append((name,old,new))
+    atomic_move(t,folder+'/'+name+'.stage','public_html/'+name);applied.append((name,old,new))
     if read(s,'public_html/'+name)!=new:raise RuntimeError('Published readback')
    print('PRODUCTION_FILES_READBACK_OK')
    for name in ['mortii.js','mortii.css']:
@@ -87,7 +92,7 @@ def main():
     if old is None:s.remove('public_html/'+name)
     else:
      write(s,folder+'/'+name+'.rollback',old,0o644)
-     s.posix_rename(folder+'/'+name+'.rollback','public_html/'+name)
+     atomic_move(t,folder+'/'+name+'.rollback','public_html/'+name)
      if read(s,'public_html/'+name)!=old:raise RuntimeError('Rollback readback')
    print('ORIGINAL_FILES_RESTORED')
    raise RuntimeError('Publication verification failed; restored') from None
@@ -97,7 +102,7 @@ def main():
   except IOError:pass
   s.chmod(progress,0o700)
   for name in ['CONTINUE-RENTMOR.md','RENTMOR-PROJECT-LOG.md']:
-   b=(ROOT/'docs'/name).read_bytes();write(s,progress+'/'+name+'.stage',b,0o600);s.posix_rename(progress+'/'+name+'.stage',progress+'/'+name)
+   b=(ROOT/'docs'/name).read_bytes();write(s,progress+'/'+name+'.stage',b,0o600);atomic_move(t,progress+'/'+name+'.stage',progress+'/'+name)
    if read(s,progress+'/'+name)!=b or s.lstat(progress+'/'+name).st_mode&0o777!=0o600:raise RuntimeError('Progress readback')
   print('TWO_PROGRESS_DOCUMENTS_SHA256_0600_VERIFIED')
  finally:t.close()
