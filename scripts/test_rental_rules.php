@@ -115,4 +115,25 @@ check(rm_rental_conflict($changed,[$today],$serviced)!=='','service still preven
 $occupied=$changed;$occupied['id']='other';
 check(rm_rental_conflict($changed,[$occupied],$shared)!=='','another simultaneous booking blocks selected copy');
 
+// Timed mobile reservations have no return_time: infer the same pickup clock
+// on end_date, but continue to protect genuinely date-only legacy records.
+$timedAsset=['id'=>'clock1','equipment'=>'Clock fixture','asset_kind'=>'standard'];
+$timedSaved=['id'=>'old-clock','asset_id'=>'clock1','equipment'=>'Clock fixture',
+    'start_date'=>'2030-11-17','end_date'=>'2030-11-18','time'=>'08:30'];
+$makeProbe=function(string $id,string $from,string $to,string $clock) {
+    return ['id'=>$id,'asset_id'=>'clock1','equipment'=>'Clock fixture',
+        'start_date'=>$from,'end_date'=>$to,'time'=>$clock];
+};
+$after=$makeProbe('after','2030-11-18','2030-11-19','10:00');
+check(rm_rental_conflict($after,[$timedSaved],[$timedAsset])==='','timed return and 90-minute buffer release copy');
+$tooSoon=$makeProbe('soon','2030-11-18','2030-11-19','09:45');
+check(rm_rental_conflict($tooSoon,[$timedSaved],[$timedAsset])!=='','buffer prevents early pickup');
+$previous=$makeProbe('previous','2030-11-16','2030-11-17','12:00');
+check(rm_rental_conflict($previous,[$timedSaved],[$timedAsset])!=='','prior day conflicts for full 24-hour rental');
+$previousEarly=$makeProbe('previous-early','2030-11-16','2030-11-17','07:00');
+check(rm_rental_conflict($previousEarly,[$timedSaved],[$timedAsset])==='','prior day permitted with 90-minute handover gap');
+$unknownClock=$timedSaved;unset($unknownClock['time']);
+check(rm_rental_conflict($after,[$unknownClock],[$timedAsset])!=='','no clock keeps both boundary dates blocked');
+$explicitClock=$timedSaved;$explicitClock['return_time']='09:15';
+check(rm_rental_conflict($after,[$explicitClock],[$timedAsset])!=='','explicit return time overrides inferred clock');
 echo "Rental rules passed\n";
