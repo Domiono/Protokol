@@ -1,4 +1,4 @@
-name: Synchronize published full offer editor progress
+name: Validate and publish contextual equipment links
 on:
   push:
     branches: [codex/full-offer-editor-20261113]
@@ -9,18 +9,31 @@ concurrency:
   group: rentmor-hosting-publication
   cancel-in-progress: false
 jobs:
-  progress:
+  publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Validate links and prior editor fixtures
+        run: |
+          python3 scripts/assert_github_test_only.py
+          php -l server/rental_task_links.php
+          php -l server/seo_structure.php
+          php -l server/category.php
+          php -l server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php
+          php scripts/test_task_links.php
+          php scripts/test_offer_content.php
+          php scripts/test_offer_details.php
+          php scripts/test_extra_offers.php
+          python3 scripts/test_retired_console_endpoint.py
+          python3 scripts/test_rental_api.py
+          python3 deployment/offer-editor/test_transaction.py
       - run: python3 -m pip install paramiko==3.5.1 --quiet
-      - name: Sync only two private progress documents with readback
+      - name: Guarded public source publication and link verification
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-          BOOKING_PROGRESS_ONLY: '1'
-        run: python3 deployment/booking-calendar/deploy_calendar.py
+        run: python3 deployment/task-links/publish.py

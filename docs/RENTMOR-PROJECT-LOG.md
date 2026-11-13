@@ -1,3 +1,11 @@
+# 13.11.2026 — kontekstowe linkowanie ofert agregatu i szlifierki: W PRZYGOTOWANIU
+
+Właściciel zlecił uporządkowanie linkowania wewnętrznego po odczycie GSC. Wyniki nie dowodzą błędu indeksacji ani przyczynowości:17–28.10 vs30.10–10.11 szlifierka20→7wyświetleń/0kliknięć, agregat5→1/0. Dostępne jawne zapytanieagregatu03.11 wskazywało główną, nie ofertę; mała próba i ukrytefrazy. Brak dostępu doURLInspection, dataGooglebot niepotwierdzona. Rozbudowany opis szlifierki potwierdzony29.10.
+
+Przygotowano kontekstowe linki do rzeczywistych aktualnych ofert WT20i i szlifierki250 na głównej i kategorii budowlanej oraz wcześniejszy link w poradniku malowania i jaśniejszy końcowyCTA. Linki powstają ztego samego publicznegokatalogu i slugów co kategorie, pomijają brakujący sprzęt. Istniejące karty, FAQ, ceny i rezerwacje bez zmian. Testy/wdrożenie/readback do potwierdzenia. Brak obietnicy pozycji ani wyboruURLprzezGoogle.
+
+DokończeniePR160: edytorjużOPUBLIKOWANY/run43394137733, progress-only43396819422SUCCESS. Osobny pełnyworkflow43396825934 ujawnił brak nowych zależności w dwóch izolowanych kopiach testowychAPI; uzupełniono fixture, bez zmian produkcyjnegoAPI. Aktualne testy i merge do potwierdzenia. Android1.7.32/code47 pozostaje bez zmian. Aktualnywpis niezsynchronizowany na serwer.
+
 # 13.11.2026 — pełna edycja oferty WWW i Android: OPUBLIKOWANE, PR160
 
 Run43394137733 SUCCESS, commit81d02915099826a6d77627d5492b4725018e5c0f. Wspólne nadpisania treści w katalogu, formularzWWW i natywny edytor przy sprzęcie: opis dodatkowy, nagłówek, FAQ dodaj/usuń, odbiór/rezerwacja, informacja pod nazwą, podsumowanie kosztów, poradnik, powiązania i link zasad. Istniejące teksty wczytywane domyślnie; zapis wyłącznie różnic, bez masowej migracji katalogu. Puste pola usuwają treść; rewizja chroni przed starym formularzem. Starsze aplikacje i formularze zachowują nowe pola, brak kasowania nieznanych właściwości produktu. Robocza treśćAndroida odtwarzana z formularzem/zdjęciami. Jawnie edytowane powiązania pozostają widoczne także przy automatycznych sugestiach sprzętu.

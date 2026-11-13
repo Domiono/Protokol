@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/rental_categories.php';
 require_once __DIR__ . '/rentmor_accessibility.php';
 require_once __DIR__ . '/offer_content.php';
+require_once __DIR__ . '/rental_task_links.php';
 
 /** Replace the small public icon set instead of downloading the entire icon font.
  * Unknown icons retain Font Awesome, so editorial additions never disappear.
@@ -51,10 +52,11 @@ function rm_light_public_assets(string $html): string {
     return $html;
 }
 
-function rm_home_sections(): string {
+function rm_home_sections(?array $catalogue=null): string {
     return '<section id="wynajem-sprzetu-krakow" class="rm-seo-section" data-rm-home-structure="v1">'
         . '<h2>Wypożycz sprzęt w Krakowie, Czyżynach</h2>'
         . '<p>RentMor to lokalna wypożyczalnia sprzętu w Krakowie, w dzielnicy Czyżyny. Wynajmujemy urządzenia do remontu, prac ogrodowych i sprzątania osobom prywatnym oraz firmom. Zobacz <a href="/sprzet-budowlany/">sprzęt budowlany na wynajem</a>, porównaj ceny dobowe i wybierz model odpowiedni do pracy.</p>'
+        . rm_task_equipment_links($catalogue)
         . '<h3>Jak wypożyczyć sprzęt?</h3><ol><li>Wybierz urządzenie i sprawdź cenę dobową, kaucję oraz dodatki.</li><li>Zadzwoń lub wyślij zgłoszenie przez formularz rezerwacji przy wybranym sprzęcie. Termin jest zarezerwowany po potwierdzeniu przez RentMor.</li><li>Przy odbiorze podpisz umowę i wpłać kaucję. Transport zapewniasz we własnym zakresie — nie świadczymy usługi dowozu.</li></ol>'
         . '<p>Odbiór osobisty w Krakowie przy ul. Woźniców, po wcześniejszym uzgodnieniu terminu. Dokładny adres przekazujemy przy rezerwacji. Doba wynajmu trwa 24 godziny od ustalonej godziny odbioru, np. od 16:00 do 16:00 następnego dnia. Nie trzeba prowadzić firmy, aby wynająć sprzęt; obsługujemy również wykonawców.</p>'
         . '<p><a href="tel:+48733891281">Zadzwoń: 733 891 281</a> · <a href="/zasady.php">Zasady wynajmu</a></p></section>'

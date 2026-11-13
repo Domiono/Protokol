@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/rental_categories.php';
+require_once __DIR__ . '/rental_task_links.php';
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
 $slug = trim((string)$path, '/');
 $category = rm_categories()[$slug] ?? null;
@@ -35,6 +36,7 @@ $e = 'rm_category_escape';
 <?= rm_public_site_header() ?>
 <main id="rentmor-category-main" tabindex="-1"><nav aria-label="Okruszki"><a href="/">Strona główna</a> / <?= $e($category['name']) ?></nav>
 <h1><?= $e($category['heading']) ?></h1><p><?= $e($category['intro']) ?></p>
+<?php if ($category['key']==='budowlane') echo rm_task_equipment_links($catalogue); ?>
 <?php $featuredSetSlug = 'zestaw-szlifierka-stanley-zyrafa-do-gladzi-i-odkurzacz-bosch-metabo'; if (isset($items[$featuredSetSlug])): ?>
 <p class="rm-seo-section">Szukasz zestawu do szlifowania gładzi? <a href="/<?= $e($featuredSetSlug) ?>/">Wynajem żyrafy z odkurzaczem w Krakowie</a> — zobacz wyposażenie, zdjęcia i cenę zestawu.</p>
 <?php endif; ?>
@@ -55,3 +57,4 @@ $e = 'rm_category_escape';
 <h2>Odbiór w Krakowie, Czyżynach</h2><p>Odbiór osobisty przy ul. Woźniców po ustaleniu terminu. Dokładny adres podajemy przy rezerwacji. Transport zapewniasz we własnym zakresie. Przy odbiorze podpisujesz umowę i wpłacasz kaucję wskazaną w ofercie.</p><p><a href="tel:+48733891281">Zadzwoń i ustal termin: 733 891 281</a> · <a href="/zasady.php">Zasady wynajmu</a></p></section>
 </main><footer>RentMor.pl — Kraków Czyżyny · <a href="/">Wszystkie urządzenia</a> · <a href="/polityka-prywatnosci.php">Polityka prywatności</a> · <button type="button" class="rm-cookie-settings-button" data-rm-cookie-settings>Ustawienia cookies</button></footer>
 <script src="/cookie-consent.js" defer></script></body></html>
+
