@@ -1,3 +1,7 @@
+# 13.11.2026 — agent RentMor, PR #106: synchronizacja dokumentacji z main, bez wdrożenia
+
+Agent zaktualizował wyłącznie instrukcje autonomicznej pracy (AGENTS.md i docs/RENTMOR-AI-AGENT.md) oraz ten dziennik, zachowując publikację warunków wynajmu z PR159 i wcześniejszą dokumentację. Agent może przygotowywać testy i draft PR, ale nie scala i nie publikuje. Testy dokumentacyjnego PR: GitHub Actions do potwierdzenia po commicie; lokalne PHP/Android nieuruchamiane, brak zmian w kodzie. Produkcja i APK niezmienione przez agenta. Dalszy krok: właściciel przegląda i scala PR #106 po sprawdzeniu CI. Dokumentów na serwerze nie synchronizowano.
+
 # 13.11.2026 — ujednolicenie warunków wynajmu: OPUBLIKOWANE
 
 Na polecenie właściciela: wyłącznie odbiór osobisty, bez dowozu; doba24h od ustalonej godziny odbioru (przykład16:00→16:00 następnego dnia);40zł za każde rozpoczęte0,5mm zużycia tarczy do betonu. Agregat: wszystkie farby wodnorozpuszczalne, wykluczenie materiałów strukturalnych. Instrukcje uwzględniają istniejący formularz i potwierdzenie przez RentMor. Zestaw szlifierki: cena podstawowa z bieżącego Product plus30zł za odkurzacz, osobno zużycie tarczy i kaucja.
