@@ -6,8 +6,8 @@ $source=dirname(__DIR__).'/deployment/booking-calendar/baseline';
 $rules=dirname(__DIR__).'/server/booking_calendar_rules.php';
 $tmp=sys_get_temp_dir().'/rentmor-calendar-'.bin2hex(random_bytes(8));mkdir($tmp,0700);
 try{
-    copy($source.'/booking_schedule.php',$tmp.'/booking_schedule.php');
-    copy(dirname(__DIR__).'/server/rental_inventory.php',$tmp.'/rental_inventory.php');
+    copy(dirname(__DIR__).'/server/booking_schedule.php',$tmp.'/booking_schedule.php');
+    copy($source.'/rental_inventory.php',$tmp.'/rental_inventory.php');
     copy($rules,$tmp.'/booking_calendar_rules.php');
     file_put_contents($tmp.'/private_rental_files.php','<?php function rm_rental_file(string $name): string { throw new RuntimeException("No real storage in fixture tests"); }');
     require $tmp.'/booking_schedule.php';require $tmp.'/rental_inventory.php';require $tmp.'/booking_calendar_rules.php';
