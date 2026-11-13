@@ -19,7 +19,8 @@ check(str_contains($html,'Własne pytanie?')&&!str_contains($html,'Ile kosztuje 
 check(str_contains($html,'&lt;script&gt;')&&!str_contains($html,'<script>'),'Text escaped');
 check(str_contains($html,'Druga linia'),'Multiline intro');
 check(str_contains($html,'href="/sprzet-budowlany/"'),'Edited related link');
-check(!str_contains(rentmor_offer_details($after,false),'Własny link'),'Automatic related renderer respected');
+check(str_contains(rentmor_offer_details($after,false),'Własny link'),'Explicitly edited related links remain visible');
+check(!str_contains(rentmor_offer_details($p,false),'Sprzęt przydatny do tego zadania'),'Automatic related renderer respected for defaults');
 check(rm_offer_content($after)===rm_offer_for_editor($after)['offer_content'],'Web and app use same values');
 check(rm_save_offer_content($after,[])===['offer_content'=>$after['offer_content']],'Old clients retain edited fields');
 check(rm_save_offer_content($p,[])===[],'Old client does not materialize defaults');

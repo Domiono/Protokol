@@ -91,7 +91,8 @@ function rm_render_offer_content(array $product,bool $manual=true): string {
     if($o['booking_title']!=='')$html.='<h3 class="text-lg font-bold mt-5 mb-2">'.$e($o['booking_title']).'</h3>';
     if($o['booking_text']!=='')$html.='<p class="mb-4">'.str_replace('733 891 281','<a class="underline font-semibold" href="tel:+48733891281">733 891 281</a>',$p($o['booking_text'])).'</p>';
     if($o['guide']!=='' && $o['guide_label']!=='')$html.='<p class="mb-4"><a class="underline font-semibold" href="'.$e(rm_offer_url($o['guide'])).'">'.$e($o['guide_label']).'</a></p>';
-    if($manual && $o['related']){
+    $customRelated=array_intersect_key($product['offer_content']??[],array_flip(['related','related_title','related_note']));
+    if(($manual || $customRelated) && $o['related']){
         $html.='<nav class="mt-6 mb-5 border-t border-gray-200 pt-5" aria-label="Sprzęt powiązany"><h3 class="text-lg font-bold mb-3">' . $e($o['related_title']) . '</h3><ul class="space-y-3">';
         foreach($o['related'] as $r)$html.='<li><a class="underline font-semibold" href="'.$e(rm_offer_url($r['url'])).'">'.$e($r['label']).'</a></li>';
         $html.='</ul><p class="text-sm mt-3">' . $p($o['related_note']) . '</p></nav>';
