@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-function rentmor_offer_details(array $product, bool $includeManualRelated = true): string {
+function rentmor_default_offer(array $product): array {
     $id = (string)($product['id'] ?? '');
     // Extra editorial guidance uses verified product names where hosting IDs may change.
     // Product price, stock and technical attributes remain in live data.json.
@@ -148,24 +148,10 @@ function rentmor_offer_details(array $product, bool $includeManualRelated = true
         if ($extraKey !== null) $offerKey = $extraKey;
     }
     $offers += rentmor_extra_offers();
-    if (!isset($offers[$offerKey])) return '';
-    $offer = $offers[$offerKey];
-    $e = static fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
-    $html = '<section class="mt-8 border-t border-gray-200 pt-6" data-rentmor-offer-details="' . $e($id) . '">';
-    $html .= '<h2 class="text-xl sm:text-2xl font-bold mb-4">' . $e($offer['title']) . '</h2><p class="mb-5">' . $e($offer['intro']) . '</p>';
-    foreach ($offer['questions'] as $question => $answer) {
-        $html .= '<h3 class="text-lg font-bold mt-5 mb-2">' . $e($question) . '</h3><p class="mb-4">' . $e($answer) . '</p>';
-    }
-    $html .= '<h3 class="text-lg font-bold mt-5 mb-2">Jak zarezerwować i odebrać sprzęt?</h3><p class="mb-4">Zadzwoń pod <a class="underline font-semibold" href="tel:+48733891281">733 891 281</a> lub wyślij zgłoszenie przez formularz rezerwacji przy sprzęcie. Rezerwacja jest potwierdzona dopiero po akceptacji przez RentMor. Doba wynajmu trwa 24 godziny od ustalonej godziny odbioru, np. od 16:00 do 16:00 następnego dnia. Odbiór i zwrot odbywają się osobiście w Krakowie, w Czyżynach przy ul. Woźniców. Dokładny adres otrzymasz przy rezerwacji. Transport zapewniasz we własnym zakresie — nie świadczymy usługi dowozu. Przy odbiorze podpisujesz umowę i wpłacasz kaucję wskazaną w ofercie. Przedłużenie najmu wymaga wcześniejszego uzgodnienia.</p>';
-    if (!empty($offer['guide']) && !empty($offer['guide_label'])) {
-        $html .= '<p class="mb-4"><a class="underline font-semibold" href="' . $e($offer['guide']) . '">' . $e($offer['guide_label']) . '</a></p>';
-    }
-    if ($includeManualRelated && !empty($offer['related'])) {
-        $html .= '<nav class="mt-6 mb-5 border-t border-gray-200 pt-5" aria-label="Sprzęt powiązany"><h3 class="text-lg font-bold mb-3">Sprzęt przydatny do tego zadania</h3><ul class="space-y-3">';
-        foreach ($offer['related'] as $related) {
-            $html .= '<li><a class="underline font-semibold" href="' . $e($related[0]) . '">' . $e($related[1]) . '</a></li>';
-        }
-        $html .= '</ul><p class="text-sm mt-3">Dostępność każdego urządzenia potwierdzamy osobno podczas rezerwacji.</p></nav>';
-    }
-    return $html . '<p><a class="underline" href="/zasady.php">Zasady wynajmu, kaucji i zwrotu sprzętu</a></p></section>';
+    return $offers[$offerKey] ?? [];
+}
+
+require_once __DIR__ . '/offer_content.php';
+function rentmor_offer_details(array $product, bool $includeManualRelated = true): string {
+    return rm_render_offer_content($product, $includeManualRelated);
 }

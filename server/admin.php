@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/private_rental_files.php';
+require_once __DIR__ . '/offer_content.php';
 if (rm_rental_maintenance()) { http_response_code(503); header('Retry-After: 30'); exit('Trwa bezpieczne przenoszenie danych najmu.'); }
 require_once __DIR__ . '/admin_safety.php';
 rm_admin_start_session();
@@ -418,6 +419,9 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        try { $offerContent=rm_save_offer_content($old_item??[], $_POST); }
+        catch (InvalidArgumentException $e) { rm_admin_reject($e->getMessage()); }
+
         // New and old photo changes are validated before any file is moved.
         $removedPhotos = [];
         if ($is_update) {
@@ -474,6 +478,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 : 0
         ];
 
+        $item_data=array_replace($old_item??[], $item_data, $offerContent);
         if ($is_update) {
             foreach ($current_data as &$p) {
                 if (($p['id'] ?? '') === ($_POST['id'] ?? '')) {
@@ -1477,6 +1482,8 @@ if (isset($_GET['edit_id'])) {
                         class="p-4 border rounded-xl h-40 outline-none focus:border-yellow-400 bg-slate-50"
                     ><?php echo e_admin($edit_item['desc'] ?? ''); ?></textarea>
 
+                    <?php require __DIR__ . '/offer_content_form.php'; ?>
+
                     <!-- USTAWIENIA SEO -->
                     <div class="bg-blue-50 p-4 sm:p-5 rounded-2xl border border-blue-100">
                         <h4 class="font-black text-sm uppercase text-blue-900 mb-2">
@@ -1682,3 +1689,4 @@ if (isset($_GET['edit_id'])) {
 
 </body>
 </html>
+

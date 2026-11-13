@@ -162,6 +162,12 @@ public class SyncManager {
             if(!submitted.contains(id)||!acknowledged.add(id))continue;
             if(item.optBoolean("ok"))store.clearQueueItem(id);
             else {
+                // A rejected content draft must not poison unrelated future synchronizations.
+                // Its local form draft remains available; unknown/network outcomes stay queued.
+                if(item.optBoolean("permanent"))for(int j=0;j<pending.length();j++){
+                    JSONObject op=pending.getJSONObject(j);
+                    if(id.equals(op.optString("op_id"))&&"product_save".equals(op.optString("action"))&&op.has("offer_content"))store.clearQueueItem(id);
+                }
                 failures++;
                 if(error==null)error=item.optString("error","Nie udało się zsynchronizować operacji");
             }
@@ -197,3 +203,4 @@ public class SyncManager {
         return server;
     }
 }
+

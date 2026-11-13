@@ -2,6 +2,7 @@ import tempfile,shutil,json,hashlib,subprocess,urllib.request,time,pathlib,os
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory() as td:
  p=pathlib.Path(td);shutil.copy(ROOT/'server/protocol_sync.php',p/'protocol_sync.php')
+ for dependency in ['offer_content.php','rental_offer_details.php','rental_offer_details_extra.php']:shutil.copy(ROOT/'server'/dependency,p/dependency)
  shutil.copy(ROOT/'server/rental_inventory.php',p/'rental_inventory.php')
  shutil.copy(ROOT/'server/private_rental_files.php',p/'private_rental_files.php')
  shutil.copy(ROOT/'server/admin_auth.php',p/'admin_auth.php')
@@ -238,3 +239,4 @@ with tempfile.TemporaryDirectory() as td:
   assert (p/'rental_assets.php.lock').is_file(), 'Physical asset writes must hold a common lock'
   print('Rental API bundle and standalone shared-stock checks passed (isolated test data)')
  finally:server.terminate();server.wait()
+

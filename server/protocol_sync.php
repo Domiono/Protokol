@@ -2,6 +2,7 @@
 // RentMor protocol sync API. Upload beside protocol.php.
 declare(strict_types=1);
 require_once __DIR__ . '/private_rental_files.php';
+require_once __DIR__ . '/offer_content.php';
 if (rm_rental_maintenance()) { header('Retry-After: 30'); http_response_code(503); exit('{"ok":false,"error":"Trwa konserwacja magazynu danych."}'); }
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
@@ -247,6 +248,7 @@ if ($method === 'GET') {
     $inventory = rm_read_json_file(__DIR__ . '/data.json', []);
     $siteStats = rm_read_json_file(__DIR__ . '/stats.json', []);
     if ($role === 'admin') {
+        $siteStats['offer_content_template']=rm_offer_for_editor([]);
         require_once __DIR__ . '/phone_events.php';
         $siteStats['phone_events'] = rm_phone_events_read();
     }
@@ -268,7 +270,7 @@ if ($method === 'GET') {
     rm_json_response(200, [
         'ok'=>true, 'role'=>$role, 'server_time'=>date(DATE_ATOM),
         'assets'=>array_map(function($a)use($role){if($role!=='admin')foreach(($a['repairs']??[]) as $i=>$r)unset($a['repairs'][$i]['cost']);return $a;},rm_read_assets()),
-        'protocols'=>array_values($protocols), 'customers'=>array_values($customers), 'expenses'=>($role === 'admin' ? array_values(rm_read_json_file(rm_rental_file('costs.json'), [])) : []), 'reservations'=>array_values(array_map(function($r) use ($role) { if ($role !== 'admin') { $r=rm_hide_rental_finance($r); } return $r; }, rm_read_json_file(rm_rental_file('reservations.json'), []))), 'equipment'=>array_keys($equipment), 'site_stats'=>($role === 'admin' ? $siteStats : []), 'site_products'=>($role === 'admin' ? array_values($inventory) : [])
+        'protocols'=>array_values($protocols), 'customers'=>array_values($customers), 'expenses'=>($role === 'admin' ? array_values(rm_read_json_file(rm_rental_file('costs.json'), [])) : []), 'reservations'=>array_values(array_map(function($r) use ($role) { if ($role !== 'admin') { $r=rm_hide_rental_finance($r); } return $r; }, rm_read_json_file(rm_rental_file('reservations.json'), []))), 'equipment'=>array_keys($equipment), 'site_stats'=>($role === 'admin' ? $siteStats : []), 'site_products'=>($role === 'admin' ? array_values(array_map('rm_offer_for_editor',$inventory)) : [])
     ]);
 }
 if ($method !== 'POST') rm_json_response(405, ['ok'=>false, 'error'=>'Niedozwolona metoda.']);
@@ -426,6 +428,13 @@ foreach ($operations as $op) {
             $found=-1; foreach($items as $idx=>$p) if((string)($p['id']??'')===$id && $id!=='') {$found=$idx;break;}
             if($id==='') $id=bin2hex(random_bytes(10));
             $old=$found>=0?$items[$found]:[];
+            if ($found<0 && !empty($op['product_id'])) {
+                flock($lock,LOCK_UN); fclose($lock); $results[]=['op_id'=>$opId,'ok'=>false,'permanent'=>true,'error'=>'Oferta została usunięta. Odśwież listę.']; continue;
+            }
+            try { $offerContent=rm_save_offer_content($old,$op); }
+            catch (InvalidArgumentException $e) {
+                flock($lock,LOCK_UN); fclose($lock); $results[]=['op_id'=>$opId,'ok'=>false,'permanent'=>true,'error'=>$e->getMessage()]; continue;
+            }
             $oldImages=is_array($old['images']??null)?array_values($old['images']):[];
             $images=$oldImages;
             $removedImages=[];
@@ -467,6 +476,7 @@ foreach ($operations as $op) {
                 'seo_description'=>rm_text($op,'seo_description',320),'price'=>round((float)$price,2),
                 'deposit'=>round((float)$deposit,2),'olx'=>rm_text($op,'olx',500),'images'=>$images,
                 'date'=>date('Y-m-d H:i'),'phone_clicks'=>(int)($old['phone_clicks']??0)];
+            $item=array_replace($old,$item,$offerContent);
             if($found>=0) $items[$found]=$item; else array_unshift($items,$item);
             $ok=true;
         }
@@ -748,3 +758,4 @@ flock($fp, LOCK_UN);
 fclose($fp);
 if (!$writeOk) rm_json_response(500, ['ok'=>false,'error'=>'Nie udało się zapisać danych. Operacje należy ponowić.']);
 rm_json_response(200, ['ok'=>true,'role'=>$role,'results'=>$results]);
+

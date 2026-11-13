@@ -774,6 +774,10 @@ public class MainActivity extends Activity {
     }
     private void productForm(JSONObject existing) {
         if(!isAdmin()){toast("Tylko administrator może dodawać lub edytować oferty.");showHome();return;}
+        JSONObject contentSource=existing==null?siteStats().optJSONObject("offer_content_template"):existing;
+        if(contentSource==null||contentSource.optJSONObject("offer_content")==null||contentSource.optString("offer_revision").isEmpty()){
+            toast("Odśwież dane strony, aby wczytać pełną treść oferty. Serwer musi obsługiwać nowy edytor.");return;
+        }
         stopFormAutosave();
         productPhotoSession++;
         root.removeAllViews();root.setPadding(16,14,16,18);
@@ -797,7 +801,9 @@ public class MainActivity extends Activity {
         EditText price=productField(rental,"Cena za dobę (zł)");price.setInputType(8194);EditText deposit=productField(rental,"Kaucja (zł)");deposit.setInputType(8194);
         LinearLayout seo=productSection("3. SEO I OGŁOSZENIE","Dane pomagające znaleźć ofertę w Google");
         EditText seoTitle=productField(seo,"Tytuł SEO (opcjonalnie)");EditText seoDesc=productField(seo,"Opis SEO (opcjonalnie)");seoDesc.setMinLines(3);seoDesc.setGravity(Gravity.TOP|Gravity.START);EditText olx=productField(seo,"Link do OLX (opcjonalnie)");
-        LinearLayout photos=productSection("4. ZDJĘCIA","Galeria sprzętu na RentMor.pl — do 6 zdjęć łącznie.");
+        LinearLayout contentSection=productSection("4. PEŁNA TREŚĆ","Opisy, pytania, odbiór, opłaty i linki");
+        OfferContentEditor contentEditor=new OfferContentEditor(this,contentSection,contentSource);
+        LinearLayout photos=productSection("5. ZDJĘCIA","Galeria sprzętu na RentMor.pl — do 6 zdjęć łącznie.");
         if(editing&&existingProductPhotoCount>0){
             TextView uploaded=new TextView(this);uploaded.setText("ZDJĘCIA JUŻ NA STRONIE ("+existingProductPhotoCount+")");
             uploaded.setTextSize(12);uploaded.setTypeface(null,1);uploaded.setTextColor(0xff526174);
@@ -837,6 +843,7 @@ public class MainActivity extends Activity {
             String n=name.getText().toString().trim(),pr=price.getText().toString().trim(),de=deposit.getText().toString().trim();if(n.isEmpty()||pr.isEmpty()){toast("Podaj nazwę i cenę za dobę.");return;}
             try{JSONObject op=new JSONObject();if(editing){op.put("product_id",existing.optString("id"));op.put("keep_images",new JSONArray(productExistingImages));}
                 op.put("name",n);op.put("desc",desc.getText().toString());op.put("category",cats[category.getSelectedItemPosition()]);op.put("price",pr);op.put("deposit",de.isEmpty()?"0":de);op.put("seo_title",seoTitle.getText().toString());op.put("seo_description",seoDesc.getText().toString());op.put("olx",olx.getText().toString());
+                contentEditor.applyTo(op);
                 JSONArray photoData=new JSONArray();for(Bitmap bmp:productPhotos){ByteArrayOutputStream out=new ByteArrayOutputStream();Bitmap scaled=bmp;int max=1280;if(bmp.getWidth()>max||bmp.getHeight()>max){float scale=Math.min((float)max/bmp.getWidth(),(float)max/bmp.getHeight());scaled=Bitmap.createScaledBitmap(bmp,Math.max(1,Math.round(bmp.getWidth()*scale)),Math.max(1,Math.round(bmp.getHeight()*scale)),true);}scaled.compress(Bitmap.CompressFormat.JPEG,78,out);photoData.put(Base64.encodeToString(out.toByteArray(),Base64.NO_WRAP));if(scaled!=bmp)scaled.recycle();}op.put("photos_base64",photoData);
                 store.enqueue("product_save",op);new Thread(()->{try{sync.sync();runOnUiThread(()->{stopFormAutosave();clearProductPhotoDraft();toast("Oferta opublikowana na RentMor.pl.");siteProductsPage();});}catch(Exception e){runOnUiThread(()->toast("Nie udało się opublikować: "+e.getMessage()));}}).start();
             }catch(Exception e){toast("Nie udało się przygotować oferty: "+e.getMessage());}
@@ -847,18 +854,20 @@ public class MainActivity extends Activity {
             draft.put("category",category.getSelectedItemPosition());draft.put("price",price.getText().toString());
             draft.put("deposit",deposit.getText().toString());draft.put("seo_title",seoTitle.getText().toString());
             draft.put("seo_description",seoDesc.getText().toString());draft.put("olx",olx.getText().toString());
+            draft.put("full_content_draft",contentEditor.snapshot());
             draft.put("keep_images",new JSONArray(productExistingImages));
             JSONArray saved=new JSONArray();
             for(Bitmap bmp:productPhotos)saved.put(bitmapBase64(bmp,1280,78));
             draft.put("new_photos",saved);
             new ProductCameraStore(this).saveDraft(draft.toString());
         }catch(Exception e){throw new IllegalStateException("Nie udało się zapisać roboczej oferty",e);}};
-        if(pendingProductPhoto!=null||restoringProductDraft)restoreProductPhotoDraft(name,desc,category,price,deposit,seoTitle,seoDesc,olx);
+        if(pendingProductPhoto!=null||restoringProductDraft)restoreProductPhotoDraft(name,desc,category,price,deposit,seoTitle,seoDesc,olx,contentEditor);
         formAutosave=new FormAutosave(()->{
             try{if(productDraftWriter!=null)productDraftWriter.run();}
             catch(Exception ex){toast("Nie udało się automatycznie zapisać oferty.");}
         });
         formAutosave.watch(name,desc,price,deposit,seoTitle,seoDesc,olx);
+        contentEditor.setOnChange(formAutosave::schedule);
         category.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
             boolean first=true;
             public void onItemSelected(android.widget.AdapterView<?> p,View v,int position,long id){
@@ -956,7 +965,7 @@ public class MainActivity extends Activity {
     }
 
     private void restoreProductPhotoDraft(EditText name,EditText desc,Spinner category,EditText price,
-                                           EditText deposit,EditText seoTitle,EditText seoDesc,EditText olx){
+                                           EditText deposit,EditText seoTitle,EditText seoDesc,EditText olx,OfferContentEditor contentEditor){
         try{
             ProductCameraStore camera=new ProductCameraStore(this);
             JSONObject draft=new JSONObject(new String(java.nio.file.Files.readAllBytes(camera.draftFile().toPath()),
@@ -967,6 +976,7 @@ public class MainActivity extends Activity {
             price.setText(draft.optString("price"));deposit.setText(draft.optString("deposit"));
             seoTitle.setText(draft.optString("seo_title"));seoDesc.setText(draft.optString("seo_description"));
             olx.setText(draft.optString("olx"));
+            if(draft.optJSONObject("full_content_draft")!=null)contentEditor.restore(draft.getJSONObject("full_content_draft"));
             JSONArray retained=draft.optJSONArray("keep_images");
             if(retained!=null){
                 ArrayList<String> listed=new ArrayList<>(productExistingImages);
@@ -2631,6 +2641,7 @@ public class MainActivity extends Activity {
     private void toast(String s){runOnUiThread(()->Toast.makeText(this,s,Toast.LENGTH_LONG).show());}
     @Override public void onBackPressed(){if(protocolBackAction!=null)protocolBackAction.run();else if(showingApp)showHome();else super.onBackPressed();}
 }
+
 
 
 
