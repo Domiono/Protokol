@@ -54,8 +54,8 @@ function rm_home_sections(): string {
     return '<section id="wynajem-sprzetu-krakow" class="rm-seo-section" data-rm-home-structure="v1">'
         . '<h2>Wypożycz sprzęt w Krakowie, Czyżynach</h2>'
         . '<p>RentMor to lokalna wypożyczalnia sprzętu w Krakowie, w dzielnicy Czyżyny. Wynajmujemy urządzenia do remontu, prac ogrodowych i sprzątania osobom prywatnym oraz firmom. Zobacz <a href="/sprzet-budowlany/">sprzęt budowlany na wynajem</a>, porównaj ceny dobowe i wybierz model odpowiedni do pracy.</p>'
-        . '<h3>Jak wypożyczyć sprzęt?</h3><ol><li>Wybierz urządzenie i sprawdź cenę dobową, kaucję oraz dodatki.</li><li>Zadzwoń i ustal termin odbioru oraz zwrotu.</li><li>Przy odbiorze podpisz umowę i wpłać kaucję. Transport zapewniasz we własnym zakresie.</li></ol>'
-        . '<p>Odbiór osobisty w Krakowie przy ul. Woźniców, po wcześniejszym uzgodnieniu terminu. Dokładny adres przekazujemy przy rezerwacji. Nie trzeba prowadzić firmy, aby wynająć sprzęt; obsługujemy również wykonawców.</p>'
+        . '<h3>Jak wypożyczyć sprzęt?</h3><ol><li>Wybierz urządzenie i sprawdź cenę dobową, kaucję oraz dodatki.</li><li>Zadzwoń lub wyślij zgłoszenie przez formularz rezerwacji przy wybranym sprzęcie. Termin jest zarezerwowany po potwierdzeniu przez RentMor.</li><li>Przy odbiorze podpisz umowę i wpłać kaucję. Transport zapewniasz we własnym zakresie — nie świadczymy usługi dowozu.</li></ol>'
+        . '<p>Odbiór osobisty w Krakowie przy ul. Woźniców, po wcześniejszym uzgodnieniu terminu. Dokładny adres przekazujemy przy rezerwacji. Doba wynajmu trwa 24 godziny od ustalonej godziny odbioru, np. od 16:00 do 16:00 następnego dnia. Nie trzeba prowadzić firmy, aby wynająć sprzęt; obsługujemy również wykonawców.</p>'
         . '<p><a href="tel:+48733891281">Zadzwoń: 733 891 281</a> · <a href="/zasady.php">Zasady wynajmu</a></p></section>'
         . '<section id="poradniki" class="rm-seo-section"><h2>Poradniki przed rozpoczęciem pracy</h2><div class="rm-seo-grid">'
         . '<article class="rm-seo-card"><h3><a href="/poradnik-jaki-papier-scierny-do-zyrafy.php">Jaki papier ścierny do żyrafy?</a></h3><p>Dobór gradacji i najczęstsze błędy przy szlifowaniu gładzi.</p></article>'
@@ -174,7 +174,8 @@ function rentmor_seo_structure(string $html): string {
         if ($counts === ['intro'=>1,'guide'=>1,'local'=>1] && is_string($updated)) $html = $updated;
     }
     $changedProduct = false;
-    $html = preg_replace_callback('~(<script\b[^>]*type=["\x27]application/ld\+json["\x27][^>]*>)(.*?)(</script>)~is', static function ($m) use (&$changedProduct) {
+    $priceSummary = '';
+    $html = preg_replace_callback('~(<script\b[^>]*type=["\x27]application/ld\+json["\x27][^>]*>)(.*?)(</script>)~is', static function ($m) use (&$changedProduct, &$priceSummary) {
         $node = json_decode($m[2], true);
         if (!is_array($node) || ($node['@type'] ?? '') !== 'Product') return $m[0];
         $offer = $node['offers'] ?? null;
@@ -190,11 +191,17 @@ function rentmor_seo_structure(string $html): string {
         unset($offer['availability']);
         $offer['description'] = 'Cena podstawowa wynajmu za jedną dobę. Kaucja i ewentualne dodatki zgodnie z opisem oferty. Dostępność na termin potwierdzamy przy rezerwacji.';
         $node['offers'] = $offer;
+        $productName = strtolower((string)($node['name'] ?? ''));
+        if (str_contains($productName, 'szlifierka do betonu') && str_contains($productName, '250')) {
+            $basePrice = (float)$offer['price'];
+            $formatPrice = static fn($value) => rtrim(rtrim(number_format($value, 2, ',', ''), '0'), ',');
+            $priceSummary = '<p class="rm-seo-muted" data-rm-grinder-price-summary="v1"><strong>Koszt wynajmu:</strong> sama szlifierka ' . $formatPrice($basePrice) . ' zł/doba; z odkurzaczem ' . $formatPrice($basePrice + 30) . ' zł/doba (odkurzacz +30 zł/doba). Zużycie tarczy do betonu dodatkowo: 40 zł za każde rozpoczęte 0,5 mm. Kaucja jest podana poniżej.</p>';
+        }
         $changedProduct = true;
         return $m[1] . rm_category_json($node) . $m[3];
     }, $html);
     if ($changedProduct) {
-        $html = preg_replace('~(</h1>)~i', '$1<p class="rm-seo-muted" data-rm-rental-terms="v1">Cena podstawowa za dobę wynajmu. Kaucja i ewentualne dodatki zgodnie z opisem. Dostępność na termin potwierdzamy przy rezerwacji.</p>', $html, 1);
+        $html = preg_replace('~(</h1>)~i', '$1<p class="rm-seo-muted" data-rm-rental-terms="v1">Cena podstawowa za dobę wynajmu. Doba wynajmu trwa 24 godziny od ustalonej godziny odbioru, np. od 16:00 do 16:00 następnego dnia. Kaucja i ewentualne dodatki zgodnie z opisem. Dostępność na termin potwierdzamy przy rezerwacji.</p>' . $priceSummary, $html, 1);
         $manifestFile = __DIR__ . '/rentmor-image-manifest.json';
         $manifestRaw = is_file($manifestFile) ? @file_get_contents($manifestFile) : false;
         $imageManifest = is_string($manifestRaw) ? json_decode($manifestRaw, true) : null;

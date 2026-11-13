@@ -1,0 +1,14 @@
+{
+  "seo_structure.php": {
+    "expected_sha256": "56da02dfafca9867a7ea929f2c24d946f246bfe67df3c6ab3f8240784bbd2e27",
+    "sha256": "70b9a1e4aff35f0848d4574726cbd64fa76390676edd835e1e395e35fba2cf00"
+  },
+  "rental_offer_details.php": {
+    "expected_sha256": "74d2b6b50f00d540f50ca4e40c376e93d4f183146905d4719f460ba370e3b9c5",
+    "sha256": "ab8b7351bc13c360656245d8604e67c457d7dda7598e6ff9a97a19eb8dae8961"
+  },
+  "zasady.php": {
+    "expected_sha256": "6887c09c36a4c05972d01f519293254038a9befe34ba353d49d741c80b03fc37",
+    "sha256": "dd80020bcd04453eddcc33702590be65730b46543fcb12176001f1569b7cba19"
+  }
+}

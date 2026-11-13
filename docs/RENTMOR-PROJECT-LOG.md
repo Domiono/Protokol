@@ -1,9 +1,12 @@
-## 12.11.2026 — PR #106: aktualizacja dokumentacji agenta do bieżącego main (BEZ WDROŻENIA)
+# 13.11.2026 — agent RentMor, PR #106: synchronizacja dokumentacji z main, bez wdrożenia
 
-- Zaktualizowano **istniejący** draft PR #106 względem main `93f76bc4c879`, bez modyfikacji kodu wykonywalnego, workflowów, cen ani danych klientów. Zmiana obejmuje wyłącznie trzy dokumenty: AGENTS.md, docs/RENTMOR-AI-AGENT.md i niniejszy dziennik.
-- Zachowano aktualne decyzje właściciela: GitHub jest dopuszczonym kanałem wdrożeniowym **dla innych, zatwierdzonych prac**, ale autonomiczny agent w tym zadaniu nadal **nie może scalać ani wdrażać**. Historyczny zapis „GitHub tylko testy” nie obowiązuje globalnie.
-- Najnowszy main potwierdza wdrożony kalendarz dostępności (PR157, run43178603518 SUCCESS); nie proponować ponownego wdrożenia kalendarza. Nie wykonywano synchronizacji prywatnych dokumentów na hostingu ani zmian produkcyjnych.
-- Kontrola dokumentacji: porównanie diff z main; testy lokalne PHP/Android nie są wymagane dla zmian wyłącznie dokumentacyjnych. CI aktualnego commitu PR: do odczytu po aktualizacji gałęzi. Status PR: draft, do oceny właściciela.
+Agent zaktualizował wyłącznie instrukcje autonomicznej pracy (AGENTS.md i docs/RENTMOR-AI-AGENT.md) oraz ten dziennik, zachowując publikację warunków wynajmu z PR159 i wcześniejszą dokumentację. Agent może przygotowywać testy i draft PR, ale nie scala i nie publikuje. Testy dokumentacyjnego PR: GitHub Actions do potwierdzenia po commicie; lokalne PHP/Android nieuruchamiane, brak zmian w kodzie. Produkcja i APK niezmienione przez agenta. Dalszy krok: właściciel przegląda i scala PR #106 po sprawdzeniu CI. Dokumentów na serwerze nie synchronizowano.
+
+# 13.11.2026 — ujednolicenie warunków wynajmu: OPUBLIKOWANE
+
+Na polecenie właściciela: wyłącznie odbiór osobisty, bez dowozu; doba24h od ustalonej godziny odbioru (przykład16:00→16:00 następnego dnia);40zł za każde rozpoczęte0,5mm zużycia tarczy do betonu. Agregat: wszystkie farby wodnorozpuszczalne, wykluczenie materiałów strukturalnych. Instrukcje uwzględniają istniejący formularz i potwierdzenie przez RentMor. Zestaw szlifierki: cena podstawowa z bieżącego Product plus30zł za odkurzacz, osobno zużycie tarczy i kaucja.
+
+Źródła hostingu odczytane przez run43385611394 SUCCESS, ograniczony zaszyfrowany odczyt. Trzy jawne plikiPHP mają dokładny preflightSHA; publiczne data.json/terms.json modyfikowane tylko przez unikalne ciągi, bez zmiany innych pól i bez kopiowania katalogu do repo. Prywatna kopia, readback i cofnięcie, publiczne sprawdzenie głównej/szlifierki/agregatu/zasad. PR159, commit9e610338, run43389771231 SUCCESS: składnia3plikówPHP, istniejące testyopisów/SEO,3testyJSON i polityka publicznego repoPASS. Źródła i2publiczneJSON zapisane z prywatną kopią i pełnymreadback. Publiczny odczyt4stron potwierdził dobę24h, bezdowozu, formularz z akceptacją, cennik130/160 i40zł/rozpoczęte0,5mm oraz wodnorozpuszczalnebezstruktur. Oba dokumenty zsynchronizowano0700/0600 z odczytemzwrotnym; niniejsze końcowe potwierdzenie synchronizowane osobnym trybemprogress-only. Merge i końcowy run do potwierdzenia. Android1.7.31/code46 bez zmian. Nie uruchamiać ponownie starego manifestu po udanej podmianie.
 
 # 12.11.2026 — kalendarz OPUBLIKOWANY, PR157
 
@@ -594,3 +597,4 @@ Dodawaj **nowe wpisy na początku**, zachowując historię. Każdy wpis powinien
 
 
 Walidacja PR148: run42825160844 SUCCESS — 31kontroli PHP,10testów Robolectric/HTTP/UI, assembleRelease i podpisanie APK1.7.27/code42. Publikacja produkcji i zgodność podpisu z obecnym APK do potwierdzenia w osobnym workflow. Globalny test-only blokuje jednorazowe workflow zgodnie z regułą; nie został wyłączony.
+
