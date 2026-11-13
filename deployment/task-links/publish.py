@@ -59,7 +59,14 @@ def main():
    expected=base.get(name)
    actual=common.blob(old)if old is not None else None
    if actual!=expected:raise ValueError('Source changed '+name+' blob='+str(actual))
-   new=(ROOT/'server'/name).read_bytes()
+   patches=json.loads((ROOT/'deployment/task-links/source-patches.json').read_text())
+   if name in patches:
+    text=old.decode()
+    for before,after in patches[name]:
+     if text.count(before)!=1:raise ValueError('Patch context changed '+name)
+     text=text.replace(before,after)
+    new=text.encode()
+   else:new=(ROOT/'server'/name).read_bytes()
    with tempfile.TemporaryDirectory()as tmp:
     p=Path(tmp)/name;p.write_bytes(new);subprocess.run(['php','-l',str(p)],check=True,stdout=subprocess.DEVNULL)
    changes.append((path,old,new,0o644))
