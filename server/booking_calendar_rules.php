@@ -14,7 +14,7 @@ function rm_calendar_month(array $in,array $schedule,array $catalogue,array $ite
     // Candidate availability can open at a timed return + buffer, even between quarter-hours.
     $edges=[];
     foreach($items as $r){
-        $interval=rm_booking_interval($r);
+        $interval=rm_inventory_interval($r);
         if($interval!==null){$edge=$first->setTimestamp($interval[1]+5400);$edges[$edge->format('Y-m-d')][]=$edge->format('H:i');}
     }
     $nextMinute=$now->setTimestamp((int)(floor($now->getTimestamp()/60)+1)*60);
