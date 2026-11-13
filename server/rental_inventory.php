@@ -107,6 +107,35 @@ function rm_valid_reservation_dates(array $item): bool {
  * Accept the mismatch only for the original reservation with the same copy and
  * equipment name; still check service and other reservations for collisions.
  */
+/**
+ * Project a physical copy's interval from its dates and pickup clock.
+ * Android reservations store a pickup clock but no return_time: under RentMor's
+ * 24-hour day rule their scheduled return is at that clock on end_date.
+ * Truly date-only or invalid legacy entries stay conservatively blocked by day.
+ */
+function rm_inventory_interval(array $r): ?array {
+    if (!rm_valid_reservation_dates($r)) return null;
+    $clock=$r['time']??null;
+    if (!is_string($clock)||!preg_match('/^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/D',$clock))return null;
+    $returnClock=$r['return_time']??null;
+    if ($returnClock===null||$returnClock==='')$returnClock=$clock;
+    if (!is_string($returnClock)||!preg_match('/^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/D',$returnClock))return null;
+    $tz=new DateTimeZone('Europe/Warsaw');
+    $startText=$r['start_date'].' '.$clock;
+    $endText=$r['end_date'].' '.$returnClock;
+    $start=new DateTimeImmutable($startText,$tz);
+    $end=new DateTimeImmutable($endText,$tz);
+    if ($start->format('Y-m-d H:i')!==$startText||$end->format('Y-m-d H:i')!==$endText||$end<=$start)return null;
+    return [$start->getTimestamp(),$end->getTimestamp()];
+}
+/** Timed stays require a 90-minute gap; date-only legacy stays occupy both dates. */
+function rm_inventory_overlap(array $candidate,array $reserved): bool {
+    $a=rm_inventory_interval($candidate);
+    $b=rm_inventory_interval($reserved);
+    if ($a!==null&&$b!==null)return $a[0]<$b[1]+5400&&$a[1]+5400>$b[0];
+    return $candidate['start_date']<=$reserved['end_date']
+        &&$candidate['end_date']>=$reserved['start_date'];
+}
 function rm_keeps_legacy_assignment(array $item,array $asset,string $role,array $reservations): bool {
     if($role!=='standard')return false;
     $bookingId=(string)($item['id']??'');$assetId=(string)($item['asset_id']??'');
@@ -135,7 +164,7 @@ function rm_copy_conflict(array $item,array $asset,string $role,array $reservati
         if(!$reserved&&!$ambiguous)continue;
         $rs=(string)($r['start_date']??'');$re=(string)($r['end_date']??'');
         if(!rm_valid_reservation_dates($r))return 'Sprawdź daty starszej rezerwacji sprzętu.';
-        if(($start<=$re&&$end>=$rs)||(!empty($r['done'])&&$re<date('Y-m-d'))){
+        if(rm_inventory_overlap($item,$r)||(!empty($r['done'])&&$re<date('Y-m-d'))){
             if($ambiguous)return "Rezerwacja $rs – $re nie ma przypisanego egzemplarza. Uzupełnij przypisanie.";
             if(!empty($r['done'])&&$re<date('Y-m-d'))
                 return "Wydany, brak potwierdzonego zwrotu (planowany: $re).";
