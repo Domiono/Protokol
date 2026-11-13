@@ -46,6 +46,12 @@ def main():
     if s.lstat(p).st_mode&0o777!=0o600:raise ValueError('Progress permissions')
    print('TASK_LINKS_TWO_PROGRESS_DOCUMENTS_SHA256_0600_VERIFIED');return
   base=json.loads((ROOT/'deployment/task-links/baseline.json').read_text());changes=[]
+  if os.environ.get('TASK_LINKS_PREFLIGHT_ONLY')=='1':
+   for name in ['rental_task_links.php','seo_structure.php','category.php','poradnik-agregat-malarski-jak-malowac-dobor-dysz.php']:
+    try:old=common.read(s,'public_html/'+name)
+    except FileNotFoundError:old=None
+    print('TASK_LINKS_LIVE_BLOB '+name+' '+(common.blob(old)if old is not None else 'ABSENT'))
+   return
   for name in ['rental_task_links.php','seo_structure.php','category.php','poradnik-agregat-malarski-jak-malowac-dobor-dysz.php']:
    path='public_html/'+name
    try:old=common.read(s,path)

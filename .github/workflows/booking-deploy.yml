@@ -36,4 +36,5 @@ jobs:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          TASK_LINKS_PREFLIGHT_ONLY: '1'
         run: python3 deployment/task-links/publish.py
