@@ -1,3 +1,9 @@
+# 13.11.2026 — pełna edycja oferty WWW i Android: ZAIMPLEMENTOWANE, NIEOPUBLIKOWANE
+
+Na zlecenie właściciela przygotowano wspólną treść oferty w data.json, edytowaną w WWW i natywnej aplikacji. Dotychczasowe dodatkowe opisy/FAQ/linki są domyślnie wczytywane, bez przepisywania katalogu. Edycja obejmuje nagłówek, opis, FAQ z dodawaniem/usuwaniem, rezerwację/odbiór, informacje pod nazwą, podsumowanie kosztów, poradnik, powiązany sprzęt i link zasad. Puste pola usuwają treść; nadpisania przechowują tylko różnice wobec domyślnej treści. Starsze klienty zachowują zapisane nadpisania. Rewizja blokuje zapis starego formularza. Walidacja, escaping i ograniczenie linków do RentMor; uprawnienia administratora pozostają. Robocza treść Androida jest odtwarzana wraz z formularzem/zdjęciami; odrzucona treść nie blokuje kolejki innych operacji.
+
+Planowane Android1.7.32/code47. TestyPHP i Android oraz publikacja: do potwierdzenia w workflow. Nie deklarować dostępności w produkcji przed testami, preflight SHA, prywatną kopią, odczytem zwrotnym i publiczną weryfikacją. Aktualizacja obu prywatnych dokumentów serwera: NIEZSYNCHRONIZOWANA. PR i wynik run: do potwierdzenia. Bez zmian danych klientów i rezerwacji. Następnie: testy, świeży preflight źródeł i podpisuAPK, publikacja lub udokumentowanie konkretnej blokady.
+
 # 13.11.2026 — ujednolicenie warunków wynajmu: OPUBLIKOWANE
 
 Na polecenie właściciela: wyłącznie odbiór osobisty, bez dowozu; doba24h od ustalonej godziny odbioru (przykład16:00→16:00 następnego dnia);40zł za każde rozpoczęte0,5mm zużycia tarczy do betonu. Agregat: wszystkie farby wodnorozpuszczalne, wykluczenie materiałów strukturalnych. Instrukcje uwzględniają istniejący formularz i potwierdzenie przez RentMor. Zestaw szlifierki: cena podstawowa z bieżącego Product plus30zł za odkurzacz, osobno zużycie tarczy i kaucja.
@@ -132,4 +138,5 @@ PR146: produkcyjny dekorator JS/CSS miał0600 i HTTP403; stary core tworzyłteks
 Gałąź codex/admin-ai-knowledge-20261110, PR148. Przygotowano natywny edytor publicznej/prywatnej wiedzy z uprawnieniamiadmin i API view=ai_knowledge. Publiczny Mortii korzysta wyłącznie z osobnej wiedzy świadomie opublikowanej przez admina. Istniejący knowledge.json pozostaje prywatny. Android1.7.27/code42 na bazie wydanej1.7.26. Testy, podpisanie, publikacja i synchronizacja tego wpisu na serwer: do potwierdzenia. Nie nadpisywać hostingu zmain. Właściciel wyraził zgodę na jednorazowy GitHub/SFTP dla tego zadania.
 
 Walidacja PR148: run42825160844 SUCCESS — 31kontroli PHP,10testów Robolectric/HTTP/UI, assembleRelease i podpisanie APK1.7.27/code42. Publikacja produkcji i zgodność podpisu z obecnym APK do potwierdzenia w osobnym workflow. Globalny test-only blokuje jednorazowe workflow zgodnie z regułą; nie został wyłączony.
+
 

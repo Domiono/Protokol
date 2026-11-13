@@ -1,0 +1,41 @@
+<?php
+declare(strict_types=1);
+require __DIR__.'/../server/offer_content.php';
+function check($ok,$why){if(!$ok)throw new RuntimeException($why);}
+function rejects(callable $call){try{$call();}catch(InvalidArgumentException $e){return;}throw new RuntimeException('Invalid content accepted');}
+$p=['id'=>'fixture','name'=>'Szlifierka do betonu i posadzek 250mm','price'=>130];
+$before=rm_offer_for_editor($p);
+check(str_contains($before['offer_content']['price_note'],'160 zł/doba'),'Price default');
+check(count($before['offer_content']['questions'])===5,'Existing FAQs imported');
+check(str_contains($before['offer_content']['booking_text'],'16:00 do 16:00'),'Rental period retained');
+$input=$before;
+$input['offer_content']['title']='Zmieniony nagłówek <script>x</script>';
+$input['offer_content']['intro']="Pierwsza linia\nDruga linia";
+$input['offer_content']['questions']=[['question'=>'Własne pytanie?','answer'=>'Własna odpowiedź & szczegóły']];
+$input['offer_content']['related']=[['url'=>'/sprzet-budowlany/','label'=>'Własny link']];
+$after=array_replace($p,rm_save_offer_content($p,$input));
+$html=rentmor_offer_details($after);
+check(str_contains($html,'Własne pytanie?')&&!str_contains($html,'Ile kosztuje zużycie tarczy'),'Default FAQ replaced, no duplicate');
+check(str_contains($html,'&lt;script&gt;')&&!str_contains($html,'<script>'),'Text escaped');
+check(str_contains($html,'Druga linia'),'Multiline intro');
+check(str_contains($html,'href="/sprzet-budowlany/"'),'Edited related link');
+check(!str_contains(rentmor_offer_details($after,false),'Własny link'),'Automatic related renderer respected');
+check(rm_offer_content($after)===rm_offer_for_editor($after)['offer_content'],'Web and app use same values');
+check(rm_save_offer_content($after,[])===['offer_content'=>$after['offer_content']],'Old clients retain edited fields');
+check(rm_save_offer_content($p,[])===[],'Old client does not materialize defaults');
+rejects(fn()=>rm_save_offer_content($after,$input));
+rejects(fn()=>rm_save_offer_content($p,['offer_content'=>[]]));
+$empty=$before;foreach(rm_offer_fields() as $key=>$label)$empty['offer_content'][$key]='';$empty['offer_content']['questions']=[];$empty['offer_content']['related']=[];
+$cleared=array_replace($p,rm_save_offer_content($p,$empty));
+check(!str_contains(rentmor_offer_details($cleared),'MSW-FG-250'),'Intentional empty values retained');
+$bad=$before['offer_content'];$bad['guide']='javascript:alert(1)';rejects(fn()=>rm_validate_offer_content($bad));
+$bad['guide']='//outside.test/';rejects(fn()=>rm_validate_offer_content($bad));
+$bad=$before['offer_content'];$bad['questions']=[['question'=>'Niepełne?','answer'=>'']];rejects(fn()=>rm_validate_offer_content($bad));
+$bad=$before['offer_content'];$bad['intro']=str_repeat('a',16001);rejects(fn()=>rm_validate_offer_content($bad));
+check(rm_offer_revision($p)!==rm_offer_revision(array_replace($p,['price'=>140])),'Concurrent price change protects derived price summary');
+$new=rm_offer_for_editor([]);$new['offer_content']['intro']='Nowa oferta';check(isset(rm_save_offer_content([],$new)['offer_content']),'New offer works');
+$source=file_get_contents(__DIR__.'/../server/protocol_sync.php');
+check(strpos($source,"if ($"."role !== 'admin')",strpos($source,"if ($"."action === 'product_save'"))<strpos($source,'rm_save_offer_content($old,$op)'),'Admin check before save');
+check(strpos($source,'rm_save_offer_content($old,$op)')<strpos($source,'$newPhotoFiles=[]'),'Validation before photo writes');
+check(str_contains($source,"array_replace($"."old,$"."item,$"."offerContent)"),'Unknown product properties preserved');
+echo "PASS: full offer defaults, CRUD, shared values, concurrency, legacy clients, escaping, links, limits, new offers and integration\n";

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/rental_categories.php';
 require_once __DIR__ . '/rentmor_accessibility.php';
+require_once __DIR__ . '/offer_content.php';
 
 /** Replace the small public icon set instead of downloading the entire icon font.
  * Unknown icons retain Font Awesome, so editorial additions never disappear.
@@ -175,7 +176,8 @@ function rentmor_seo_structure(string $html): string {
     }
     $changedProduct = false;
     $priceSummary = '';
-    $html = preg_replace_callback('~(<script\b[^>]*type=["\x27]application/ld\+json["\x27][^>]*>)(.*?)(</script>)~is', static function ($m) use (&$changedProduct, &$priceSummary) {
+    $rentalSummary = null;
+    $html = preg_replace_callback('~(<script\b[^>]*type=["\x27]application/ld\+json["\x27][^>]*>)(.*?)(</script>)~is', static function ($m) use (&$changedProduct, &$priceSummary, &$rentalSummary) {
         $node = json_decode($m[2], true);
         if (!is_array($node) || ($node['@type'] ?? '') !== 'Product') return $m[0];
         $offer = $node['offers'] ?? null;
@@ -197,11 +199,25 @@ function rentmor_seo_structure(string $html): string {
             $formatPrice = static fn($value) => rtrim(rtrim(number_format($value, 2, ',', ''), '0'), ',');
             $priceSummary = '<p class="rm-seo-muted" data-rm-grinder-price-summary="v1"><strong>Koszt wynajmu:</strong> sama szlifierka ' . $formatPrice($basePrice) . ' zł/doba; z odkurzaczem ' . $formatPrice($basePrice + 30) . ' zł/doba (odkurzacz +30 zł/doba). Zużycie tarczy do betonu dodatkowo: 40 zł za każde rozpoczęte 0,5 mm. Kaucja jest podana poniżej.</p>';
         }
+        // Match the actual catalogue item, without changing the structured Product data.
+        $catalogueRaw=@file_get_contents(__DIR__.'/data.json');
+        $catalogue=is_string($catalogueRaw)?json_decode($catalogueRaw,true):null;
+        $matches=[];
+        foreach(is_array($catalogue)?$catalogue:[] as $candidate) {
+            if(html_entity_decode((string)($candidate['name']??''),ENT_QUOTES|ENT_HTML5,'UTF-8')===html_entity_decode((string)($node['name']??''),ENT_QUOTES|ENT_HTML5,'UTF-8')) $matches[]=$candidate;
+        }
+        if(count($matches)===1){
+            $content=rm_offer_content($matches[0]);
+            $escape=static fn($s)=>htmlspecialchars($s,ENT_QUOTES,'UTF-8');
+            $rentalSummary=$content['rental_note']===''?'':'<p class="rm-seo-muted" data-rm-rental-terms="v1">'.nl2br($escape($content['rental_note'])).'</p>';
+            $priceSummary=$content['price_note']===''?'':'<p class="rm-seo-muted" data-rm-grinder-price-summary="v1">'.nl2br($escape($content['price_note'])).'</p>';
+        }
         $changedProduct = true;
         return $m[1] . rm_category_json($node) . $m[3];
     }, $html);
     if ($changedProduct) {
-        $html = preg_replace('~(</h1>)~i', '$1<p class="rm-seo-muted" data-rm-rental-terms="v1">Cena podstawowa za dobę wynajmu. Doba wynajmu trwa 24 godziny od ustalonej godziny odbioru, np. od 16:00 do 16:00 następnego dnia. Kaucja i ewentualne dodatki zgodnie z opisem. Dostępność na termin potwierdzamy przy rezerwacji.</p>' . $priceSummary, $html, 1);
+        if($rentalSummary===null)$rentalSummary='<p class="rm-seo-muted" data-rm-rental-terms="v1">Cena podstawowa za dobę wynajmu. Doba wynajmu trwa 24 godziny od ustalonej godziny odbioru, np. od 16:00 do 16:00 następnego dnia. Kaucja i ewentualne dodatki zgodnie z opisem. Dostępność na termin potwierdzamy przy rezerwacji.</p>';
+        $html = preg_replace_callback('~(</h1>)~i', static fn($m)=>$m[1].$rentalSummary.$priceSummary, $html, 1);
         $manifestFile = __DIR__ . '/rentmor-image-manifest.json';
         $manifestRaw = is_file($manifestFile) ? @file_get_contents($manifestFile) : false;
         $imageManifest = is_string($manifestRaw) ? json_decode($manifestRaw, true) : null;
@@ -220,3 +236,4 @@ function rentmor_seo_structure(string $html): string {
         : '<link rel="stylesheet" href="/seo-structure.css?v=20261103-unified-header">';
     return str_replace('</head>', '<!-- rentmor-seo-structure-v1 -->' . $style . '</head>', $html);
 }
+
