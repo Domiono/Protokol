@@ -56,6 +56,28 @@ try{
     check(row($calc([$overdue],[$assets[0]]),'2030-01-10')['status']==='busy','Overdue issued copy remains blocked');
     $dstNow=new DateTimeImmutable('2027-03-01',$now->getTimezone());$dst=rm_calendar_month(['equipment'=>'Fixture','month'=>'2027-03','rental_days'=>'1'],$schedule,$cat,[],$assets,$dstNow);
     check(row($dst,'2027-03-28')['status']==='available','DST month accepted');
+    // Android rows have pickup time but no return_time: the same clock on end_date
+    // is the expected return. A 90-minute buffer makes 18 January open at 10:00.
+    $mobile=['id'=>'mobile','equipment'=>'Fixture','asset_id'=>'p1','start_date'=>'2030-01-17',
+        'end_date'=>'2030-01-18','time'=>'08:30'];
+    $earlySchedule=['weekly'=>array_fill(1,7,'07:00-18:00'),'dates'=>[]];
+    $mobileMonth=$calc([$mobile],[$assets[0]],null,$earlySchedule);
+    $afterReturn=row($mobileMonth,'2030-01-18');
+    check($afterReturn['status']==='available','Timed mobile booking releases return date');
+    check(in_array('10:00',$afterReturn['slots'],true),'Pickup allowed at return plus 90 minutes');
+    check(!in_array('09:45',$afterReturn['slots'],true),'Pickup blocked before buffer ends');
+    check(row($mobileMonth,'2030-01-17')['status']==='busy','Rental start stays blocked');
+    check(in_array('07:00',row($mobileMonth,'2030-01-16')['slots'],true),
+        'Previous day can finish before next pickup with buffer');
+    check(row($calc([$mobile],[$assets[0]]),'2030-01-16')['status']==='busy',
+        'Previous day cannot start a 24-hour rental during 12-18 pickup hours');
+    $noClock=$mobile;unset($noClock['time']);
+    check(row($calc([$noClock],[$assets[0]],null,$earlySchedule),'2030-01-18')['status']==='busy',
+        'Legacy date-only return remains conservatively blocked');
+    $explicit=$mobile;$explicit['return_time']='09:15';
+    $explicitSlots=row($calc([$explicit],[$assets[0]],null,$earlySchedule),'2030-01-18')['slots'];
+    check(in_array('10:45',$explicitSlots,true)&&!in_array('10:30',$explicitSlots,true),
+        'Explicit return time overrides inferred Android return time');
     $raw=json_encode($calc($all,$assets));check(!str_contains($raw,'asset_id')&&!str_contains($raw,'customer')&&!str_contains($raw,'r1'),'Public payload excludes private details');
     foreach([['rental_days'=>'0'],['rental_days'=>[]],['equipment'=>'Unknown'],['month'=>'2030-99'],['month'=>'2032-01']] as $bad){$caught=false;try{$calc([],$assets,array_merge($in,$bad));}catch(InvalidArgumentException $e){$caught=true;}check($caught,'Invalid input rejected');}
     echo 'PASS '.$checks." calendar fixture checks\n";
