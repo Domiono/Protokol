@@ -10,7 +10,7 @@ try{
     copy(dirname(__DIR__).'/server/rental_inventory.php',$tmp.'/rental_inventory.php');
     copy($rules,$tmp.'/booking_calendar_rules.php');
     file_put_contents($tmp.'/private_rental_files.php','<?php function rm_rental_file(string $name): string { throw new RuntimeException("No real storage in fixture tests"); }');
-    require $tmp.'/rental_inventory.php';require $tmp.'/booking_calendar_rules.php';
+    require $tmp.'/booking_schedule.php';require $tmp.'/rental_inventory.php';require $tmp.'/booking_calendar_rules.php';
     $checks=0;
     function check(bool $ok,string $label):void {global $checks;$checks++;if(!$ok)throw new RuntimeException($label);}
     $schedule=['weekly'=>array_fill(1,7,'12:00-18:00'),'dates'=>[]];
