@@ -1,4 +1,4 @@
-name: One-time RentMor booking buffer deployment
+name: One-time RentMor booking buffer notes sync
 on:
   push:
     branches: [fix/booking-calendar-time-buffer-20261113]
