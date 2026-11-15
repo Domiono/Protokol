@@ -1,3 +1,19 @@
+# 15.11.2026 — potwierdzenie wydania OPUBLIKOWANE, PR163
+
+Android1.7.34/code49 opublikowany run43717357658 SUCCESS, commit c6db9d55418d4a22c25ca5f905a924e2fab2cda5. Pełne testy Android i podpisany assembleRelease PASS; pięć ConfirmedIssueTest PASS. Kontrole PR: rental operations43717362167, offer editor43717362129, safety43717362108, calendar43717362132 wszystkie SUCCESS. Sprawdzono podpis zgodny z1.7.33, prywatną kopię, readback APK/metadanych i publiczne bajty/nagłówki obu linków. SHA25679d02b3feb8b282706051c58537469ed0164812c18d45708c2836b7d58eb1cec. Instalator https://rentmor.pl/download-app.php?release=49, aktualizacja bez odinstalowania.
+
+Oznacz wydanie w Rezerwacjach teraz wymaga internetu, synchronizuje wcześniejsze zwroty/edycje, pokazuje klienta i egzemplarze do potwierdzenia oraz pozwala otworzyć zmianę egzemplarza. Nie zapisuje starej karty, zakończonego najmu ani wydania przy pozostałej kolejce. Wynik komunikatu odróżnia potwierdzenie serwera od oczekiwania. Bez zmian PHP, prawdziwych rezerwacji, danych klientów i osobnego przepływu tworzenia protokołu. Nie przeprowadzono testu na fizycznym telefonie i nie dowiedziono dokładnej historycznej przyczyny wcześniejszego konfliktu.
+
+Podczas publikacji oba dokumenty zsynchronizowane0700/0600 i sprawdzone. Niniejsze końcowe potwierdzenie synchronizowane osobnym progress-only; jego wynik i mergePR163 do sprawdzenia. Tymczasowy workflow usunąć przed merge. Nie ponawiać wydania na starym baselineAPK.
+
+# 15.11.2026 — potwierdzenie egzemplarza przed wydaniem, Android1.7.34/code49
+
+Właściciel potwierdził odzyskanie dwóch zapisów po1.7.33 oraz prawidłowe przypisanie zestawu1. Opisał zmianę planowanego zestawu2 na właśnie zwrócony i rozliczony zestaw1. Ustalono lukę w przycisku Oznacz wydanie: zapisywał cały obiekt starej karty bez wcześniejszej synchronizacji; zmieniał też done w pamięci przed walidacją. Nie potwierdzono pełnej historycznej kolejności zdarzeń na telefonie.
+
+Nowy przepływ Oznacz wydanie: wymagane połączenie, synchronizacja zwrotów/edycji, pobranie aktualnej rezerwacji poID, dialog klient/kontakt/egzemplarze, możliwość przejścia do istniejącej zmiany egzemplarza. Potwierdzenie zapisuje tylko niezmieniony od odczytu obiekt, bez innych oczekujących operacji, z kontrolą stanu i dostępności. Brak mutacji karty po błędzie. Komunikat rozróżnia potwierdzenie serwera od oczekującego zapisu. Bez zmian PHP, danych najmu, protokołów i ich dotychczasowego przepływu. Zakres dotyczy przycisku w liście Rezerwacje; nie zmienia reguł historii wydanych sztuk.
+
+Testy regresyjne przygotowane: właściwy egzemplarz/kontakt, stara karta po zmianie egzemplarza, oczekujący zwrot/edycja, zakończony/brak egzemplarza, serwis bez mutacji. Testy Android/publikacja/synchronizacja dokumentów do potwierdzenia. Poprzedni PR162 scalony5344ea8, końcowa synchronizacja43715289794SUCCESS. NowyPR: do potwierdzenia.
+
 # 15.11.2026 — odzyskiwanie rezerwacji OPUBLIKOWANE, PR162
 
 Android 1.7.33/code48, commit e3fb3aa52ce9e86753d6af9c77385a81d7955591, publikacja run43715012715 SUCCESS. Pełne testy Android i podpisany assembleRelease PASS, w tym trzy ReservationRecoveryTest: zachowanie terminu/kolejki/innej operacji, odmowa zakończonych lub innych rezerwacji, odmowa nieaktualnego dialogu. Wszystkie cztery kontrole PR również SUCCESS (rental operations43715016736, offer editor43715016689, safety43715016720, calendar43715016741).
