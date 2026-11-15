@@ -542,6 +542,43 @@ public class MainActivity extends Activity {
             } catch(Exception ex){runOnUiThread(()->{syncRunning.set(false);toast(ex.getMessage());});}
         }).start();
     }
+    private void prepareConfirmedIssue(String id,Runnable refresh){
+        if(!isOnline()){toast("Połącz z internetem, aby potwierdzić egzemplarz przed wydaniem.");return;}
+        if(!syncRunning.compareAndSet(false,true)){toast("Trwa synchronizacja. Ponów wydanie po jej zakończeniu.");return;}
+        toast("Sprawdzam zwroty i przypisanie sprzętu…");
+        new Thread(()->{
+            try {
+                sync.sync();
+                JSONObject current=findReservation(store.allReservations(),id);
+                if(current==null)throw new IllegalStateException("Rezerwacja nie jest już dostępna.");
+                if(current.optBoolean("done")||current.optBoolean("returned")||current.optBoolean("settled"))
+                    throw new IllegalStateException("Rezerwacja jest już wydana lub zakończona. Odświeżono jej stan.");
+                runOnUiThread(()->{
+                    String copies=current.optString("asset_label","Nie przypisano")
+                        +(RentalRules.needsVacuum(current)?"\nOdkurzacz: "+current.optString("vacuum_asset_label","Nie przypisano"):"");
+                    new AlertDialog.Builder(this).setTitle("Potwierdź wydawany sprzęt")
+                        .setMessage(current.optString("equipment")+"\n\nEgzemplarz: "+copies
+                            +"\nKlient: "+current.optString("customer_name",current.optString("client"))
+                            +"\nKontakt: "+reservationPhoneForItem(current)
+                            +"\n\nCzy przekazujesz klientowi właśnie ten sprzęt?")
+                        .setNegativeButton("Anuluj",(d,w)->{syncRunning.set(false);refresh.run();})
+                        .setOnCancelListener(d->{syncRunning.set(false);refresh.run();})
+                        .setNeutralButton("Zmień egzemplarz",(d,w)->{syncRunning.set(false);operations().rentalForm(current);})
+                        .setPositiveButton("Potwierdź wydanie",(d,w)->{
+                            try{store.queueConfirmedIssue(current);}
+                            catch(Exception ex){syncRunning.set(false);toast(ex.getMessage());refresh.run();return;}
+                            new Thread(()->{
+                                String message;
+                                try{sync.sync();message="Wydanie potwierdzone na serwerze.";}
+                                catch(Exception ex){message="Wydanie oczekuje na synchronizację: "+ex.getMessage();}
+                                final String result=message;
+                                runOnUiThread(()->{syncRunning.set(false);ReservationsWidgetProvider.refresh(this);refresh.run();toast(result);});
+                            }).start();
+                        }).show();
+                });
+            } catch(Exception ex){runOnUiThread(()->{syncRunning.set(false);refresh.run();toast("Nie potwierdzono wydania: "+ex.getMessage());});}
+        }).start();
+    }
     private void syncNow(){
         if(!isOnline()){
             if(status!=null)status.setText("Brak internetu. Dane pozostają bezpiecznie w telefonie.");
@@ -1387,13 +1424,14 @@ public class MainActivity extends Activity {
                 statusAction.setText(done?"COFNIJ WYDANIE":"OZNACZ WYDANIE");
                 compactReservationButton(statusAction,false);
                 statusAction.setOnClickListener(v->{
+                    if(!item.optBoolean("done")){prepareConfirmedIssue(item.optString("id"),render[0]);return;}
                     try{
-                        boolean nextDone=!item.optBoolean("done");item.put("done",nextDone);
-                        String availability=RentalRules.conflict(item,store.allReservations(),store.assets());if(!availability.isEmpty())throw new IllegalArgumentException(availability);store.saveRentalOperation(item,"reservation_save");
+                        JSONObject updated=new JSONObject(item.toString());updated.put("done",false);
+                        String availability=RentalRules.conflict(updated,store.allReservations(),store.assets());if(!availability.isEmpty())throw new IllegalArgumentException(availability);store.saveRentalOperation(updated,"reservation_save");
                         ReservationsWidgetProvider.refresh(this);
-                        toast(nextDone?"Oznaczono jako wydane.":"Przywrócono status DO WYDANIA.");
+                        toast("Przywrócono status DO WYDANIA. Oczekuje na synchronizację.");
                         if(isOnline())syncNow();render[0].run();
-                    }catch(Exception ex){toast("Nie udało się zmienić statusu.");}
+                    }catch(Exception ex){toast("Nie udało się zmienić statusu: "+ex.getMessage());}
                 });
                 String dateLabel=reservationDateRangeLabel(item);
                 TextView dateRangeLabel=new TextView(this);

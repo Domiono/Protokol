@@ -125,6 +125,25 @@ public class LocalStore extends SQLiteOpenHelper {
         try{if("reservation_save".equals(action)){JSONArray pending=queued();for(int i=0;i<pending.length();i++){JSONObject op=pending.getJSONObject(i);if(action.equals(op.optString("action"))&&r.optString("id").equals(op.optString("id")))clearQueueItem(op.optString("op_id"));}}enqueue(action,new JSONObject(r.toString()));saveReservation(r);db.setTransactionSuccessful();}
         catch(JSONException e){throw new IllegalStateException(e);}finally{db.endTransaction();}
     }
+    /** Issue only the exact refreshed booking the operator confirmed. */
+    public synchronized void queueConfirmedIssue(JSONObject expected) throws JSONException {
+        SQLiteDatabase db=getWritableDatabase();db.beginTransaction();
+        try {
+            if(pendingCount()!=0)throw new IllegalStateException("Najpierw zsynchronizuj oczekujące zmiany.");
+            JSONObject current=null;JSONArray rows=allReservations();
+            for(int i=0;i<rows.length();i++)if(rows.getJSONObject(i).optString("id").equals(expected.optString("id")))current=rows.getJSONObject(i);
+            if(current==null || !current.toString().equals(expected.toString()))
+                throw new IllegalStateException("Rezerwacja zmieniła się. Sprawdź wydanie ponownie.");
+            if(current.optBoolean("done")||current.optBoolean("returned")||current.optBoolean("settled"))
+                throw new IllegalStateException("Ta rezerwacja jest już wydana lub zakończona.");
+            if(current.optString("asset_id").isEmpty() || (RentalRules.needsVacuum(current)&&current.optString("vacuum_asset_id").isEmpty()))
+                throw new IllegalStateException("Wybierz wszystkie egzemplarze przed wydaniem.");
+            JSONObject issued=new JSONObject(current.toString());issued.put("done",true);issued.put("auto_assign",false);
+            String conflict=RentalRules.conflict(issued,rows,assets());
+            if(!conflict.isEmpty())throw new IllegalArgumentException(conflict);
+            saveRentalOperation(issued,"reservation_save");db.setTransactionSuccessful();
+        } finally {db.endTransaction();}
+    }
     /** Explicit recovery of one rejected save; never discard unrelated pending work. */
     public synchronized void repairReservationCopies(JSONObject expected, JSONObject remote) throws JSONException {
         SQLiteDatabase db=getWritableDatabase();db.beginTransaction();

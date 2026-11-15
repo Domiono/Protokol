@@ -29,14 +29,14 @@ def certify(old,newpath):
   if not cert(p)or cert(p)!=cert(newpath):raise ValueError('APK signer differs')
  aapt=sorted(Path(os.environ['ANDROID_HOME']).glob('build-tools/*/aapt'))[-1]
  info=subprocess.check_output([str(aapt),'dump','badging',str(newpath)],text=True,stderr=subprocess.DEVNULL).splitlines()[0]
- if any(v not in info for v in ["name='pl.rentmor.protokol'","versionCode='48'","versionName='1.7.33'"]):raise ValueError('Wrong APK version')
+ if any(v not in info for v in ["name='pl.rentmor.protokol'","versionCode='49'","versionName='1.7.34'"]):raise ValueError('Wrong APK version')
  z=zipfile.ZipFile(newpath);dex=b''.join(z.read(n)for n in z.namelist()if n.endswith('.dex'))
- if b'repairReservationCopies'not in dex or b'OfferContentEditor'not in dex or b'AiKnowledgePage'not in dex or b'SearchConsolePage'in dex:raise ValueError('APK feature checks')
+ if b'queueConfirmedIssue'not in dex or b'repairReservationCopies'not in dex or b'OfferContentEditor'not in dex or b'AiKnowledgePage'not in dex or b'SearchConsolePage'in dex:raise ValueError('APK feature checks')
 def verify_public(apk):
- for p in ['download-app.php?release=48','RentMor.apk?release=48']:
+ for p in ['download-app.php?release=49','RentMor.apk?release=49']:
   data,h=public(p)
   if sha(data)!=sha(apk):raise RuntimeError('Public APK differs')
-  if p.startswith('download-app')and('no-store'not in h.get('Cache-Control','')or'RentMor-1.7.33.apk'not in h.get('Content-Disposition','')):raise RuntimeError('Download metadata')
+  if p.startswith('download-app')and('no-store'not in h.get('Cache-Control','')or'RentMor-1.7.34.apk'not in h.get('Content-Disposition','')):raise RuntimeError('Download metadata')
  print('RECOVERY_PUBLIC_APK_BYTES_AND_HEADERS_VERIFIED')
 def apply_transaction(s,changes,docs,verify):
  applied=[]
@@ -76,11 +76,11 @@ def main():
   changes=[]
   apkpath=ROOT/'app/build/outputs/apk/release/app-release.apk';apk=apkpath.read_bytes()
   oldapk=read(s,'public_html/RentMor.apk')
-  if sha(oldapk)!='b26d8f67a26156c844cbb8a28c001c278a2b5df3405160237eb8440f51bc1441':raise ValueError('Installed APK changed')
+  if sha(oldapk)!='e6a68fa5fad0d020c0b52d7a7123dcddebd424fe9522e33518ec3ac7d82c08e4':raise ValueError('Installed APK changed')
   certify(oldapk,apkpath)
   meta=read(s,'public_html/app-release.json');previous=json.loads(meta)
-  if previous.get('version')!='1.7.32' or previous.get('version_code')!=47:raise ValueError('Release metadata changed')
-  newmeta=json.dumps({'version':'1.7.33','version_code':48,'sha256':sha(apk),'size':len(apk)},indent=2).encode()+b'\n'
+  if previous.get('version')!='1.7.33' or previous.get('version_code')!=48:raise ValueError('Release metadata changed')
+  newmeta=json.dumps({'version':'1.7.34','version_code':49,'sha256':sha(apk),'size':len(apk)},indent=2).encode()+b'\n'
   changes.extend([('RentMor.apk',oldapk,apk,0o644),('app-release.json',meta,newmeta,0o644)])
   # Check current private documents and preserve them; never touch rental/customer data.
   docs=[]
@@ -95,7 +95,7 @@ def main():
   print('RECOVERY_PRIVATE_BACKUPS_AND_PREFLIGHT_VERIFIED')
   apply_transaction(s,[('public_html/'+name,old,new,mode)for name,old,new,mode in changes],docs,lambda:verify_public(apk))
   print('RECOVERY_TWO_PROGRESS_DOCUMENTS_SHA256_0600_VERIFIED')
-  print('RECOVERY_PUBLISHED_VERSION_1.7.33_CODE48_SHA256='+sha(apk))
+  print('RECOVERY_PUBLISHED_VERSION_1.7.34_CODE49_SHA256='+sha(apk))
   print('RECOVERY_SOURCE_READBACK_ALL_VERIFIED')
  finally:t.close()
 if __name__=='__main__':
