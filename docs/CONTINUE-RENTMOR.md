@@ -1,3 +1,9 @@
+# 15.11.2026 — odzyskiwanie odrzuconych zapisów rezerwacji, Android 1.7.33/code48
+
+Zgłoszono dwie odrzucone operacje reservation_save z konfliktem przypisania wydanego egzemplarza. Zrzuty nie identyfikują operacji ani autorytatywnego przypisania; danych klientów nie odczytywano i nie zmieniano. Dodano szczegóły w kolejce i jawne porównanie z serwerem. Po potwierdzeniu administratora naprawiany jest tylko wybrany lokalny zapis: przypisanie sprzętu pochodzi z serwera, termin i inne dane lokalne pozostają. Zachowano ID i kolejność operacji, ochronę przed zmianą kolejki w czasie dialogu, odmowę dla zakończonego najmu i innego modelu. API nadal waliduje dostępność. Po odrzuceniu operacji aplikacja pobiera aktualny stan serwera, zachowując lokalne oczekujące zmiany. Przycisk synchronizacji jawnie ją uruchamia.
+
+Testy regresyjne odzyskiwania przygotowane; pełne testy Android i podpisanie w workflow do potwierdzenia. Publikacja APK oraz synchronizacja prywatnych dokumentów NIEPOTWIERDZONE. Bez zmiany PHP i bez automatycznego kasowania operacji. Faktyczne odzyskanie dwóch zapisów wymaga aktualizacji aplikacji i świadomego potwierdzenia przypisania na telefonie. PR/commit: do potwierdzenia.
+
 # 13.11.2026 — kalendarz: godziny zwrotu i bufor 90 min OPUBLIKOWANE, PR161
 
 Zgłoszenie właściciela: praska PEX na 17.11.2026 08:30 → 18.11.2026 08:30 była pokazywana jako zajęta do końca 18.11. Przyczyną dla rezerwacji z Androida był brak pola `return_time` (Android zapisuje daty i godzinę odbioru), więc dawny harmonogram traktował ją jak wpis bez godzin i blokował oba dni. Niezależnie kod `server/rental_inventory.php` w repo miał starsze porównanie samych dat. Naprawiono oba warianty, aby nie wrócił błąd przy przyszłym nadpisaniu źródła.

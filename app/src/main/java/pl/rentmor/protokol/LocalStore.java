@@ -125,6 +125,34 @@ public class LocalStore extends SQLiteOpenHelper {
         try{if("reservation_save".equals(action)){JSONArray pending=queued();for(int i=0;i<pending.length();i++){JSONObject op=pending.getJSONObject(i);if(action.equals(op.optString("action"))&&r.optString("id").equals(op.optString("id")))clearQueueItem(op.optString("op_id"));}}enqueue(action,new JSONObject(r.toString()));saveReservation(r);db.setTransactionSuccessful();}
         catch(JSONException e){throw new IllegalStateException(e);}finally{db.endTransaction();}
     }
+    /** Explicit recovery of one rejected save; never discard unrelated pending work. */
+    public synchronized void repairReservationCopies(JSONObject expected, JSONObject remote) throws JSONException {
+        SQLiteDatabase db=getWritableDatabase();db.beginTransaction();
+        try {
+            JSONObject current=null;JSONArray pending=queued();
+            for(int i=0;i<pending.length();i++) {
+                JSONObject op=pending.getJSONObject(i);
+                if(op.optString("op_id").equals(expected.optString("op_id")))current=op;
+            }
+            if(current==null || !current.toString().equals(expected.toString()))
+                throw new IllegalStateException("Wpis zmienił się. Otwórz ponownie listę operacji.");
+            if(!"reservation_save".equals(current.optString("action"))
+                || current.optString("id").isEmpty() || !current.optString("id").equals(remote.optString("id"))
+                || !current.optString("equipment").equals(remote.optString("equipment")))
+                throw new IllegalArgumentException("Nie można uzgodnić tej rezerwacji automatycznie.");
+            if(remote.optBoolean("returned") || remote.optBoolean("settled"))
+                throw new IllegalArgumentException("Najem na serwerze jest zakończony. Wymaga osobnej korekty.");
+            JSONObject fixed=new JSONObject(current.toString());
+            for(String key:new String[]{"asset_id","asset_label","vacuum_asset_id","vacuum_asset_label"})
+                fixed.put(key,remote.optString(key));
+            // Preserve an issued state from the server; never undo an issue during recovery.
+            if(remote.optBoolean("done"))fixed.put("done",true);
+            fixed.put("auto_assign",false);
+            ContentValues values=new ContentValues();values.put("payload",fixed.toString());
+            db.update("queue",values,"op_id=?",new String[]{current.getString("op_id")});
+            saveReservation(fixed);db.setTransactionSuccessful();
+        } finally {db.endTransaction();}
+    }
     public synchronized void enqueue(String action, JSONObject payload) {
         try {
             String opId = UUID.randomUUID().toString();

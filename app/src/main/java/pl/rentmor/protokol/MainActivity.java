@@ -474,6 +474,15 @@ public class MainActivity extends Activity {
             TextView heading=new TextView(this);
             heading.setText((i+1)+". "+("asset_save".equals(action)?"Zapis egzemplarza":("asset_delete".equals(action)?"Usunięcie egzemplarza":"Zmiana do wysłania • "+action)));
             heading.setTextSize(15);heading.setTypeface(null,1);heading.setTextColor(0xff17263e);card.addView(heading);
+            if("reservation_save".equals(action)){
+                TextView details=new TextView(this);
+                details.setText(operation.optString("equipment")+"\n"+operation.optString("start_date")+" → "+operation.optString("end_date")
+                    +"\nEgzemplarz: "+operation.optString("asset_label")
+                    +(operation.optString("vacuum_asset_id").isEmpty()?"":"\nOdkurzacz: "+operation.optString("vacuum_asset_label")));
+                details.setTextColor(0xff526174);card.addView(details);
+                Button recover=new Button(this);recover.setText("Porównaj egzemplarz z serwerem");card.addView(recover);
+                recover.setOnClickListener(v->compareReservationForRecovery(operation));
+            }
             if("asset_save".equals(action)){
                 TextView details=new TextView(this);
                 details.setText(operation.optString("equipment")+"\nNazwa: "+operation.optString("label"));
@@ -507,8 +516,31 @@ public class MainActivity extends Activity {
                 });
             }
         }
-        addButton("SYNCHRONIZUJ TERAZ",()->{showHome();});
+        addButton("SYNCHRONIZUJ TERAZ",()->{showHome();syncNow();});
         addButton("WRÓĆ DO MENU",()->showHome());
+    }
+    private void compareReservationForRecovery(JSONObject operation){
+        if(!syncRunning.compareAndSet(false,true)){toast("Trwa synchronizacja. Spróbuj za chwilę.");return;}
+        new Thread(()->{
+            try {
+                JSONObject remote=sync.fetchReservationForRecovery(operation.optString("id"));
+                runOnUiThread(()->{
+                    String localCopies=operation.optString("asset_label","—")+" / "+operation.optString("vacuum_asset_label","—");
+                    String serverCopies=remote.optString("asset_label","—")+" / "+remote.optString("vacuum_asset_label","—");
+                    new AlertDialog.Builder(this).setTitle("Uzgodnij egzemplarz")
+                        .setMessage(operation.optString("equipment")+"\nTelefon: "+localCopies+"\nSerwer: "+serverCopies
+                            +"\n\nPrzywrócić przypisanie z serwera? Termin i dane wpisane na telefonie pozostaną. Zapis nadal przejdzie kontrolę dostępności. Potwierdź tylko, jeśli przypisanie serwera odpowiada faktycznie wydanemu sprzętowi.")
+                        .setNegativeButton("Anuluj",(d,w)->syncRunning.set(false))
+                        .setOnCancelListener(d->syncRunning.set(false))
+                        .setPositiveButton("Przywróć przypisanie",(d,w)->{
+                            try{store.repairReservationCopies(operation,remote);toast("Poprawiono przypisanie w oczekującym zapisie.");}
+                            catch(Exception ex){toast(ex.getMessage());}
+                            finally{syncRunning.set(false);}
+                            pendingOperationsPage();syncNow();
+                        }).show();
+                });
+            } catch(Exception ex){runOnUiThread(()->{syncRunning.set(false);toast(ex.getMessage());});}
+        }).start();
     }
     private void syncNow(){
         if(!isOnline()){

@@ -177,15 +177,24 @@ public class SyncManager {
         if(failures>0)
             throw new IOException(error+(failures>1?" (Nieudanych operacji: "+failures+")":""));
     }
+    public synchronized JSONObject fetchReservationForRecovery(String id) throws Exception {
+        JSONObject response=request("GET",null);
+        if(!"admin".equals(response.optString("role")))throw new SecurityException("Wymagany administrator.");
+        JSONArray bookings=response.getJSONArray("reservations");
+        for(int i=0;i<bookings.length();i++)if(id.equals(bookings.getJSONObject(i).optString("id")))
+            return bookings.getJSONObject(i);
+        throw new IOException("Nie znaleziono rezerwacji na serwerze. Niczego nie zmieniono.");
+    }
     public synchronized JSONObject sync() throws Exception {
         JSONArray pending=store.queued();
+        IOException rejected=null;
         if(pending.length()>0){
             JSONObject body=new JSONObject(); JSONArray ops=new JSONArray();
             for(int i=0;i<pending.length();i++) ops.put(pending.getJSONObject(i));
             body.put("operations",ops);
             JSONObject response=request("POST",body);JSONArray results=response.optJSONArray("results");
             if(results==null)throw new IOException("Serwer nie potwierdził zapisania operacji. Ponów synchronizację.");
-            applyAcknowledgements(store,pending,results);
+            try{applyAcknowledgements(store,pending,results);}catch(IOException ex){rejected=ex;}
         }
         JSONObject server=request("GET",null);
         store.replaceServerProtocols(server.optJSONArray("protocols")==null?new JSONArray():server.optJSONArray("protocols"));
@@ -200,6 +209,7 @@ public class SyncManager {
         context.getSharedPreferences("rentmor",0).edit().putString("role",server.optString("role")).apply();
         if(!"admin".equals(server.optString("role")))store.clearMessages();
         PushRegistrar.refresh(context);
+        if(rejected!=null)throw rejected;
         return server;
     }
 }
