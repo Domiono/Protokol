@@ -1,3 +1,11 @@
+# 15.11.2026 — potwierdzenie wydania OPUBLIKOWANE, PR163
+
+Android1.7.34/code49 opublikowany run43717357658 SUCCESS, commit c6db9d55418d4a22c25ca5f905a924e2fab2cda5. Pełne testy Android i podpisany assembleRelease PASS; pięć ConfirmedIssueTest PASS. Kontrole PR: rental operations43717362167, offer editor43717362129, safety43717362108, calendar43717362132 wszystkie SUCCESS. Sprawdzono podpis zgodny z1.7.33, prywatną kopię, readback APK/metadanych i publiczne bajty/nagłówki obu linków. SHA25679d02b3feb8b282706051c58537469ed0164812c18d45708c2836b7d58eb1cec. Instalator https://rentmor.pl/download-app.php?release=49, aktualizacja bez odinstalowania.
+
+Oznacz wydanie w Rezerwacjach teraz wymaga internetu, synchronizuje wcześniejsze zwroty/edycje, pokazuje klienta i egzemplarze do potwierdzenia oraz pozwala otworzyć zmianę egzemplarza. Nie zapisuje starej karty, zakończonego najmu ani wydania przy pozostałej kolejce. Wynik komunikatu odróżnia potwierdzenie serwera od oczekiwania. Bez zmian PHP, prawdziwych rezerwacji, danych klientów i osobnego przepływu tworzenia protokołu. Nie przeprowadzono testu na fizycznym telefonie i nie dowiedziono dokładnej historycznej przyczyny wcześniejszego konfliktu.
+
+Podczas publikacji oba dokumenty zsynchronizowane0700/0600 i sprawdzone. Niniejsze końcowe potwierdzenie synchronizowane osobnym progress-only; jego wynik i mergePR163 do sprawdzenia. Tymczasowy workflow usunąć przed merge. Nie ponawiać wydania na starym baselineAPK.
+
 # 15.11.2026 — potwierdzenie egzemplarza przed wydaniem, Android1.7.34/code49
 
 Właściciel potwierdził odzyskanie dwóch zapisów po1.7.33 oraz prawidłowe przypisanie zestawu1. Opisał zmianę planowanego zestawu2 na właśnie zwrócony i rozliczony zestaw1. Ustalono lukę w przycisku Oznacz wydanie: zapisywał cały obiekt starej karty bez wcześniejszej synchronizacji; zmieniał też done w pamięci przed walidacją. Nie potwierdzono pełnej historycznej kolejności zdarzeń na telefonie.
