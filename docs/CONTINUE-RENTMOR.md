@@ -1,3 +1,17 @@
+# 15.11.2026 — odzyskiwanie rezerwacji OPUBLIKOWANE, PR162
+
+Android 1.7.33/code48, commit e3fb3aa52ce9e86753d6af9c77385a81d7955591, publikacja run43715012715 SUCCESS. Pełne testy Android i podpisany assembleRelease PASS, w tym trzy ReservationRecoveryTest: zachowanie terminu/kolejki/innej operacji, odmowa zakończonych lub innych rezerwacji, odmowa nieaktualnego dialogu. Wszystkie cztery kontrole PR również SUCCESS (rental operations43715016736, offer editor43715016689, safety43715016720, calendar43715016741).
+
+Zweryfikowano zgodność certyfikatu z poprzednim APK1.7.32, prywatną kopię, odczyt zwrotny APK/metadanych, publiczne bajty obu adresów i nagłówki download-app. SHA256 e6a68fa5fad0d020c0b52d7a7123dcddebd424fe9522e33518ec3ac7d82c08e4. Instalator https://rentmor.pl/download-app.php?release=48. Bez odinstalowania. Ścieżka: komunikat synchronizacji → oczekujący zapis → Porównaj egzemplarz z serwerem → przywrócenie po potwierdzeniu faktycznego przypisania. Nie potwierdzono instalacji i odzyskania dwóch operacji na telefonie. Zrzuty nie wskazują ID tych operacji; brak bezpośredniego odczytu prywatnych danych i zmian rezerwacji na serwerze.
+
+Oba dokumenty zsynchronizowano0700/0600 podczas publikacji; niniejsze końcowe potwierdzenie wysyłane osobnym progress-only. Końcowy wynik synchronizacji i mergePR162 sprawdzić. Tymczasowy workflow usunąć przed scaleniem. Nie uruchamiać ponownie publikacjiAPK na zmienionym baseline. Log publikacji ma historycznie nazwany znacznik zawierający API_AUTH, ale ta wersja skryptu weryfikowała wyłącznie publiczny APK i nagłówki, nie API; nie traktować nazwy znacznika jako testuAPI.
+
+# 15.11.2026 — odzyskiwanie odrzuconych zapisów rezerwacji, Android 1.7.33/code48
+
+Zgłoszono dwie odrzucone operacje reservation_save z konfliktem przypisania wydanego egzemplarza. Zrzuty nie identyfikują operacji ani autorytatywnego przypisania; danych klientów nie odczytywano i nie zmieniano. Dodano szczegóły w kolejce i jawne porównanie z serwerem. Po potwierdzeniu administratora naprawiany jest tylko wybrany lokalny zapis: przypisanie sprzętu pochodzi z serwera, termin i inne dane lokalne pozostają. Zachowano ID i kolejność operacji, ochronę przed zmianą kolejki w czasie dialogu, odmowę dla zakończonego najmu i innego modelu. API nadal waliduje dostępność. Po odrzuceniu operacji aplikacja pobiera aktualny stan serwera, zachowując lokalne oczekujące zmiany. Przycisk synchronizacji jawnie ją uruchamia.
+
+Testy regresyjne odzyskiwania przygotowane; pełne testy Android i podpisanie w workflow do potwierdzenia. Publikacja APK oraz synchronizacja prywatnych dokumentów NIEPOTWIERDZONE. Bez zmiany PHP i bez automatycznego kasowania operacji. Faktyczne odzyskanie dwóch zapisów wymaga aktualizacji aplikacji i świadomego potwierdzenia przypisania na telefonie. PR/commit: do potwierdzenia.
+
 # 13.11.2026 — kalendarz: godziny zwrotu i bufor 90 min OPUBLIKOWANE, PR161
 
 Zgłoszenie właściciela: praska PEX na 17.11.2026 08:30 → 18.11.2026 08:30 była pokazywana jako zajęta do końca 18.11. Przyczyną dla rezerwacji z Androida był brak pola `return_time` (Android zapisuje daty i godzinę odbioru), więc dawny harmonogram traktował ją jak wpis bez godzin i blokował oba dni. Niezależnie kod `server/rental_inventory.php` w repo miał starsze porównanie samych dat. Naprawiono oba warianty, aby nie wrócił błąd przy przyszłym nadpisaniu źródła.
