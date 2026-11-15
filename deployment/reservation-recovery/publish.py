@@ -1,4 +1,4 @@
-"""Publish tested editor PHP and a same-signer APK with guarded writes and rollback."""
+"""Publish only a tested same-signer recovery APK with guarded writes and rollback."""
 import base64,hashlib,json,os,stat,subprocess,tempfile,urllib.request,urllib.error,uuid,zipfile,io
 from pathlib import Path
 import paramiko
@@ -18,12 +18,6 @@ def put(s,p,b,mode):
  with s.open(p,'wb')as f:f.set_pipelined(True);f.write(b)
  s.chmod(p,mode)
  if read(s,p)!=b:raise RuntimeError('Readback')
-def patch_admin(old):
- text=old.decode()
- for before,after in json.loads((ROOT/'deployment/offer-editor/admin-patch.json').read_text()):
-  if text.count(before)!=1:raise ValueError('Admin patch context differs')
-  text=text.replace(before,after)
- return text.encode()
 def public(path):
  req=urllib.request.Request('https://rentmor.pl/'+path+('&'if'?'in path else'?')+'offer_editor='+uuid.uuid4().hex,headers={'Cache-Control':'no-cache'})
  with urllib.request.urlopen(req,timeout=90)as r:return r.read(100000001),r.headers
@@ -43,7 +37,7 @@ def verify_public(apk):
   data,h=public(p)
   if sha(data)!=sha(apk):raise RuntimeError('Public APK differs')
   if p.startswith('download-app')and('no-store'not in h.get('Cache-Control','')or'RentMor-1.7.33.apk'not in h.get('Content-Disposition','')):raise RuntimeError('Download metadata')
- print('RECOVERY_PUBLIC_PAGES_APK_BYTES_HEADERS_AND_API_AUTH_VERIFIED')
+ print('RECOVERY_PUBLIC_APK_BYTES_AND_HEADERS_VERIFIED')
 def apply_transaction(s,changes,docs,verify):
  applied=[]
  def apply(row):
