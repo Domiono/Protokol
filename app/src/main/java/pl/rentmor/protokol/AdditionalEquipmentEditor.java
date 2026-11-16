@@ -32,11 +32,11 @@ public final class AdditionalEquipmentEditor {
         e.box=new LinearLayout(context);e.box.setOrientation(1);e.box.setPadding(8,12,8,12);rows.addView(e.box);entries.add(e);
         ArrayList<String> models=new ArrayList<>();models.add("— Wybierz dodatkowy sprzęt —");for(int i=0;i<names.length();i++)if(!models.contains(names.optString(i)))models.add(names.optString(i));
         String previous=e.original.optString("equipment");if(!previous.isEmpty()&&!models.contains(previous))models.add(previous);
-        e.model=new Spinner(context);e.model.setAdapter(new ArrayAdapter<>(context,android.R.layout.simple_spinner_dropdown_item,models));
+        e.model=new Spinner(context);e.model.setContentDescription("Dodatkowy sprzęt");e.model.setAdapter(new ArrayAdapter<>(context,android.R.layout.simple_spinner_dropdown_item,models));
         e.model.setSelection(Math.max(0,models.indexOf(previous)));e.model.setEnabled(!locked);e.box.addView(e.model);
         e.copy=new Spinner(context);e.box.addView(e.copy);e.copy.setEnabled(!locked);
         e.rate=new EditText(context);e.rate.setSingleLine(true);e.rate.setHint("Cena tego sprzętu za dobę (zł)");e.rate.setInputType(8194);e.rate.setText(e.original.optString("daily_rate","0"));
-        if(admin)e.box.addView(e.rate);
+        if(admin){TextView rateLabel=new TextView(context);rateLabel.setText("Cena tego sprzętu za dobę (zł)");e.box.addView(rateLabel);e.box.addView(e.rate);}
         Runnable refresh=()->{
             String model=String.valueOf(e.model.getSelectedItem()),role=RentalRules.kind(model);
             e.choices.clear();e.choices.add(null);ArrayList<String> labels=new ArrayList<>();labels.add("Dobierz wolny egzemplarz przy zapisie");int selected=0;

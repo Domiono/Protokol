@@ -56,4 +56,17 @@ public class MultiEquipmentReservationTest {
         assertEquals("v",editor.value().getJSONObject(0).getString("asset_id"));
         Button add=(Button)form.getChildAt(form.getChildCount()-1);assertFalse(add.isEnabled());a.finish();
     }
+    @Test public void duplicateManualSelectionsFailBeforeAnyLocalAssignment()throws Exception{
+        JSONObject r=booking();JSONObject line=r.getJSONArray("additional_items").getJSONObject(0);
+        line.put("equipment","Bruzdownica").put("asset_id","w");
+        r.getJSONArray("additional_items").put(new JSONObject(line.toString()).put("line_id","duplicate"));
+        String original=r.toString();
+        JSONArray stock=assets().put(new JSONObject().put("id","w2").put("equipment","Bruzdownica").put("label","Wall 2"));
+        assertFalse(RentalRules.autoAssign(r,new JSONArray(),stock).isEmpty());assertEquals(original,r.toString());
+    }
+    @Test public void groupedModelNameRetainsAllEquipmentWithMarketingSuffixes()throws Exception{
+        JSONObject r=booking();r.put("equipment","Bruzdownica - wynajem Kraków");
+        r.getJSONArray("additional_items").getJSONObject(0).put("equipment","Odkurzacz - wynajem Kraków");
+        assertEquals("Bruzdownica + Odkurzacz",EquipmentAnalytics.name(r));
+    }
 }

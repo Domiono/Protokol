@@ -79,7 +79,12 @@
     ]
   },
   "_progress": {
-    "CONTINUE-RENTMOR.md": "0099803282fb0206e75e66b1f4fd150f665f78cf38b12dbab5540745f272e338",
-    "RENTMOR-PROJECT-LOG.md": "79a6076150b4b5c07245ff6b6319280c76bb139d58a7f34d35c650294d225270"
+    "CONTINUE-RENTMOR.md": "682f9fcbe8670d38f7283133fa4b5965cfe30dc790d4294ae6fba869cc43acad",
+    "RENTMOR-PROJECT-LOG.md": "93506f5d82ee99b19a8d4635aaecd1c2eed5ae6f730741b60db7f9bcc3c7fb5d"
+  },
+  "_installed_sources": {
+    "rental_inventory.php": "ffd4da9ac66b68e2ec76f36c2596755ef66e16c973e08556230c8f961b3a36ad",
+    "protocol_sync.php": "eac8d958ca6b5d4723d0657d460cc201f03874441159d1a1fff79b2d40ba228c",
+    "admin.php": "54abb6164c014fef14e38b58ebc78d6274e7a6efaf1c84733e7c4cfbd45c1ad7"
   }
 }

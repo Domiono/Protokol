@@ -7,7 +7,7 @@ ROOT=Path(__file__).resolve().parents[2]
 spec=importlib.util.spec_from_file_location('guarded_apk',ROOT/'deployment/reservation-recovery/publish.py')
 common=importlib.util.module_from_spec(spec);spec.loader.exec_module(common)
 sha=common.sha
-OLD_APK='79d02b3feb8b282706051c58537469ed0164812c18d45708c2836b7d58eb1cec'
+OLD_APK='9abf846bac1129f56e3b2bac025d3a7ce289dcf3a488d7ec7368c1810a5ace51'
 def checked_patch(raw,specification,name):
  if sha(raw)!=specification['expected_sha256']:raise ValueError('Hosting source changed: '+name)
  text=raw.decode('utf-8')
@@ -28,17 +28,17 @@ def certify(old,path):
   if not certificate(previous)or certificate(previous)!=certificate(path):raise ValueError('Signer mismatch')
  aapt=sorted(Path(os.environ['ANDROID_HOME']).glob('build-tools/*/aapt'))[-1]
  info=subprocess.check_output([str(aapt),'dump','badging',str(path)],text=True).splitlines()[0]
- if any(value not in info for value in ["name='pl.rentmor.protokol'","versionCode='50'","versionName='1.7.35'"]):raise ValueError('Wrong APK version')
+ if any(value not in info for value in ["name='pl.rentmor.protokol'","versionCode='51'","versionName='1.7.36'"]):raise ValueError('Wrong APK version')
  import zipfile
  with zipfile.ZipFile(path)as z:dex=b''.join(z.read(n)for n in z.namelist()if n.endswith('.dex'))
  if any(value not in dex for value in [b'AdditionalEquipmentEditor',b'additional_items',b'queueConfirmedIssue',b'OfferContentEditor',b'AiKnowledgePage']):raise ValueError('Missing APK feature')
  print('MULTI_APK_VERSION_FEATURES_AND_SAME_SIGNER_VERIFIED')
 
 def public_checks(apk):
- for path in ['download-app.php?release=50','RentMor.apk?release=50']:
+ for path in ['download-app.php?release=51','RentMor.apk?release=51']:
   raw,headers=common.public(path)
   if sha(raw)!=sha(apk):raise ValueError('Public APK mismatch')
-  if path.startswith('download-app')and('no-store'not in headers.get('Cache-Control','')or'RentMor-1.7.35.apk'not in headers.get('Content-Disposition','')):raise ValueError('Download metadata')
+  if path.startswith('download-app')and('no-store'not in headers.get('Cache-Control','')or'RentMor-1.7.36.apk'not in headers.get('Content-Disposition','')):raise ValueError('Download metadata')
  raw,_=common.public('')
  if b'<html'not in raw.lower():raise ValueError('Homepage smoke check')
  import urllib.request,urllib.error
@@ -49,7 +49,7 @@ def public_checks(apk):
  else:raise ValueError('API unexpectedly public')
  print('MULTI_PUBLIC_APK_HEADERS_HOME_AND_API_AUTH_VERIFIED')
 
-def main(progress_only=False):
+def main(progress_only=False,apk_only=False):
  manifest=json.loads((ROOT/'deployment/multi-equipment/patches.json').read_text())
  t=paramiko.Transport((os.environ['FTP_SERVER'],22222))
  try:
@@ -68,16 +68,20 @@ def main(progress_only=False):
    docs.append((path,old,(ROOT/'docs'/name).read_bytes(),0o600))
   changes=[]
   if not progress_only:
-   for name in ['rental_inventory.php','protocol_sync.php','admin.php']:
-    path='public_html/'+name;old=common.read(s,path);new=checked_patch(old,manifest[name],name)
-    changes.append((path,old,new,0o644))
+   if apk_only:
+    for name,expected in manifest['_installed_sources'].items():
+     if sha(common.read(s,'public_html/'+name))!=expected:raise ValueError('Published source changed: '+name)
+   else:
+    for name in ['rental_inventory.php','protocol_sync.php','admin.php']:
+     path='public_html/'+name;old=common.read(s,path);new=checked_patch(old,manifest[name],name)
+     changes.append((path,old,new,0o644))
    apkpath=ROOT/'app/build/outputs/apk/release/app-release.apk';apk=apkpath.read_bytes()
    old=common.read(s,'public_html/RentMor.apk')
    if sha(old)!=OLD_APK:raise ValueError('Installed APK changed')
    certify(old,apkpath)
    oldmeta=common.read(s,'public_html/app-release.json');meta=json.loads(oldmeta)
-   if meta.get('version')!='1.7.34'or meta.get('version_code')!=49:raise ValueError('Release metadata changed')
-   newmeta=json.dumps({'version':'1.7.35','version_code':50,'sha256':sha(apk),'size':len(apk)},indent=2).encode()+b'\n'
+   if meta.get('version')!='1.7.35'or meta.get('version_code')!=50:raise ValueError('Release metadata changed')
+   newmeta=json.dumps({'version':'1.7.36','version_code':51,'sha256':sha(apk),'size':len(apk)},indent=2).encode()+b'\n'
    changes.extend([('public_html/RentMor.apk',old,apk,0o644),('public_html/app-release.json',oldmeta,newmeta,0o644)])
   backup=private+'/multi-equipment-'+uuid.uuid4().hex;s.mkdir(backup,mode=0o700)
   for path,old,new,mode in changes+docs:
@@ -87,9 +91,9 @@ def main(progress_only=False):
   for path,old,new,mode in changes+docs:
    if common.read(s,path)!=new or s.lstat(path).st_mode&0o777!=mode:raise RuntimeError('Final readback or permissions')
   print('MULTI_ALL_FILES_READBACK_AND_TWO_PROGRESS_DOCUMENTS_SHA256_0600_VERIFIED')
-  if not progress_only:print('MULTI_PUBLISHED_VERSION_1.7.35_CODE50_SHA256='+sha(apk))
+  if not progress_only:print('MULTI_PUBLISHED_VERSION_1.7.36_CODE51_SHA256='+sha(apk))
  finally:t.close()
 if __name__=='__main__':
- parser=argparse.ArgumentParser();parser.add_argument('--progress-only',action='store_true');args=parser.parse_args()
- try:main(args.progress_only)
+ parser=argparse.ArgumentParser();parser.add_argument('--progress-only',action='store_true');parser.add_argument('--apk-only',action='store_true');args=parser.parse_args()
+ try:main(args.progress_only,args.apk_only)
  except Exception as e:print('MULTI_PUBLICATION_STOPPED_'+type(e).__name__+':'+str(e));raise SystemExit(1)

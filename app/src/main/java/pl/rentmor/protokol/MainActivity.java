@@ -1334,6 +1334,7 @@ public class MainActivity extends Activity {
             }
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent){withVacuum.setVisibility(View.GONE);}
         });
+        if(isAdmin())reservationFormLabel(form,"CENA GŁÓWNEGO SPRZĘTU ZA DOBĘ (ZŁ)");
         EditText primaryRate=new EditText(this);primaryRate.setSingleLine(true);primaryRate.setInputType(8194);
         primaryRate.setHint("Cena głównego sprzętu za dobę (zł)");primaryRate.setText("0");if(isAdmin())form.addView(primaryRate);
         AdditionalEquipmentEditor extraEquipment=new AdditionalEquipmentEditor(this,form,store.equipment(),store.assets(),new JSONObject(),isAdmin());
@@ -1564,6 +1565,7 @@ public class MainActivity extends Activity {
                         if(item.optBoolean("done")&&!item.optString("vacuum_asset_id").isEmpty())vacuumPick.setEnabled(false);
                         f.addView(vacuumPick);
                     }
+                    if(isAdmin()){TextView rateLabel=new TextView(this);rateLabel.setText("Cena głównego sprzętu za dobę (zł)");f.addView(rateLabel);}
                     EditText editPrimaryRate=new EditText(this);editPrimaryRate.setSingleLine(true);editPrimaryRate.setInputType(8194);
                     editPrimaryRate.setHint("Cena głównego sprzętu za dobę (zł)");editPrimaryRate.setText(item.optString("primary_daily_rate",item.optString("daily_rate","0")));if(isAdmin())f.addView(editPrimaryRate);
                     AdditionalEquipmentEditor editExtras=new AdditionalEquipmentEditor(this,f,store.equipment(),store.assets(),item,isAdmin());

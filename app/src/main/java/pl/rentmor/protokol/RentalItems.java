@@ -53,6 +53,7 @@ public final class RentalItems {
                 assign(working,i,line);JSONObject held=new JSONObject(line.toString());held.put("_booking_id","assigned::"+i);busy.put(held);
             }
         }
+        String conflict=RentalRules.conflict(working,reservations,assets);if(!conflict.isEmpty())return conflict;
         copyAssignments(working,candidate);return "";
     }
     public static void updateRate(JSONObject r,String primary)throws JSONException{
