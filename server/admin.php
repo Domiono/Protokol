@@ -40,6 +40,9 @@ function rm_admin_settlement_month(array $r): string {
     return $date && $date->format('Y-m-d')===$day ? substr($day,0,7) : '';
 }
 function rm_admin_equipment_name(array $r): string {
+    if(!empty($r['additional_items'])){
+        $names=[(string)($r['equipment']??'')];foreach($r['additional_items'] as $line)$names[]=(string)($line['equipment']??'');return implode(' + ',$names);
+    }
     $name=trim((string)($r['equipment']??''));
     if($name===''){
         $raw=(string)($r['text']??'');
@@ -1155,7 +1158,7 @@ if (isset($_GET['edit_id'])) {
                 <section class="bg-white rounded-3xl p-5 sm:p-7 shadow-sm"><h3 class="text-xl font-black mb-4">Rezerwacje / do rozliczenia <span class="text-sm text-gray-400">(<?php echo count($active_reservations); ?>)</span></h3>
                     <?php if (!$active_reservations): ?><p class="text-sm text-gray-500">Brak nierozliczonych rezerwacji w tym miesiącu.</p><?php endif; ?>
                     <div class="space-y-4"><?php foreach ($active_reservations as $r): $rid=(string)($r['id']??''); $sd=(string)($r['start_date']??''); $ed=(string)($r['end_date']??''); $eq=(string)($r['equipment']??''); $tm=(string)($r['time']??''); $ph=(string)($r['phone']??''); ?>
-                        <div class="border rounded-2xl p-4"><div class="font-bold mb-2"><?php echo e_admin($eq!==''?$eq:($r['text']??'Rezerwacja')); ?> <span class="text-xs <?php echo !empty($r['done'])?'text-green-700':'text-amber-700'; ?>">· <?php echo !empty($r['done'])?'WYDANE':'DO WYDANIA'; ?></span></div>
+                        <div class="border rounded-2xl p-4"><div class="font-bold mb-2"><?php echo e_admin($eq!==''?$eq:($r['text']??'Rezerwacja')); ?><?php foreach(($r['additional_items']??[]) as $line): ?><div class="text-sm mt-1">＋ <?php echo e_admin((string)($line['equipment']??'')); ?> · <?php echo e_admin((string)($line['asset_label']??'Do przypisania')); ?></div><?php endforeach; ?> <span class="text-xs <?php echo !empty($r['done'])?'text-green-700':'text-amber-700'; ?>">· <?php echo !empty($r['done'])?'WYDANE':'DO WYDANIA'; ?></span></div>
                             <p class="text-sm text-gray-600 mb-3"><?php echo e_admin($sd?:'—'); ?> → <?php echo e_admin($ed?:'—'); ?><?php echo $tm?' · '.e_admin($tm):''; ?><?php echo $ph?' · '.e_admin($ph):''; ?></p>
                             <p class="text-xs text-gray-500 mb-2">Egzemplarz: <?php echo e_admin((string)($r['asset_label']??'Do przypisania')); ?><?php if(rm_needs_vacuum($r)): ?> · Odkurzacz: <?php echo e_admin((string)($r['vacuum_asset_label']??'Do przypisania')); ?><?php endif; ?></p>
                             <form method="POST" class="mb-3"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>"><input type="hidden" name="action" value="reservation_toggle"><input type="hidden" name="reservation_csrf" value="<?php echo e_admin($_SESSION['reservation_csrf']); ?>"><input type="hidden" name="reservation_id" value="<?php echo e_admin($rid); ?>"><input type="hidden" name="reservation_done" value="<?php echo !empty($r['done'])?'0':'1'; ?>"><input type="hidden" name="return_month" value="<?php echo e_admin($reservation_month); ?>"><button class="<?php echo !empty($r['done'])?'bg-green-100 text-green-800':'bg-red-100 text-red-800'; ?> rounded-xl px-4 py-3 font-black w-full sm:w-auto"><?php echo !empty($r['done'])?'COFNIJ WYDANIE':'WYDANO — OZNACZ JAKO WYDANE'; ?></button></form>

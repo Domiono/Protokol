@@ -197,6 +197,7 @@ public final class RentalRules {
             if(r!=null&&(id.equals(r.optString("asset_id"))||id.equals(r.optString("vacuum_asset_id"))))
                 return "Egzemplarz występuje w historii rezerwacji lub wynajmów.";
         }
+        protocols=RentalItems.flatten(protocols);
         for(int i=0;i<protocols.length();i++){
             JSONObject p=protocols.optJSONObject(i);
             if(p!=null&&(id.equals(p.optString("asset_id"))||id.equals(p.optString("vacuum_asset_id"))))
