@@ -50,6 +50,12 @@ public final class EquipmentAnalytics {
         }
     }
     public static String name(JSONObject rental) {
+        if(RentalItems.hasExtras(rental)){
+            java.util.ArrayList<String> names=new java.util.ArrayList<>();
+            JSONArray lines=RentalItems.flatten(new JSONArray().put(rental));
+            for(int i=0;i<lines.length();i++)names.add(clean(lines.optJSONObject(i).optString("equipment")));
+            return String.join(" + ",names);
+        }
         String explicit=rental.optString("equipment","").trim();
         if(!explicit.isEmpty())return clean(explicit);
         String raw=rental.optString("text","");

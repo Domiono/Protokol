@@ -34,6 +34,7 @@ jobs:
       - run: python3 deployment/apk-download/test_endpoint.py
       - run: php -l server/admin.php
       - run: php scripts/test_admin_rental_stats.php
+      - run: php scripts/test_multi_equipment_calendar.php
       - run: php scripts/test_rental_rules.php
       - run: python3 scripts/test_rental_api.py
       - run: python3 scripts/test_inject_local_seo.py

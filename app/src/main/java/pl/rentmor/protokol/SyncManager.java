@@ -189,6 +189,9 @@ public class SyncManager {
         JSONArray pending=store.queued();
         IOException rejected=null;
         if(pending.length()>0){
+            boolean multi=false;for(int i=0;i<pending.length();i++)if(RentalItems.hasExtras(pending.optJSONObject(i)))multi=true;
+            if(multi&&!request("GET",null).optBoolean("multi_equipment_reservations"))
+                throw new IOException("Serwer nie obsługuje jeszcze rezerwacji wielu sprzętów. Zapis pozostaje w telefonie.");
             JSONObject body=new JSONObject(); JSONArray ops=new JSONArray();
             for(int i=0;i<pending.length();i++) ops.put(pending.getJSONObject(i));
             body.put("operations",ops);
@@ -197,6 +200,7 @@ public class SyncManager {
             try{applyAcknowledgements(store,pending,results);}catch(IOException ex){rejected=ex;}
         }
         JSONObject server=request("GET",null);
+        context.getSharedPreferences("rentmor",0).edit().putBoolean("multi_equipment_reservations",server.optBoolean("multi_equipment_reservations")).apply();
         store.replaceServerProtocols(server.optJSONArray("protocols")==null?new JSONArray():server.optJSONArray("protocols"));
         store.replaceServerCustomers(server.optJSONArray("customers")==null?new JSONArray():server.optJSONArray("customers"));
         store.replaceServerReservations(server.optJSONArray("reservations")==null?new JSONArray():server.optJSONArray("reservations"));

@@ -95,7 +95,7 @@ public final class RentalOperations {
     public void active(){screen("Aktywne najmy");JSONArray all=store.allReservations();for(int i=0;i<all.length();i++){JSONObject r=all.optJSONObject(i);if(r!=null&&!r.optBoolean("settled"))rentalCard(r);}button(page,"Dzisiaj",this::today);}
     String displayDate(String raw){try{return LocalDate.parse(raw).format(java.time.format.DateTimeFormatter.ofPattern("dd.MM"));}catch(Exception e){return raw;}}
     void rentalCard(JSONObject r){
-        LinearLayout c=card(page,r.optString("equipment",r.optString("text")));
+        LinearLayout c=card(page,RentalItems.summary(r,false));
         boolean returned=r.optBoolean("returned"),issued=r.optBoolean("done");String end=r.optString("end_date");boolean late=issued&&!returned&&!end.isEmpty()&&end.compareTo(LocalDate.now().toString())<0;
         badge(c,returned?"Do rozliczenia":late?"Po terminie zwrotu":issued?"Wydany":"Do wydania",late?0xffa52e2e:issued?0xff16654e:0xff925400,late?0xffffe5e5:issued?0xffe4f4ed:0xfffff0ce);
         text(c,displayDate(r.optString("start_date"))+" – "+displayDate(end)+(r.optString("time").isEmpty()?"":"  •  "+r.optString("time")),15,0xff245b91);
@@ -241,10 +241,10 @@ public final class RentalOperations {
             }else button(c,"Historia i serwis  ›",()->assetDetails(a));
         }
     }
-    long rentalsCount(JSONObject a){long count=0;JSONArray rs=store.allReservations();for(int i=0;i<rs.length();i++){JSONObject r=rs.optJSONObject(i);if(r!=null&&(a.optString("id").equals(r.optString("asset_id"))||a.optString("id").equals(r.optString("vacuum_asset_id")))&&(r.optBoolean("done")||r.optBoolean("settled")))count++;}return count;}
+    long rentalsCount(JSONObject a){long count=0;JSONArray rs=store.allReservations();for(int i=0;i<rs.length();i++){JSONObject r=rs.optJSONObject(i);if(r!=null&&RentalItems.uses(r,a.optString("id"))&&(r.optBoolean("done")||r.optBoolean("settled")))count++;}return count;}
     boolean serviceDue(JSONObject a){String day=a.optString("next_service");return (!day.isEmpty()&&day.compareTo(LocalDate.now().toString())<=0)||(a.optLong("service_every")>0&&rentalsCount(a)-a.optLong("service_at_count")>=a.optLong("service_every"));}
     void assetDetails(JSONObject a){screen(a.optString("label"));text(page,a.optString("equipment")+(a.optBoolean("in_service")?" • W SERWISIE":" • gotowy do najmu"),16,0xff245b91);text(page,"Wynajmy: "+rentalsCount(a)+(serviceDue(a)?" • PRZEGLĄD DO WYKONANIA":""),16,0xff925400);
-        BigDecimal income=BigDecimal.ZERO;JSONArray rs=store.allReservations();for(int i=0;i<rs.length();i++){JSONObject r=rs.optJSONObject(i);if(r!=null&&(a.optString("id").equals(r.optString("asset_id"))||a.optString("id").equals(r.optString("vacuum_asset_id")))){if(r.optBoolean("settled")&&a.optString("id").equals(r.optString("asset_id")))income=income.add(RentalRules.money(r.optString("income","0")));text(page,r.optString("start_date")+" → "+r.optString("end_date")+" • "+r.optString("customer_name"),14,0xff526174);}}
+        BigDecimal income=BigDecimal.ZERO;JSONArray rs=store.allReservations();for(int i=0;i<rs.length();i++){JSONObject r=rs.optJSONObject(i);if(r!=null&&RentalItems.uses(r,a.optString("id"))){if(r.optBoolean("settled")&&!RentalItems.hasExtras(r)&&a.optString("id").equals(r.optString("asset_id")))income=income.add(RentalRules.money(r.optString("income","0")));text(page,r.optString("start_date")+" → "+r.optString("end_date")+" • "+r.optString("customer_name"),14,0xff526174);}}
         if(admin){text(page,"Przychód rozliczony (bez podwójnego liczenia kwoty zestawu): "+income+" zł",16,0xff166534);button(page,"Edytuj / ustaw serwis",()->assetForm(a));button(page,"Dodaj wykonaną naprawę / przegląd",()->repair(a));}
         JSONArray repairs=a.optJSONArray("repairs");if(repairs!=null)for(int i=0;i<repairs.length();i++){JSONObject r=repairs.optJSONObject(i);if(r!=null)text(page,r.optString("date")+" • "+r.optString("note")+(admin?" • "+r.optString("cost")+" zł":""),14,0xff526174);}
     }
@@ -310,10 +310,11 @@ public final class RentalOperations {
         vacBox.setVisibility(giraffe&&withVacuum.isChecked()?View.VISIBLE:View.GONE);
         withVacuum.setOnCheckedChangeListener((b,checked)->vacBox.setVisibility(checked?View.VISIBLE:View.GONE));
         text(page,"Wybranie zestawu zajmie dwie konkretne sztuki. Rezerwacja osobnego odkurzacza widzi te same zajętości.",13,0xff526174);
-        EditText rate=field(page,"Stawka za dobę (zł)",old.optString("daily_rate","0"),true),
+        EditText rate=field(page,"Stawka za dobę (zł)",old.optString("primary_daily_rate",old.optString("daily_rate","0")),true),
             paid=field(page,"Wpłata na poczet najmu (bez kaucji)",old.optString("paid","0"),true),
             deposit=field(page,"Pobrana kaucja (zł)",old.optString("deposit","0"),true);
         rate.setEnabled(admin);paid.setEnabled(admin);deposit.setEnabled(admin);
+        AdditionalEquipmentEditor extraEditor=new AdditionalEquipmentEditor(activity,page,store.equipment(),store.assets(),old,admin);
         button(page,"Zapisz egzemplarze i warunki",()->{try{
             JSONObject r=copy(old),a=primary.get(pick.getSelectedItemPosition());
             boolean set=giraffe&&withVacuum.isChecked();
@@ -324,7 +325,10 @@ public final class RentalOperations {
             if(set&&vac==null)throw new IllegalArgumentException("Wybierz odkurzacz do zestawu.");
             r.put("vacuum_asset_id",vac==null?"":vac.optString("id"));
             r.put("vacuum_asset_label",vac==null?"":vac.optString("label"));
-            if(admin){r.put("daily_rate",RentalRules.money(rate.getText().toString()).toPlainString());
+            r.put("additional_items",extraEditor.value());
+            if(RentalItems.hasExtras(r))RentalItems.requireServerSupport(activity);
+            String extraReason=RentalItems.assignMissing(r,store.allReservations(),store.assets());if(!extraReason.isEmpty())throw new IllegalArgumentException(extraReason);
+            if(admin){RentalItems.updateRate(r,rate.getText().toString());
                 r.put("paid",RentalRules.money(paid.getText().toString()).toPlainString());
                 r.put("deposit",RentalRules.money(deposit.getText().toString()).toPlainString());}
             save(r);active();
