@@ -1,3 +1,13 @@
+# 16.11.2026 — bieżący miesiąc OPUBLIKOWANY, PR165
+
+Android1.7.37/code52: statystyki otwierają zakres od pierwszego dnia miesiąca do dzisiaj; przycisk Bieżący miesiąc przywraca zakres. Run43942200065 SUCCESS, commit110e171: pełne testyAndroid i podpisanyassembleRelease PASS. Test domyślnychdat/powrotu z90dni oraz testy wykresu PASS. Cztery kontrolePR SUCCESS, rentaloperations43942212915. Zgodny podpis, prywatne kopie, readbackAPK/metadanych i publiczne bajty/nagłówki obu linków PASS. SHA256a9c21d373b47824e523e75df6aa9b592d24c0e2ae318ffbeea21b695f9374482. Instalator https://rentmor.pl/download-app.php?release=52 — aktualizacja bez odinstalowania. Bez zmianPHP/danych najmu. Brak testu na fizycznym telefonie.
+
+Oba dokumenty zsynchronizowane prywatnie0600 przy publikacji; ten końcowy wpis wysyłany osobną synchronizacją. Wynik końcowej synchronizacji i mergePR165 do sprawdzenia wActions/GitHub.
+
+# 16.11.2026 — statystyki najmu: domyślnie bieżący miesiąc
+
+Android 1.7.37/code52: domyślny zakres od pierwszego dnia miesiąca do dzisiaj; przycisk Bieżący miesiąc przywraca ten zakres. Pozostałe zakresy i obliczenia zachowane. Test UI obejmuje domyślne daty i powrót z90dni; test przewijania jawnie wybiera30dni, niezależnie od dnia miesiąca. PR/CI/podpis/publikacja i prywatna synchronizacja: do potwierdzenia. Bez zmian danych najmu iPHP.
+
 # 16.11.2026 — wiele dowolnych sprzętów: OPUBLIKOWANE, Android1.7.36/code51, PR164
 
 Run43854755456 SUCCESS, commit65fbfb6: pełnytestDebugUnitTest i podpisanyassembleReleasePASS; sześć MultiEquipmentReservationTest obejmuje wspólną zajętość/zwrot, brak częściowego przypisania, duplikaty ręcznych wyborów, kolejkę/wydanie/rozliczenie, nazwy grupowych statystyk i blokadę edytora wydanych pozycji. CI rentaloperations43854765591 SUCCESS. PHP/API/kalendarz równieżPASS. Wcześniejszyrun43853917407 opublikował3dokładnepatchesPHP z zachowaniem nowszego kodu hostingu; końcowyrun opublikował tylkoAPK/metadane i oba dzienniki, sprawdzającSHA3wdrożonychźródeł.

@@ -15,6 +15,26 @@ import static org.junit.Assert.*;
 @Config(sdk=34)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 public class FinanceChartTest {
+    private Button findButton(View view,String label){
+        if(view instanceof Button&&((Button)view).getText().toString().equals(label))return (Button)view;
+        if(view instanceof ViewGroup){ViewGroup group=(ViewGroup)view;for(int i=0;i<group.getChildCount();i++){Button found=findButton(group.getChildAt(i),label);if(found!=null)return found;}}
+        return null;
+    }
+    @Test public void startsInCurrentMonthAndCanReturnAfterChangingRange(){
+        Activity activity=Robolectric.buildActivity(Activity.class).setup().get();
+        FinanceDashboard dashboard=new FinanceDashboard(activity,new JSONArray(),new JSONArray(),()->{},()->{});
+        java.time.LocalDate today=java.time.LocalDate.now();
+        java.time.format.DateTimeFormatter format=java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy");
+        String start="Od: "+today.withDayOfMonth(1).format(format);
+        String end="Do: "+today.format(format);
+        assertNotNull(findButton(dashboard.view(),start));
+        assertNotNull(findButton(dashboard.view(),end));
+        findButton(dashboard.view(),"90 dni").performClick();
+        assertNotNull(findButton(dashboard.view(),"Od: "+today.minusDays(89).format(format)));
+        findButton(dashboard.view(),"Bieżący miesiąc").performClick();
+        assertNotNull(findButton(dashboard.view(),start));
+        assertNotNull(findButton(dashboard.view(),end));
+    }
     private View chart(View view){
         if(view.getClass().getSimpleName().equals("LineChart"))return view;
         if(view instanceof android.view.ViewGroup){android.view.ViewGroup group=(android.view.ViewGroup)view;for(int i=0;i<group.getChildCount();i++){View found=chart(group.getChildAt(i));if(found!=null)return found;}}
@@ -24,6 +44,7 @@ public class FinanceChartTest {
         Activity activity=Robolectric.buildActivity(Activity.class).setup().get();
         JSONArray rentals=new JSONArray();if(withData){JSONObject o=new JSONObject();o.put("settled",true);o.put("settled_at",java.time.LocalDate.now().toString());o.put("income",1400);o.put("loss",399);rentals.put(o);}
         FinanceDashboard dashboard=new FinanceDashboard(activity,rentals,new JSONArray(),()->{},()->{});
+        findButton(dashboard.view(),"30 dni").performClick();
         ScrollView screen=new ScrollView(activity);screen.addView(dashboard.view());activity.setContentView(screen);
         int w=1080,h=1920;screen.measure(View.MeasureSpec.makeMeasureSpec(w,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(h,View.MeasureSpec.EXACTLY));screen.layout(0,0,w,h);
         View plot=chart(screen);assertNotNull(plot);assertTrue("Plot must not collapse inside HorizontalScrollView",plot.getMeasuredWidth()>0);assertTrue(plot.getMeasuredHeight()>0);
