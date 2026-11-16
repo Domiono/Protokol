@@ -1,3 +1,7 @@
+# 16.11.2026 — statystyki najmu: domyślnie bieżący miesiąc
+
+Android 1.7.37/code52: domyślny zakres od pierwszego dnia bieżącego miesiąca do dzisiaj. Przycisk „Bieżący miesiąc” przywraca ten zakres po ręcznej zmianie; 30/90 dni, 12 miesięcy i całość nadal dostępne. Data obliczana przy otwarciu ekranu. Bez zmian danych i sposobu liczenia statystyk. Testy pełne Android, podpisany APK, publikacja i prywatna synchronizacja dokumentów: do potwierdzenia. PR/commit: do potwierdzenia. Publikacja ograniczona do APK, metadanych wydania i dwóch dokumentów; kontrola poprzedniej wersji, podpisu, kopia i readback.
+
 # 16.11.2026 — wiele dowolnych sprzętów: OPUBLIKOWANE, Android1.7.36/code51, PR164
 
 Run43854755456 SUCCESS, commit65fbfb6: pełnytestDebugUnitTest i podpisanyassembleReleasePASS; sześć MultiEquipmentReservationTest obejmuje wspólną zajętość/zwrot, brak częściowego przypisania, duplikaty ręcznych wyborów, kolejkę/wydanie/rozliczenie, nazwy grupowych statystyk i blokadę edytora wydanych pozycji. CI rentaloperations43854765591 SUCCESS. PHP/API/kalendarz równieżPASS. Wcześniejszyrun43853917407 opublikował3dokładnepatchesPHP z zachowaniem nowszego kodu hostingu; końcowyrun opublikował tylkoAPK/metadane i oba dzienniki, sprawdzającSHA3wdrożonychźródeł.

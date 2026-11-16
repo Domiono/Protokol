@@ -14,7 +14,7 @@ import java.util.*;
 
 public final class FinanceDashboard {
     private final Context context;private final JSONArray rentals,expenses;private final LinearLayout root;
-    private LocalDate from=LocalDate.now().minusDays(29),to=LocalDate.now();private int grain=0;private boolean allHistory=false;
+    private LocalDate to=LocalDate.now(),from=to.withDayOfMonth(1);private int grain=0;private boolean allHistory=false;
     private final boolean[] visible={true,true,true};private final int[] colors={0xff2563eb,0xffe4a000,0xff059669};
     private static final Locale PL=new Locale("pl","PL");private final Runnable equipmentAction,costAction;
     public FinanceDashboard(Context context,JSONArray rentals,JSONArray expenses,Runnable equipment,Runnable costs){this.context=context;this.rentals=rentals;this.expenses=expenses;equipmentAction=equipment;costAction=costs;root=column();render();}
@@ -53,7 +53,9 @@ public final class FinanceDashboard {
     private void render(){
         root.removeAllViews();FinanceAnalytics.Report report=FinanceAnalytics.calculate(rentals,expenses,from,to,grain);long span=ChronoUnit.DAYS.between(from,to)+1;
         FinanceAnalytics.Report previous=FinanceAnalytics.calculate(rentals,expenses,from.minusDays(span),from.minusDays(1),grain);
-        LinearLayout controls=card();text(controls,"OKRES ANALIZY",11,0xff64748b,true);LinearLayout presets=row(controls);
+        LinearLayout controls=card();text(controls,"OKRES ANALIZY",11,0xff64748b,true);LinearLayout month=row(controls);
+        button(month,"Bieżący miesiąc",!allHistory&&to.equals(LocalDate.now())&&from.equals(to.withDayOfMonth(1)),()->{to=LocalDate.now();from=to.withDayOfMonth(1);grain=0;allHistory=false;render();});
+        LinearLayout presets=row(controls);
         button(presets,"30 dni",false,()->{to=LocalDate.now();from=to.minusDays(29);grain=0;allHistory=false;render();});button(presets,"90 dni",false,()->{to=LocalDate.now();from=to.minusDays(89);grain=1;allHistory=false;render();});button(presets,"12 mies.",false,()->{to=LocalDate.now();from=to.withDayOfMonth(1).minusMonths(11);grain=2;allHistory=false;render();});button(presets,"Całość",allHistory,this::showAllHistory);
         LinearLayout dates=row(controls);button(dates,"Od: "+date(from),false,()->chooseDate(true));button(dates,"Do: "+date(to),false,()->chooseDate(false));
         LinearLayout navigation=row(controls);button(navigation,"‹ Poprzedni okres",false,()->shift(-1));button(navigation,"Następny okres ›",false,()->shift(1));
