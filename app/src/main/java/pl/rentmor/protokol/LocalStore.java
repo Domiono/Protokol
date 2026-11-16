@@ -161,6 +161,8 @@ public class LocalStore extends SQLiteOpenHelper {
                 throw new IllegalArgumentException("Nie można uzgodnić tej rezerwacji automatycznie.");
             if(remote.optBoolean("returned") || remote.optBoolean("settled"))
                 throw new IllegalArgumentException("Najem na serwerze jest zakończony. Wymaga osobnej korekty.");
+            if(RentalItems.hasExtras(current)||RentalItems.hasExtras(remote))
+                throw new IllegalArgumentException("Rezerwacja wielu sprzętów wymaga ponownego otwarcia aktualnej rezerwacji. Nie uzgadniaj pojedynczego egzemplarza.");
             JSONObject fixed=new JSONObject(current.toString());
             for(String key:new String[]{"asset_id","asset_label","vacuum_asset_id","vacuum_asset_label"})
                 fixed.put(key,remote.optString(key));

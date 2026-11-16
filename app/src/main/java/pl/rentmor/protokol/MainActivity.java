@@ -556,6 +556,7 @@ public class MainActivity extends Activity {
                 runOnUiThread(()->{
                     String copies=current.optString("asset_label","Nie przypisano")
                         +(RentalRules.needsVacuum(current)?"\nOdkurzacz: "+current.optString("vacuum_asset_label","Nie przypisano"):"");
+                    if(RentalItems.hasExtras(current))copies=RentalItems.summary(current,true);
                     new AlertDialog.Builder(this).setTitle("Potwierdź wydawany sprzęt")
                         .setMessage(current.optString("equipment")+"\n\nEgzemplarz: "+copies
                             +"\nKlient: "+current.optString("customer_name",current.optString("client"))
@@ -1333,6 +1334,9 @@ public class MainActivity extends Activity {
             }
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent){withVacuum.setVisibility(View.GONE);}
         });
+        EditText primaryRate=new EditText(this);primaryRate.setSingleLine(true);primaryRate.setInputType(8194);
+        primaryRate.setHint("Cena głównego sprzętu za dobę (zł)");primaryRate.setText("0");if(isAdmin())form.addView(primaryRate);
+        AdditionalEquipmentEditor extraEquipment=new AdditionalEquipmentEditor(this,form,store.equipment(),store.assets(),new JSONObject(),isAdmin());
         // Assistants may select existing models for reservations, not create website entries.
         if(isAdmin()) {
         addButton("＋ Dodaj nowy sprzęt do wspólnej listy",()->{
@@ -1446,7 +1450,8 @@ public class MainActivity extends Activity {
                 TextView copyText=new TextView(this);
                 boolean assigned=!item.optString("asset_id").isEmpty();
                 copyText.setText(assigned?"EGZEMPLARZ:  "+item.optString("asset_label",item.optString("asset_id")):"EGZEMPLARZ:  DO PRZYPISANIA");
-                if(RentalRules.needsVacuum(item))copyText.setText(copyText.getText()+"\nODKURZACZ:  "+(item.optString("vacuum_asset_id").isEmpty()?"DO PRZYPISANIA":item.optString("vacuum_asset_label")));
+                if(RentalItems.hasExtras(item))copyText.setText(RentalItems.summary(item,true));
+                else if(RentalRules.needsVacuum(item))copyText.setText(copyText.getText()+"\nODKURZACZ:  "+(item.optString("vacuum_asset_id").isEmpty()?"DO PRZYPISANIA":item.optString("vacuum_asset_label")));
                 copyText.setTextSize(12);copyText.setTypeface(null,1);
                 copyText.setTextColor(assigned?0xff16654e:0xff925400);
                 copyText.setPadding(0,0,0,dp(8));row.addView(copyText);
@@ -1512,7 +1517,7 @@ public class MainActivity extends Activity {
                     java.util.regex.Matcher textTime=java.util.regex.Pattern.compile("\\d{4}-\\d{2}-\\d{2}\\s*[–-]\\s*\\d{4}-\\d{2}-\\d{2}\\s+([01]?\\d|2[0-3]):([0-5]\\d)(?:$|\\s|•)").matcher(raw);
                     if(textTime.find())initialTime=String.format(Locale.US,"%02d:%s",Integer.parseInt(textTime.group(1)),textTime.group(2));
                     EditText timeEdit=new EditText(this);timeEdit.setSingleLine(true);timeEdit.setHint("Godzina, np. 08:00");timeEdit.setInputType(android.text.InputType.TYPE_CLASS_DATETIME|android.text.InputType.TYPE_DATETIME_VARIATION_TIME);timeEdit.setText(initialTime);f.addView(timeEdit);
-                    String displayedEquipment=reservationEquipment(item);
+                    String displayedEquipment=cleanReservationEquipment(item.optString("equipment"));
                     EditText equipmentEdit=new EditText(this);equipmentEdit.setSingleLine(false);equipmentEdit.setHint("Nazwa sprzętu");equipmentEdit.setText(displayedEquipment);f.addView(equipmentEdit);
                     EditText customerNameEdit=new EditText(this);customerNameEdit.setSingleLine(true);customerNameEdit.setHint("Imię i nazwisko / firma klienta");customerNameEdit.setText(item.optString("customer_name",item.optString("client","")));f.addView(customerNameEdit);
                     EditText phoneEdit=new EditText(this);phoneEdit.setSingleLine(true);phoneEdit.setHint("Telefon lub nick z OLX");phoneEdit.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);phoneEdit.setText(reservationPhoneForItem(item));f.addView(phoneEdit);
@@ -1559,6 +1564,9 @@ public class MainActivity extends Activity {
                         if(item.optBoolean("done")&&!item.optString("vacuum_asset_id").isEmpty())vacuumPick.setEnabled(false);
                         f.addView(vacuumPick);
                     }
+                    EditText editPrimaryRate=new EditText(this);editPrimaryRate.setSingleLine(true);editPrimaryRate.setInputType(8194);
+                    editPrimaryRate.setHint("Cena głównego sprzętu za dobę (zł)");editPrimaryRate.setText(item.optString("primary_daily_rate",item.optString("daily_rate","0")));if(isAdmin())f.addView(editPrimaryRate);
+                    AdditionalEquipmentEditor editExtras=new AdditionalEquipmentEditor(this,f,store.equipment(),store.assets(),item,isAdmin());
                     TextView info=new TextView(this);
                     info.setText("Możesz przenieść niewydaną rezerwację na inny egzemplarz. Zajętość zostanie sprawdzona dla nowego terminu podczas zapisu i synchronizacji. Wydanego sprzętu nie można podmienić.");
                     info.setTextSize(12);info.setTextColor(0xff718096);info.setPadding(0,6,0,0);f.addView(info);
@@ -1608,6 +1616,11 @@ public class MainActivity extends Activity {
                                 updated.put("vacuum_asset_id",vacuumId);
                                 updated.put("vacuum_asset_label",selectedVacuum==null?"":selectedVacuum.optString("label"));
                             }
+                            updated.put("additional_items",editExtras.value());
+                            if(RentalItems.hasExtras(updated))RentalItems.requireServerSupport(this);
+                            if(isAdmin())RentalItems.updateRate(updated,editPrimaryRate.getText().toString());
+                            String extraReason=RentalItems.assignMissing(updated,store.allReservations(),store.assets());
+                            if(!extraReason.isEmpty())throw new IllegalArgumentException(extraReason);
                             updated.put("auto_assign",false);
                             String availability=RentalRules.conflict(updated,store.allReservations(),store.assets());if(!availability.isEmpty())throw new IllegalArgumentException(availability);store.saveRentalOperation(updated,"reservation_save");month[0]=monthValue;ReservationsWidgetProvider.refresh(this);render[0].run();if(isOnline())syncNow();
                             toast("Zaktualizowano rezerwację i dane klienta.");
@@ -1629,10 +1642,13 @@ public class MainActivity extends Activity {
             SimpleDateFormat iso=new SimpleDateFormat("yyyy-MM-dd",Locale.US);String from=iso.format(reservationStart[0].getTime()),to=iso.format(reservationEnd[0].getTime());
             String value=from+" – "+to+(shortTime.isEmpty()?"":" "+shortTime)+" • "+eq+(ph.isEmpty()?"":" • "+ph);
             try{JSONObject item=new JSONObject();item.put("id",UUID.randomUUID().toString());item.put("month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationStart[0].getTime()));item.put("text",value);item.put("equipment",eq);item.put("day",reservationStart[0].get(Calendar.DAY_OF_MONTH));item.put("start_date",from);item.put("end_date",to);item.put("end_day",reservationEnd[0].get(Calendar.DAY_OF_MONTH));item.put("end_month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationEnd[0].getTime()));item.put("time",shortTime);item.put("phone",ph);item.put("customer_name",customerName.getText().toString().trim());item.put("done",false);item.put("auto_assign",true);item.put("needs_vacuum",withVacuum.getVisibility()==View.VISIBLE&&withVacuum.isChecked());
+                item.put("additional_items",extraEquipment.value());
+                if(RentalItems.hasExtras(item))RentalItems.requireServerSupport(this);
+                if(isAdmin())RentalItems.updateRate(item,primaryRate.getText().toString());
                 String availability=RentalRules.autoAssign(item,store.allReservations(),store.assets());
                 if(!availability.isEmpty())throw new IllegalArgumentException(availability);
                 store.saveRentalOperation(item,"reservation_save");ReservationsWidgetProvider.refresh(this);
-                phone.setText("");time.setText("");customerName.setText("");
+                phone.setText("");time.setText("");customerName.setText("");extraEquipment.clear();primaryRate.setText("0");
                 month[0]=item.optString("month",month[0]);form.setVisibility(View.GONE);
                 toggleForm.setText("＋ NOWA REZERWACJA");
                 render[0].run();
@@ -1839,7 +1855,7 @@ public class MainActivity extends Activity {
     }
 
     private String reservationEquipment(JSONObject item) {
-        String value=item.optString("equipment","").trim();if(!value.isEmpty())return cleanReservationEquipment(value);
+        String value=item.optString("equipment","").trim();if(!value.isEmpty())return RentalItems.hasExtras(item)?RentalItems.summary(item,false):cleanReservationEquipment(value);
         String raw=item.optString("text","");String[] parts=raw.split("•");
         if(parts.length>=2)return cleanReservationEquipment(parts[1].trim());
         java.util.regex.Matcher legacy=java.util.regex.Pattern.compile("^\\s*\\d{1,2}\\s+(.+?)\\s+\\d{1,2}\\s*/\\s*.+$").matcher(raw);
@@ -2375,6 +2391,11 @@ public class MainActivity extends Activity {
         addButton("ZAPISZ PROTOKÓŁ W TELEFONIE",()->{if(client.getText().toString().trim().isEmpty()||equipment.getSelectedItem()==null||equipment.getSelectedItemPosition()==0){if(client.getText().toString().trim().isEmpty()){client.setError("Wpisz nazwę klienta");client.requestFocus();}toast("Uzupełnij klienta i wybierz sprzęt.");return;}
             try{String id=UUID.randomUUID().toString();JSONObject p=new JSONObject();p.put("id",id);p.put("number","RM-"+new SimpleDateFormat("yyyyMMdd-HHmmss",Locale.US).format(new Date()));p.put("client",client.getText());p.put("phone",phone.getText());p.put("reservation_id",reservationIds.get(reservationSpinner.getSelectedItemPosition()));p.put("equipment",equipment.getSelectedItem().toString());p.put("rental_date",date.getText());p.put("condition",condition.getText());p.put("accessories",accessories.getText());p.put("notes",notes.getText());p.put("status","wydany");JSONObject linked=findReservation(store.allReservations(),p.optString("reservation_id"));
                 if(linked!=null){if(!linked.optString("equipment").equals(p.optString("equipment")))throw new IllegalArgumentException("Sprzęt nie zgadza się z rezerwacją");if(linked.optBoolean("settled")||linked.optBoolean("returned"))throw new IllegalArgumentException("Ten najem jest zakończony");String conflict=RentalRules.conflict(linked,store.allReservations(),store.assets());if(!conflict.isEmpty())throw new IllegalArgumentException(conflict);p.put("asset_id",linked.optString("asset_id"));p.put("asset_label",linked.optString("asset_label"));if(RentalRules.needsVacuum(linked)){p.put("vacuum_asset_id",linked.optString("vacuum_asset_id"));p.put("vacuum_asset_label",linked.optString("vacuum_asset_label"));}}
+                if(linked!=null&&RentalItems.hasExtras(linked)){
+                    p.put("additional_items",new JSONArray(linked.getJSONArray("additional_items").toString()));
+                    p.put("items_revision",linked.optInt("items_revision"));
+                    p.put("accessories",p.optString("accessories")+"\nSprzęty objęte rezerwacją:\n"+RentalItems.summary(linked,true));
+                }
                 JSONArray photos=new JSONArray();for(Bitmap photo:issuePhotos)photos.put(bitmapBase64(photo,1920,85));if(photos.length()>0)p.put("photos_base64",photos);if(signatureView!=null&&signatureView.hasInk())p.put("signature_base64",bitmapBase64(signatureView.image(),900,85));store.enqueue("create",p);if(linked!=null){linked.put("done",true);store.saveRentalOperation(linked,"reservation_save");}stopFormAutosave();new ProtocolCameraStore(this).clearDraft();toast("Protokół zapisany w telefonie. Gotowy do synchronizacji.");showProtocolDetail(p);}catch(Exception ex){toast("Błąd zapisu: "+ex.getMessage());}});
         issueDraftWriter=()->{try{
             JSONObject draft=new JSONObject();draft.put("kind","issue");draft.put("client",client.getText().toString());draft.put("phone",phone.getText().toString());draft.put("date",date.getText().toString());draft.put("condition",condition.getText().toString());draft.put("accessories",accessories.getText().toString());draft.put("notes",notes.getText().toString());draft.put("equipment",equipment.getSelectedItemPosition());draft.put("reservation",reservationSpinner.getSelectedItemPosition());

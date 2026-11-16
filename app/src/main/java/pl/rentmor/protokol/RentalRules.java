@@ -94,9 +94,10 @@ public final class RentalRules {
         if(!matches(candidate,copy,role)&&!keepsLegacyAssignment(candidate,copy,role,reservations))
             return "Wybrany egzemplarz należy do innej grupy sprzętu.";
         if(copy.optBoolean("in_service"))return "Egzemplarz jest w serwisie.";
+        reservations=RentalItems.flatten(reservations);
         for(int i=0;i<reservations.length();i++){
             JSONObject r=reservations.optJSONObject(i);
-            if(r==null||candidate.optString("id").equals(r.optString("id"))||!active(r))continue;
+            if(r==null||RentalItems.sameBooking(candidate,r)||!active(r))continue;
             String rid=copy.optString("id");
             // Old bundles missing their vacuum are treated as unresolved inventory, not as a free copy.
             boolean ambiguous="standard".equals(role)?
@@ -146,7 +147,7 @@ public final class RentalRules {
      * Allocate both physical devices of a set or one item for a standalone booking.
      * The server repeats this decision under the reservations lock.
      */
-    public static String autoAssign(JSONObject candidate,JSONArray reservations,JSONArray assets)throws JSONException{
+    private static String autoAssignSingle(JSONObject candidate,JSONArray reservations,JSONArray assets)throws JSONException{
         String role=kind(candidate.optString("equipment"));
         boolean needs=needsVacuum(candidate);
         candidate.put("asset_id","");candidate.put("asset_label","");
@@ -190,6 +191,7 @@ public final class RentalRules {
         if(id.isEmpty())return "Egzemplarz nie ma identyfikatora.";
         JSONArray repairs=asset.optJSONArray("repairs");
         if(repairs!=null&&repairs.length()>0)return "Egzemplarz ma historię napraw lub przeglądów.";
+        reservations=RentalItems.flatten(reservations);
         for(int i=0;i<reservations.length();i++){
             JSONObject r=reservations.optJSONObject(i);
             if(r!=null&&(id.equals(r.optString("asset_id"))||id.equals(r.optString("vacuum_asset_id"))))
@@ -214,7 +216,31 @@ public final class RentalRules {
             return checkCopy(probe,asset,assetKind(asset),reservations);
         }catch(Exception e){return "Sprawdź daty i przypisania egzemplarzy.";}
     }
+    public static String autoAssign(JSONObject candidate,JSONArray reservations,JSONArray assets)throws JSONException{
+        if(!RentalItems.hasExtras(candidate))return autoAssignSingle(candidate,reservations,assets);
+        return RentalItems.assignMissing(candidate,reservations,assets);
+    }
+    /** Each line shares its parent's dates, lifecycle and customer; never another price or status. */
     public static String conflict(JSONObject candidate,JSONArray reservations,JSONArray assets){
+        try{
+            if(candidate.optBoolean("settled")||candidate.optBoolean("returned"))return "";
+            JSONArray lines=RentalItems.lines(candidate);
+            java.util.HashSet<String> used=new java.util.HashSet<>();
+            for(int i=0;i<lines.length();i++){
+                JSONObject line=lines.getJSONObject(i);
+                for(String key:new String[]{"asset_id","vacuum_asset_id"}){
+                    String id=line.optString(key);
+                    if(!id.isEmpty()&&!used.add(id))return "Ten sam egzemplarz wybrano więcej niż raz.";
+                }
+                if(lines.length()>1&&line.optString("asset_id").isEmpty())return "Przypisz egzemplarz: "+line.optString("equipment");
+                // Keep original rows for historic-name matching; same-row IDs are ignored in checkCopy.
+                String reason=conflictSingle(line,RentalItems.flatten(reservations),assets);
+                if(!reason.isEmpty())return reason;
+            }
+            return "";
+        }catch(Exception e){return "Sprawdź pozycje rezerwacji.";}
+    }
+    private static String conflictSingle(JSONObject candidate,JSONArray reservations,JSONArray assets){
         if(candidate.optBoolean("settled")||candidate.optBoolean("returned"))return "";
         String id=candidate.optString("asset_id");
         String role=kind(candidate.optString("equipment"));

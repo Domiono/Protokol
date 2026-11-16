@@ -237,6 +237,52 @@ with tempfile.TemporaryDirectory() as td:
   protocol_file.write_bytes(correct)
   assert call({'action':'asset_save','id':'service-copy','label':'Puzzi Repaired','equipment':'Puzzi'})['results'][0]['ok']
   assert (p/'rental_assets.php.lock').is_file(), 'Physical asset writes must hold a common lock'
-  print('Rental API bundle and standalone shared-stock checks passed (isolated test data)')
+  # Arbitrary equipment is stored atomically in ONE booking with one finance total.
+  for aid,model in [('wall1','Bruzdownica'),('vac-multi','Odkurzacz przemysłowy Multi'),('drill1','Wiertnica')]:
+   assert call({'action':'asset_save','id':aid,'label':aid,'equipment':model})['results'][0]['ok']
+  multi={'action':'reservation_save','id':'multi','month':'2035-01','text':'fixture group',
+         'equipment':'Bruzdownica','start_date':'2035-01-10','end_date':'2035-01-12','time':'08:30',
+         'auto_assign':True,'primary_daily_rate':'80','additional_items':[
+             {'line_id':'vac-line','equipment':'Odkurzacz przemysłowy Multi','daily_rate':'30','auto_select':True},
+             {'line_id':'drill-line','equipment':'Wiertnica','daily_rate':'100','auto_select':True}]}
+  result=call(multi)['results'][0];assert result['ok'],result
+  saved=next(x for x in call()['reservations'] if x['id']=='multi')
+  assert len(saved['additional_items'])==2 and float(saved['daily_rate'])==210
+  assert len([x for x in call()['reservations'] if x['id']=='multi'])==1
+  assert saved['additional_items'][1]['asset_id']=='drill1'
+  before=(p/'reservations.json').read_bytes()
+  bad=dict(multi,id='multi2')
+  assert not call(bad)['results'][0]['ok']
+  assert (p/'reservations.json').read_bytes()==before, 'Partial group write after conflict'
+  standalone={'action':'reservation_save','id':'solo-drill','month':'2035-01','text':'fixture',
+              'equipment':'Wiertnica','asset_id':'drill1','start_date':'2035-01-11','end_date':'2035-01-12','time':'10:00'}
+  assert not call(standalone)['results'][0]['ok'], 'Extra equipment must block standalone bookings'
+  assert not call({'action':'asset_delete','id':'drill1'})['results'][0]['ok']
+  # Worker response strips every nested price; attempted changes retain admin prices.
+  worker=next(x for x in call(role='assistant')['reservations'] if x['id']=='multi')
+  assert 'daily_rate' not in worker and 'primary_daily_rate' not in worker
+  assert all('daily_rate' not in x for x in worker['additional_items'])
+  worker['additional_items'][0]['daily_rate']='9999'
+  result=call(dict(worker,action='reservation_save'),role='assistant')['results'][0];assert result['ok'],result
+  current=next(x for x in call()['reservations'] if x['id']=='multi')
+  assert float(current['daily_rate'])==210 and float(current['additional_items'][0]['daily_rate'])==30
+  assert not call(dict(saved,action='reservation_save'))['results'][0]['ok'], 'Stale group overwrote new revision'
+  assert not call(dict(multi,additional_items='invalid'))['results'][0]['ok']
+  changed=dict(current,action='reservation_save',done=True)
+  assert call(changed)['results'][0]['ok']
+  issued=next(x for x in call()['reservations'] if x['id']=='multi')
+  assert not call(dict(issued,action='reservation_save',additional_items=[]))['results'][0]['ok']
+  changed=dict(issued,action='reservation_save',returned=True)
+  assert call(changed)['results'][0]['ok']
+  assert call(standalone)['results'][0]['ok'], 'Return of whole booking did not free extra item'
+  # Duplicate physical selections and duplicate line IDs are invalid, without any write.
+  dupe=dict(multi,id='duplicates',start_date='2036-01-10',end_date='2036-01-12',month='2036-01')
+  dupe['additional_items']=[{'line_id':'one','equipment':'Bruzdownica','asset_id':'wall1','daily_rate':'0'}]
+  before=(p/'reservations.json').read_bytes()
+  assert not call(dupe)['results'][0]['ok']
+  assert (p/'reservations.json').read_bytes()==before
+  dupe['additional_items']=[{'line_id':'same','equipment':'Wiertnica'},{'line_id':'same','equipment':'Wiertnica'}]
+  assert not call(dupe)['results'][0]['ok']
+  print('Rental API: legacy and multi-equipment atomic writes, availability, permissions and revision checks passed')
  finally:server.terminate();server.wait()
 

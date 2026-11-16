@@ -50,6 +50,7 @@ public final class EquipmentAnalytics {
         }
     }
     public static String name(JSONObject rental) {
+        if(RentalItems.hasExtras(rental))return RentalItems.summary(rental,false).replace("\n＋ "," + ");
         String explicit=rental.optString("equipment","").trim();
         if(!explicit.isEmpty())return clean(explicit);
         String raw=rental.optString("text","");

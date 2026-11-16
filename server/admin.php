@@ -183,7 +183,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['act
                 $items = array_values(array_filter($items, function($r) use ($id) { return (string)($r['id'] ?? '') !== $id; }));
                 $found = $id !== '' && count($items) < $before;
             } elseif ($action === 'reservation_toggle') {
-                foreach ($items as &$r) if ((string)($r['id'] ?? '') === $id) { $candidate=$r; $candidate['done']=!empty($_POST['reservation_done']); $reason=$candidate['done']?rm_admin_assign_reservation($candidate,$items):''; if($reason===''){$r=$candidate;$found=true;}else{$_SESSION['reservation_flash']=$reason;} break; }
+                foreach ($items as &$r) if ((string)($r['id'] ?? '') === $id) { $candidate=$r; $candidate['done']=!empty($_POST['reservation_done']); $reason=$candidate['done']?rm_admin_assign_reservation($candidate,$items):''; if($reason===''){$candidate['items_revision']=(int)($r['items_revision']??0)+1;$r=$candidate;$found=true;}else{$_SESSION['reservation_flash']=$reason;} break; }
                 unset($r);
             } else {
                 $start = trim((string)($_POST['start_date'] ?? ''));
@@ -208,7 +208,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['act
                             $selectionError=rm_select_reservation_copies($item,$saved,$_POST,rm_read_assets());
                             if($selectionError!==''){$_SESSION['reservation_flash']=$selectionError;break;}
                         }
-                        $reason=rm_admin_assign_reservation($item,$items); if($reason!==''){$_SESSION['reservation_flash']=$reason;break;} $saved=$item; $found=true; break; }
+                        $reason=rm_admin_assign_reservation($item,$items); if($reason!==''){$_SESSION['reservation_flash']=$reason;break;} $item['items_revision']=(int)($saved['items_revision']??0)+1;$saved=$item; $found=true; break; }
                         unset($saved);
                         if (!$found && !isset($_SESSION['reservation_flash'])) $_SESSION['reservation_flash']='Nie znaleziono rezerwacji do edycji.';
                     } else { $item['created_at']=date('Y-m-d H:i:s'); $reason=rm_admin_assign_reservation($item,$items); if($reason===''){$items[]=$item; $found=true;}else{$_SESSION['reservation_flash']=$reason;} }
