@@ -656,7 +656,8 @@ public class MainActivity extends Activity {
         Runnable render=()->{
             cards.removeAllViews();liveCards.removeAllViews();JSONObject st=siteStats();
             JSONObject days=st.optJSONObject("days");if(days==null)days=new JSONObject();
-            String today=new SimpleDateFormat("yyyy-MM-dd",Locale.US).format(new Date());
+            SimpleDateFormat todayFormat=new SimpleDateFormat("yyyy-MM-dd",Locale.US);todayFormat.setTimeZone(SitePageStats.ZONE);
+            String today=todayFormat.format(new Date());
             long todayViews=days.optLong(today,0);
             LinearLayout live=new LinearLayout(this);live.setOrientation(1);live.setPadding(14,12,14,12);live.setBackground(roundBg(0xffeaf8ef,13));
             TextView liveHead=new TextView(this);liveHead.setText("DZISIAJ • ODSŁONY");liveHead.setTextSize(12);liveHead.setTypeface(null,1);liveHead.setTextColor(0xff267044);live.addView(liveHead);
@@ -686,9 +687,10 @@ public class MainActivity extends Activity {
             chartCard.removeAllViews();
             final ArrayList<String> labels=new ArrayList<>(), dateKeys=new ArrayList<>();
             final ArrayList<Integer> values=new ArrayList<>();
-            Calendar cal=Calendar.getInstance();cal.add(Calendar.DAY_OF_YEAR,-(range[0]-1));
+            Calendar cal=Calendar.getInstance(SitePageStats.ZONE);cal.add(Calendar.DAY_OF_YEAR,-(range[0]-1));
             SimpleDateFormat keyFormat=new SimpleDateFormat("yyyy-MM-dd",Locale.US);
             SimpleDateFormat shortFormat=new SimpleDateFormat("dd.MM",Locale.getDefault());
+            keyFormat.setTimeZone(SitePageStats.ZONE);shortFormat.setTimeZone(SitePageStats.ZONE);
             for(int i=0;i<range[0];i++){
                 String day=keyFormat.format(cal.getTime());dateKeys.add(day);
                 labels.add(shortFormat.format(cal.getTime()));

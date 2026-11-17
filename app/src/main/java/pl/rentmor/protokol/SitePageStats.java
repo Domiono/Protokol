@@ -45,6 +45,9 @@ final class SitePageStats {
         }
         switch (key) {
             case "/": return "Strona główna";
+            case "/sprzet-budowlany/": return "Kategoria: sprzęt budowlany";
+            case "/sprzet-ogrodniczy/": return "Kategoria: sprzęt ogrodniczy";
+            case "/sprzet-czyszczacy/": return "Kategoria: sprzęt czyszczący";
             case "/zasady.php": return "Zasady wynajmu";
             case "/polityka-prywatnosci.php": return "Polityka prywatności";
             case "/poradnik-jaki-papier-scierny-do-zyrafy.php": return "Poradnik: papier do żyrafy";

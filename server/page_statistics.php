@@ -34,5 +34,13 @@ function rm_stats_page_name(string $key, array $products): string {
         return 'Oferta '.$id.' (poza katalogiem)';
     }
     $names = ['/' => 'Strona główna', '/zasady.php' => 'Zasady wynajmu', '/polityka-prywatnosci.php' => 'Polityka prywatności'];
+    $names += [
+        '/sprzet-budowlany/' => 'Kategoria: sprzęt budowlany',
+        '/sprzet-ogrodniczy/' => 'Kategoria: sprzęt ogrodniczy',
+        '/sprzet-czyszczacy/' => 'Kategoria: sprzęt czyszczący',
+        '/poradnik-jaki-papier-scierny-do-zyrafy.php' => 'Poradnik: papier do żyrafy',
+        '/poradnik-pranie-tapicerki-karcher-puzzi.php' => 'Poradnik: pranie tapicerki',
+        '/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php' => 'Poradnik: malowanie agregatem',
+    ];
     return $names[$key] ?? $key;
 }
