@@ -51,3 +51,7 @@ function rentmor_public_metadata(string $html): string {
     $head = str_replace('</head>', $extra . '</head>', $head);
     return substr_replace($html, $head, strpos($html, $match[0]), strlen($match[0]));
 }
+
+// Shared public guide bootstrap: future articles inherit analytics automatically.
+require_once __DIR__ . '/page_statistics.php';
+rm_stats_auto_public_page();

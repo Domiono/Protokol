@@ -1,0 +1,100 @@
+{
+  "files": [
+    {
+      "name": "browser_stats.php",
+      "before": "922baa4f2c6f91beb17431b0da458f24f0d342459700a4ba5bcc966dca861275",
+      "after": "71658284b5454b71e52160eb6cb7020325dd83e0227d18687d0591fbec8290b2",
+      "patches": [
+        {
+          "old": "require_once __DIR__ . '/traffic_filter.php';\n\n// Mint a one-use page token. A GET never increments the statistics itself.\nfunction rm_stats_prepare_pageview(string $productId, string $source): string {\n    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET' || http_response_code() === 404 || rm_stats_is_internal() || rm_stats_is_automated()) return '';\n    $dest = $_SERVER['HTTP_SEC_FETCH_DEST'] ?? '';\n    if ($dest !== '' && !in_array($dest, ['document','iframe'], true)) return '';\n",
+          "new": "require_once __DIR__ . '/traffic_filter.php';\n\n// Mint a one-use page token. A GET never increments the statistics itself.\nfunction rm_stats_prepare_pageview(string $productId, string $source, string $page = \"/\"): string {\n    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET' || http_response_code() === 404 || rm_stats_is_internal() || rm_stats_is_automated()) return '';\n    $dest = $_SERVER['HTTP_SEC_FETCH_DEST'] ?? '';\n    if ($dest !== '' && !in_array($dest, ['document','iframe'], true)) return '';\n"
+        },
+        {
+          "old": "    $now = time();\n    foreach ($pending as $key=>$value) if (($value['at'] ?? 0) < $now-600) unset($pending[$key]);\n    $token = bin2hex(random_bytes(24));\n    $pending[$token] = ['at'=>$now,'product'=>$productId,'source'=>$source];\n    $_SESSION['rm_view_tokens'] = array_slice($pending,-30,null,true);\n    return $token;\n}\n",
+          "new": "    $now = time();\n    foreach ($pending as $key=>$value) if (($value['at'] ?? 0) < $now-600) unset($pending[$key]);\n    $token = bin2hex(random_bytes(24));\n    // Page identity comes from server routing, never query parameters or browser input.\n    $pageKey = $productId !== '' ? 'product:'.$productId : $page;\n    $pending[$token] = ['at'=>$now,'product'=>$productId,'source'=>$source,'page'=>$pageKey];\n    $_SESSION['rm_view_tokens'] = array_slice($pending,-30,null,true);\n    return $token;\n}\n"
+        },
+        {
+          "old": "    if (rm_stats_is_internal() || rm_stats_is_automated()) return 200;\n    $pending = $_SESSION['rm_view_tokens'][$token] ?? null;\n    if (!is_array($pending) || ($pending['at'] ?? 0)<time()-600) return 400;\n    $key = 'page:' . (string)$pending['product']; // Ignore UTM and alternate URLs for the same offer.\n    $recent = $_SESSION['rm_browser_recent'] ?? [];\n    if (!is_array($recent)) $recent = [];\n    $now = time();\n",
+          "new": "    if (rm_stats_is_internal() || rm_stats_is_automated()) return 200;\n    $pending = $_SESSION['rm_view_tokens'][$token] ?? null;\n    if (!is_array($pending) || ($pending['at'] ?? 0)<time()-600) return 400;\n    $pageKey = (string)($pending['page'] ?? ((string)$pending['product'] !== '' ? 'product:'.$pending['product'] : '/'));\n    $key = 'page:' . $pageKey; // Ignore UTM and alternate URLs for the same offer.\n    $recent = $_SESSION['rm_browser_recent'] ?? [];\n    if (!is_array($recent)) $recent = [];\n    $now = time();\n"
+        },
+        {
+          "old": "    }\n    $product = (string)$pending['product'];\n    if ($product !== '') $stats['product_views'][$product] = (int)($stats['product_views'][$product] ?? 0)+1;\n    $json = json_encode($stats,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);\n    rewind($fp);\n    $ok = $json !== false && fwrite($fp,$json) === strlen($json) && ftruncate($fp,strlen($json)) && fflush($fp);\n",
+          "new": "    }\n    $product = (string)$pending['product'];\n    if ($product !== '') $stats['product_views'][$product] = (int)($stats['product_views'][$product] ?? 0)+1;\n    $stats['page_tracking_since'] = $stats['page_tracking_since'] ?? $date->format(DATE_ATOM);\n    $stats['page_views'][$pageKey] = (int)($stats['page_views'][$pageKey] ?? 0)+1;\n    $stats['page_days'][$today][$pageKey] = (int)($stats['page_days'][$today][$pageKey] ?? 0)+1;\n    // Keep daily detail for 400 days; lifetime totals remain available.\n    $cutoff = $date->modify('-399 days')->format('Y-m-d');\n    foreach (array_keys($stats['page_days']) as $day) if ($day < $cutoff) unset($stats['page_days'][$day]);\n    $json = json_encode($stats,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);\n    rewind($fp);\n    $ok = $json !== false && fwrite($fp,$json) === strlen($json) && ftruncate($fp,strlen($json)) && fflush($fp);\n"
+        }
+      ]
+    },
+    {
+      "name": "page_statistics.php",
+      "before": null,
+      "after": "67050d0d323f9a4f46c0ca90cd0b0a43f3dff9f3dac67d48e09a13747071435c",
+      "new_file": "server/page_statistics.php"
+    },
+    {
+      "name": "public_metadata.php",
+      "before": "0fa0f31a48317987fa03fc04c06c8581702bf56023b6bcbfac0bcb463cdbc8e2",
+      "after": "7a3a5b2b7a89e8ef378f6b971860c82ce602b1d5f1855754533063b9f78403d0",
+      "patches": [
+        {
+          "old": "    $head = str_replace('</head>', $extra . '</head>', $head);\n    return substr_replace($html, $head, strpos($html, $match[0]), strlen($match[0]));\n}\n",
+          "new": "    $head = str_replace('</head>', $extra . '</head>', $head);\n    return substr_replace($html, $head, strpos($html, $match[0]), strlen($match[0]));\n}\n\n// Shared public guide bootstrap: future articles inherit analytics automatically.\nrequire_once __DIR__ . '/page_statistics.php';\nrm_stats_auto_public_page();\n"
+        }
+      ]
+    },
+    {
+      "name": "category.php",
+      "before": "b6cc8abd42818f8678b3d229678a63bdd98f5e6cea9f5ab165c470e8421b6d64",
+      "after": "c5d98cefadebfea3ba556e25e25bb847675a30a885fdd055bb849223371fadc0",
+      "patches": [
+        {
+          "old": "$catalogue = $raw === false ? null : json_decode($raw, true);\nif (!is_array($catalogue)) { http_response_code(503); header('Retry-After: 300'); echo 'Katalog jest chwilowo niedostępny. Zadzwoń: 733 891 281.'; exit; }\n$items = rm_category_items($catalogue, $category['key']);\n// Category cards reuse the same versioned WebP manifest as product pages.\n// A missing or partial manifest falls back to existing original images.\n$manifestRaw = @file_get_contents(__DIR__ . '/rentmor-image-manifest.json');\n",
+          "new": "$catalogue = $raw === false ? null : json_decode($raw, true);\nif (!is_array($catalogue)) { http_response_code(503); header('Retry-After: 300'); echo 'Katalog jest chwilowo niedostępny. Zadzwoń: 733 891 281.'; exit; }\n$items = rm_category_items($catalogue, $category['key']);\nrequire_once __DIR__ . '/page_statistics.php';\nrm_stats_public_page('/'.$slug.'/');\n\n// Category cards reuse the same versioned WebP manifest as product pages.\n// A missing or partial manifest falls back to existing original images.\n$manifestRaw = @file_get_contents(__DIR__ . '/rentmor-image-manifest.json');\n"
+        }
+      ]
+    },
+    {
+      "name": "zasady.php",
+      "before": "dd80020bcd04453eddcc33702590be65730b46543fcb12176001f1569b7cba19",
+      "after": "3c6aae8c783fe56364846083e8862aaca65c1769405cf8b916b98f17ddb1aed5",
+      "patches": [
+        {
+          "old": "<?php\n$terms = file_exists(__DIR__ . '/terms.json') ? json_decode(file_get_contents(__DIR__ . '/terms.json'), true) : [];\n$content = is_array($terms) ? (string)($terms['content'] ?? '') : '';\nif ($content === '') {\n",
+          "new": "<?php\nrequire_once __DIR__ . '/page_statistics.php';\nrm_stats_public_page('/zasady.php');\n\n$terms = file_exists(__DIR__ . '/terms.json') ? json_decode(file_get_contents(__DIR__ . '/terms.json'), true) : [];\n$content = is_array($terms) ? (string)($terms['content'] ?? '') : '';\nif ($content === '') {\n"
+        }
+      ]
+    },
+    {
+      "name": "polityka-prywatnosci.php",
+      "before": "a66870b21d3612466fd78e48238d7c85c368a88ebc10df61bc411bc8b6aea0d5",
+      "after": "3962f15d9571c606f58c2c89a73d1e2b26ee46dd19abb44e9da0ab7f5c28d268",
+      "patches": [
+        {
+          "old": "<?php\ndeclare(strict_types=1);\nrequire_once __DIR__ . '/rental_categories.php';\n// Contact messages and optional analytics documented; hosting logs retain according to provider configuration.\nheader('Content-Type: text/html; charset=UTF-8');\n",
+          "new": "<?php\ndeclare(strict_types=1);\nrequire_once __DIR__ . '/page_statistics.php';\nrm_stats_public_page('/polityka-prywatnosci.php');\n\nrequire_once __DIR__ . '/rental_categories.php';\n// Contact messages and optional analytics documented; hosting logs retain according to provider configuration.\nheader('Content-Type: text/html; charset=UTF-8');\n"
+        }
+      ]
+    },
+    {
+      "name": "admin.php",
+      "before": "54abb6164c014fef14e38b58ebc78d6274e7a6efaf1c84733e7c4cfbd45c1ad7",
+      "after": "d227717cc156de911a0a7a7a6cf8168d983c38efce1eb474606ed751cd07438d",
+      "patches": [
+        {
+          "old": "                </div>\n\n                <div class=\"bg-white p-8 rounded-3xl shadow-sm overflow-hidden\">\n                    <h3 class=\"font-black uppercase text-sm text-gray-400 tracking-widest mb-6\">Najpopularniejszy sprzęt</h3>\n\n                    <div class=\"space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar\">\n                        <?php\n                        $prod_views = $stats['product_views'] ?? [];\n                        arsort($prod_views);\n\n                        foreach (array_slice($prod_views, 0, 5, true) as $pid => $count):\n                            foreach ($products as $p):\n                                if (($p['id'] ?? '') == $pid):\n                        ?>\n                            <div class=\"flex justify-between items-center border-b pb-2\">\n                                <span class=\"text-xs font-bold truncate pr-4\"><?php echo e_admin($p['name'] ?? ''); ?></span>\n                                <span class=\"bg-slate-100 px-3 py-1 rounded-full text-[10px] font-black\">\n                                    <?php echo $count; ?> odsłon\n                                </span>\n                            </div>\n                        <?php\n                                    break;\n                                endif;\n                            endforeach;\n                        endforeach;\n                        ?>\n                    </div>\n                </div>\n\n            </div>\n",
+          "new": "                </div>\n\n                <div class=\"bg-white p-8 rounded-3xl shadow-sm overflow-hidden\">\n                    <h3 class=\"font-black uppercase text-sm text-gray-400 tracking-widest mb-6\">Odwiedzane podstrony</h3>\n                    <?php require_once __DIR__ . '/page_statistics.php';\n                    $pageViews = $stats['page_views'] ?? [];\n                    if (!is_array($pageViews)) $pageViews = [];\n                    arsort($pageViews, SORT_NUMERIC); ?>\n                    <p class=\"text-xs text-gray-500 mb-4\">Odsłony od uruchomienia podziału: <?php echo e_admin(substr((string)($stats['page_tracking_since'] ?? ''), 0, 10)); ?>. Jedna osoba może odwiedzić kilka podstron.</p>\n                    <div class=\"space-y-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar\">\n                    <?php if (!$pageViews): ?><p>Brak zarejestrowanych odsłon podstron.</p><?php endif; ?>\n                    <?php foreach ($pageViews as $pageKey => $count): ?>\n                        <div class=\"flex justify-between items-center border-b pb-2 gap-3\">\n                            <span class=\"text-xs font-bold break-words\"><?php echo e_admin(rm_stats_page_name((string)$pageKey, $products)); ?></span>\n                            <span class=\"shrink-0 text-xs font-black\"><?php echo (int)$count; ?> odsłon</span>\n                        </div>\n                    <?php endforeach; ?>\n                    </div>\n                    <details class=\"mt-4\"><summary>Wszystkie oferty — dane historyczne</summary>\n                    <?php $legacyViews = $stats['product_views'] ?? []; arsort($legacyViews, SORT_NUMERIC);\n                    foreach ($legacyViews as $pid => $count): ?>\n                        <p class=\"text-xs py-2\"><?php echo e_admin(rm_stats_page_name('product:'.$pid, $products)); ?>: <strong><?php echo (int)$count; ?> odsłon</strong></p>\n                    <?php endforeach; ?></details>\n                </div>\n\n            </div>\n"
+        }
+      ]
+    }
+  ],
+  "unchanged": {
+    "index.php": "873c9227f183b4ca2746de88e38f43bd4b936ea9e616aa9f2f46929c6f000c99",
+    "pageview.php": "ee5358ce5bdb635779f2a6582bf912d0e335bf88d918fd0a7d4ebbf7f50588df",
+    "online.js": "acab501c3bf6e9be41b967309cdf97a84c465e76e5cb769862e9601d1a9bea40",
+    "poradnik-jaki-papier-scierny-do-zyrafy.php": "32e6d749154d4464bcb4bec4593dd232809faa78c38df831d63a0fe0f33863d1",
+    "poradnik-pranie-tapicerki-karcher-puzzi.php": "e0ce73d913762eee43b3fb964e4a5644b8ba4c50911cc6c63d6bfa914b347b6d",
+    "poradnik-agregat-malarski-jak-malowac-dobor-dysz.php": "037affcdd1c0c55e9a17e93c03c5f9f384601237a3cdb27e3c383c28613de97f"
+  },
+  "progress": {
+    "RENTMOR-PROJECT-LOG.md": "8f380fb5eb4358dc99394e7c07994f119739013e8615b349fa7ddaf04735a3b7",
+    "CONTINUE-RENTMOR.md": "1da5db5ee423f8e71852fc92112d75940562a84b323e75f93c0d23c7de025f83"
+  }
+}
