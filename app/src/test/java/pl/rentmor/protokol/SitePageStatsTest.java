@@ -19,6 +19,7 @@ public class SitePageStatsTest {
     }
     @Test public void oldServerAndDeletedOffersRemainExplicit() throws Exception {
         assertTrue(SitePageStats.counts(new JSONObject("{\"product_views\":{\"x\":40}}"),7,new Date()).isEmpty());
+        assertEquals("Poradnik: nowy sprzet",SitePageStats.name("/poradnik-nowy-sprzet.php",new JSONArray()));
         assertEquals("Strona główna",SitePageStats.name("/",new JSONArray()));
         assertEquals("Oferta x (poza katalogiem)",SitePageStats.name("product:x",new JSONArray()));
         assertEquals("Agregat",SitePageStats.name("product:x",new JSONArray("[{\"id\":\"x\",\"name\":\"Agregat\"}]")));

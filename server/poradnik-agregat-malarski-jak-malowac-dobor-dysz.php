@@ -1,7 +1,4 @@
-<?php
-require_once __DIR__ . '/page_statistics.php';
-rm_stats_public_page('/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php');
- /* rentmor-public-metadata-v1 */ require_once __DIR__ . '/public_metadata.php'; require_once __DIR__ . '/rental_categories.php'; require_once __DIR__ . '/rental_task_links.php'; ob_start('rentmor_public_metadata'); ?>
+<?php /* rentmor-public-metadata-v1 */ require_once __DIR__ . '/public_metadata.php'; require_once __DIR__ . '/rental_categories.php'; require_once __DIR__ . '/rental_task_links.php'; ob_start('rentmor_public_metadata'); ?>
 <!DOCTYPE html>
 <html lang="pl">
 <head>

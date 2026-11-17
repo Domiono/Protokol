@@ -2,8 +2,18 @@
 declare(strict_types=1);
 require_once __DIR__ . '/browser_stats.php';
 
+/** Every guide using the common public template is included, without an article list. */
+function rm_stats_auto_public_page(): void {
+    $script = (string)($_SERVER['SCRIPT_FILENAME'] ?? '');
+    if (realpath(dirname($script)) !== realpath(__DIR__)) return;
+    $name = basename($script);
+    if (preg_match('/^poradnik-[a-z0-9-]+\.php$/D', $name)) rm_stats_public_page('/'.$name);
+}
+
 /** Called before output, only by public page templates with a canonical path. */
 function rm_stats_public_page(string $page): void {
+    static $registered = false;
+    if ($registered) return;
     if (!rm_stats_has_consent() || rm_stats_is_automated()) return;
     if (session_status() !== PHP_SESSION_ACTIVE && !session_start()) return;
     $host = strtolower((string)parse_url((string)($_SERVER['HTTP_REFERER'] ?? ''), PHP_URL_HOST));
@@ -15,6 +25,7 @@ function rm_stats_public_page(string $page): void {
     elseif (preg_match('~(^|\.)olx\.pl$~', $host)) $source = 'olx';
     $token = rm_stats_prepare_pageview('', $source, $page);
     if ($token === '') return;
+    $registered = true;
     ob_start(static function (string $html) use ($token): string {
         if (http_response_code() >= 300 || stripos($html, '</body>') === false) return $html;
         $attribute = ' data-view-token="'.htmlspecialchars($token, ENT_QUOTES, 'UTF-8').'"';
@@ -42,5 +53,7 @@ function rm_stats_page_name(string $key, array $products): string {
         '/poradnik-pranie-tapicerki-karcher-puzzi.php' => 'Poradnik: pranie tapicerki',
         '/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php' => 'Poradnik: malowanie agregatem',
     ];
-    return $names[$key] ?? $key;
+    if (isset($names[$key])) return $names[$key];
+    if (preg_match('~^/poradnik-([a-z0-9-]+)\.php$~D', $key, $m)) return 'Poradnik: '.str_replace('-', ' ', $m[1]);
+    return $key;
 }

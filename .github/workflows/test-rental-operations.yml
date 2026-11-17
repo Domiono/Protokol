@@ -36,6 +36,8 @@ jobs:
         run: |
           php -l server/browser_stats.php
           php -l server/page_statistics.php
+          php -l server/public_metadata.php
+          php scripts/test_public_metadata.php
           php -l server/category.php
           php -l server/zasady.php
           php -l server/polityka-prywatnosci.php

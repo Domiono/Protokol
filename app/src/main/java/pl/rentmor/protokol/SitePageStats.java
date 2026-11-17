@@ -53,7 +53,7 @@ final class SitePageStats {
             case "/poradnik-jaki-papier-scierny-do-zyrafy.php": return "Poradnik: papier do żyrafy";
             case "/poradnik-pranie-tapicerki-karcher-puzzi.php": return "Poradnik: pranie tapicerki";
             case "/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php": return "Poradnik: malowanie agregatem";
-            default: return key;
+            default: return key.matches("/poradnik-[a-z0-9-]+\\.php") ? "Poradnik: "+key.substring(10,key.length()-4).replace('-',' ') : key;
         }
     }
     private static void text(Context context, LinearLayout parent, String value, boolean bold) {

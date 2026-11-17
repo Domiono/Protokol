@@ -6,11 +6,14 @@ from urllib.parse import urlencode
 ROOT=Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory() as tmp:
     root=Path(tmp)
-    for name in ['pageview.php','browser_stats.php','traffic_filter.php','page_statistics.php']:
+    for name in ['pageview.php','browser_stats.php','traffic_filter.php','page_statistics.php','public_metadata.php']:
         shutil.copy(ROOT/'server'/name,root/name)
     for name,body in [('guide.php','<script src="/online.js?v=1" defer></script>'),('terms.php','')]:
         (root/name).write_text("<?php require 'page_statistics.php'; rm_stats_public_page('/"+name+"'); ?><html><body>Public page"+body+"</body></html>")
     (root/'missing.php').write_text("<?php require 'page_statistics.php'; rm_stats_public_page('/missing.php'); http_response_code(404); ?><html><body>Not found</body></html>")
+    # Simulates a future article: only the existing shared template is included.
+    (root/'poradnik-nowy-przyszly-sprzet.php').write_text("<?php require 'public_metadata.php'; ob_start('rentmor_public_metadata'); ?><html><head><title>Nowy poradnik</title></head><body>New article</body></html>")
+    (root/'admin-test.php').write_text("<?php require 'public_metadata.php'; ?><html><body>Not a public guide</body></html>")
     sock=socket.socket();sock.bind(('127.0.0.1',0));port=sock.getsockname()[1];sock.close()
     proc=subprocess.Popen(['php','-d',f'session.save_path={root}','-S',f'127.0.0.1:{port}','-t',tmp],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     def request(path, cookie='', consent='allow', token=None):
@@ -32,9 +35,14 @@ with tempfile.TemporaryDirectory() as tmp:
             assert code==200 and html.count('src="/online.js')==1
             token=re.search(r'data-view-token="([a-f0-9]{48})"',html).group(1)
             assert request('/pageview.php',cookie,token=token)[0]==200
+        assert 'data-view-token' not in request('/admin-test.php',cookie)[1]
+        code,html,newcookie=request('/poradnik-nowy-przyszly-sprzet.php?utm_source=test',cookie)
+        assert code==200 and html.count('data-view-token=')==1
+        token=re.search(r'data-view-token="([a-f0-9]{48})"',html).group(1)
+        assert request('/pageview.php',cookie,token=token)[0]==200
         data=json.loads((root/'stats.json').read_text())
-        assert data['total_views']==2 and data['unique_visitors']==1
-        assert data['page_views']=={'/guide.php':1,'/terms.php':1}
+        assert data['total_views']==3 and data['unique_visitors']==1
+        assert data['page_views']=={'/guide.php':1,'/terms.php':1,'/poradnik-nowy-przyszly-sprzet.php':1}
         assert 'never-store' not in json.dumps(data)
         print('PASS: standalone pages, distinct counters, reused script, missing-script injection, consent and 404 exclusion')
     finally:proc.terminate();proc.wait()
