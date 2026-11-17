@@ -162,6 +162,12 @@ public class SyncManager {
             if(!submitted.contains(id)||!acknowledged.add(id))continue;
             if(item.optBoolean("ok"))store.clearQueueItem(id);
             else {
+                // A rejected content draft must not poison unrelated future synchronizations.
+                // Its local form draft remains available; unknown/network outcomes stay queued.
+                if(item.optBoolean("permanent"))for(int j=0;j<pending.length();j++){
+                    JSONObject op=pending.getJSONObject(j);
+                    if(id.equals(op.optString("op_id"))&&"product_save".equals(op.optString("action"))&&op.has("offer_content"))store.clearQueueItem(id);
+                }
                 failures++;
                 if(error==null)error=item.optString("error","Nie udało się zsynchronizować operacji");
             }
@@ -171,17 +177,30 @@ public class SyncManager {
         if(failures>0)
             throw new IOException(error+(failures>1?" (Nieudanych operacji: "+failures+")":""));
     }
+    public synchronized JSONObject fetchReservationForRecovery(String id) throws Exception {
+        JSONObject response=request("GET",null);
+        if(!"admin".equals(response.optString("role")))throw new SecurityException("Wymagany administrator.");
+        JSONArray bookings=response.getJSONArray("reservations");
+        for(int i=0;i<bookings.length();i++)if(id.equals(bookings.getJSONObject(i).optString("id")))
+            return bookings.getJSONObject(i);
+        throw new IOException("Nie znaleziono rezerwacji na serwerze. Niczego nie zmieniono.");
+    }
     public synchronized JSONObject sync() throws Exception {
         JSONArray pending=store.queued();
+        IOException rejected=null;
         if(pending.length()>0){
+            boolean multi=false;for(int i=0;i<pending.length();i++)if(RentalItems.hasExtras(pending.optJSONObject(i)))multi=true;
+            if(multi&&!request("GET",null).optBoolean("multi_equipment_reservations"))
+                throw new IOException("Serwer nie obsługuje jeszcze rezerwacji wielu sprzętów. Zapis pozostaje w telefonie.");
             JSONObject body=new JSONObject(); JSONArray ops=new JSONArray();
             for(int i=0;i<pending.length();i++) ops.put(pending.getJSONObject(i));
             body.put("operations",ops);
             JSONObject response=request("POST",body);JSONArray results=response.optJSONArray("results");
             if(results==null)throw new IOException("Serwer nie potwierdził zapisania operacji. Ponów synchronizację.");
-            applyAcknowledgements(store,pending,results);
+            try{applyAcknowledgements(store,pending,results);}catch(IOException ex){rejected=ex;}
         }
         JSONObject server=request("GET",null);
+        context.getSharedPreferences("rentmor",0).edit().putBoolean("multi_equipment_reservations",server.optBoolean("multi_equipment_reservations")).apply();
         store.replaceServerProtocols(server.optJSONArray("protocols")==null?new JSONArray():server.optJSONArray("protocols"));
         store.replaceServerCustomers(server.optJSONArray("customers")==null?new JSONArray():server.optJSONArray("customers"));
         store.replaceServerReservations(server.optJSONArray("reservations")==null?new JSONArray():server.optJSONArray("reservations"));
@@ -194,6 +213,8 @@ public class SyncManager {
         context.getSharedPreferences("rentmor",0).edit().putString("role",server.optString("role")).apply();
         if(!"admin".equals(server.optString("role")))store.clearMessages();
         PushRegistrar.refresh(context);
+        if(rejected!=null)throw rejected;
         return server;
     }
 }
+

@@ -474,6 +474,15 @@ public class MainActivity extends Activity {
             TextView heading=new TextView(this);
             heading.setText((i+1)+". "+("asset_save".equals(action)?"Zapis egzemplarza":("asset_delete".equals(action)?"Usunięcie egzemplarza":"Zmiana do wysłania • "+action)));
             heading.setTextSize(15);heading.setTypeface(null,1);heading.setTextColor(0xff17263e);card.addView(heading);
+            if("reservation_save".equals(action)){
+                TextView details=new TextView(this);
+                details.setText(operation.optString("equipment")+"\n"+operation.optString("start_date")+" → "+operation.optString("end_date")
+                    +"\nEgzemplarz: "+operation.optString("asset_label")
+                    +(operation.optString("vacuum_asset_id").isEmpty()?"":"\nOdkurzacz: "+operation.optString("vacuum_asset_label")));
+                details.setTextColor(0xff526174);card.addView(details);
+                Button recover=new Button(this);recover.setText("Porównaj egzemplarz z serwerem");card.addView(recover);
+                recover.setOnClickListener(v->compareReservationForRecovery(operation));
+            }
             if("asset_save".equals(action)){
                 TextView details=new TextView(this);
                 details.setText(operation.optString("equipment")+"\nNazwa: "+operation.optString("label"));
@@ -507,8 +516,69 @@ public class MainActivity extends Activity {
                 });
             }
         }
-        addButton("SYNCHRONIZUJ TERAZ",()->{showHome();});
+        addButton("SYNCHRONIZUJ TERAZ",()->{showHome();syncNow();});
         addButton("WRÓĆ DO MENU",()->showHome());
+    }
+    private void compareReservationForRecovery(JSONObject operation){
+        if(!syncRunning.compareAndSet(false,true)){toast("Trwa synchronizacja. Spróbuj za chwilę.");return;}
+        new Thread(()->{
+            try {
+                JSONObject remote=sync.fetchReservationForRecovery(operation.optString("id"));
+                runOnUiThread(()->{
+                    String localCopies=operation.optString("asset_label","—")+" / "+operation.optString("vacuum_asset_label","—");
+                    String serverCopies=remote.optString("asset_label","—")+" / "+remote.optString("vacuum_asset_label","—");
+                    new AlertDialog.Builder(this).setTitle("Uzgodnij egzemplarz")
+                        .setMessage(operation.optString("equipment")+"\nTelefon: "+localCopies+"\nSerwer: "+serverCopies
+                            +"\n\nPrzywrócić przypisanie z serwera? Termin i dane wpisane na telefonie pozostaną. Zapis nadal przejdzie kontrolę dostępności. Potwierdź tylko, jeśli przypisanie serwera odpowiada faktycznie wydanemu sprzętowi.")
+                        .setNegativeButton("Anuluj",(d,w)->syncRunning.set(false))
+                        .setOnCancelListener(d->syncRunning.set(false))
+                        .setPositiveButton("Przywróć przypisanie",(d,w)->{
+                            try{store.repairReservationCopies(operation,remote);toast("Poprawiono przypisanie w oczekującym zapisie.");}
+                            catch(Exception ex){toast(ex.getMessage());}
+                            finally{syncRunning.set(false);}
+                            pendingOperationsPage();syncNow();
+                        }).show();
+                });
+            } catch(Exception ex){runOnUiThread(()->{syncRunning.set(false);toast(ex.getMessage());});}
+        }).start();
+    }
+    private void prepareConfirmedIssue(String id,Runnable refresh){
+        if(!isOnline()){toast("Połącz z internetem, aby potwierdzić egzemplarz przed wydaniem.");return;}
+        if(!syncRunning.compareAndSet(false,true)){toast("Trwa synchronizacja. Ponów wydanie po jej zakończeniu.");return;}
+        toast("Sprawdzam zwroty i przypisanie sprzętu…");
+        new Thread(()->{
+            try {
+                sync.sync();
+                JSONObject current=findReservation(store.allReservations(),id);
+                if(current==null)throw new IllegalStateException("Rezerwacja nie jest już dostępna.");
+                if(current.optBoolean("done")||current.optBoolean("returned")||current.optBoolean("settled"))
+                    throw new IllegalStateException("Rezerwacja jest już wydana lub zakończona. Odświeżono jej stan.");
+                runOnUiThread(()->{
+                    String copies=current.optString("asset_label","Nie przypisano")
+                        +(RentalRules.needsVacuum(current)?"\nOdkurzacz: "+current.optString("vacuum_asset_label","Nie przypisano"):"");
+                    if(RentalItems.hasExtras(current))copies=RentalItems.summary(current,true);
+                    new AlertDialog.Builder(this).setTitle("Potwierdź wydawany sprzęt")
+                        .setMessage(current.optString("equipment")+"\n\nEgzemplarz: "+copies
+                            +"\nKlient: "+current.optString("customer_name",current.optString("client"))
+                            +"\nKontakt: "+reservationPhoneForItem(current)
+                            +"\n\nCzy przekazujesz klientowi właśnie ten sprzęt?")
+                        .setNegativeButton("Anuluj",(d,w)->{syncRunning.set(false);refresh.run();})
+                        .setOnCancelListener(d->{syncRunning.set(false);refresh.run();})
+                        .setNeutralButton("Zmień egzemplarz",(d,w)->{syncRunning.set(false);operations().rentalForm(current);})
+                        .setPositiveButton("Potwierdź wydanie",(d,w)->{
+                            try{store.queueConfirmedIssue(current);}
+                            catch(Exception ex){syncRunning.set(false);toast(ex.getMessage());refresh.run();return;}
+                            new Thread(()->{
+                                String message;
+                                try{sync.sync();message="Wydanie potwierdzone na serwerze.";}
+                                catch(Exception ex){message="Wydanie oczekuje na synchronizację: "+ex.getMessage();}
+                                final String result=message;
+                                runOnUiThread(()->{syncRunning.set(false);ReservationsWidgetProvider.refresh(this);refresh.run();toast(result);});
+                            }).start();
+                        }).show();
+                });
+            } catch(Exception ex){runOnUiThread(()->{syncRunning.set(false);refresh.run();toast("Nie potwierdzono wydania: "+ex.getMessage());});}
+        }).start();
     }
     private void syncNow(){
         if(!isOnline()){
@@ -774,6 +844,10 @@ public class MainActivity extends Activity {
     }
     private void productForm(JSONObject existing) {
         if(!isAdmin()){toast("Tylko administrator może dodawać lub edytować oferty.");showHome();return;}
+        JSONObject contentSource=existing==null?siteStats().optJSONObject("offer_content_template"):existing;
+        if(contentSource==null||contentSource.optJSONObject("offer_content")==null||contentSource.optString("offer_revision").isEmpty()){
+            toast("Odśwież dane strony, aby wczytać pełną treść oferty. Serwer musi obsługiwać nowy edytor.");return;
+        }
         stopFormAutosave();
         productPhotoSession++;
         root.removeAllViews();root.setPadding(16,14,16,18);
@@ -797,7 +871,9 @@ public class MainActivity extends Activity {
         EditText price=productField(rental,"Cena za dobę (zł)");price.setInputType(8194);EditText deposit=productField(rental,"Kaucja (zł)");deposit.setInputType(8194);
         LinearLayout seo=productSection("3. SEO I OGŁOSZENIE","Dane pomagające znaleźć ofertę w Google");
         EditText seoTitle=productField(seo,"Tytuł SEO (opcjonalnie)");EditText seoDesc=productField(seo,"Opis SEO (opcjonalnie)");seoDesc.setMinLines(3);seoDesc.setGravity(Gravity.TOP|Gravity.START);EditText olx=productField(seo,"Link do OLX (opcjonalnie)");
-        LinearLayout photos=productSection("4. ZDJĘCIA","Galeria sprzętu na RentMor.pl — do 6 zdjęć łącznie.");
+        LinearLayout contentSection=productSection("4. PEŁNA TREŚĆ","Opisy, pytania, odbiór, opłaty i linki");
+        OfferContentEditor contentEditor=new OfferContentEditor(this,contentSection,contentSource);
+        LinearLayout photos=productSection("5. ZDJĘCIA","Galeria sprzętu na RentMor.pl — do 6 zdjęć łącznie.");
         if(editing&&existingProductPhotoCount>0){
             TextView uploaded=new TextView(this);uploaded.setText("ZDJĘCIA JUŻ NA STRONIE ("+existingProductPhotoCount+")");
             uploaded.setTextSize(12);uploaded.setTypeface(null,1);uploaded.setTextColor(0xff526174);
@@ -837,6 +913,7 @@ public class MainActivity extends Activity {
             String n=name.getText().toString().trim(),pr=price.getText().toString().trim(),de=deposit.getText().toString().trim();if(n.isEmpty()||pr.isEmpty()){toast("Podaj nazwę i cenę za dobę.");return;}
             try{JSONObject op=new JSONObject();if(editing){op.put("product_id",existing.optString("id"));op.put("keep_images",new JSONArray(productExistingImages));}
                 op.put("name",n);op.put("desc",desc.getText().toString());op.put("category",cats[category.getSelectedItemPosition()]);op.put("price",pr);op.put("deposit",de.isEmpty()?"0":de);op.put("seo_title",seoTitle.getText().toString());op.put("seo_description",seoDesc.getText().toString());op.put("olx",olx.getText().toString());
+                contentEditor.applyTo(op);
                 JSONArray photoData=new JSONArray();for(Bitmap bmp:productPhotos){ByteArrayOutputStream out=new ByteArrayOutputStream();Bitmap scaled=bmp;int max=1280;if(bmp.getWidth()>max||bmp.getHeight()>max){float scale=Math.min((float)max/bmp.getWidth(),(float)max/bmp.getHeight());scaled=Bitmap.createScaledBitmap(bmp,Math.max(1,Math.round(bmp.getWidth()*scale)),Math.max(1,Math.round(bmp.getHeight()*scale)),true);}scaled.compress(Bitmap.CompressFormat.JPEG,78,out);photoData.put(Base64.encodeToString(out.toByteArray(),Base64.NO_WRAP));if(scaled!=bmp)scaled.recycle();}op.put("photos_base64",photoData);
                 store.enqueue("product_save",op);new Thread(()->{try{sync.sync();runOnUiThread(()->{stopFormAutosave();clearProductPhotoDraft();toast("Oferta opublikowana na RentMor.pl.");siteProductsPage();});}catch(Exception e){runOnUiThread(()->toast("Nie udało się opublikować: "+e.getMessage()));}}).start();
             }catch(Exception e){toast("Nie udało się przygotować oferty: "+e.getMessage());}
@@ -847,18 +924,20 @@ public class MainActivity extends Activity {
             draft.put("category",category.getSelectedItemPosition());draft.put("price",price.getText().toString());
             draft.put("deposit",deposit.getText().toString());draft.put("seo_title",seoTitle.getText().toString());
             draft.put("seo_description",seoDesc.getText().toString());draft.put("olx",olx.getText().toString());
+            draft.put("full_content_draft",contentEditor.snapshot());
             draft.put("keep_images",new JSONArray(productExistingImages));
             JSONArray saved=new JSONArray();
             for(Bitmap bmp:productPhotos)saved.put(bitmapBase64(bmp,1280,78));
             draft.put("new_photos",saved);
             new ProductCameraStore(this).saveDraft(draft.toString());
         }catch(Exception e){throw new IllegalStateException("Nie udało się zapisać roboczej oferty",e);}};
-        if(pendingProductPhoto!=null||restoringProductDraft)restoreProductPhotoDraft(name,desc,category,price,deposit,seoTitle,seoDesc,olx);
+        if(pendingProductPhoto!=null||restoringProductDraft)restoreProductPhotoDraft(name,desc,category,price,deposit,seoTitle,seoDesc,olx,contentEditor);
         formAutosave=new FormAutosave(()->{
             try{if(productDraftWriter!=null)productDraftWriter.run();}
             catch(Exception ex){toast("Nie udało się automatycznie zapisać oferty.");}
         });
         formAutosave.watch(name,desc,price,deposit,seoTitle,seoDesc,olx);
+        contentEditor.setOnChange(formAutosave::schedule);
         category.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
             boolean first=true;
             public void onItemSelected(android.widget.AdapterView<?> p,View v,int position,long id){
@@ -956,7 +1035,7 @@ public class MainActivity extends Activity {
     }
 
     private void restoreProductPhotoDraft(EditText name,EditText desc,Spinner category,EditText price,
-                                           EditText deposit,EditText seoTitle,EditText seoDesc,EditText olx){
+                                           EditText deposit,EditText seoTitle,EditText seoDesc,EditText olx,OfferContentEditor contentEditor){
         try{
             ProductCameraStore camera=new ProductCameraStore(this);
             JSONObject draft=new JSONObject(new String(java.nio.file.Files.readAllBytes(camera.draftFile().toPath()),
@@ -967,6 +1046,7 @@ public class MainActivity extends Activity {
             price.setText(draft.optString("price"));deposit.setText(draft.optString("deposit"));
             seoTitle.setText(draft.optString("seo_title"));seoDesc.setText(draft.optString("seo_description"));
             olx.setText(draft.optString("olx"));
+            if(draft.optJSONObject("full_content_draft")!=null)contentEditor.restore(draft.getJSONObject("full_content_draft"));
             JSONArray retained=draft.optJSONArray("keep_images");
             if(retained!=null){
                 ArrayList<String> listed=new ArrayList<>(productExistingImages);
@@ -1254,6 +1334,10 @@ public class MainActivity extends Activity {
             }
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent){withVacuum.setVisibility(View.GONE);}
         });
+        if(isAdmin())reservationFormLabel(form,"CENA GŁÓWNEGO SPRZĘTU ZA DOBĘ (ZŁ)");
+        EditText primaryRate=new EditText(this);primaryRate.setSingleLine(true);primaryRate.setInputType(8194);
+        primaryRate.setHint("Cena głównego sprzętu za dobę (zł)");primaryRate.setText("0");if(isAdmin())form.addView(primaryRate);
+        AdditionalEquipmentEditor extraEquipment=new AdditionalEquipmentEditor(this,form,store.equipment(),store.assets(),new JSONObject(),isAdmin());
         // Assistants may select existing models for reservations, not create website entries.
         if(isAdmin()) {
         addButton("＋ Dodaj nowy sprzęt do wspólnej listy",()->{
@@ -1345,13 +1429,14 @@ public class MainActivity extends Activity {
                 statusAction.setText(done?"COFNIJ WYDANIE":"OZNACZ WYDANIE");
                 compactReservationButton(statusAction,false);
                 statusAction.setOnClickListener(v->{
+                    if(!item.optBoolean("done")){prepareConfirmedIssue(item.optString("id"),render[0]);return;}
                     try{
-                        boolean nextDone=!item.optBoolean("done");item.put("done",nextDone);
-                        String availability=RentalRules.conflict(item,store.allReservations(),store.assets());if(!availability.isEmpty())throw new IllegalArgumentException(availability);store.saveRentalOperation(item,"reservation_save");
+                        JSONObject updated=new JSONObject(item.toString());updated.put("done",false);
+                        String availability=RentalRules.conflict(updated,store.allReservations(),store.assets());if(!availability.isEmpty())throw new IllegalArgumentException(availability);store.saveRentalOperation(updated,"reservation_save");
                         ReservationsWidgetProvider.refresh(this);
-                        toast(nextDone?"Oznaczono jako wydane.":"Przywrócono status DO WYDANIA.");
+                        toast("Przywrócono status DO WYDANIA. Oczekuje na synchronizację.");
                         if(isOnline())syncNow();render[0].run();
-                    }catch(Exception ex){toast("Nie udało się zmienić statusu.");}
+                    }catch(Exception ex){toast("Nie udało się zmienić statusu: "+ex.getMessage());}
                 });
                 String dateLabel=reservationDateRangeLabel(item);
                 TextView dateRangeLabel=new TextView(this);
@@ -1366,7 +1451,8 @@ public class MainActivity extends Activity {
                 TextView copyText=new TextView(this);
                 boolean assigned=!item.optString("asset_id").isEmpty();
                 copyText.setText(assigned?"EGZEMPLARZ:  "+item.optString("asset_label",item.optString("asset_id")):"EGZEMPLARZ:  DO PRZYPISANIA");
-                if(RentalRules.needsVacuum(item))copyText.setText(copyText.getText()+"\nODKURZACZ:  "+(item.optString("vacuum_asset_id").isEmpty()?"DO PRZYPISANIA":item.optString("vacuum_asset_label")));
+                if(RentalItems.hasExtras(item))copyText.setText(RentalItems.summary(item,true));
+                else if(RentalRules.needsVacuum(item))copyText.setText(copyText.getText()+"\nODKURZACZ:  "+(item.optString("vacuum_asset_id").isEmpty()?"DO PRZYPISANIA":item.optString("vacuum_asset_label")));
                 copyText.setTextSize(12);copyText.setTypeface(null,1);
                 copyText.setTextColor(assigned?0xff16654e:0xff925400);
                 copyText.setPadding(0,0,0,dp(8));row.addView(copyText);
@@ -1432,7 +1518,7 @@ public class MainActivity extends Activity {
                     java.util.regex.Matcher textTime=java.util.regex.Pattern.compile("\\d{4}-\\d{2}-\\d{2}\\s*[–-]\\s*\\d{4}-\\d{2}-\\d{2}\\s+([01]?\\d|2[0-3]):([0-5]\\d)(?:$|\\s|•)").matcher(raw);
                     if(textTime.find())initialTime=String.format(Locale.US,"%02d:%s",Integer.parseInt(textTime.group(1)),textTime.group(2));
                     EditText timeEdit=new EditText(this);timeEdit.setSingleLine(true);timeEdit.setHint("Godzina, np. 08:00");timeEdit.setInputType(android.text.InputType.TYPE_CLASS_DATETIME|android.text.InputType.TYPE_DATETIME_VARIATION_TIME);timeEdit.setText(initialTime);f.addView(timeEdit);
-                    String displayedEquipment=reservationEquipment(item);
+                    String displayedEquipment=cleanReservationEquipment(item.optString("equipment"));
                     EditText equipmentEdit=new EditText(this);equipmentEdit.setSingleLine(false);equipmentEdit.setHint("Nazwa sprzętu");equipmentEdit.setText(displayedEquipment);f.addView(equipmentEdit);
                     EditText customerNameEdit=new EditText(this);customerNameEdit.setSingleLine(true);customerNameEdit.setHint("Imię i nazwisko / firma klienta");customerNameEdit.setText(item.optString("customer_name",item.optString("client","")));f.addView(customerNameEdit);
                     EditText phoneEdit=new EditText(this);phoneEdit.setSingleLine(true);phoneEdit.setHint("Telefon lub nick z OLX");phoneEdit.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);phoneEdit.setText(reservationPhoneForItem(item));f.addView(phoneEdit);
@@ -1479,6 +1565,10 @@ public class MainActivity extends Activity {
                         if(item.optBoolean("done")&&!item.optString("vacuum_asset_id").isEmpty())vacuumPick.setEnabled(false);
                         f.addView(vacuumPick);
                     }
+                    if(isAdmin()){TextView rateLabel=new TextView(this);rateLabel.setText("Cena głównego sprzętu za dobę (zł)");f.addView(rateLabel);}
+                    EditText editPrimaryRate=new EditText(this);editPrimaryRate.setSingleLine(true);editPrimaryRate.setInputType(8194);
+                    editPrimaryRate.setHint("Cena głównego sprzętu za dobę (zł)");editPrimaryRate.setText(item.optString("primary_daily_rate",item.optString("daily_rate","0")));if(isAdmin())f.addView(editPrimaryRate);
+                    AdditionalEquipmentEditor editExtras=new AdditionalEquipmentEditor(this,f,store.equipment(),store.assets(),item,isAdmin());
                     TextView info=new TextView(this);
                     info.setText("Możesz przenieść niewydaną rezerwację na inny egzemplarz. Zajętość zostanie sprawdzona dla nowego terminu podczas zapisu i synchronizacji. Wydanego sprzętu nie można podmienić.");
                     info.setTextSize(12);info.setTextColor(0xff718096);info.setPadding(0,6,0,0);f.addView(info);
@@ -1528,6 +1618,11 @@ public class MainActivity extends Activity {
                                 updated.put("vacuum_asset_id",vacuumId);
                                 updated.put("vacuum_asset_label",selectedVacuum==null?"":selectedVacuum.optString("label"));
                             }
+                            updated.put("additional_items",editExtras.value());
+                            if(RentalItems.hasExtras(updated))RentalItems.requireServerSupport(this);
+                            if(isAdmin())RentalItems.updateRate(updated,editPrimaryRate.getText().toString());
+                            String extraReason=RentalItems.assignMissing(updated,store.allReservations(),store.assets());
+                            if(!extraReason.isEmpty())throw new IllegalArgumentException(extraReason);
                             updated.put("auto_assign",false);
                             String availability=RentalRules.conflict(updated,store.allReservations(),store.assets());if(!availability.isEmpty())throw new IllegalArgumentException(availability);store.saveRentalOperation(updated,"reservation_save");month[0]=monthValue;ReservationsWidgetProvider.refresh(this);render[0].run();if(isOnline())syncNow();
                             toast("Zaktualizowano rezerwację i dane klienta.");
@@ -1549,10 +1644,13 @@ public class MainActivity extends Activity {
             SimpleDateFormat iso=new SimpleDateFormat("yyyy-MM-dd",Locale.US);String from=iso.format(reservationStart[0].getTime()),to=iso.format(reservationEnd[0].getTime());
             String value=from+" – "+to+(shortTime.isEmpty()?"":" "+shortTime)+" • "+eq+(ph.isEmpty()?"":" • "+ph);
             try{JSONObject item=new JSONObject();item.put("id",UUID.randomUUID().toString());item.put("month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationStart[0].getTime()));item.put("text",value);item.put("equipment",eq);item.put("day",reservationStart[0].get(Calendar.DAY_OF_MONTH));item.put("start_date",from);item.put("end_date",to);item.put("end_day",reservationEnd[0].get(Calendar.DAY_OF_MONTH));item.put("end_month",new SimpleDateFormat("yyyy-MM",Locale.US).format(reservationEnd[0].getTime()));item.put("time",shortTime);item.put("phone",ph);item.put("customer_name",customerName.getText().toString().trim());item.put("done",false);item.put("auto_assign",true);item.put("needs_vacuum",withVacuum.getVisibility()==View.VISIBLE&&withVacuum.isChecked());
+                item.put("additional_items",extraEquipment.value());
+                if(RentalItems.hasExtras(item))RentalItems.requireServerSupport(this);
+                if(isAdmin())RentalItems.updateRate(item,primaryRate.getText().toString());
                 String availability=RentalRules.autoAssign(item,store.allReservations(),store.assets());
                 if(!availability.isEmpty())throw new IllegalArgumentException(availability);
                 store.saveRentalOperation(item,"reservation_save");ReservationsWidgetProvider.refresh(this);
-                phone.setText("");time.setText("");customerName.setText("");
+                phone.setText("");time.setText("");customerName.setText("");extraEquipment.clear();primaryRate.setText("0");
                 month[0]=item.optString("month",month[0]);form.setVisibility(View.GONE);
                 toggleForm.setText("＋ NOWA REZERWACJA");
                 render[0].run();
@@ -1759,7 +1857,7 @@ public class MainActivity extends Activity {
     }
 
     private String reservationEquipment(JSONObject item) {
-        String value=item.optString("equipment","").trim();if(!value.isEmpty())return cleanReservationEquipment(value);
+        String value=item.optString("equipment","").trim();if(!value.isEmpty())return RentalItems.hasExtras(item)?RentalItems.summary(item,false):cleanReservationEquipment(value);
         String raw=item.optString("text","");String[] parts=raw.split("•");
         if(parts.length>=2)return cleanReservationEquipment(parts[1].trim());
         java.util.regex.Matcher legacy=java.util.regex.Pattern.compile("^\\s*\\d{1,2}\\s+(.+?)\\s+\\d{1,2}\\s*/\\s*.+$").matcher(raw);
@@ -2295,6 +2393,11 @@ public class MainActivity extends Activity {
         addButton("ZAPISZ PROTOKÓŁ W TELEFONIE",()->{if(client.getText().toString().trim().isEmpty()||equipment.getSelectedItem()==null||equipment.getSelectedItemPosition()==0){if(client.getText().toString().trim().isEmpty()){client.setError("Wpisz nazwę klienta");client.requestFocus();}toast("Uzupełnij klienta i wybierz sprzęt.");return;}
             try{String id=UUID.randomUUID().toString();JSONObject p=new JSONObject();p.put("id",id);p.put("number","RM-"+new SimpleDateFormat("yyyyMMdd-HHmmss",Locale.US).format(new Date()));p.put("client",client.getText());p.put("phone",phone.getText());p.put("reservation_id",reservationIds.get(reservationSpinner.getSelectedItemPosition()));p.put("equipment",equipment.getSelectedItem().toString());p.put("rental_date",date.getText());p.put("condition",condition.getText());p.put("accessories",accessories.getText());p.put("notes",notes.getText());p.put("status","wydany");JSONObject linked=findReservation(store.allReservations(),p.optString("reservation_id"));
                 if(linked!=null){if(!linked.optString("equipment").equals(p.optString("equipment")))throw new IllegalArgumentException("Sprzęt nie zgadza się z rezerwacją");if(linked.optBoolean("settled")||linked.optBoolean("returned"))throw new IllegalArgumentException("Ten najem jest zakończony");String conflict=RentalRules.conflict(linked,store.allReservations(),store.assets());if(!conflict.isEmpty())throw new IllegalArgumentException(conflict);p.put("asset_id",linked.optString("asset_id"));p.put("asset_label",linked.optString("asset_label"));if(RentalRules.needsVacuum(linked)){p.put("vacuum_asset_id",linked.optString("vacuum_asset_id"));p.put("vacuum_asset_label",linked.optString("vacuum_asset_label"));}}
+                if(linked!=null&&RentalItems.hasExtras(linked)){
+                    p.put("additional_items",new JSONArray(linked.getJSONArray("additional_items").toString()));
+                    p.put("items_revision",linked.optInt("items_revision"));
+                    p.put("accessories",p.optString("accessories")+"\nSprzęty objęte rezerwacją:\n"+RentalItems.summary(linked,true));
+                }
                 JSONArray photos=new JSONArray();for(Bitmap photo:issuePhotos)photos.put(bitmapBase64(photo,1920,85));if(photos.length()>0)p.put("photos_base64",photos);if(signatureView!=null&&signatureView.hasInk())p.put("signature_base64",bitmapBase64(signatureView.image(),900,85));store.enqueue("create",p);if(linked!=null){linked.put("done",true);store.saveRentalOperation(linked,"reservation_save");}stopFormAutosave();new ProtocolCameraStore(this).clearDraft();toast("Protokół zapisany w telefonie. Gotowy do synchronizacji.");showProtocolDetail(p);}catch(Exception ex){toast("Błąd zapisu: "+ex.getMessage());}});
         issueDraftWriter=()->{try{
             JSONObject draft=new JSONObject();draft.put("kind","issue");draft.put("client",client.getText().toString());draft.put("phone",phone.getText().toString());draft.put("date",date.getText().toString());draft.put("condition",condition.getText().toString());draft.put("accessories",accessories.getText().toString());draft.put("notes",notes.getText().toString());draft.put("equipment",equipment.getSelectedItemPosition());draft.put("reservation",reservationSpinner.getSelectedItemPosition());
@@ -2631,6 +2734,7 @@ public class MainActivity extends Activity {
     private void toast(String s){runOnUiThread(()->Toast.makeText(this,s,Toast.LENGTH_LONG).show());}
     @Override public void onBackPressed(){if(protocolBackAction!=null)protocolBackAction.run();else if(showingApp)showHome();else super.onBackPressed();}
 }
+
 
 
 

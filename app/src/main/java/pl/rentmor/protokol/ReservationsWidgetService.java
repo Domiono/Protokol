@@ -69,6 +69,7 @@ public class ReservationsWidgetService extends RemoteViewsService {
             if (eq.isEmpty()) eq = raw;
             eq = eq.replaceFirst("(?i)\\s+-\\s+wynajem.*$", "").replaceFirst("\\s+\\|.*$", "").trim();
 
+            if(RentalItems.hasExtras(x))eq=RentalItems.summary(x,false);
             String time = x.optString("time", "").trim();
             if (time.isEmpty()) {
                 Matcher m = Pattern.compile("(\\d{1,2}:\\d{2})").matcher(raw);

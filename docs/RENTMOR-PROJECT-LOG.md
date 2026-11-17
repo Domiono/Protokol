@@ -1,6 +1,120 @@
-# 13.11.2026 — agent RentMor, PR #106: synchronizacja dokumentacji z main, bez wdrożenia
+# 17.11.2026 — agent RentMor: PR #106, synchronizacja z main bez wdrożenia
 
-Agent zaktualizował wyłącznie instrukcje autonomicznej pracy (AGENTS.md i docs/RENTMOR-AI-AGENT.md) oraz ten dziennik, zachowując publikację warunków wynajmu z PR159 i wcześniejszą dokumentację. Agent może przygotowywać testy i draft PR, ale nie scala i nie publikuje. Testy dokumentacyjnego PR: GitHub Actions do potwierdzenia po commicie; lokalne PHP/Android nieuruchamiane, brak zmian w kodzie. Produkcja i APK niezmienione przez agenta. Dalszy krok: właściciel przegląda i scala PR #106 po sprawdzeniu CI. Dokumentów na serwerze nie synchronizowano.
+PR #106: zachowano instrukcję autonomicznego agenta bez publikacji i zaktualizowano dokumentację względem main z 16.11 (Android 1.7.37, statystyki bieżącego miesiąca; wcześniej rezerwacje wielu sprzętów). To wyłącznie dokumentacja na gałęzi PR, nie modyfikuje kodu, danych, cen ani produkcji. Testy lokalne PHP/Android nieuruchamiane, bo brak zmian wykonywalnych. CI po nowym commicie: do potwierdzenia. Właściciel musi przejrzeć i scalić PR #106; agent nie scala ani nie wdraża. Synchronizacja prywatnych kopii na hostingu: niewykonywana.
+
+# 16.11.2026 — bieżący miesiąc OPUBLIKOWANY, PR165
+
+Android1.7.37/code52: statystyki otwierają zakres od pierwszego dnia miesiąca do dzisiaj; przycisk Bieżący miesiąc przywraca zakres. Run43942200065 SUCCESS, commit110e171: pełne testyAndroid i podpisanyassembleRelease PASS. Test domyślnychdat/powrotu z90dni oraz testy wykresu PASS. Cztery kontrolePR SUCCESS, rentaloperations43942212915. Zgodny podpis, prywatne kopie, readbackAPK/metadanych i publiczne bajty/nagłówki obu linków PASS. SHA256a9c21d373b47824e523e75df6aa9b592d24c0e2ae318ffbeea21b695f9374482. Instalator https://rentmor.pl/download-app.php?release=52 — aktualizacja bez odinstalowania. Bez zmianPHP/danych najmu. Brak testu na fizycznym telefonie.
+
+Oba dokumenty zsynchronizowane prywatnie0600 przy publikacji; ten końcowy wpis wysyłany osobną synchronizacją. Wynik końcowej synchronizacji i mergePR165 do sprawdzenia wActions/GitHub.
+
+# 16.11.2026 — statystyki najmu: domyślnie bieżący miesiąc
+
+Android 1.7.37/code52: domyślny zakres od pierwszego dnia miesiąca do dzisiaj; przycisk Bieżący miesiąc przywraca ten zakres. Pozostałe zakresy i obliczenia zachowane. Test UI obejmuje domyślne daty i powrót z90dni; test przewijania jawnie wybiera30dni, niezależnie od dnia miesiąca. PR/CI/podpis/publikacja i prywatna synchronizacja: do potwierdzenia. Bez zmian danych najmu iPHP.
+
+# 16.11.2026 — wiele dowolnych sprzętów: OPUBLIKOWANE, Android1.7.36/code51, PR164
+
+Run43854755456 SUCCESS, commit65fbfb6: pełnytestDebugUnitTest i podpisanyassembleReleasePASS; sześć MultiEquipmentReservationTest obejmuje wspólną zajętość/zwrot, brak częściowego przypisania, duplikaty ręcznych wyborów, kolejkę/wydanie/rozliczenie, nazwy grupowych statystyk i blokadę edytora wydanych pozycji. CI rentaloperations43854765591 SUCCESS. PHP/API/kalendarz równieżPASS. Wcześniejszyrun43853917407 opublikował3dokładnepatchesPHP z zachowaniem nowszego kodu hostingu; końcowyrun opublikował tylkoAPK/metadane i oba dzienniki, sprawdzającSHA3wdrożonychźródeł.
+
+APK1.7.36/code51 SHA256d21eafd79268dea65dcc3396186cc4f57a415b90cf831e050f36c021f8bf05c5; podpis zgodny z1.7.35 i poprzednimi wydaniami. Prywatne kopie, pełnyreadbackAPK/metadanych, publiczne bajty obu linków, no-store i nazwaRentMor-1.7.36.apk, główna i niezalogowaneAPI401: PASS. Instalator https://rentmor.pl/download-app.php?release=51 — aktualizacja bez odinstalowania.
+
+Użycie: Rezerwacje → Nowa rezerwacja lub Edytuj → „Dodaj sprzęt do rezerwacji”; również Egzemplarze i warunki najmu. Do20dowolnychpozycji, wspólny klient/termin, osobne stawki i konkretne egzemplarze, jedna suma/rozliczenie. Cała rezerwacja zapisywana atomowo; termin każdego urządzenia zajęty także dla osobnego najmu i publicznego kalendarza. Wydanych pozycji nie można podmieniać/usuwać. Sprzęt w grupie wymaga rzeczywistego zarejestrowanego egzemplarza — bez zgadywania ilości. Najpierw odświeżyć synchronizację, aby aplikacja potwierdziła obsługę nowej funkcji na serwerze. Publiczny formularz klienta nadal jest pojedynczy. Brak testu na fizycznym telefonie i zapisu prawdziwych rezerwacji/SMS.
+
+Oba dzienniki zsynchronizowane0700/0600 i odczytanezwrotnie podczas publikacji. Niniejsze końcowe potwierdzenie synchronizowane osobnymprogress-only, bez ponownej publikacjiAPK/źródeł; wynikrun/merge do sprawdzenia. Tymczasowe booking-source/booking-deploy usunąć przedmerge. Nie uruchamiać ponownie starego manifestupatchy na już wdrożonychźródłach. Następny krok użytkownika: instalacja1.7.36, synchronizacja i sprawdzenie tworzenia/edycji grupy na telefonie.
+
+# 16.11.2026 — obsługa wielu sprzętów OPUBLIKOWANA, końcowy Android1.7.36 w przygotowaniu
+
+PR164, commitde8a065, run43853917407 SUCCESS: pełne testyAndroid, podpisanyassembleRelease1.7.35/code50 i publikacja dokładnych3patchyPHP orazAPK. Zgodność certyfikatu z1.7.34, prywatna kopia, pełnyreadback, publiczne bajty obu linkówAPK/no-store/nazwa, główna iAPI401 oraz oba prywatne dokumenty0700/0600 potwierdzone. APK50 SHA2569abf846bac1129f56e3b2bac025d3a7ce289dcf3a488d7ec7368c1810a5ace51. Źródła hostingu zachowują nowszy harmonogram i panel; ich końcoweSHA są wmanifest._installed_sources.
+
+Końcowa korekta przed przekazaniem właścicielowi: Android1.7.36/code51 dodaje jawne podpisy pólcen, sprawdza duplikaty/ręczne przypisania przed lokalnym zapisem całej grupy (bez częściowej mutacji) i czyści każdą nazwę sprzętu osobno przy statystykach wspólnego przychodu. Dwa nowe testy regresyjne dotyczą podwójnego ręcznego wyboru i nazw z końcówką „wynajem”. Testy/podpis/publikacjaAPK51: DO POTWIERDZENIA. Kolejnyworkflow ma trybapk-only: dokładnie sprawdza3wdrożone źródła iAPK50, zmienia tylkoAPK/metadane oraz prywatne dzienniki; nie ponawia patchyPHP. Brak testu na fizycznym telefonie. Publiczny formularz klienta nadal pojedynczy; wybór wielu sprzętów dotyczy obsługi wAndroidzie.
+
+# 16.11.2026 — wiele sprzętów: TESTY ZALICZONE, PUBLIKACJA W TOKU, PR164
+
+Commit95d655e, run43853125375 SUCCESS: pełne testDebugUnitTest/assembleDebug, w tym cztery MultiEquipmentReservationTest (zajętość/zwrot, brak częściowych przypisań/duplikaty, kolejka/wydanie/rozliczenie, edytor i blokada wydanych pozycji). Kontrole PHP/API/kalendarza również PASS. Źródła hostingu i prywatne dzienniki odczytane run43853118978 SUCCESS; oba dokumenty są identyczne z baseline main. Nowszy harmonogram i ukrywanie quoted cen w rental_inventory oraz linkiAPK/menuAI wadmin pozostają zachowane w punktowych patchach. Testy dokładnych wynikowych źródeł hostingu w izolowanym środowisku: API/grupy/uprawnienia/revision, kalendarz+90min, stare reguły i statystyki PASS. Dodatkowa poprawka: historia protokołów chroni też dodatkowe egzemplarze przed usunięciem; panelWWW pokazuje wszystkie pozycje; przychód grupowy nie jest przypisywany wcałości do pierwszego urządzenia.
+
+Android1.7.35/code50. Podpisany assembleRelease, publikacjaAPK i3źródeł, publicznyreadback i synchronizacja prywatnych postępów: DO POTWIERDZENIA w osobnym workflow. Bez zmian prawdziwych rezerwacji lub SMS. Nie deklarować udostępnienia przed końcowym sukcesem.
+
+# 16.11.2026 — wiele dowolnych sprzętów w rezerwacji: W PRZYGOTOWANIU
+
+Zlecenie właściciela: kilka różnych sprzętów, np. bruzdownica + odkurzacz, dla jednego klienta i terminu. Android: „Dodaj sprzęt do rezerwacji” w tworzeniu i edycji, osobne ceny pozycji, wybór egzemplarzy, wspólna stawka i rozliczenie. Do 20 pozycji. Główna pozycja zachowuje dotychczasowy format, dodatkowe w additional_items. Każdy egzemplarz blokuje dostępność osobno, również publiczny kalendarz; bufor90min na serwerze zachowany. Jedna atomowa operacja: brak częściowego zapisu, bez podwójnego użycia egzemplarza. Wydanych pozycji nie można usuwać/podmieniać; rewizja chroni wielopozycyjną listę przed starym formularzem. Stary serwer nie może po cichu zgubić dodatków: kontrola obsługi przed zapisem i wysyłką. Ceny tylko admin, ukryte również w zagnieżdżonej historii klienta.
+
+Planowany Android1.7.35/code50. Lokalne testy PHP/API na fikcyjnych danych PASS: atomowość, zajętość dodatków, zwrot, ceny/uprawnienia, stare rewizje, niedozwolone pozycje, duplikaty, kalendarz+90min i stare reguły. Testy Android i podpisanie: DO POTWIERDZENIA w CI. PR/commit/run: do potwierdzenia. Wdrożenie i synchronizacja prywatnych dokumentów: NIEPOTWIERDZONE. Publiczny formularz klienta nadal wybiera jeden sprzęt; zmiana dotyczy rezerwacji zapisywanych przez obsługę w aplikacji i wspólnej dostępności. Modelowe statystyki grupują przychód wspólnego najmu w jedną pozycję (bez podwójnego liczenia), bez rozdzielania faktycznego przychodu na urządzenia. Protokół zawiera listę urządzeń w akcesoriach i snapshot dodatkowych pozycji. Brak testu na fizycznym telefonie, brak zmian prawdziwych rezerwacji/SMS.
+
+Następnie: pełne CI Androida, aktualny odczyt źródeł hostingu i prywatnych postępów, punktowe wdrożenie z SHA/backup/readback, ten sam podpisAPK i publiczna weryfikacja, synchronizacja obu dzienników. Nie nadpisywać źródeł hostingu plikami main.
+
+# 15.11.2026 — potwierdzenie wydania OPUBLIKOWANE, PR163
+
+Android1.7.34/code49 opublikowany run43717357658 SUCCESS, commit c6db9d55418d4a22c25ca5f905a924e2fab2cda5. Pełne testy Android i podpisany assembleRelease PASS; pięć ConfirmedIssueTest PASS. Kontrole PR: rental operations43717362167, offer editor43717362129, safety43717362108, calendar43717362132 wszystkie SUCCESS. Sprawdzono podpis zgodny z1.7.33, prywatną kopię, readback APK/metadanych i publiczne bajty/nagłówki obu linków. SHA25679d02b3feb8b282706051c58537469ed0164812c18d45708c2836b7d58eb1cec. Instalator https://rentmor.pl/download-app.php?release=49, aktualizacja bez odinstalowania.
+
+Oznacz wydanie w Rezerwacjach teraz wymaga internetu, synchronizuje wcześniejsze zwroty/edycje, pokazuje klienta i egzemplarze do potwierdzenia oraz pozwala otworzyć zmianę egzemplarza. Nie zapisuje starej karty, zakończonego najmu ani wydania przy pozostałej kolejce. Wynik komunikatu odróżnia potwierdzenie serwera od oczekiwania. Bez zmian PHP, prawdziwych rezerwacji, danych klientów i osobnego przepływu tworzenia protokołu. Nie przeprowadzono testu na fizycznym telefonie i nie dowiedziono dokładnej historycznej przyczyny wcześniejszego konfliktu.
+
+Podczas publikacji oba dokumenty zsynchronizowane0700/0600 i sprawdzone. Niniejsze końcowe potwierdzenie synchronizowane osobnym progress-only; jego wynik i mergePR163 do sprawdzenia. Tymczasowy workflow usunąć przed merge. Nie ponawiać wydania na starym baselineAPK.
+
+# 15.11.2026 — potwierdzenie egzemplarza przed wydaniem, Android1.7.34/code49
+
+Właściciel potwierdził odzyskanie dwóch zapisów po1.7.33 oraz prawidłowe przypisanie zestawu1. Opisał zmianę planowanego zestawu2 na właśnie zwrócony i rozliczony zestaw1. Ustalono lukę w przycisku Oznacz wydanie: zapisywał cały obiekt starej karty bez wcześniejszej synchronizacji; zmieniał też done w pamięci przed walidacją. Nie potwierdzono pełnej historycznej kolejności zdarzeń na telefonie.
+
+Nowy przepływ Oznacz wydanie: wymagane połączenie, synchronizacja zwrotów/edycji, pobranie aktualnej rezerwacji poID, dialog klient/kontakt/egzemplarze, możliwość przejścia do istniejącej zmiany egzemplarza. Potwierdzenie zapisuje tylko niezmieniony od odczytu obiekt, bez innych oczekujących operacji, z kontrolą stanu i dostępności. Brak mutacji karty po błędzie. Komunikat rozróżnia potwierdzenie serwera od oczekującego zapisu. Bez zmian PHP, danych najmu, protokołów i ich dotychczasowego przepływu. Zakres dotyczy przycisku w liście Rezerwacje; nie zmienia reguł historii wydanych sztuk.
+
+Testy regresyjne przygotowane: właściwy egzemplarz/kontakt, stara karta po zmianie egzemplarza, oczekujący zwrot/edycja, zakończony/brak egzemplarza, serwis bez mutacji. Testy Android/publikacja/synchronizacja dokumentów do potwierdzenia. Poprzedni PR162 scalony5344ea8, końcowa synchronizacja43715289794SUCCESS. NowyPR: do potwierdzenia.
+
+# 15.11.2026 — odzyskiwanie rezerwacji OPUBLIKOWANE, PR162
+
+Android 1.7.33/code48, commit e3fb3aa52ce9e86753d6af9c77385a81d7955591, publikacja run43715012715 SUCCESS. Pełne testy Android i podpisany assembleRelease PASS, w tym trzy ReservationRecoveryTest: zachowanie terminu/kolejki/innej operacji, odmowa zakończonych lub innych rezerwacji, odmowa nieaktualnego dialogu. Wszystkie cztery kontrole PR również SUCCESS (rental operations43715016736, offer editor43715016689, safety43715016720, calendar43715016741).
+
+Zweryfikowano zgodność certyfikatu z poprzednim APK1.7.32, prywatną kopię, odczyt zwrotny APK/metadanych, publiczne bajty obu adresów i nagłówki download-app. SHA256 e6a68fa5fad0d020c0b52d7a7123dcddebd424fe9522e33518ec3ac7d82c08e4. Instalator https://rentmor.pl/download-app.php?release=48. Bez odinstalowania. Ścieżka: komunikat synchronizacji → oczekujący zapis → Porównaj egzemplarz z serwerem → przywrócenie po potwierdzeniu faktycznego przypisania. Nie potwierdzono instalacji i odzyskania dwóch operacji na telefonie. Zrzuty nie wskazują ID tych operacji; brak bezpośredniego odczytu prywatnych danych i zmian rezerwacji na serwerze.
+
+Oba dokumenty zsynchronizowano0700/0600 podczas publikacji; niniejsze końcowe potwierdzenie wysyłane osobnym progress-only. Końcowy wynik synchronizacji i mergePR162 sprawdzić. Tymczasowy workflow usunąć przed scaleniem. Nie uruchamiać ponownie publikacjiAPK na zmienionym baseline. Log publikacji ma historycznie nazwany znacznik zawierający API_AUTH, ale ta wersja skryptu weryfikowała wyłącznie publiczny APK i nagłówki, nie API; nie traktować nazwy znacznika jako testuAPI.
+
+# 15.11.2026 — odzyskiwanie odrzuconych zapisów rezerwacji, Android 1.7.33/code48
+
+Zgłoszono dwie odrzucone operacje reservation_save z konfliktem przypisania wydanego egzemplarza. Zrzuty nie identyfikują operacji ani autorytatywnego przypisania; danych klientów nie odczytywano i nie zmieniano. Dodano szczegóły w kolejce i jawne porównanie z serwerem. Po potwierdzeniu administratora naprawiany jest tylko wybrany lokalny zapis: przypisanie sprzętu pochodzi z serwera, termin i inne dane lokalne pozostają. Zachowano ID i kolejność operacji, ochronę przed zmianą kolejki w czasie dialogu, odmowę dla zakończonego najmu i innego modelu. API nadal waliduje dostępność. Po odrzuceniu operacji aplikacja pobiera aktualny stan serwera, zachowując lokalne oczekujące zmiany. Przycisk synchronizacji jawnie ją uruchamia.
+
+Testy regresyjne odzyskiwania przygotowane; pełne testy Android i podpisanie w workflow do potwierdzenia. Publikacja APK oraz synchronizacja prywatnych dokumentów NIEPOTWIERDZONE. Bez zmiany PHP i bez automatycznego kasowania operacji. Faktyczne odzyskanie dwóch zapisów wymaga aktualizacji aplikacji i świadomego potwierdzenia przypisania na telefonie. PR/commit: do potwierdzenia.
+
+# 13.11.2026 — kalendarz: godziny zwrotu i bufor 90 min OPUBLIKOWANE, PR161
+
+Zgłoszenie właściciela: praska PEX na 17.11.2026 08:30 → 18.11.2026 08:30 była pokazywana jako zajęta do końca 18.11. Przyczyną dla rezerwacji z Androida był brak pola `return_time` (Android zapisuje daty i godzinę odbioru), więc dawny harmonogram traktował ją jak wpis bez godzin i blokował oba dni. Niezależnie kod `server/rental_inventory.php` w repo miał starsze porównanie samych dat. Naprawiono oba warianty, aby nie wrócił błąd przy przyszłym nadpisaniu źródła.
+
+**OPUBLIKOWANE 13.11.2026, PR161:** run43487588743 SUCCESS, etap publikacji zwrócił `ALL_SIX_SOURCES_PREFLIGHT_OK`, `PRIVATE_BACKUP_AND_STAGING_OK`, `SIX_SOURCE_FILES_READBACK_OK`, `PUBLIC_JS_CACHE_AND_CALENDAR_CHECK_OK`, `BOOKING_BUFFER_FIX_PUBLISHED_VERIFIED`, `TWO_PROGRESS_DOCUMENTS_SHA256_0600_VERIFIED`. Na produkcji punktowo opublikowano `booking_schedule.php` z domyślną godziną zwrotu taką samą jak odbiór w `end_date` (gdy brak jawnego `return_time`), `mortii.js` z precyzyjnymi komunikatami oraz cztery odnośniki cache JSv7→v8: `public_metadata.php`, `category.php`, `polityka-prywatnosci.php`, `rental_categories.php`. Zachowano aktualny opublikowany `rental_inventory.php`, który już korzystał z `rm_booking_overlap` z harmonogramu; nie nadpisywano go inną wersją z repo. Nowy źródłowy `server/booking_schedule.php` i zabezpieczenie porównania czasu w repo `server/rental_inventory.php` utrwalają właściwe zachowanie na przyszłość.
+
+Reguła dostępności: po zwrocie 18.11 o 08:30 dostępność może rozpocząć się od 10:00 po 90 min bufora, o ile pozwalają okna wydawania i inne rezerwacje. 16.11 może pozostać czerwony przy dobie 24h, gdy nie da się zwrócić na czas przed 17.11 08:30 plus bufor. Czerwony oznacza brak wolnego rozpoczęcia najmu na wybraną liczbę dób, a nie rezerwację od pierwszej czerwonej daty. Starsze wpisy bez godziny pozostają konserwatywnie zajęte według dat. Brak zmiany danych klientów, rezerwacji, SMS i APK.
+
+CI run43487596846 booking calendar SUCCESS; run43487596841 rental operations SUCCESS; run43487596918 offer editor SUCCESS; run43487596823 repo safety SUCCESS. Przed publikacją fixture PHP/DOM i sprawdzenia składni także PASS. Publiczny test zweryfikował odpowiedź API i wersję JS, nie odczytywał szczegółów klientów ani nie tworzył rezerwacji. Test faktycznych kolorów i opcji godziny na telefonie dla konkretnej praski pozostaje do sprawdzenia przez właściciela; nie potwierdzono, że w harmonogramie wydawania dostępna jest godzina 10:00. Android1.7.32/code47 bez zmiany; jego lokalna logika dat wymaga osobnego ujednolicenia przy przyszłym wydaniu.
+
+PR161: do scalenia, tymczasowe `booking-deploy.yml` usunąć przed merge. Niniejszy końcowy wpis wymaga jeszcze ponownej synchronizacji z prywatnym katalogiem serwera, bo poprzedni run zsynchronizował wcześniejszą wersję dokumentów. Do potwierdzenia wynik finalnego `progress-sync`.
+
+# 13.11.2026 — kontekstowe linkowanie ofert: OPUBLIKOWANE, PR160
+
+Run43399020641 SUCCESS, commitaee912a3ee40fd1cd6539f096161c516c0fb9e38. Na głównej i kategorii budowlanej działają po jednym kontekstowym odnośniku do rzeczywistych ofert agregatuWT20i i szlifierki250. Poradnik malowania ma czytelne przejście do oferty na początku oraz opisowy końcowyCTA. rental_task_links.php korzysta z bieżącego publicznego katalogu i tych samych slugów co kategorie; brak sprzętu pomija link, zmiana nazwy aktualizuje cel. Nie zmieniano opisów ofert, cen, rezerwacji aniAPK.
+
+TestyPHP nowychlinków/defaultów/FAQ, brakujących i przemianowanych ofert, escaping i integracja głównej/kategorii/poradnikaPASS. Poprawione fixtureAPI: pięć HTTPtestów wycofanegoendpointu i dotychczasowytestAPI PASS. Pełna regresja43398755360 SUCCESS obejmuje PHP/SEO/API oraz Android/testDebugUnitTest/assembleDebug; nowy kodAndroida nie zmieniony. Sześć testów transakcji/rollbackuPASS. Początkowy43398745725 zatrzymany przed zapisem przez nowszycategory.php; odczyt43398881634 potwierdził dokładne aktualneSHA. Publikacja zastosowała unikalne punktowepodmiany category/poradnika na oczekiwanym źródle, zachowując nowszą kategorię. Prywatnybackup, pełnyreadback i publiczneGET głównej/kategorii/poradnika oraz obu celów z zachowanymMortiiJSv7/video-gatePASS. Oba dokumenty zsynchronizowano0600 w katalogu0700 i porównano bajtowo. Niniejsze potwierdzenie synchronizowane osobnymprogress-only; sprawdzić wynikrun przypisanego commitowi. Nie uruchamiać ponownie manifestupublikacji na już zmienionych źródłach.
+
+Android1.7.32/code47 bez kolejnego wydania. Nie potwierdzono ponownegoGooglecrawl ani wzrostu pozycji; efektlinków mierzyć wGSC w kolejnych porównywalnych okresach. BrakURLInspection w dostępnym połączeniu. Edytoropisów publikacja43394137733 i końcowa synchronizacja43396819422SUCCESS. MergePR160 do potwierdzenia; tymczasowyworkflowusunąć przed scaleniem.
+
+# 13.11.2026 — kontekstowe linkowanie ofert agregatu i szlifierki: W PRZYGOTOWANIU
+
+Właściciel zlecił uporządkowanie linkowania wewnętrznego po odczycie GSC. Wyniki nie dowodzą błędu indeksacji ani przyczynowości:17–28.10 vs30.10–10.11 szlifierka20→7wyświetleń/0kliknięć, agregat5→1/0. Dostępne jawne zapytanieagregatu03.11 wskazywało główną, nie ofertę; mała próba i ukrytefrazy. Brak dostępu doURLInspection, dataGooglebot niepotwierdzona. Rozbudowany opis szlifierki potwierdzony29.10.
+
+Przygotowano kontekstowe linki do rzeczywistych aktualnych ofert WT20i i szlifierki250 na głównej i kategorii budowlanej oraz wcześniejszy link w poradniku malowania i jaśniejszy końcowyCTA. Linki powstają ztego samego publicznegokatalogu i slugów co kategorie, pomijają brakujący sprzęt. Istniejące karty, FAQ, ceny i rezerwacje bez zmian. Testy/wdrożenie/readback do potwierdzenia. Brak obietnicy pozycji ani wyboruURLprzezGoogle.
+
+DokończeniePR160: edytorjużOPUBLIKOWANY/run43394137733, progress-only43396819422SUCCESS. Osobny pełnyworkflow43396825934 ujawnił brak nowych zależności w dwóch izolowanych kopiach testowychAPI; uzupełniono fixture, bez zmian produkcyjnegoAPI. Aktualne testy i merge do potwierdzenia. Android1.7.32/code47 pozostaje bez zmian. Aktualnywpis niezsynchronizowany na serwer.
+
+# 13.11.2026 — pełna edycja oferty WWW i Android: OPUBLIKOWANE, PR160
+
+Run43394137733 SUCCESS, commit81d02915099826a6d77627d5492b4725018e5c0f. Wspólne nadpisania treści w katalogu, formularzWWW i natywny edytor przy sprzęcie: opis dodatkowy, nagłówek, FAQ dodaj/usuń, odbiór/rezerwacja, informacja pod nazwą, podsumowanie kosztów, poradnik, powiązania i link zasad. Istniejące teksty wczytywane domyślnie; zapis wyłącznie różnic, bez masowej migracji katalogu. Puste pola usuwają treść; rewizja chroni przed starym formularzem. Starsze aplikacje i formularze zachowują nowe pola, brak kasowania nieznanych właściwości produktu. Robocza treśćAndroida odtwarzana z formularzem/zdjęciami. Jawnie edytowane powiązania pozostają widoczne także przy automatycznych sugestiach sprzętu.
+
+Android1.7.32/code47 OPUBLIKOWANE. APK SHA256 b26d8f67a26156c844cbb8a28c001c278a2b5df3405160237eb8440f51bc1441. Ten sam certyfikat co publiczny1.7.31, zweryfikowane aapt i obecnośćOfferContentEditor/AiKnowledgePage wDEX. Instalator https://rentmor.pl/download-app.php?release=47 — publiczne bajty, no-store i nazwaRentMor-1.7.32.apk sprawdzone. Aktualizacja bez odinstalowania. Ścieżka: aplikacja → Strona → Lista sprzętu → Edytuj → Pełna treść; panelWWW → edycja sprzętu → Pełna treść oferty.
+
+Testy: składnia6plikówPHP, testy dotychczasowych i nowych opisów/FAQ, walidacja/revision/XSS/linki/stare klienty,6testówsyntetycznejtransakcji/rollbacku oraz pełny testDebugUnitTest i podpisanyassembleRelease PASS. Wstępne run43393451759 i43393658242 równieżSUCCESS. Początkowy preflight43393658428 wykrył nowszyadmin.php na hoście: publikacja zatrzymana przed zapisem. Końcowe wdrożenie zastosowało punktowe, sprawdzone konteksty na dokładnymblobSHA91d3d2c7b015a823da4db55e439c66054e385242, zachowując pozostałe zmiany hostingu. Inne źródła zgodne zbaseline. Prywatne kopie, pełnyreadback, sprawdzenie publicznej głównej/szlifierki/agregatu/zasad/logowania oraz401nieaktywowanegoAPI PASS. Bez testowego zapisu prawdziwych ofert lub danych klientów/rezerwacji. Brak wizualnego testu na fizycznym telefonie i zapisu w zalogowanym panelu; właściciel powinien sprawdzić po aktualizacji.
+
+Oba dokumenty zsynchronizowane podczas publikacji ztrybem0600/katalog0700 i odczytemzwrotnym. Niniejsze końcowe potwierdzenie synchronizowane osobnymtrybemprogress-only, bez ponownej publikacjiAPK/źródeł; sprawdzić wynikrun przypisanego do commitu. Tymczasowe workflowźródeł/publikacji usunąć przed scaleniem. Merge do potwierdzenia. Nie uruchamiać ponownie starego manifestu na zmienionej produkcji.
+
+# 13.11.2026 — pełna edycja oferty WWW i Android: ZAIMPLEMENTOWANE, NIEOPUBLIKOWANE
+
+Na zlecenie właściciela przygotowano wspólną treść oferty w data.json, edytowaną w WWW i natywnej aplikacji. Dotychczasowe dodatkowe opisy/FAQ/linki są domyślnie wczytywane, bez przepisywania katalogu. Edycja obejmuje nagłówek, opis, FAQ z dodawaniem/usuwaniem, rezerwację/odbiór, informacje pod nazwą, podsumowanie kosztów, poradnik, powiązany sprzęt i link zasad. Puste pola usuwają treść; nadpisania przechowują tylko różnice wobec domyślnej treści. Starsze klienty zachowują zapisane nadpisania. Rewizja blokuje zapis starego formularza. Walidacja, escaping i ograniczenie linków do RentMor; uprawnienia administratora pozostają. Robocza treść Androida jest odtwarzana wraz z formularzem/zdjęciami; odrzucona treść nie blokuje kolejki innych operacji.
+
+Planowane Android1.7.32/code47. TestyPHP i Android oraz publikacja: do potwierdzenia w workflow. Nie deklarować dostępności w produkcji przed testami, preflight SHA, prywatną kopią, odczytem zwrotnym i publiczną weryfikacją. Aktualizacja obu prywatnych dokumentów serwera: NIEZSYNCHRONIZOWANA. PR i wynik run: do potwierdzenia. Bez zmian danych klientów i rezerwacji. Następnie: testy, świeży preflight źródeł i podpisuAPK, publikacja lub udokumentowanie konkretnej blokady.
 
 # 13.11.2026 — ujednolicenie warunków wynajmu: OPUBLIKOWANE
 
@@ -597,4 +711,5 @@ Dodawaj **nowe wpisy na początku**, zachowując historię. Każdy wpis powinien
 
 
 Walidacja PR148: run42825160844 SUCCESS — 31kontroli PHP,10testów Robolectric/HTTP/UI, assembleRelease i podpisanie APK1.7.27/code42. Publikacja produkcji i zgodność podpisu z obecnym APK do potwierdzenia w osobnym workflow. Globalny test-only blokuje jednorazowe workflow zgodnie z regułą; nie został wyłączony.
+
 

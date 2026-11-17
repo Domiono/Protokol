@@ -1,0 +1,18 @@
+[
+  [
+    "<?php\nrequire_once __DIR__ . '/private_rental_files.php';\nif (rm_rental_maintenance()) { http_response_code(503); header('Retry-After: 30'); exit('Trwa bezpieczne przenoszenie danych najmu.'); }\nrequire_once __DIR__ . '/admin_safety.php';\nrm_admin_start_session();\n",
+    "<?php\nrequire_once __DIR__ . '/private_rental_files.php';\nrequire_once __DIR__ . '/offer_content.php';\nif (rm_rental_maintenance()) { http_response_code(503); header('Retry-After: 30'); exit('Trwa bezpieczne przenoszenie danych najmu.'); }\nrequire_once __DIR__ . '/admin_safety.php';\nrm_admin_start_session();\n"
+  ],
+  [
+    "            }\n        }\n\n        // New and old photo changes are validated before any file is moved.\n        $removedPhotos = [];\n        if ($is_update) {\n",
+    "            }\n        }\n\n        try { $offerContent=rm_save_offer_content($old_item??[], $_POST); }\n        catch (InvalidArgumentException $e) { rm_admin_reject($e->getMessage()); }\n\n        // New and old photo changes are validated before any file is moved.\n        $removedPhotos = [];\n        if ($is_update) {\n"
+  ],
+  [
+    "                : 0\n        ];\n\n        if ($is_update) {\n            foreach ($current_data as &$p) {\n                if (($p['id'] ?? '') === ($_POST['id'] ?? '')) {\n",
+    "                : 0\n        ];\n\n        $item_data=array_replace($old_item??[], $item_data, $offerContent);\n        if ($is_update) {\n            foreach ($current_data as &$p) {\n                if (($p['id'] ?? '') === ($_POST['id'] ?? '')) {\n"
+  ],
+  [
+    "                        class=\"p-4 border rounded-xl h-40 outline-none focus:border-yellow-400 bg-slate-50\"\n                    ><?php echo e_admin($edit_item['desc'] ?? ''); ?></textarea>\n\n                    <!-- USTAWIENIA SEO -->\n                    <div class=\"bg-blue-50 p-4 sm:p-5 rounded-2xl border border-blue-100\">\n                        <h4 class=\"font-black text-sm uppercase text-blue-900 mb-2\">\n",
+    "                        class=\"p-4 border rounded-xl h-40 outline-none focus:border-yellow-400 bg-slate-50\"\n                    ><?php echo e_admin($edit_item['desc'] ?? ''); ?></textarea>\n\n                    <?php require __DIR__ . '/offer_content_form.php'; ?>\n\n                    <!-- USTAWIENIA SEO -->\n                    <div class=\"bg-blue-50 p-4 sm:p-5 rounded-2xl border border-blue-100\">\n                        <h4 class=\"font-black text-sm uppercase text-blue-900 mb-2\">\n"
+  ]
+]

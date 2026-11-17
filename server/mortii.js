@@ -28,7 +28,7 @@ function availabilityCalendar(fields, form, product, submit) {
   const grid = el('div','',{class:'mortii-calendar-grid'});
   const message = el('p','',{role:'status','aria-live':'polite',class:'mortii-calendar-status'});
   const retry = el('button','Spróbuj ponownie',{type:'button',hidden:''});
-  calendar.append(nav,weekdays,grid,message,retry,el('p','Zielony: dostępny · Czerwony: zajęty · Szary: brak odbioru',{class:'mortii-calendar-legend'}));
+  calendar.append(nav,weekdays,grid,message,retry,el('p','Zielony: można rozpocząć najem · Czerwony: brak wolnego terminu na wybraną liczbę dób · Szary: brak odbioru',{class:'mortii-calendar-legend'}));
   original.after(calendar);
   const today = new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Warsaw',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
   const first = today.slice(0,7)+'-01'; let month = first, serial = 0, selected = null, loading = false;
@@ -40,7 +40,7 @@ function availabilityCalendar(fields, form, product, submit) {
     clock.disabled=false; submit.disabled=false;
     for(const button of grid.querySelectorAll('button')) button.setAttribute('aria-pressed',String(button.dataset.date===day.date));
     original.dispatchEvent(new Event('input',{bubbles:true}));
-    message.textContent='Wybierz godzinę odbioru. Dostępność sprawdzono dla całego najmu.';
+    message.textContent='Wybierz godzinę odbioru. Uwzględniono cały okres najmu i 1,5-godzinny bufor.';
   }
   async function load(){
     const version=++serial; loading=true;reset();grid.replaceChildren();retry.hidden=true;calendar.setAttribute('aria-busy','true');
@@ -62,7 +62,7 @@ function availabilityCalendar(fields, form, product, submit) {
         const value=month.slice(0,8)+String(n).padStart(2,'0'), day=byDate.get(value);
         if(!day||!Array.isArray(day.slots)||!['available','busy','closed','past'].includes(day.status)||day.slots.some(t=>!/^\d{2}:\d{2}$/.test(t)))throw Error('Nieprawidłowe dane dostępności.');
         const available=day.status==='available'&&day.slots.length>0&&value>=today;
-        const label=day.status==='busy'?'zajęty':available?'dostępny':'brak odbioru';
+        const label=day.status==='busy'?'brak wolnego terminu na '+days+' dób':available?'dostępny':'brak odbioru';
         const button=el('button',String(n),{type:'button',class:'mortii-calendar-day '+(available?'available':day.status==='busy'?'busy':'closed'),'aria-label':value+', '+label,'aria-pressed':'false'});
         button.dataset.date=value;button.disabled=!available;button.addEventListener('click',()=>choose(day));grid.append(button);
       }

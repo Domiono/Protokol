@@ -1,0 +1,35 @@
+name: Validate full offer editor
+on:
+  push:
+    branches: [codex/full-offer-editor-20261113]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: |
+          python3 scripts/assert_github_test_only.py
+          php -l server/admin.php
+          php -l server/protocol_sync.php
+          php -l server/offer_content.php
+          php -l server/offer_content_form.php
+          php -l server/rental_offer_details.php
+          php -l server/seo_structure.php
+          php scripts/test_offer_content.php
+          php scripts/test_offer_details.php
+          php scripts/test_extra_offers.php
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - run: gradle --no-daemon testDebugUnitTest assembleDebug

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/private_rental_files.php';
+require_once __DIR__ . '/offer_content.php';
 if (rm_rental_maintenance()) { http_response_code(503); header('Retry-After: 30'); exit('Trwa bezpieczne przenoszenie danych najmu.'); }
 require_once __DIR__ . '/admin_safety.php';
 rm_admin_start_session();
@@ -39,6 +40,9 @@ function rm_admin_settlement_month(array $r): string {
     return $date && $date->format('Y-m-d')===$day ? substr($day,0,7) : '';
 }
 function rm_admin_equipment_name(array $r): string {
+    if(!empty($r['additional_items'])){
+        $names=[(string)($r['equipment']??'')];foreach($r['additional_items'] as $line)$names[]=(string)($line['equipment']??'');return implode(' + ',$names);
+    }
     $name=trim((string)($r['equipment']??''));
     if($name===''){
         $raw=(string)($r['text']??'');
@@ -182,7 +186,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['act
                 $items = array_values(array_filter($items, function($r) use ($id) { return (string)($r['id'] ?? '') !== $id; }));
                 $found = $id !== '' && count($items) < $before;
             } elseif ($action === 'reservation_toggle') {
-                foreach ($items as &$r) if ((string)($r['id'] ?? '') === $id) { $candidate=$r; $candidate['done']=!empty($_POST['reservation_done']); $reason=$candidate['done']?rm_admin_assign_reservation($candidate,$items):''; if($reason===''){$r=$candidate;$found=true;}else{$_SESSION['reservation_flash']=$reason;} break; }
+                foreach ($items as &$r) if ((string)($r['id'] ?? '') === $id) { $candidate=$r; $candidate['done']=!empty($_POST['reservation_done']); $reason=$candidate['done']?rm_admin_assign_reservation($candidate,$items):''; if($reason===''){$candidate['items_revision']=(int)($r['items_revision']??0)+1;$r=$candidate;$found=true;}else{$_SESSION['reservation_flash']=$reason;} break; }
                 unset($r);
             } else {
                 $start = trim((string)($_POST['start_date'] ?? ''));
@@ -207,7 +211,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST' && in_array(($_POST['act
                             $selectionError=rm_select_reservation_copies($item,$saved,$_POST,rm_read_assets());
                             if($selectionError!==''){$_SESSION['reservation_flash']=$selectionError;break;}
                         }
-                        $reason=rm_admin_assign_reservation($item,$items); if($reason!==''){$_SESSION['reservation_flash']=$reason;break;} $saved=$item; $found=true; break; }
+                        $reason=rm_admin_assign_reservation($item,$items); if($reason!==''){$_SESSION['reservation_flash']=$reason;break;} $item['items_revision']=(int)($saved['items_revision']??0)+1;$saved=$item; $found=true; break; }
                         unset($saved);
                         if (!$found && !isset($_SESSION['reservation_flash'])) $_SESSION['reservation_flash']='Nie znaleziono rezerwacji do edycji.';
                     } else { $item['created_at']=date('Y-m-d H:i:s'); $reason=rm_admin_assign_reservation($item,$items); if($reason===''){$items[]=$item; $found=true;}else{$_SESSION['reservation_flash']=$reason;} }
@@ -418,6 +422,9 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        try { $offerContent=rm_save_offer_content($old_item??[], $_POST); }
+        catch (InvalidArgumentException $e) { rm_admin_reject($e->getMessage()); }
+
         // New and old photo changes are validated before any file is moved.
         $removedPhotos = [];
         if ($is_update) {
@@ -474,6 +481,7 @@ if ($is_logged && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 : 0
         ];
 
+        $item_data=array_replace($old_item??[], $item_data, $offerContent);
         if ($is_update) {
             foreach ($current_data as &$p) {
                 if (($p['id'] ?? '') === ($_POST['id'] ?? '')) {
@@ -1150,7 +1158,7 @@ if (isset($_GET['edit_id'])) {
                 <section class="bg-white rounded-3xl p-5 sm:p-7 shadow-sm"><h3 class="text-xl font-black mb-4">Rezerwacje / do rozliczenia <span class="text-sm text-gray-400">(<?php echo count($active_reservations); ?>)</span></h3>
                     <?php if (!$active_reservations): ?><p class="text-sm text-gray-500">Brak nierozliczonych rezerwacji w tym miesiącu.</p><?php endif; ?>
                     <div class="space-y-4"><?php foreach ($active_reservations as $r): $rid=(string)($r['id']??''); $sd=(string)($r['start_date']??''); $ed=(string)($r['end_date']??''); $eq=(string)($r['equipment']??''); $tm=(string)($r['time']??''); $ph=(string)($r['phone']??''); ?>
-                        <div class="border rounded-2xl p-4"><div class="font-bold mb-2"><?php echo e_admin($eq!==''?$eq:($r['text']??'Rezerwacja')); ?> <span class="text-xs <?php echo !empty($r['done'])?'text-green-700':'text-amber-700'; ?>">· <?php echo !empty($r['done'])?'WYDANE':'DO WYDANIA'; ?></span></div>
+                        <div class="border rounded-2xl p-4"><div class="font-bold mb-2"><?php echo e_admin($eq!==''?$eq:($r['text']??'Rezerwacja')); ?><?php foreach(($r['additional_items']??[]) as $line): ?><div class="text-sm mt-1">＋ <?php echo e_admin((string)($line['equipment']??'')); ?> · <?php echo e_admin((string)($line['asset_label']??'Do przypisania')); ?></div><?php endforeach; ?> <span class="text-xs <?php echo !empty($r['done'])?'text-green-700':'text-amber-700'; ?>">· <?php echo !empty($r['done'])?'WYDANE':'DO WYDANIA'; ?></span></div>
                             <p class="text-sm text-gray-600 mb-3"><?php echo e_admin($sd?:'—'); ?> → <?php echo e_admin($ed?:'—'); ?><?php echo $tm?' · '.e_admin($tm):''; ?><?php echo $ph?' · '.e_admin($ph):''; ?></p>
                             <p class="text-xs text-gray-500 mb-2">Egzemplarz: <?php echo e_admin((string)($r['asset_label']??'Do przypisania')); ?><?php if(rm_needs_vacuum($r)): ?> · Odkurzacz: <?php echo e_admin((string)($r['vacuum_asset_label']??'Do przypisania')); ?><?php endif; ?></p>
                             <form method="POST" class="mb-3"><input type="hidden" name="admin_csrf" value="<?php echo e_admin($_SESSION['admin_csrf'] ?? ''); ?>"><input type="hidden" name="action" value="reservation_toggle"><input type="hidden" name="reservation_csrf" value="<?php echo e_admin($_SESSION['reservation_csrf']); ?>"><input type="hidden" name="reservation_id" value="<?php echo e_admin($rid); ?>"><input type="hidden" name="reservation_done" value="<?php echo !empty($r['done'])?'0':'1'; ?>"><input type="hidden" name="return_month" value="<?php echo e_admin($reservation_month); ?>"><button class="<?php echo !empty($r['done'])?'bg-green-100 text-green-800':'bg-red-100 text-red-800'; ?> rounded-xl px-4 py-3 font-black w-full sm:w-auto"><?php echo !empty($r['done'])?'COFNIJ WYDANIE':'WYDANO — OZNACZ JAKO WYDANE'; ?></button></form>
@@ -1477,6 +1485,8 @@ if (isset($_GET['edit_id'])) {
                         class="p-4 border rounded-xl h-40 outline-none focus:border-yellow-400 bg-slate-50"
                     ><?php echo e_admin($edit_item['desc'] ?? ''); ?></textarea>
 
+                    <?php require __DIR__ . '/offer_content_form.php'; ?>
+
                     <!-- USTAWIENIA SEO -->
                     <div class="bg-blue-50 p-4 sm:p-5 rounded-2xl border border-blue-100">
                         <h4 class="font-black text-sm uppercase text-blue-900 mb-2">
@@ -1682,3 +1692,4 @@ if (isset($_GET['edit_id'])) {
 
 </body>
 </html>
+
