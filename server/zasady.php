@@ -1,4 +1,7 @@
 <?php
+require_once __DIR__ . '/page_statistics.php';
+rm_stats_public_page('/zasady.php');
+
 $terms = file_exists(__DIR__ . '/terms.json') ? json_decode(file_get_contents(__DIR__ . '/terms.json'), true) : [];
 $content = is_array($terms) ? (string)($terms['content'] ?? '') : '';
 if ($content === '') {

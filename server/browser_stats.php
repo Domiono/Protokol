@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/traffic_filter.php';
 
 // Mint a one-use page token. A GET never increments the statistics itself.
-function rm_stats_prepare_pageview(string $productId, string $source): string {
+function rm_stats_prepare_pageview(string $productId, string $source, string $page = "/"): string {
     if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET' || http_response_code() === 404 || rm_stats_is_internal() || rm_stats_is_automated()) return '';
     $dest = $_SERVER['HTTP_SEC_FETCH_DEST'] ?? '';
     if ($dest !== '' && !in_array($dest, ['document','iframe'], true)) return '';
@@ -13,7 +13,9 @@ function rm_stats_prepare_pageview(string $productId, string $source): string {
     $now = time();
     foreach ($pending as $key=>$value) if (($value['at'] ?? 0) < $now-600) unset($pending[$key]);
     $token = bin2hex(random_bytes(24));
-    $pending[$token] = ['at'=>$now,'product'=>$productId,'source'=>$source];
+    // Page identity comes from server routing, never query parameters or browser input.
+    $pageKey = $productId !== '' ? 'product:'.$productId : $page;
+    $pending[$token] = ['at'=>$now,'product'=>$productId,'source'=>$source,'page'=>$pageKey];
     $_SESSION['rm_view_tokens'] = array_slice($pending,-30,null,true);
     return $token;
 }
@@ -22,7 +24,8 @@ function rm_stats_confirm_pageview(string $token, ?string $path = null): int {
     if (rm_stats_is_internal() || rm_stats_is_automated()) return 200;
     $pending = $_SESSION['rm_view_tokens'][$token] ?? null;
     if (!is_array($pending) || ($pending['at'] ?? 0)<time()-600) return 400;
-    $key = 'page:' . (string)$pending['product']; // Ignore UTM and alternate URLs for the same offer.
+    $pageKey = (string)($pending['page'] ?? ((string)$pending['product'] !== '' ? 'product:'.$pending['product'] : '/'));
+    $key = 'page:' . $pageKey; // Ignore UTM and alternate URLs for the same offer.
     $recent = $_SESSION['rm_browser_recent'] ?? [];
     if (!is_array($recent)) $recent = [];
     $now = time();
@@ -47,6 +50,12 @@ function rm_stats_confirm_pageview(string $token, ?string $path = null): int {
     }
     $product = (string)$pending['product'];
     if ($product !== '') $stats['product_views'][$product] = (int)($stats['product_views'][$product] ?? 0)+1;
+    $stats['page_tracking_since'] = $stats['page_tracking_since'] ?? $date->format(DATE_ATOM);
+    $stats['page_views'][$pageKey] = (int)($stats['page_views'][$pageKey] ?? 0)+1;
+    $stats['page_days'][$today][$pageKey] = (int)($stats['page_days'][$today][$pageKey] ?? 0)+1;
+    // Keep daily detail for 400 days; lifetime totals remain available.
+    $cutoff = $date->modify('-399 days')->format('Y-m-d');
+    foreach (array_keys($stats['page_days']) as $day) if ($day < $cutoff) unset($stats['page_days'][$day]);
     $json = json_encode($stats,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
     rewind($fp);
     $ok = $json !== false && fwrite($fp,$json) === strlen($json) && ftruncate($fp,strlen($json)) && fflush($fp);

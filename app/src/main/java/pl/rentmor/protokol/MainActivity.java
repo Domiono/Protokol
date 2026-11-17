@@ -679,11 +679,7 @@ public class MainActivity extends Activity {
             JSONObject sources=st.optJSONObject("sources");long search=0,direct=0,other=0;
             if(sources!=null){Iterator<String> it=sources.keys();while(it.hasNext()){JSONObject day=sources.optJSONObject(it.next());if(day!=null){search+=day.optLong("search_social",0);direct+=day.optLong("direct",0);other+=day.optLong("other_ext",0);}}}
             addMetric(cards,"Wejścia z wyszukiwarki i social",String.valueOf(search));addMetric(cards,"Wejścia bezpośrednie",String.valueOf(direct));addMetric(cards,"Pozostałe źródła",String.valueOf(other));
-            TextView popular=new TextView(this);popular.setText("NAJPOPULARNIEJSZY SPRZĘT");popular.setTextSize(14);popular.setTypeface(null,1);popular.setTextColor(0xff526174);popular.setPadding(2,16,2,8);cards.addView(popular);
-            JSONObject pv=st.optJSONObject("product_views");if(pv==null||pv.length()==0){TextView empty=new TextView(this);empty.setText("Brak danych o odsłonach produktów.");cards.addView(empty);}else{
-                ArrayList<String> ids=new ArrayList<>();Iterator<String> it=pv.keys();while(it.hasNext())ids.add(it.next());Collections.sort(ids,(a,b)->Long.compare(pv.optLong(b),pv.optLong(a)));
-                JSONArray products=siteProducts();for(int i=0;i<Math.min(5,ids.size());i++){String id=ids.get(i),name=id;for(int j=0;j<products.length();j++){JSONObject p=products.optJSONObject(j);if(p!=null&&id.equals(p.optString("id"))){name=p.optString("name",id);break;}}addMetric(cards,name,pv.optString(id)+" odsłon");}
-            }
+            SitePageStats.render(this,cards,st,siteProducts(),range[0],new Date());
             final boolean sameRange=renderedRange[0]==range[0] && chartScroll[0]!=null;
             final int savedScrollX=sameRange?chartScroll[0].getScrollX():0;
             renderedRange[0]=range[0];

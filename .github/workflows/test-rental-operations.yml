@@ -32,6 +32,18 @@ jobs:
       - run: php scripts/test_ai_app_knowledge.php
       - run: php scripts/test_ai_equipment_knowledge.php
       - run: python3 deployment/apk-download/test_endpoint.py
+      - name: Page statistics regression
+        run: |
+          php -l server/browser_stats.php
+          php -l server/page_statistics.php
+          php -l server/category.php
+          php -l server/zasady.php
+          php -l server/polityka-prywatnosci.php
+          php -l server/poradnik-jaki-papier-scierny-do-zyrafy.php
+          php -l server/poradnik-pranie-tapicerki-karcher-puzzi.php
+          php -l server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php
+          python3 scripts/test_browser_stats.py
+          python3 scripts/test_page_statistics.py
       - run: php -l server/admin.php
       - run: php scripts/test_admin_rental_stats.php
       - run: php scripts/test_multi_equipment_calendar.php
