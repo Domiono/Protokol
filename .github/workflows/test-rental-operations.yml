@@ -44,6 +44,7 @@ jobs:
           php -l server/poradnik-agregat-malarski-jak-malowac-dobor-dysz.php
           python3 scripts/test_browser_stats.py
           python3 scripts/test_page_statistics.py
+          python3 scripts/test_seo_structure_http.py
       - run: php -l server/admin.php
       - run: php scripts/test_admin_rental_stats.php
       - run: php scripts/test_multi_equipment_calendar.php

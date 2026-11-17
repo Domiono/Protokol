@@ -74,7 +74,7 @@ final class SitePageStats {
     static void render(Context c, LinearLayout parent, JSONObject stats, JSONArray products, int days, Date now) {
         text(c,parent,"ODWIEDZANE PODSTRONY • "+days+" DNI",true);
         String since=stats.optString("page_tracking_since","");
-        if (since.isEmpty()) text(c,parent,"Podział na podstrony wymaga aktualizacji licznika strony. Poniżej dostępne są historyczne odsłony ofert.",false);
+        if (since.isEmpty()) text(c,parent,"Nie ma jeszcze szczegółowych danych podstron. Pojawią się po aktualizacji licznika i pierwszych odsłonach. Poniżej historia ofert.",false);
         else {
             text(c,parent,"Pomiar od "+since.substring(0,Math.min(10,since.length()))+". Odsłony, nie liczba osób. Zakres zmienisz przy wykresie.",false);
             Map<String,Long> values=counts(stats,days,now);

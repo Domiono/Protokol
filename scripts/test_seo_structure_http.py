@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PHP = os.environ.get('RENTMOR_TEST_PHP', 'php')
 with tempfile.TemporaryDirectory() as tmp:
     tmp = Path(tmp)
-    for name in ('rental_categories.php','related_offers.php','category.php','category_sitemap.php','sitemap.php'):
+    for name in ('rental_categories.php','related_offers.php','category.php','category_sitemap.php','sitemap.php','rental_task_links.php','page_statistics.php','browser_stats.php','traffic_filter.php'):
         shutil.copy(ROOT/'server'/name,tmp/name)
     products = [{'name':'Młot testowy','cat':'budowlane','price':60,'images':['test-photo.jpg']}, {'name':'Glebogryzarka','category':'ogrodnicze','price':100}, {'name':'Puzzi <test>','cat':'czyszczace','price':50}]
     (tmp/'rentmor-image-manifest.json').write_text(json.dumps({'test-photo.jpg':{'thumb':{'url':'/uploads/rentmor-webp/test-thumb.webp','width':160},'small':{'url':'/uploads/rentmor-webp/test-small.webp','width':320},'card':{'url':'/uploads/rentmor-webp/test-card.webp','width':640}}}))
