@@ -1,3 +1,13 @@
+# 17.11.2026 — PR167: statystyki podstron OPUBLIKOWANE, Android1.7.38/code53
+
+Wdrożenie44170563446 SUCCESS, commitd2099868bcb1b6da7bb1fac2002d021f28c40c94. Pełne PHP/HTTP i Android testDebugUnitTest, podpisany assembleRelease PASS. Sześć testów transakcji/rollbacku PASS. Standardowe kontrole44170575003,44170575255,44170574958,44170575028 SUCCESS. Nowy syntetyczny poradnik korzystający wyłącznie ze wspólnego szablonu został automatycznie zliczony; strony prywatne i odmowa zgody wykluczone.
+
+Na hostingu opublikowano siedem dokładnych zmian z kontroląSHA i zachowaniem nowszego kodu, prywatną kopią i odczytem zwrotnym. Publiczne GET ośmiu stron (główna, oferta, kategoria, trzy poradniki, zasady, polityka) potwierdziły pojedyncze tokeny, odmowę przy braku zgody i poprawne odpowiedzi panelu/API. Nie wysyłano potwierdzeń testowych odsłon i nie odczytywano danych klientów ani stats.json. Automatyka przyszłych sprzętów działa przez ID katalogowe; nowe poradniki `poradnik-*.php` przez wspólny public_metadata, zgodnie z AGENTS.md — bez listy artykułów w liczniku/aplikacji.
+
+APK1.7.38/code53, zgodny podpis z1.7.37; SHA256e758b089c650869ab7b28ec9f192d216f79e9ed0dce5481e73fc05ccceb574c4. Odczyt zwrotnyAPK/metadanych, publiczne bajty obu linków, no-store i nazwaRentMor-1.7.38.apk potwierdzone. Instalator https://rentmor.pl/download-app.php?release=53 — aktualizacja bez odinstalowania. Ścieżka: Statystyki strony → Odwiedzane podstrony; zakres7/30/90dni, pełna historia ofert rozwijana. Szczegółowe dane zaczynają się od wdrożenia; nie odtwarzano dawnych globalnych odsłon. Nie wykonano testu na fizycznym telefonie.
+
+Oba dzienniki zsynchronizowano prywatnie0600 podczas publikacji. Niniejsze końcowe potwierdzenie wysyłane osobnym progress-only z kontrolą aktualnychSHA źródeł i dzienników oraz katalogu0700. Wynik końcowej synchronizacji i mergePR167 do sprawdzenia. Jednorazowe workflow źródeł/publikacji usunąć przedmerge. Nie ponawiać publikacji na starychSHAAPK/źródeł.
+
 # 17.11.2026 — PR167: zgoda na wdrożenie i automatyczne nowe treści
 
 Właściciel zatwierdził odczyt kodu hostingu przez FTP i wdrożenie PR167, dodając wymóg automatycznego zliczania nowych sprzętów i poradników. Odczyt44169861336 SUCCESS: tylko źródła i dwa dzienniki, zaszyfrowane do klucza roboczego; bez danych klientów/statystyk. Oba prywatne dzienniki zgodne z main. Przygotowano siedem dokładnych zmian z SHA, zachowujących nowszy kod hostingu: browser_stats, nowy page_statistics, public_metadata, category, zasady, polityka i sekcja statystyk admina. Index, endpoint pageview, online.js i trzy poradniki pozostają bez nadpisywania.
