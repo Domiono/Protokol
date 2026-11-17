@@ -48,7 +48,7 @@ with tempfile.TemporaryDirectory() as tmp:
             if slug=='sprzet-budowlany':
                 assert '/uploads/rentmor-webp/test-card.webp' in html
                 assert '/uploads/rentmor-webp/test-small.webp 320w' in html
-                assert '<img src="/uploads/rentmor-webp/test-card.webp" alt=""' in html
+                assert '<img src="/uploads/rentmor-webp/test-card.webp" alt="Młot testowy"' in html
                 assert 'Wypożyczalnia sprzętu budowlanego Kraków' in html
                 assert 'szlifierkę do betonu' in html
             assert 'Wynajem sprzętu dla osób prywatnych i firm' in html
