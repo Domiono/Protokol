@@ -993,30 +993,26 @@ if (isset($_GET['edit_id'])) {
                 </div>
 
                 <div class="bg-white p-8 rounded-3xl shadow-sm overflow-hidden">
-                    <h3 class="font-black uppercase text-sm text-gray-400 tracking-widest mb-6">Najpopularniejszy sprzęt</h3>
-
-                    <div class="space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
-                        <?php
-                        $prod_views = $stats['product_views'] ?? [];
-                        arsort($prod_views);
-
-                        foreach (array_slice($prod_views, 0, 5, true) as $pid => $count):
-                            foreach ($products as $p):
-                                if (($p['id'] ?? '') == $pid):
-                        ?>
-                            <div class="flex justify-between items-center border-b pb-2">
-                                <span class="text-xs font-bold truncate pr-4"><?php echo e_admin($p['name'] ?? ''); ?></span>
-                                <span class="bg-slate-100 px-3 py-1 rounded-full text-[10px] font-black">
-                                    <?php echo $count; ?> odsłon
-                                </span>
-                            </div>
-                        <?php
-                                    break;
-                                endif;
-                            endforeach;
-                        endforeach;
-                        ?>
+                    <h3 class="font-black uppercase text-sm text-gray-400 tracking-widest mb-6">Odwiedzane podstrony</h3>
+                    <?php require_once __DIR__ . '/page_statistics.php';
+                    $pageViews = $stats['page_views'] ?? [];
+                    if (!is_array($pageViews)) $pageViews = [];
+                    arsort($pageViews, SORT_NUMERIC); ?>
+                    <p class="text-xs text-gray-500 mb-4">Odsłony od uruchomienia podziału: <?php echo e_admin(substr((string)($stats['page_tracking_since'] ?? ''), 0, 10)); ?>. Jedna osoba może odwiedzić kilka podstron.</p>
+                    <div class="space-y-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+                    <?php if (!$pageViews): ?><p>Brak zarejestrowanych odsłon podstron.</p><?php endif; ?>
+                    <?php foreach ($pageViews as $pageKey => $count): ?>
+                        <div class="flex justify-between items-center border-b pb-2 gap-3">
+                            <span class="text-xs font-bold break-words"><?php echo e_admin(rm_stats_page_name((string)$pageKey, $products)); ?></span>
+                            <span class="shrink-0 text-xs font-black"><?php echo (int)$count; ?> odsłon</span>
+                        </div>
+                    <?php endforeach; ?>
                     </div>
+                    <details class="mt-4"><summary>Wszystkie oferty — dane historyczne</summary>
+                    <?php $legacyViews = $stats['product_views'] ?? []; arsort($legacyViews, SORT_NUMERIC);
+                    foreach ($legacyViews as $pid => $count): ?>
+                        <p class="text-xs py-2"><?php echo e_admin(rm_stats_page_name('product:'.$pid, $products)); ?>: <strong><?php echo (int)$count; ?> odsłon</strong></p>
+                    <?php endforeach; ?></details>
                 </div>
 
             </div>

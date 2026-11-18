@@ -656,7 +656,8 @@ public class MainActivity extends Activity {
         Runnable render=()->{
             cards.removeAllViews();liveCards.removeAllViews();JSONObject st=siteStats();
             JSONObject days=st.optJSONObject("days");if(days==null)days=new JSONObject();
-            String today=new SimpleDateFormat("yyyy-MM-dd",Locale.US).format(new Date());
+            SimpleDateFormat todayFormat=new SimpleDateFormat("yyyy-MM-dd",Locale.US);todayFormat.setTimeZone(SitePageStats.ZONE);
+            String today=todayFormat.format(new Date());
             long todayViews=days.optLong(today,0);
             LinearLayout live=new LinearLayout(this);live.setOrientation(1);live.setPadding(14,12,14,12);live.setBackground(roundBg(0xffeaf8ef,13));
             TextView liveHead=new TextView(this);liveHead.setText("DZISIAJ • ODSŁONY");liveHead.setTextSize(12);liveHead.setTypeface(null,1);liveHead.setTextColor(0xff267044);live.addView(liveHead);
@@ -679,20 +680,17 @@ public class MainActivity extends Activity {
             JSONObject sources=st.optJSONObject("sources");long search=0,direct=0,other=0;
             if(sources!=null){Iterator<String> it=sources.keys();while(it.hasNext()){JSONObject day=sources.optJSONObject(it.next());if(day!=null){search+=day.optLong("search_social",0);direct+=day.optLong("direct",0);other+=day.optLong("other_ext",0);}}}
             addMetric(cards,"Wejścia z wyszukiwarki i social",String.valueOf(search));addMetric(cards,"Wejścia bezpośrednie",String.valueOf(direct));addMetric(cards,"Pozostałe źródła",String.valueOf(other));
-            TextView popular=new TextView(this);popular.setText("NAJPOPULARNIEJSZY SPRZĘT");popular.setTextSize(14);popular.setTypeface(null,1);popular.setTextColor(0xff526174);popular.setPadding(2,16,2,8);cards.addView(popular);
-            JSONObject pv=st.optJSONObject("product_views");if(pv==null||pv.length()==0){TextView empty=new TextView(this);empty.setText("Brak danych o odsłonach produktów.");cards.addView(empty);}else{
-                ArrayList<String> ids=new ArrayList<>();Iterator<String> it=pv.keys();while(it.hasNext())ids.add(it.next());Collections.sort(ids,(a,b)->Long.compare(pv.optLong(b),pv.optLong(a)));
-                JSONArray products=siteProducts();for(int i=0;i<Math.min(5,ids.size());i++){String id=ids.get(i),name=id;for(int j=0;j<products.length();j++){JSONObject p=products.optJSONObject(j);if(p!=null&&id.equals(p.optString("id"))){name=p.optString("name",id);break;}}addMetric(cards,name,pv.optString(id)+" odsłon");}
-            }
+            SitePageStats.render(this,cards,st,siteProducts(),range[0],new Date());
             final boolean sameRange=renderedRange[0]==range[0] && chartScroll[0]!=null;
             final int savedScrollX=sameRange?chartScroll[0].getScrollX():0;
             renderedRange[0]=range[0];
             chartCard.removeAllViews();
             final ArrayList<String> labels=new ArrayList<>(), dateKeys=new ArrayList<>();
             final ArrayList<Integer> values=new ArrayList<>();
-            Calendar cal=Calendar.getInstance();cal.add(Calendar.DAY_OF_YEAR,-(range[0]-1));
+            Calendar cal=Calendar.getInstance(SitePageStats.ZONE);cal.add(Calendar.DAY_OF_YEAR,-(range[0]-1));
             SimpleDateFormat keyFormat=new SimpleDateFormat("yyyy-MM-dd",Locale.US);
             SimpleDateFormat shortFormat=new SimpleDateFormat("dd.MM",Locale.getDefault());
+            keyFormat.setTimeZone(SitePageStats.ZONE);shortFormat.setTimeZone(SitePageStats.ZONE);
             for(int i=0;i<range[0];i++){
                 String day=keyFormat.format(cal.getTime());dateKeys.add(day);
                 labels.add(shortFormat.format(cal.getTime()));

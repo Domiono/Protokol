@@ -1,5 +1,8 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/page_statistics.php';
+rm_stats_public_page('/polityka-prywatnosci.php');
+
 require_once __DIR__ . '/rental_categories.php';
 // Contact messages and optional analytics documented; hosting logs retain according to provider configuration.
 header('Content-Type: text/html; charset=UTF-8');

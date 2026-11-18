@@ -1,6 +1,38 @@
-# 17.11.2026 — agent RentMor: PR #106, synchronizacja z main bez wdrożenia
+# 18.11.2026 — agent RentMor: PR #106 zsynchronizowany z main, BEZ WDROŻENIA
 
-PR #106: zachowano instrukcję autonomicznego agenta bez publikacji i zaktualizowano dokumentację względem main z 16.11 (Android 1.7.37, statystyki bieżącego miesiąca; wcześniej rezerwacje wielu sprzętów). To wyłącznie dokumentacja na gałęzi PR, nie modyfikuje kodu, danych, cen ani produkcji. Testy lokalne PHP/Android nieuruchamiane, bo brak zmian wykonywalnych. CI po nowym commicie: do potwierdzenia. Właściciel musi przejrzeć i scalić PR #106; agent nie scala ani nie wdraża. Synchronizacja prywatnych kopii na hostingu: niewykonywana.
+Przed kontynuacją sprawdzono AGENTS.md, dokumentację PR #106, dziennik i otwarte PR. PR #106 był 10 commitów za main po scaleniu PR167 ze statystykami podstron; zachowano najnowszy stan main, instrukcje agenta i wpisy projektu. To wyłącznie aktualizacja dokumentacyjna na gałęzi roboczej; nie zmieniono kodu, cen, danych ani produkcji. Weryfikacja CI nowego commitu: do potwierdzenia; testy lokalne PHP/Android nieuruchamiane. Właściciel ma przejrzeć PR #106, agent nie scala ani nie publikuje. Prywatne kopie na hostingu nie były synchronizowane.
+
+# 17.11.2026 — PR167: statystyki podstron OPUBLIKOWANE, Android1.7.38/code53
+
+Wdrożenie44170563446 SUCCESS, commitd2099868bcb1b6da7bb1fac2002d021f28c40c94. Pełne PHP/HTTP i Android testDebugUnitTest, podpisany assembleRelease PASS. Sześć testów transakcji/rollbacku PASS. Standardowe kontrole44170575003,44170575255,44170574958,44170575028 SUCCESS. Nowy syntetyczny poradnik korzystający wyłącznie ze wspólnego szablonu został automatycznie zliczony; strony prywatne i odmowa zgody wykluczone.
+
+Na hostingu opublikowano siedem dokładnych zmian z kontroląSHA i zachowaniem nowszego kodu, prywatną kopią i odczytem zwrotnym. Publiczne GET ośmiu stron (główna, oferta, kategoria, trzy poradniki, zasady, polityka) potwierdziły pojedyncze tokeny, odmowę przy braku zgody i poprawne odpowiedzi panelu/API. Nie wysyłano potwierdzeń testowych odsłon i nie odczytywano danych klientów ani stats.json. Automatyka przyszłych sprzętów działa przez ID katalogowe; nowe poradniki `poradnik-*.php` przez wspólny public_metadata, zgodnie z AGENTS.md — bez listy artykułów w liczniku/aplikacji.
+
+APK1.7.38/code53, zgodny podpis z1.7.37; SHA256e758b089c650869ab7b28ec9f192d216f79e9ed0dce5481e73fc05ccceb574c4. Odczyt zwrotnyAPK/metadanych, publiczne bajty obu linków, no-store i nazwaRentMor-1.7.38.apk potwierdzone. Instalator https://rentmor.pl/download-app.php?release=53 — aktualizacja bez odinstalowania. Ścieżka: Statystyki strony → Odwiedzane podstrony; zakres7/30/90dni, pełna historia ofert rozwijana. Szczegółowe dane zaczynają się od wdrożenia; nie odtwarzano dawnych globalnych odsłon. Nie wykonano testu na fizycznym telefonie.
+
+Oba dzienniki zsynchronizowano prywatnie0600 podczas publikacji. Niniejsze końcowe potwierdzenie wysyłane osobnym progress-only z kontrolą aktualnychSHA źródeł i dzienników oraz katalogu0700. Wynik końcowej synchronizacji i mergePR167 do sprawdzenia. Jednorazowe workflow źródeł/publikacji usunąć przedmerge. Nie ponawiać publikacji na starychSHAAPK/źródeł.
+
+# 17.11.2026 — PR167: zgoda na wdrożenie i automatyczne nowe treści
+
+Właściciel zatwierdził odczyt kodu hostingu przez FTP i wdrożenie PR167, dodając wymóg automatycznego zliczania nowych sprzętów i poradników. Odczyt44169861336 SUCCESS: tylko źródła i dwa dzienniki, zaszyfrowane do klucza roboczego; bez danych klientów/statystyk. Oba prywatne dzienniki zgodne z main. Przygotowano siedem dokładnych zmian z SHA, zachowujących nowszy kod hostingu: browser_stats, nowy page_statistics, public_metadata, category, zasady, polityka i sekcja statystyk admina. Index, endpoint pageview, online.js i trzy poradniki pozostają bez nadpisywania.
+
+Nowe sprzęty są zliczane automatycznie po ID katalogu. Nowy poradnik `poradnik-*.php` używający wspólnego public_metadata dziedziczy licznik bez dopisywania artykułu do list; brakujące nazwy mają automatyczną etykietę z adresu. Usunięto indywidualne wywołania licznika z istniejących poradników. Regułę przyszłych treści utrwalono w AGENTS.md. Nowy test tworzy nieznany wcześniej poradnik i sprawdza token oraz odsłonę bez zmiany licznika/aplikacji, a strona prywatna nie dostaje tokenu.
+
+Android1.7.38/code53. Poprzednie CI dla podstawowego podziału PASS; testy nowego mechanizmu, pełne Android/podpisanie, aktualna publikacja siedmiu źródeł+APK i prywatna synchronizacja: DO POTWIERDZENIA w booking-deploy. Publikator wymaga zgodnego podpisuAPK52, oczekiwanychSHA, prywatnej kopii, kontroli składni przygotowanych źródeł i odczytu zwrotnego. Publiczne GET sprawdzą osiem stron i zgody bez wysyłania potwierdzeń odsłon, więc nie dopiszą ruchu testowego. Nie zmieniać prywatnych danych najmu ani stats.json. Końcowy wynik i linkAPK podać dopiero po sukcesie.
+
+# 17.11.2026 — statystyki podstron: PR167, TESTY ZALICZONE, NIEOPUBLIKOWANE
+
+PR https://github.com/Domiono/Protokol/pull/167, kod dc3a21fc585bee81e79a2285f8627e1133009f68. Pełna kontrola 44168652981 SUCCESS: PHP/HTTP licznika, samodzielne podstrony, kategorie/SEO, API, pełne testDebugUnitTest i assembleDebug. Kontrole 44168653137 (edytor + Android), 44168653310 (kalendarz), 44168653397 (bezpieczeństwo repo) również SUCCESS. Trzy SitePageStatsTest sprawdzają granice dat Europe/Warsaw, zgodność ze starszymi danymi/usuniętą ofertą i pełną listę ośmiu ofert. Podczas walidacji poprawiono przestarzałe oczekiwanie testu kategorii: zdjęcie ma opisowy alt, nie pusty. Kod strony zachowany.
+
+Gotowe w kodzie: lista podstron 7/30/90 dni w Androidzie, pełna historia ofert, zbieranie odsłon głównej/ofert/kategorii/poradników/zasad/polityki i lista w panelu. Przygotowana wersja Android1.7.38/code53, bez podpisanego APK i fizycznego testu telefonu. PR pozostaje otwarty. Publikacja, odczyt aktualnego kodu hostingu i prywatna synchronizacja dokumentów pozostają ZABLOKOWANE/NIEWYKONANE po odmowie automatycznej kontroli opisanej poniżej. Następny krok: zgoda właściciela na ograniczony odczyt źródeł hostingu przez FTP i wdrożenie PR z backupem/SHA/rollbackiem, podpisanym APK i odczytem zwrotnym. Nie uruchamiać odrzuconej operacji inną drogą.
+
+# 17.11.2026 — podział statystyk na podstrony: W KODZIE, NIEOPUBLIKOWANE
+
+Na życzenie właściciela dodano pełną listę odwiedzanych podstron w Androidzie (zakres 7/30/90 dni) oraz panelu WWW (sumy od rozpoczęcia pomiaru). To odsłony, nie unikalne osoby. Zliczanie strony głównej i ofert korzysta z istniejącego potwierdzenia przeglądarki; kategorie, trzy poradniki, zasady i polityka otrzymują identyczny mechanizm. Zachowane zgody, wykluczenie właściciela/botów, jednorazowe tokeny i deduplikacja 30 sekund. Brak zapisu URL parametrów, identyfikatorów osób i danych klientów. Historyczne liczniki ofert nadal dostępne w pełnej rozwijanej liście; nie odtwarzamy podziału dawnych globalnych odsłon. Dzienny podział przechowywany 400 dni, sumy pozostają.
+
+Android planowany 1.7.38/code53. Testy dodane: zakresy i granica dnia Europe/Warsaw, stare dane/usunięta oferta, więcej niż pięć ofert, rzeczywiste potwierdzenia HTTP, różne podstrony, ponowienia, parametry URL, zgody/404, pojedynczy skrypt. Wynik CI/PR: do potwierdzenia. Brak testu na fizycznym telefonie i podpisanego APK.
+
+Wdrożenie ZABLOKOWANE: automatyczna kontrola odrzuciła push jednorazowego workflow odczytu hostingu przez FTP. Nie uruchomiono go; usunięty przed wysłaniem gałęzi. Dalsza praca obejmuje wyłącznie kod i standardowe testy bez sekretów. Nie odczytano aktualnych źródeł hostingu ani prywatnych kopii postępów; synchronizacja prywatnych dokumentów NIE WYKONANA. Przed publikacją potrzebna zgoda na odczyt właściwych źródeł i standardowe wdrożenie z kontrolą SHA, prywatną kopią, odczytem zwrotnym oraz zachowaniem nowszego kodu hostingu. Nie nadpisywać hostingu plikami repo. Nowe szczegółowe dane będą zbierane dopiero po wdrożeniu backendu; APK sam ich nie utworzy.
 
 # 16.11.2026 — bieżący miesiąc OPUBLIKOWANY, PR165
 

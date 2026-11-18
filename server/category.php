@@ -11,6 +11,9 @@ $raw = @file_get_contents(__DIR__ . '/data.json');
 $catalogue = $raw === false ? null : json_decode($raw, true);
 if (!is_array($catalogue)) { http_response_code(503); header('Retry-After: 300'); echo 'Katalog jest chwilowo niedostępny. Zadzwoń: 733 891 281.'; exit; }
 $items = rm_category_items($catalogue, $category['key']);
+require_once __DIR__ . '/page_statistics.php';
+rm_stats_public_page('/'.$slug.'/');
+
 // Category cards reuse the same versioned WebP manifest as product pages.
 // A missing or partial manifest falls back to existing original images.
 $manifestRaw = @file_get_contents(__DIR__ . '/rentmor-image-manifest.json');

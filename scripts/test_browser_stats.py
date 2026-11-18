@@ -7,7 +7,8 @@ with tempfile.TemporaryDirectory() as tmp:
     root=Path(tmp)
     for name in ['pageview.php','browser_stats.php','traffic_filter.php']:
         shutil.copy(ROOT/'server'/name,root/name)
-    (root/'page.php').write_text("<?php session_start(); require 'browser_stats.php'; header('Content-Type: application/json'); echo json_encode(['token'=>rm_stats_prepare_pageview((string)($_GET['product']??''),'direct')]);")
+    (root/'page.php').write_text("<?php session_start(); require 'browser_stats.php'; header('Content-Type: application/json'); echo json_encode(['token'=>rm_stats_prepare_pageview((string)($_GET['product']??''),'direct',parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH))]);")
+    shutil.copy(root/'page.php',root/'guide.php')
     original={'total_views':100,'unique_visitors':40,'total_phone_clicks':9,'days':{'2026-01-01':10},'product_views':{'p1':2}}
     (root/'stats.json').write_text(json.dumps(original))
     s=socket.socket();s.bind(('127.0.0.1',0));port=s.getsockname()[1];s.close()
@@ -37,6 +38,17 @@ with tempfile.TemporaryDirectory() as tmp:
         _,page,_=request('/page.php?product=p1',cookie=cookie)
         assert request('/pageview.php','POST',page['token'],cookie)[0]==200
         assert count()['total_views']==102 and count()['unique_visitors']==41 and count()['product_views']['p1']==3
+        assert count()['page_views']['/page.php']==1
+        assert count()['page_views']['product:p1']==1
+        assert 'page_tracking_since' in count()
+        assert sum(sum(v.values()) for v in count()['page_days'].values())==2
+        _,page,_=request('/guide.php?email=do-not-store@example.test',cookie=cookie)
+        assert request('/pageview.php','POST',page['token'],cookie)[0]==200
+        assert count()['total_views']==103 and count()['page_views']['/guide.php']==1
+        assert 'do-not-store' not in json.dumps(count())
+        _,page,_=request('/guide.php?utm_source=changed',cookie=cookie)
+        assert request('/pageview.php','POST',page['token'],cookie)[0]==200
+        assert count()['total_views']==103, 'standalone page reload was counted twice'
         for headers in [{'User-Agent':'Googlebot'},{'Cookie':'rm_stats_exclude=1'}]:
             assert request('/page.php',headers=headers)[1]['token']==''
         assert request('/page.php',headers={'X-Requested-With':'XMLHttpRequest'})[1]['token']==''
