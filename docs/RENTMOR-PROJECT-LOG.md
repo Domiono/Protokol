@@ -1,3 +1,7 @@
+# 19.11.2026 — agent RentMor: naprawa regresji dokumentacji PR #106, BEZ WDROŻENIA
+
+Przegląd diff PR #106 wykazał niezamierzone usunięcie z AGENTS.md obowiązkowej sekcji „Statystyki nowych treści — decyzja właściciela 17.11.2026”. Przywrócono ją w całości z aktualnego main, zachowując dodatkowe ograniczenia autonomicznego agenta. Brak zmian kodu wykonywalnego, danych klientów, hostingu, cen i APK. Poprzedni commit PR #106 miał 4 zielone kontrole GitHub Actions (booking calendar, repo deployment safety, full offer editor, rental operations); dla commitu z poprawką sprawdzić nowe CI. Lokalnych testów PHP/Android nie uruchamiano, ponieważ zmieniono wyłącznie dokumentację. PR pozostaje draft, właściciel decyduje o scaleniu. Prywatne kopie na serwerze nie były aktualizowane.
+
 # 18.11.2026 — agent RentMor: PR #106 zsynchronizowany z main, BEZ WDROŻENIA
 
 Przed kontynuacją sprawdzono AGENTS.md, dokumentację PR #106, dziennik i otwarte PR. PR #106 był 10 commitów za main po scaleniu PR167 ze statystykami podstron; zachowano najnowszy stan main, instrukcje agenta i wpisy projektu. To wyłącznie aktualizacja dokumentacyjna na gałęzi roboczej; nie zmieniono kodu, cen, danych ani produkcji. Weryfikacja CI nowego commitu: do potwierdzenia; testy lokalne PHP/Android nieuruchamiane. Właściciel ma przejrzeć PR #106, agent nie scala ani nie publikuje. Prywatne kopie na hostingu nie były synchronizowane.
