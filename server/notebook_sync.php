@@ -49,8 +49,14 @@ function rm_notebook_apply(array &$data,array $operations): array {
             !in_array($category,['Zakupy','Umowy','Inne'],true)) {
             throw new InvalidArgumentException('Invalid notebook text or category');
         }
+        // One palette digit per Android UTF-16 unit. Legacy clients may omit the mask.
+        $marks=$op['marks']??(($old['text']??null)===$text?($old['marks']??''):'');
+        if (!is_string($marks) || ($marks!=='' && (
+            !preg_match('/^[0-4]{1,2000}$/D',$marks) ||
+            strlen($marks)!==preg_match_all('/./us',$text)+preg_match_all('/[\x{10000}-\x{10ffff}]/u',$text)
+        ))) throw new InvalidArgumentException('Invalid highlights');
         $revision=++$data['revision'];
-        $data['notes'][$id]=['id'=>$id,'text'=>$text,'category'=>$category,'done'=>$done,
+        $data['notes'][$id]=['id'=>$id,'text'=>$text,'category'=>$category,'done'=>$done,'marks'=>$marks,
                             'deleted'=>$deleted,'revision'=>$revision];
         $data['processed'][$opId]=$revision;
         $results[]=['op_id'=>$opId,'ok'=>true,'revision'=>$revision];

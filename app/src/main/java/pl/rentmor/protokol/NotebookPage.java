@@ -85,7 +85,7 @@ final class NotebookPage {
         LinearLayout card=new LinearLayout(activity);card.setOrientation(1);card.setPadding(dp(12),dp(10),dp(12),dp(10));card.setBackground(background(Color.WHITE));
         LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.bottomMargin=dp(10);list.addView(card,cp);
         TextView categoryLabel=text(entry.category+(entry.conflict?" • KONFLIKT: sprawdź wpis i zapisz ponownie":""),12,entry.conflict?0xffb45309:0xff526174);card.addView(categoryLabel);
-        CheckBox check=new CheckBox(activity);check.setText(entry.text);check.setTextSize(16);check.setTextColor(entry.done?0xff697386:0xff17263e);
+        CheckBox check=new CheckBox(activity);check.setText(NoteHighlights.display(entry.text,entry.marks));check.setTextSize(16);check.setTextColor(entry.done?0xff697386:0xff17263e);
         check.setMinHeight(dp(48));check.setGravity(Gravity.TOP);check.setPadding(0,dp(8),0,dp(8));check.setChecked(entry.done);
         if(entry.done)check.setPaintFlags(check.getPaintFlags()|Paint.STRIKE_THRU_TEXT_FLAG);
         card.addView(check,new LinearLayout.LayoutParams(-1,-2));
@@ -113,22 +113,42 @@ final class NotebookPage {
         String initial=entry==null?category:entry.category;
         for(int i=0;i<NotebookStore.CATEGORIES.length;i++)if(NotebookStore.CATEGORIES[i].equals(initial))type.setSelection(i);
         form.addView(type,new LinearLayout.LayoutParams(-1,-2));
-        EditText input=new EditText(activity);input.setHint("Co trzeba zrobić?");input.setTextSize(16);input.setMinLines(3);input.setMaxLines(8);input.setGravity(Gravity.TOP);
+        EditText input=new EditText(activity);input.setHint("Treść notatki");input.setTextSize(16);input.setMinLines(3);input.setMaxLines(8);input.setGravity(Gravity.TOP);
         input.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE|android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         input.setFilters(new InputFilter[]{new InputFilter.LengthFilter(NotebookStore.MAX_LENGTH)});
-        if(entry!=null)input.setText(entry.text);
+        if(entry!=null)input.setText(NoteHighlights.display(entry.text,entry.marks));
         form.addView(input,new LinearLayout.LayoutParams(-1,-2));
+        form.addView(text("Zaznacz fragment tekstu, a następnie wybierz kolor.",14,0xff526174));
+        LinearLayout row=new LinearLayout(activity);
+        for(int i=1;i<=NoteHighlights.COLORS.length;i++){
+            final int color=i;
+            Button swatch=button("●",false,()->highlight(input,color));
+            swatch.setContentDescription(NoteHighlights.LABELS[i-1]);
+            swatch.setTextColor(0xff17263e);
+            swatch.setBackgroundTintList(ColorStateList.valueOf(NoteHighlights.COLORS[i-1]));
+            row.addView(swatch,new LinearLayout.LayoutParams(0,-2,1));
+        }
+        form.addView(row);
+        form.addView(button("Usuń zakreślenie",false,()->highlight(input,0)));
         ScrollView scroll=new ScrollView(activity);scroll.addView(form);
         AlertDialog dialog=new AlertDialog.Builder(activity).setTitle(entry==null?"Nowy wpis":"Edytuj wpis")
             .setView(scroll).setNegativeButton("Anuluj",null).setPositiveButton("Zapisz",null).create();
         dialog.show();
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
             try{
-                store.save(entry==null?null:entry.id,input.getText().toString(),type.getSelectedItem().toString());
+                store.save(entry==null?null:entry.id,input.getText().toString(),type.getSelectedItem().toString(),NoteHighlights.encode(input.getText()));
                 dialog.dismiss();render();syncNow();
             }catch(IllegalArgumentException error){input.setError(error.getMessage());}
             catch(Exception error){error(error);}
         });
+    }
+    private void highlight(EditText input,int color){
+        int a=input.getSelectionStart(), b=input.getSelectionEnd();
+        if(a<0 || b<0 || a==b){
+            Toast.makeText(activity,"Najpierw zaznacz fragment tekstu.",Toast.LENGTH_SHORT).show();
+            return;
+        }
+        NoteHighlights.apply(input.getText(),Math.min(a,b),Math.max(a,b),color);
     }
     private void syncNow(){
         if(sync==null)return;
