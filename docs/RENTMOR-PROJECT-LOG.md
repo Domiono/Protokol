@@ -1,3 +1,7 @@
+# 24.11.2026 — opublikowano zakreślenia notatek, Android 1.7.39 (54)
+
+PR #168 scalony. Cztery kontrole PR zakończone pomyślnie. Wydanie 45418477709 potwierdziło testy Androida i PHP, zgodność podpisu z poprzednim APK, publikację notebook_sync.php, kopie bezpieczeństwa i odczyt zwrotny instalatora. Pobieranie: https://rentmor.pl/download-app.php?release=54. Bez testu na fizycznym telefonie.
+
 # 24.11.2026 — kolorowe zakreślenia w notatniku Androida
 
 Gałąź `codex/notebook-highlights`, Android 1.7.39 (54), numer PR do potwierdzenia. Edytor pozwala zakreślać fragmenty czterema kolorami i usuwać zakreślenie. Lista pokazuje zapisane kolory. Migracja SQLite dodaje maskę kolorów do istniejących wpisów. API obsługuje opcjonalną maskę i zachowuje ją przy odhaczeniu wpisu ze starszej aplikacji. Lokalny test PHP synchronizacji zaliczony, w tym zapis z emoji i obsługa starszego klienta. Rozszerzono test edytora Robolectric. Wynik Android CI, podpisany instalator, publikacja i synchronizacja prywatnych dzienników do potwierdzenia.
