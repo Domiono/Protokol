@@ -23,6 +23,18 @@ $deleted=rm_notebook_apply($data,[$stale]);
 check($deleted[0]['ok']&&$data['notes'][$id]['deleted'],'tombstone');
 $again=rm_notebook_apply($data,[$note]);
 check($again[0]['revision']===1 && $data['notes'][$id]['deleted'],'replayed stale edit resurrected deletion');
+$colored=$note;
+$colored['text']='Łódź 🔧';
+$colored['marks']='1111000';
+$sample=rm_notebook_initial();
+rm_notebook_apply($sample,[$colored]);
+check($sample['notes'][$id]['marks']==='1111000','unicode mask persisted');
+unset($colored['marks']);
+$colored['base_revision']=1;
+$colored['op_id']=$op2;
+$colored['done']=true;
+rm_notebook_apply($sample,[$colored]);
+check($sample['notes'][$id]['marks']==='1111000','legacy completion preserves mask');
 $path=sys_get_temp_dir().'/rentmor-notebook-test-'.bin2hex(random_bytes(8)).'.json';
 try {
     rm_notebook_write($path,$data);
