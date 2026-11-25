@@ -1,3 +1,7 @@
+# 25.11.2026 — synchronizacja dokumentacji agenta w PR #106
+
+Gałąź PR uwzględnia `main` po wydaniu Android 1.7.39 (54), wraz z historią publikacji zakreśleń z PR #168. Zakres zmian obejmuje dokumentację. Wyniki kontroli i stan przeglądu można sprawdzić w PR #106.
+
 # 24.11.2026 — opublikowano zakreślenia notatek, Android 1.7.39 (54)
 
 PR #168 scalony. Cztery kontrole PR zakończone pomyślnie. Wydanie 45418477709 potwierdziło testy Androida i PHP, zgodność podpisu z poprzednim APK, publikację notebook_sync.php, kopie bezpieczeństwa i odczyt zwrotny instalatora. Pobieranie: https://rentmor.pl/download-app.php?release=54. Bez testu na fizycznym telefonie.
