@@ -16,18 +16,18 @@ final class NotebookStore extends SQLiteOpenHelper {
     static final String[] CATEGORIES={"Zakupy","Umowy","Inne"};
     static final int MAX_LENGTH=2000;
     static final class Entry {
-        final String id,text,category;
+        final String id,text,category,marks;
         final boolean done,conflict,remoteDeleted;
         final String remoteText,remoteCategory;
-        Entry(String id,String text,String category,boolean done){this(id,text,category,done,false,"","",false);}
-        Entry(String id,String text,String category,boolean done,boolean conflict,String remoteText,String remoteCategory,boolean remoteDeleted){
+        Entry(String id,String text,String category,boolean done,boolean conflict,String remoteText,String remoteCategory,boolean remoteDeleted,String marks){
+            this.marks=marks;
             this.id=id;this.text=text;this.category=category;this.done=done;this.conflict=conflict;
             this.remoteText=remoteText;this.remoteCategory=remoteCategory;this.remoteDeleted=remoteDeleted;
         }
     }
-    NotebookStore(Context context){super(context.getApplicationContext(),"rentmor_notebook.db",null,2);}
+    NotebookStore(Context context){super(context.getApplicationContext(),"rentmor_notebook.db",null,3);}
     @Override public void onCreate(SQLiteDatabase db) {
-        db.execSQL("CREATE TABLE notes(id TEXT PRIMARY KEY, text TEXT NOT NULL, category TEXT NOT NULL, done INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0, dirty INTEGER NOT NULL DEFAULT 1, conflict INTEGER NOT NULL DEFAULT 0, server_revision INTEGER NOT NULL DEFAULT 0, op_id TEXT NOT NULL DEFAULT '', remote_text TEXT NOT NULL DEFAULT '', remote_category TEXT NOT NULL DEFAULT '', remote_deleted INTEGER NOT NULL DEFAULT 0)");
+        db.execSQL("CREATE TABLE notes(id TEXT PRIMARY KEY, text TEXT NOT NULL, category TEXT NOT NULL, done INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0, dirty INTEGER NOT NULL DEFAULT 1, conflict INTEGER NOT NULL DEFAULT 0, server_revision INTEGER NOT NULL DEFAULT 0, op_id TEXT NOT NULL DEFAULT '', remote_text TEXT NOT NULL DEFAULT '', remote_category TEXT NOT NULL DEFAULT '', remote_deleted INTEGER NOT NULL DEFAULT 0, marks TEXT NOT NULL DEFAULT '')");
     }
     @Override public void onUpgrade(SQLiteDatabase db,int oldVersion,int newVersion) {
         if(oldVersion<2){
@@ -41,6 +41,7 @@ final class NotebookStore extends SQLiteOpenHelper {
             db.execSQL("ALTER TABLE notes ADD COLUMN remote_deleted INTEGER NOT NULL DEFAULT 0");
             db.execSQL("UPDATE notes SET op_id=lower(hex(randomblob(4)))||'-'||lower(hex(randomblob(2)))||'-4'||substr(lower(hex(randomblob(2))),2)||'-a'||substr(lower(hex(randomblob(2))),2)||'-'||lower(hex(randomblob(6))) WHERE op_id=''");
         }
+        if(oldVersion<3) db.execSQL("ALTER TABLE notes ADD COLUMN marks TEXT NOT NULL DEFAULT ''");
     }
     private static boolean known(String category){
         for(String c:CATEGORIES)if(c.equals(category))return true;
@@ -52,10 +53,19 @@ final class NotebookStore extends SQLiteOpenHelper {
         values.put("remote_text","");values.put("remote_category","");values.put("remote_deleted",0);
     }
     synchronized String save(String id,String text,String category){
-        text=text==null?"":text.trim();
+        return save(id,text,category,"");
+    }
+    synchronized String save(String id,String text,String category,String marks){
+        String original=text==null?"":text;
+        text=original.trim();
+        if(!marks.isEmpty()){
+            if(marks.length()!=original.length())throw new IllegalArgumentException("Niepoprawne zakreślenie.");
+            int start=original.indexOf(text);
+            marks=marks.substring(start,start+text.length());
+        }
         if(text.isEmpty()||text.length()>MAX_LENGTH)throw new IllegalArgumentException("Wpisz od 1 do 2000 znaków.");
         if(!known(category))throw new IllegalArgumentException("Wybierz kategorię.");
-        ContentValues values=new ContentValues();values.put("text",text);values.put("category",category);values.put("deleted",0);
+        ContentValues values=new ContentValues();values.put("marks",marks);values.put("text",text);values.put("category",category);values.put("deleted",0);
         markEdited(values);
         if(id==null){
             id=UUID.randomUUID().toString();values.put("id",id);values.put("created",System.currentTimeMillis());
@@ -91,14 +101,14 @@ final class NotebookStore extends SQLiteOpenHelper {
         List<Entry> result=new ArrayList<>();
         String selection="deleted=0 AND done=?"+(category==null?"":" AND category=?");
         String[] args=category==null?new String[]{done?"1":"0"}:new String[]{done?"1":"0",category};
-        try(Cursor cursor=getReadableDatabase().query("notes",new String[]{"id","text","category","done","conflict","remote_text","remote_category","remote_deleted"},selection,args,null,null,"created DESC, rowid DESC")){
-            while(cursor.moveToNext())result.add(new Entry(cursor.getString(0),cursor.getString(1),cursor.getString(2),cursor.getInt(3)==1,cursor.getInt(4)==1,cursor.getString(5),cursor.getString(6),cursor.getInt(7)==1));
+        try(Cursor cursor=getReadableDatabase().query("notes",new String[]{"id","text","category","done","conflict","remote_text","remote_category","remote_deleted","marks"},selection,args,null,null,"created DESC, rowid DESC")){
+            while(cursor.moveToNext())result.add(new Entry(cursor.getString(0),cursor.getString(1),cursor.getString(2),cursor.getInt(3)==1,cursor.getInt(4)==1,cursor.getString(5),cursor.getString(6),cursor.getInt(7)==1,cursor.getString(8)));
         }
         return result;
     }
     synchronized JSONArray pending() throws Exception {
         JSONArray result=new JSONArray();
-        try(Cursor cursor=getReadableDatabase().query("notes",new String[]{"id","op_id","text","category","done","deleted","server_revision"},
+        try(Cursor cursor=getReadableDatabase().query("notes",new String[]{"id","op_id","text","category","done","deleted","server_revision","marks"},
                 "dirty=1 AND conflict=0",null,null,null,"created ASC","100")){
             while(cursor.moveToNext()){
                 JSONObject obj=new JSONObject();
@@ -106,6 +116,7 @@ final class NotebookStore extends SQLiteOpenHelper {
                 obj.put("text",cursor.getString(2));obj.put("category",cursor.getString(3));
                 obj.put("done",cursor.getInt(4)==1);obj.put("deleted",cursor.getInt(5)==1);
                 obj.put("base_revision",cursor.getLong(6));
+                obj.put("marks",cursor.getString(7));
                 result.put(obj);
             }
         }
@@ -159,6 +170,8 @@ final class NotebookStore extends SQLiteOpenHelper {
                     db.update("notes",values,"id=?",new String[]{id});
                     continue;
                 }
+                if(item.has("marks") || !found)values.put("marks",item.optString("marks",""));
+                else db.execSQL("UPDATE notes SET marks='' WHERE id=? AND text<>?",new Object[]{id,body});
                 values.put("text",body);values.put("category",category);
                 values.put("done",item.getBoolean("done")?1:0);values.put("deleted",item.getBoolean("deleted")?1:0);
                 values.put("dirty",0);values.put("conflict",0);values.put("op_id","");

@@ -1,3 +1,15 @@
+# 25.11.2026 — synchronizacja dokumentacji agenta w PR #106
+
+Gałąź PR uwzględnia `main` po wydaniu Android 1.7.39 (54), wraz z historią publikacji zakreśleń z PR #168. Zakres zmian obejmuje dokumentację. Wyniki kontroli i stan przeglądu można sprawdzić w PR #106.
+
+# 24.11.2026 — opublikowano zakreślenia notatek, Android 1.7.39 (54)
+
+PR #168 scalony. Cztery kontrole PR zakończone pomyślnie. Wydanie 45418477709 potwierdziło testy Androida i PHP, zgodność podpisu z poprzednim APK, publikację notebook_sync.php, kopie bezpieczeństwa i odczyt zwrotny instalatora. Pobieranie: https://rentmor.pl/download-app.php?release=54. Bez testu na fizycznym telefonie.
+
+# 24.11.2026 — kolorowe zakreślenia w notatniku Androida
+
+Gałąź `codex/notebook-highlights`, Android 1.7.39 (54), numer PR do potwierdzenia. Edytor pozwala zakreślać fragmenty czterema kolorami i usuwać zakreślenie. Lista pokazuje zapisane kolory. Migracja SQLite dodaje maskę kolorów do istniejących wpisów. API obsługuje opcjonalną maskę i zachowuje ją przy odhaczeniu wpisu ze starszej aplikacji. Lokalny test PHP synchronizacji zaliczony, w tym zapis z emoji i obsługa starszego klienta. Rozszerzono test edytora Robolectric. Wynik Android CI, podpisany instalator, publikacja i synchronizacja prywatnych dzienników do potwierdzenia.
+
 # 17.11.2026 — PR167: statystyki podstron OPUBLIKOWANE, Android1.7.38/code53
 
 Wdrożenie44170563446 SUCCESS, commitd2099868bcb1b6da7bb1fac2002d021f28c40c94. Pełne PHP/HTTP i Android testDebugUnitTest, podpisany assembleRelease PASS. Sześć testów transakcji/rollbacku PASS. Standardowe kontrole44170575003,44170575255,44170574958,44170575028 SUCCESS. Nowy syntetyczny poradnik korzystający wyłącznie ze wspólnego szablonu został automatycznie zliczony; strony prywatne i odmowa zgody wykluczone.
